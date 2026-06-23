@@ -77,6 +77,13 @@ jobs:
               - RLS(Row Level Security) 정책 및 데이터베이스 보안(SQL Injection, 권한 분리)
               - PostgreSQL 데이터베이스 성능(쿼리 튜닝, 인덱싱 활용, 효율적인 조인)
               - Supabase Edge Functions 및 DB 트리거/함수의 아키텍처적 적합성
+              - **Supabase 공식 보안 가이드라인(Agent Skills) 준수 검토**:
+                1. 권한 부여(Authorization) 시 user_metadata가 아닌 app_metadata를 사용하도록 검토 (user_metadata는 사용자가 직접 수정 가능하므로 위험)
+                2. service_role 키가 클라이언트/프론트엔드 환경변수(예: NEXT_PUBLIC_ 등)에 노출되지 않도록 차단
+                3. PostgreSQL 뷰(View) 생성 시 RLS를 우회하지 않도록 security_invoker = true 설정 검토
+                4. UPDATE 정책(Policy)이 SELECT 정책과 함께 정의되어 있는지 검토 (SELECT 정책이 없으면 UPDATE가 자동으로 0개의 로우만 반영되어 실패함)
+                5. 스토리지 업로드(Storage Upsert) 정책 설계 시 INSERT, SELECT, UPDATE 권한이 모두 부여되었는지 검토
+                6. 사용자 삭제 시 JWT 세션 취소(Session Revoke) 처리가 동반되는지 확인
               `;
             } else if (hasDocs && !hasBackend) {
               reviewerPersona = "전문 테크니컬 라이터 (Technical Writer)";
@@ -89,7 +96,7 @@ jobs:
             } else {
               reviewerPersona = "시니어 백엔드 엔지니어(Node.js/Supabase 전문) & 기술 문서 전문가";
               evaluationCriteria = `
-              - [백엔드 코드]: Node.js 비동기 로직 효율성, Supabase API 활용 및 RLS 보안, PostgreSQL 쿼리 최적화 및 예외 처리 검토
+              - [백엔드 코드]: Node.js/Supabase 비동기 로직 효율성, RLS 보안(security_invoker, app_metadata 사용성 포함), PostgreSQL 쿼리 최적화 및 예외 처리 검토
               - [문서 파일]: 기술 문서의 가독성, 맞춤법 및 오탈자 검사, API 스펙 및 데이터 구조 정의의 완성도 검토
               `;
             }
