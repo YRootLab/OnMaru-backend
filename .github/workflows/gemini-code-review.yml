@@ -93,9 +93,9 @@ jobs:
             ${diffText.substring(0, 50000)}
             \`\`\``;
 
-            // 3. 구글 Gemini API 호출 (100% 무료인 gemini-1.5-flash 모델로 고정)
-            console.log("Gemini API 호출 중 (무료 티어 전용 모델)...");
-            const model = "gemini-1.5-flash"; 
+            // 3. 구글 Gemini API 호출
+            console.log("Gemini API 호출 중...");
+            const model = "gemini-3.0-flash"; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
             const requestBody = {
