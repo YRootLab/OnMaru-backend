@@ -65,94 +65,28 @@ jobs:
               }
             });
 
-            // 2. 역할 및 프롬프트 정의 (상황별 맞춤 리뷰어 페르소나 주입)
-            let reviewerPersona = "";
-            let evaluationCriteria = "";
+            // 2. 역할 및 프롬프트 정의 (스타일 가이드를 동적으로 로드하여 중복 관리 최소화)
+            const fs = require('fs');
+            const path = require('path');
 
-            if (hasBackend && !hasDocs) {
-              reviewerPersona = "시니어 백엔드 소프트웨어 엔지니어 (Node.js & Supabase 전문)";
-              evaluationCriteria = `
-              - Node.js 비동기 처리(async/await, Promise 에러 핸들링), 가독성 및 컨벤션
-              - Supabase 클라이언트 사용법의 적절성 및 API 호출 최적화
-              - RLS(Row Level Security) 정책 및 데이터베이스 보안(SQL Injection, 권한 분리)
-              - PostgreSQL 데이터베이스 성능(쿼리 튜닝, 인덱싱 활용, 효율적인 조인)
-              - Supabase Edge Functions 및 DB 트리거/함수의 아키텍처적 적합성
-              - **Node.js 모범 사례 (goldbergyoni/nodebestpractices) 핵심 검토**:
-                1. 아키텍처 구조 (Project Architecture):
-                   - 기능을 컴포넌트 단위로 분리하고 계층화(Web, Business Logic, Data Access)하여 우려를 깨끗이 나누었는지 검사
-                   - 컨트롤러(Express req, res 등 웹 객체)를 비즈니스 로직이나 데이터 계층으로 넘기지 않고 경계를 엄격히 준수했는지 확인
-                   - 서버의 시작 부분(network/WWW)과 라우팅/API 정의(app.js)를 분리하여 작성했는지 검토
-                   - 환경설정(Config)은 보안성을 위해 코드 외부(환경 변수 등)로 안전하게 다중화/분리했는지 검증
-                2. 에러 처리 (Error Handling):
-                   - 콜백 스타일의 비동기 에러 핸들링을 지양하고 async-await 또는 Promise를 일관되게 사용했는지 검사
-                   - 비동기 처리 시 unhandled promise rejection(처리되지 않은 promise 거부)이 방치되지 않도록 catch문 확인
-                   - 에러 발생 시 문자열이나 임의의 일반 객체를 throw/reject 하지 않고, 스택 정보 손실이 없는 내장 Error 객체만 사용하는지 검토
-                   - 알려진 동작상의 에러(Operational Error)와 예상하지 못한 프로그래머 에러(Programmer Error)를 구분하여 유연하고 안전하게 예외 처리 유도
-                   - API 호출 인자의 유효성 검사(Validation)를 초기에 수행해 실패하도록 설계했는지 확인 (Fail-Fast)
-                3. 코드 스타일 (Code Style):
-                   - var 선언을 지양하고 const와 let(재할당 필요 시)만 사용했는지 검증
-                   - 코드 블록의 여는 중괄호({)는 선언문과 같은 줄에 시작하도록 컨벤션 유지
-                   - 변수/함수는 camelCase, 클래스는 PascalCase 명명 규칙을 적용했는지 검토
-                   - 엄격한 항등 연산자(===)를 사용하여 타입 강제 변환에 의한 예외 방지
-                   - 파일 내 require/import는 상단에 집중시키고 함수 내 동기 require 호출이 없는지 검토
-              - **Supabase 공식 보안 가이드라인(Agent Skills) 준수 검토**:
-                1. 권한 부여(Authorization) 시 user_metadata가 아닌 app_metadata를 사용하도록 검토 (user_metadata는 사용자가 직접 수정 가능하므로 위험)
-                2. service_role 키가 클라이언트/프론트엔드 환경변수(예: NEXT_PUBLIC_ 등)에 노출되지 않도록 차단
-                3. PostgreSQL 뷰(View) 생성 시 RLS를 우회하지 않도록 security_invoker = true 설정 검토
-                4. UPDATE 정책(Policy)이 SELECT 정책과 함께 정의되어 있는지 검토 (SELECT 정책이 없으면 UPDATE가 자동으로 0개의 로우만 반영되어 실패함)
-                5. 스토리지 업로드(Storage Upsert) 정책 설계 시 INSERT, SELECT, UPDATE 권한이 모두 부여되었는지 검토
-                6. 사용자 삭제 시 JWT 세션 취소(Session Revoke) 처리가 동반되는지 확인
-              `;
-            } else if (hasDocs && !hasBackend) {
-              reviewerPersona = "전문 테크니컬 라이터 (Technical Writer)";
-              evaluationCriteria = `
-              - 기술 문서의 가독성 및 문맥 흐름의 매끄러움
-              - 맞춤법, 띄어쓰기, 문장 표현의 정확성 및 오탈자 검출
-              - API 스펙 및 데이터 구조 정의의 완성도와 누락 여부
-              - 마크다운 문법 및 구조적 포맷팅 가독성
-              `;
-            } else {
-              reviewerPersona = "시니어 백엔드 엔지니어(Node.js/Supabase 전문) & 기술 문서 전문가";
-              evaluationCriteria = `
-              - [백엔드 코드]: Node.js/Supabase 비동기 로직 및 에러 처리 효율성(goldbergyoni 모범 사례 기준 - 구조/에러/코드 스타일 준수), RLS 보안(security_invoker, app_metadata 사용성 포함), PostgreSQL 쿼리 최적화 및 예외 처리 검토
-              - [문서 파일]: 기술 문서의 가독성, 맞춤법 및 오탈자 검사, API 스펙 및 데이터 구조 정의의 완성도 검토
-              `;
+            const reviewerPersona = hasBackend && !hasDocs
+              ? "시니어 백엔드 소프트웨어 엔지니어 (Node.js & Supabase 전문)"
+              : (hasDocs && !hasBackend ? "전문 테크니컬 라이터 (Technical Writer)" : "시니어 백엔드 엔지니어 & 기술 문서 전문가");
+
+            let styleguide = "";
+            try {
+              const styleguidePath = path.join(process.cwd(), '.gemini/styleguide.md');
+              styleguide = fs.readFileSync(styleguidePath, 'utf8');
+              console.log("✅ 스타일 가이드(.gemini/styleguide.md)를 성공적으로 읽었습니다.");
+            } catch (err) {
+              console.warn("⚠️ 스타일 가이드 파일(.gemini/styleguide.md)을 찾을 수 없어 기본 룰셋으로 리뷰를 진행합니다.", err);
             }
 
+            const prompt = `당신은 대한민국 최고의 개발자이자 AI 코드 리뷰어입니다.
+            제공된 스타일 가이드와 리뷰 기준을 철저히 확인하여 전달된 Git Diff를 면밀히 분석하고 코드 리뷰 피드백을 작성해 주세요.
 
-            const prompt = `당신은 대한민국 최고의 개발자이자 ${reviewerPersona}입니다.
-            전달된 Git Diff를 면밀히 분석하고 코드 리뷰 피드백을 작성해 주세요.
-
-            [작성 시 절대 규칙 (CRITICAL RULES)]
-            1. **반드시 100% 한국어로만 작성하세요.** 영어나 다른 언어로 답변하지 마십시오.
-            2. 각 분야의 전문가다운 전문 용어를 사용하되, 쉽고 정중한 어조(해요체 또는 하십시오체)로 답변하세요.
-            3. 개선할 부분이 없을 경우 무리해서 지적하지 말고, 코드의 훌륭한 점을 칭찬하고 독려하는 긍정적인 메시지를 작성해 주세요.
-
-            [좋은 코드를 위한 4가지 핵심 기준]
-            코드 리뷰 시 아래 4가지 코어 품질 기준을 기반으로 코드를 검토하세요:
-            1. **가독성 (Readability)**: 코드가 읽기 쉬운가?
-               - 맥락 줄이기: 불필요한 구현 상세 추상화, 같이 실행되지 않는 코드 분리, 로직별 함수 쪼개기
-               - 이름 붙이기: 복잡한 조건식이나 매직 넘버(하드코딩 값)에 의도가 드러나는 명확한 이름 부여
-               - 위에서 아래로 읽히게 하기: 시점 이동 최소화, 복잡한 삼항 연산자 단순화, 자연스러운 흐름
-            2. **예측 가능성 (Predictability)**: 동료들이 동작을 예측할 수 있는가?
-               - 일관된 규칙 준수 및 숨겨진 로직(Side Effect) 드러내기
-               - 이름, 파라미터, 반환 타입을 통해 유추 가능해야 함 (유사한 성격의 함수는 반환 타입 통일)
-            3. **응집도 (Cohesion)**: 함께 수정되어야 할 코드가 같이 모여있는가?
-               - 동시 수정이 발생하는 코드를 가급적 근접시키거나 적절히 공통화/상수화
-               * 가독성과 응집도가 상충될 경우: 오류 발생 위험이 높으면 응집도를 우선(공통화)하고, 위험이 낮다면 가독성을 위해 적당한 코드 중복을 허용
-            4. **결합도 (Coupling)**: 코드 수정 시 영향 범위가 적절히 격리되어 있는가?
-               - 단일 책임 원칙 준수 (하나의 모듈/함수는 하나의 역할만 관리)
-               - 변경에 유연하게 대처할 수 있도록 과도한 공통화는 피하고 필요한 경우 중복을 허용하여 결합도를 낮춤
-
-            [평가 항목 기준 (기술 스택별)]
-            ${evaluationCriteria}
-
-            [피드백 작성 구조]
-            1. **변경 사항 요약**: 무엇이 어떻게 변경되었는지 간단 요약
-            2. **세부 리뷰 의견**: (위의 4가지 기준 및 기술 스택별 기준을 고려하여 작성)
-               - 💡 **보안 & 안정성** (문제가 있을 때만 작성)
-               - ⚙️ **코드 개선 및 최적화** (구체적인 대안 코드 예시 제안 환영)
-               - 👏 **좋았던 부분** (잘 작성된 부분에 대한 칭찬)
+            [스타일 가이드 및 코드 검토 기준]
+            ${styleguide || "반드시 100% 한국어로 코드 리뷰를 성실히 작성해 주세요."}
 
             [Git Diff]
             \`\`\`diff
