@@ -7,7 +7,7 @@
 - **프로젝트명**: 온마루(OnMaru) — 한국관광공사 API 기반 관광지 오디오 가이드 서비스 백엔드
 - **기술 스택**: Node.js (백엔드 서버) + Supabase (인증, DB, 스토리지, Edge Functions)
 - **주요 외부 연동**: 한국관광공사 API 
-- **데이터베이스**: PostgreSQL (Supabase 호스팅), 주요 테이블: `tour_spots`, `audio_guides`
+- **데이터베이스**: PostgreSQL (Supabase 호스팅), 주요 테이블: `tour_spots`, `audio_guides` 등 (기능 확장에 따라 지속 추가 예정)
 
 ---
 
