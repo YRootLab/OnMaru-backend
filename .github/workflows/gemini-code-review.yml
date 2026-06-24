@@ -93,9 +93,9 @@ jobs:
             ${diffText.substring(0, 50000)}
             \`\`\``;
 
-            // 3. 구글 Gemini API 호출 (가장 빠른 응답을 주는 gemini-1.5-flash 모델 사용)
+            // 3. 구글 Gemini API 호출 (gemini-2.0-flash 모델 사용)
             console.log("Gemini API 호출 중...");
-            const model = "gemini-1.5-flash"; 
+            const model = "gemini-2.0-flash"; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
             const requestBody = {
