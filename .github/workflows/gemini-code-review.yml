@@ -95,7 +95,8 @@ jobs:
 
             // 3. 구글 Gemini API 호출
             console.log("Gemini API 호출 중...");
-            const model = "gemini-3.0-flash"; 
+            // 🚨 수정된 부분: gemini-3.0-flash -> gemini-1.5-flash
+            const model = "gemini-1.5-flash"; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
             const requestBody = {
