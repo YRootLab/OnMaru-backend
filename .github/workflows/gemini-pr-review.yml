@@ -1,0 +1,35 @@
+# [보류] 동료가 이미 제미나이 코드 리뷰 봇 환경을 구성 완료하였으므로, 이 파일은 임시 보류 상태로 둡니다.
+name: Gemini PR Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gemini-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Read Styleguide
+        id: styleguide
+        run: |
+          if [ -f .gemini/styleguide.md ]; then
+            echo "STYLEGUIDE<<EOF" >> $GITHUB_ENV
+            cat .gemini/styleguide.md >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "STYLEGUIDE=" >> $GITHUB_ENV
+          fi
+
+      - name: Run Gemini Code Review
+        uses: logicer16/gemini-code-review-action@v1.0.0 # 커스텀 프롬프트를 지원하는 액션
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          system_prompt: ${{ env.STYLEGUIDE }} # 스타일 가이드 내용을 프롬프트로 전달
