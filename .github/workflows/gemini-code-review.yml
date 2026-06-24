@@ -93,10 +93,20 @@ jobs:
             ${diffText.substring(0, 50000)}
             \`\`\``;
 
-            // 3. 구글 Gemini API 호출 (gemini-2.0-flash 모델 사용)
-            console.log("Gemini API 호출 중...");
-            const model = "gemini-2.0-flash"; 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            // 3. 구글 Gemini API 호출 (가장 최신 Flash 모델 자동 탐색)
+            console.log("사용 가능한 최신 Gemini 모델 검색 중...");
+            const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            const modelsData = await modelsRes.json();
+            
+            // 이름에 'flash'가 포함된 모델 중 가장 최신 버전을 자동으로 찾음
+            const latestFlashModel = modelsData.models
+              .filter(m => m.name.includes("flash") && m.supportedGenerationMethods.includes("generateContent"))
+              .map(m => m.name.replace('models/', ''))
+              .sort()
+              .reverse()[0] || "gemini-1.5-flash"; // 못 찾으면 기본값 사용
+            
+            console.log(`선택된 모델: ${latestFlashModel} (자동 할당)`);
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${latestFlashModel}:generateContent?key=${apiKey}`;
 
             const requestBody = {
               contents: [{
