@@ -1,0 +1,139 @@
+name: Gemini AI Code Reviewer
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Gemini Code Review
+        uses: actions/github-script@v7
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            const apiKey = process.env.GEMINI_API_KEY;
+
+            if (!apiKey) {
+              console.error("❌ GEMINI_API_KEY가 GitHub Secrets에 설정되지 않았습니다.");
+              return;
+            }
+
+            // 1. PR의 변경된 파일 목록 및 상세 Diff 가져오기
+            console.log(`PR #${pull_number}의 파일 목록 분석 중...`);
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner,
+              repo,
+              pull_number,
+            });
+
+            const diffResponse = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number,
+              headers: { accept: 'application/vnd.github.v3.diff' }
+            });
+            const diffText = diffResponse.data;
+
+            if (!diffText || diffText.trim() === '') {
+              console.log("변경 사항이 없습니다.");
+              return;
+            }
+
+            // 파일 확장자/경로를 분석하여 백엔드/문서 여부 체크
+            let hasBackend = false;
+            let hasDocs = false;
+
+            files.forEach(file => {
+              const filename = file.filename;
+              if (filename.endsWith('.md') || filename.startsWith('docs/')) {
+                hasDocs = true;
+              } else {
+                // Java, Kotlin, Python, Go, JS/TS 백엔드 소스코드 및 SQL, 설정 파일들
+                hasBackend = true;
+              }
+            });
+
+            // 2. 역할 및 프롬프트 정의 (스타일 가이드를 동적으로 로드하여 중복 관리 최소화)
+            const fs = require('fs');
+            const path = require('path');
+
+            const reviewerPersona = hasBackend && !hasDocs
+              ? "시니어 백엔드 소프트웨어 엔지니어 (Node.js & Supabase 전문)"
+              : (hasDocs && !hasBackend ? "전문 테크니컬 라이터 (Technical Writer)" : "시니어 백엔드 엔지니어 & 기술 문서 전문가");
+
+            let styleguide = "";
+            try {
+              const styleguidePath = path.join(process.cwd(), '.gemini/styleguide.md');
+              styleguide = fs.readFileSync(styleguidePath, 'utf8');
+              console.log("✅ 스타일 가이드(.gemini/styleguide.md)를 성공적으로 읽었습니다.");
+            } catch (err) {
+              console.warn("⚠️ 스타일 가이드 파일(.gemini/styleguide.md)을 찾을 수 없어 기본 룰셋으로 리뷰를 진행합니다.", err);
+            }
+
+            const prompt = `당신은 대한민국 최고의 개발자이자 AI 코드 리뷰어입니다.
+            제공된 스타일 가이드와 리뷰 기준을 철저히 확인하여 전달된 Git Diff를 면밀히 분석하고 코드 리뷰 피드백을 작성해 주세요.
+
+            [스타일 가이드 및 코드 검토 기준]
+            ${styleguide || "반드시 100% 한국어로 코드 리뷰를 성실히 작성해 주세요."}
+
+            [Git Diff]
+            \`\`\`diff
+            ${diffText.substring(0, 50000)}
+            \`\`\``;
+
+            // 3. 구글 Gemini API 호출
+            console.log("Gemini API 호출 중...");
+            const model = "gemini-3.0-flash"; 
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+            const requestBody = {
+              contents: [{
+                parts: [{ text: prompt }]
+              }],
+              generationConfig: {
+                temperature: 0.2
+              }
+            };
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+              const errText = await response.text();
+              throw new Error(`Gemini API 호출 실패: ${response.status} - ${errText}`);
+            }
+
+            const resData = await response.json();
+            const reviewText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!reviewText) {
+              throw new Error("Gemini로부터 올바른 응답을 받지 못했습니다.");
+            }
+
+            // 4. PR 댓글 달기
+            const commentBody = `🤖 **Gemini AI 코드 리뷰어 피드백 (${reviewerPersona})**:\n\n${reviewText}`;
+            
+            console.log("PR에 리뷰 코멘트를 등록하는 중...");
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pull_number,
+              body: commentBody
+            });
+
+            console.log("코드 리뷰 등록 완료!");
