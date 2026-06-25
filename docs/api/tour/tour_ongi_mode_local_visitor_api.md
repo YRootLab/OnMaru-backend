@@ -47,30 +47,26 @@
 
 ```json
 {
-  "response": {
-    "header": {
-      "resultCode": "0000",
-      "resultMsg": "OK"
+  "header": {
+    "resultCode": "string",
+    "resultMsg": "string"
+  },
+  "body": {
+    "pageNo": 0,
+    "totalCount": 0,
+    "items": {
+      "item": {
+        "baseYmd": "string",
+        "signguCode": "string",
+        "daywkDivCd": "string",
+        "signguNm": "string",
+        "touDivCd": "string",
+        "touDivNm": "string",
+        "touNum": "string",
+        "daywkDivNm": "string"
+      }
     },
-    "body": {
-      "items": {
-        "item": [
-          {
-            "baseYmd": "20260624",
-            "signguCode": "11110",
-            "signguNm": "종로구",
-            "daywkDivCd": "3",
-            "daywkDivNm": "수요일",
-            "touDivCd": "1",
-            "touDivNm": "현지인",
-            "touNum": "54321"
-          }
-        ]
-      },
-      "numOfRows": 10,
-      "pageNo": 1,
-      "totalCount": 100
-    }
+    "numOfRows": 0
   }
 }
 ```

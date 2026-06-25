@@ -47,28 +47,25 @@
 
 ```json
 {
-  "response": {
-    "header": {
-      "resultCode": "0000",
-      "resultMsg": "OK"
-    },
-    "body": {
-      "items": {
-        "item": [
-          {
-            "baseYmd": "20260624",
-            "daywkDivCd": "3",
-            "areaCd": "1",
-            "areaNm": "서울특별시",
-            "touDivCd": "1",
-            "touDivNm": "관광객",
-            "touNum": "1234567"
-          }
-        ]
-      },
-      "numOfRows": 10,
-      "pageNo": 1,
-      "totalCount": 100
+  "header": {
+    "resultMsg": "string",
+    "resultCode": "string"
+  },
+  "body": {
+    "numOfRows": 0,
+    "pageNo": 0,
+    "totalCount": 0,
+    "items": {
+      "item": {
+        "baseYmd": "string",
+        "areaCode": "string",
+        "areaNm": "string",
+        "daywkDivCd": "string",
+        "daywkDivNm": "string",
+        "touDivCd": "string",
+        "touDivNm": "string",
+        "touNum": "string"
+      }
     }
   }
 }
@@ -82,8 +79,8 @@
 
 | 필드명 | 타입 | 설명 |
 |---|---|---|
-| `resultCode` | string | 응답 결과 코드 (`"0000"` = 성공) |
-| `resultMsg` | string | 응답 결과 메시지 (`"OK"`) |
+| `resultCode` | string | 응답 결과 코드 (예: `"0000"` = 성공) |
+| `resultMsg` | string | 응답 결과 메시지 (예: `"OK"`) |
 
 ### Body
 
@@ -98,11 +95,12 @@
 | 필드명 | 타입 | 설명 | 예시 |
 |---|---|---|---|
 | `baseYmd` | string | 기준 일자 (YYYYMMDD) | `"20260624"` |
-| `daywkDivCd` | string | 요일 구분 코드 (1:월 ~ 7:일) | `"3"` (수요일) |
-| `areaCd` | string | 광역지자체 코드 | `"1"` |
+| `areaCode` | string | 광역지자체 코드 | `"11"` |
 | `areaNm` | string | 광역지자체명 (시/도) | `"서울특별시"` |
-| `touDivCd` | string | 관광 구분 코드 | `"1"` |
-| `touDivNm` | string | 관광 구분명 | `"관광객"` |
+| `daywkDivCd` | string | 요일 구분 코드 (1:월 ~ 7:일) | `"3"` |
+| `daywkDivNm` | string | 요일 구분명 | `"수요일"` |
+| `touDivCd` | string | 관광 구분 코드 | `"1"` (현지인), `"2"` (외지인), `"3"` (외국인) |
+| `touDivNm` | string | 관광 구분명 | `"외지인"` |
 | `touNum` | string | 방문자 수 (순방문자 기준) | `"1234567"` |
 
 ---
@@ -133,7 +131,7 @@
 🏛️ 서울특별시
 ├── 오늘 집중률: 75% (보통)
 ├── 평균 일일 방문자: 약 1,234,567명
-├── 📊 "화요일이 가장 한산해요" (요일별 패턴: daywkDivCd 활용)
+├── 📊 "화요일이 가장 한산해요" (요일별 패턴: daywkDivNm 활용)
 └── 📈 최근 7일 방문자 추이 그래프
 ```
 
@@ -142,3 +140,4 @@
 ## 8. 관련 문서
 
 - [온기모드 — 관광지 집중률 API 명세서](./tour_ongi_mode_api.md)
+- [온기모드 — 기초지자체 방문자수 API 명세서](./tour_ongi_mode_local_visitor_api.md)
