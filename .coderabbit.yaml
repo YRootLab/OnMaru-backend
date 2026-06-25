@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "ko-KR"
+tone_instructions: "OnMaru 프로젝트의 시니어 백엔드 엔지니어이자 테크니컬 라이터입니다. 모든 리뷰는 100% 한국어(해요체)로, 전문적이되 정중한 어조를 유지합니다. 잘 작성된 코드는 적극 칭찬하고, 개선 제안 시 반드시 구체적인 코드 예시를 함께 제공합니다."
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  poem: false
+  collapse_walkthrough: false
+  suggested_reviewers: false
+  labeling_instructions:
+    - label: "feature"
+      instructions: "새로운 기능이 추가된 PR에 적용합니다."
+    - label: "bugfix"
+      instructions: "버그 수정이 포함된 PR에 적용합니다."
+    - label: "refactor"
+      instructions: "기능 변경 없이 코드 구조를 개선하는 PR에 적용합니다."
+    - label: "docs"
+      instructions: "문서(README, docs/ 디렉토리, 주석 등)만 변경된 PR에 적용합니다."
+    - label: "chore"
+      instructions: "빌드 설정, 의존성 업데이트, CI/CD 변경 등 기능과 무관한 변경에 적용합니다."
+    - label: "database"
+      instructions: "데이터베이스 스키마 변경, 마이그레이션 파일, RLS 정책 변경이 포함된 PR에 적용합니다."
+    - label: "api"
+      instructions: "외부 API 연동 로직(한국관광공사 API 등) 또는 REST API 엔드포인트 변경이 포함된 PR에 적용합니다."
+    - label: "security"
+      instructions: "인증/인가, 환경변수 관리, 시크릿 처리 등 보안 관련 변경이 포함된 PR에 적용합니다."
+  mutually_exclusive_groups:
+    pr_type: ["feature", "bugfix", "refactor", "docs", "chore"]
+  auto_review:
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+      - "wip"
+    base_branches:
+      - "develop"
+  path_filters:
+    - "!dist/**"
+    - "!node_modules/**"
+    - "!.git/**"
+    - "!*.lock"
+    - "!package-lock.json"
+    - "!pnpm-lock.yaml"
+    - "!yarn.lock"
+    - "!*.min.js"
+    - "!*.map"
+  path_instructions:
+    - path: "**/*.{js,ts}"
+      instructions: "Node.js/TypeScript 백엔드 코드를 리뷰합니다.\n\n[코드 품질 4대 핵심 기준]\n- 가독성: 불필요한 추상화 지양, 명확한 네이밍, 위에서 아래로 읽히는 흐름\n- 예측 가능성: 일관성 준수, 숨겨진 Side Effect 제거, 명확한 반환 타입\n- 응집도: 함께 수정될 코드는 근접 배치, 필요시 가독성을 위한 적절한 중복 허용\n- 결합도: 단일 책임 원칙(SRP) 준수, 과도한 공통화 피하기\n\n[코드 스타일]\n- var 대신 const/let만 사용하는지 확인\n- 변수/함수는 camelCase, 클래스는 PascalCase 명명 규칙 준수\n- 엄격한 항등 연산자(===) 사용 여부\n- require/import는 파일 상단에 집중\n\n[에러 처리]\n- async-await 또는 Promise를 일관되게 사용하는지 확인\n- unhandled promise rejection이 방치되지 않도록 catch문 확인\n- 에러 throw 시 문자열이 아닌 내장 Error 객체 사용 여부\n- API 호출 인자의 유효성 검사를 초기에 수행하는지 (Fail-Fast)\n\n[아키텍처]\n- 계층화 분리(Web, Business Logic, Data Access)가 되어 있는지 확인\n- 컨트롤러(req, res 등 웹 객체)를 비즈니스 로직이나 데이터 계층으로 넘기지 않는지 확인\n- 라우팅과 서버 시작이 분리되어 있는지 확인\n\n[Supabase 보안]\n- app_metadata 사용 권장 (user_metadata는 사용자가 수정 가능하므로 위험)\n- service_role 키가 클라이언트/프론트엔드에 절대 노출되지 않는지 확인\n- 환경변수 또는 시크릿이 하드코딩되지 않았는지 확인\n\n[Edge Functions vs Node.js 경계]\n- Edge Function: 인증 이벤트 훅, DB 트리거, 짧은 Webhook 처리 등 경량 로직에 적합\n- Node.js 서버: 대량 동기화, 복잡한 비즈니스 로직, 장시간 작업에 적합\n- 경계 위반 시 배치 최적화 제안\n\n[피드백 작성 구조]\n1. 변경 사항 요약\n2. 세부 리뷰 의견:\n   - 💡 보안 & 안정성 (이슈가 있을 경우)\n   - ⚙️ 코드 개선 및 최적화 (구체적인 코드 제안 포함)\n   - 🔄 외부 API 연동 & 동기화 (API 관련 변경이 있을 경우)\n   - 👏 좋았던 부분 (칭찬할 점)"
+    - path: "**/*.sql"
+      instructions: "SQL 및 마이그레이션 파일을 리뷰합니다:\n- docs/database/schema.md와 실제 SQL 간의 컬럼명, 타입, 제약 조건 일치 여부\n- 자주 조회되는 컬럼(tid, tlid, lang_code, sync_status)에 적절한 인덱스 설정 여부\n- 운영 중인 테이블 변경 시 무중단 배포 가능 여부 (NOT NULL 컬럼 추가 시 기본값 설정 등)\n- varchar로 선언된 좌표(map_x, map_y), 시간(created_time) 필드의 타입 적합성 검토\n- 새 테이블 생성 시 RLS(Row Level Security) 정책 동반 여부\n- PostgreSQL 뷰(View) 생성 시 security_invoker = true 설정 여부\n- UPDATE 정책은 반드시 SELECT 정책과 함께 정의되어 있는지 확인"
+    - path: "**/sync/**"
+      instructions: "한국관광공사 API 데이터 동기화 관련 코드를 리뷰합니다:\n- 증분 동기화: syncStatus(A/U/D)를 올바르게 활용하는지 확인\n- 멱등성: 여러 번 실행해도 데이터 정합성이 깨지지 않는지 (UPSERT 사용 여부)\n- 에러 격리: 하나의 레코드 실패가 전체 배치를 중단시키지 않도록 개별 에러 핸들링 확인\n- 동기화 로깅: 성공/실패 건수, 소요 시간 등이 적절히 로깅되는지 확인\n- 페이지네이션: totalCount, numOfRows, pageNo를 활용한 전체 데이터 조회 로직 검증\n- 타임아웃: 외부 API 호출에 적절한 타임아웃(10~30초) 설정 여부\n- 재시도: 지수 백오프 기반 재시도 로직 구현 여부 (4xx 에러에는 재시도 금지)\n- Rate Limiting: 한국관광공사 API 일일 호출 한도 준수 여부\n- 응답 유효성: resultCode, resultMsg 확인 및 방어적 처리 여부"
+    - path: "docs/**"
+      instructions: "기술 문서를 리뷰합니다:\n- 가독성 및 문맥 흐름의 매끄러움\n- 맞춤법, 띄어쓰기, 문장 표현의 정확성 및 오탈자 검출\n- API 스펙 및 데이터 구조 정의의 완성도와 누락 여부\n- 마크다운 문법 및 구조적 포맷팅 가독성\n- API 명세서의 엔드포인트, 요청 파라미터, 응답 예시가 실제 구현과 일치하는지"
+    - path: "**/.env*"
+      instructions: "환경변수 파일을 리뷰합니다:\n- .env 파일이 .gitignore에 포함되어 있는지 확인\n- 실제 시크릿 값이 커밋되지 않았는지 반드시 확인\n- 민감 정보(SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DB_PASSWORD, GEMINI_API_KEY, 관광공사 API 키)가 절대 노출되지 않도록 확인\n- .env.example인 경우 필수 환경변수 목록과 설명이 정리되어 있는지 확인"
+    - path: ".github/**"
+      instructions: "GitHub Actions 워크플로우 및 설정 파일을 리뷰합니다:\n- 시크릿이 올바르게 GitHub Secrets로 관리되는지 확인\n- 워크플로우 권한이 최소 권한 원칙을 따르는지 검토"
+  tools:
+    languagetool:
+      level: "picky"
+    ruff:
+      enabled: false
+    phpstan:
+      enabled: false
+    phpmd:
+      enabled: false
+    phpcs:
+      enabled: false
+    golangci-lint:
+      enabled: false
+    swiftlint:
+      enabled: false
+    detekt:
+      enabled: false
+    rubocop:
+      enabled: false
+    clippy:
+      enabled: false
+    pylint:
+      enabled: false
+    flake8:
+      enabled: false
+    pmd:
+      enabled: false
+    clang:
+      enabled: false
+    cppcheck:
+      enabled: false
+    checkov:
+      enabled: false
+    tflint:
+      enabled: false
+    buf:
+      enabled: false
+    regal:
+      enabled: false
+    fbinfer:
+      enabled: false
+    fortitudeLint:
+      enabled: false
+    brakeman:
+      enabled: false
+    luacheck:
+      enabled: false
+    shopifyThemeCheck:
+      enabled: false
+    reactDoctor:
+      enabled: false
+    htmlhint:
+      enabled: false
+    stylelint:
+      enabled: false
+    checkmake:
+      enabled: false
+    blinter:
+      enabled: false
+    smartyLint:
+      enabled: false
+    emberTemplateLint:
+      enabled: false
+    skillspector:
+      enabled: false
+    psscriptanalyzer:
+      enabled: false
+    prismaLint:
+      enabled: false
+chat:
+  auto_reply: true
