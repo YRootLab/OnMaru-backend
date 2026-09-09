@@ -1,6 +1,8 @@
 // # Database Schema
 //
 // 이 문서는 온마루(OnMaru) 프로젝트의 데이터베이스 스키마 구조를 정의합니다.
+// Historical Odii model. The 2026-09-09 successor proposal is in
+// ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 
 // 에러 없이 시각화된 ERD(관계도)를 볼 수 있습니다.
 
@@ -50,4 +52,3 @@ Table audio_guides {
 
 // 관계 (Relationships)
 Ref: audio_guides.(tid, tlid) > tour_spots.(tid, tlid)
-

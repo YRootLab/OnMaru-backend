@@ -1,0 +1,13 @@
+{
+  "problem_tourism_value": 11,
+  "differentiation": 9,
+  "tourism_data_leverage": 12,
+  "market_user_need": 7,
+  "originality": 7,
+  "product_completeness": 3,
+  "ux_demo_clarity": 5,
+  "feasibility": 3,
+  "scalability_sustainability": 3,
+  "blockers": ["no_demo_journey"],
+  "notes": "INFERENCE: source-inspected discovery prototype and proposal only; not official 2026 scoring, not a prediction of an award."
+}
