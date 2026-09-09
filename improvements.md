@@ -4,6 +4,8 @@ Untriaged follow-up ideas captured during work. GitHub Issues are the source of 
 
 ## P0 - Must Resolve Before Backend Implementation
 
+2026-09-09 triage: [P0 분류와 남은 증거](docs/planning/p0-triage.md), [통합 후보 본문](docs/planning/implementation-issues.md). 범위/자료는 사용자 입력 대기, snapshot은 원본 dirty 상태 때문에 미완료, 보안은 FE 제거·회전 증거 대기, ID는 D3 승인·fixture 대기다. Follow-up PR tracking Issue: #49. 발행 후 W0/X0 후보를 실제 Issue 링크로 교체한다.
+
 - [ ] Confirm contest and planning scope.
   - Context: The planning assumes the 2026 Korea Tourism Organization tourism data contest development track, but the user has not confirmed the actual track.
   - Acceptance: Track, deadline, judging emphasis, team capacity, budget, and demo target are recorded in `docs/planning/README.md`.
@@ -34,7 +36,7 @@ Untriaged follow-up ideas captured during work. GitHub Issues are the source of 
   - Suggested labels: `needs-triage`, `type:data`, `priority:p0`
   - Issue: none
 
-- [ ] Merge W0-W11 and X0-X8 into one implementation graph.
+- [x] Merge W0-W11 and X0-X8 into one implementation graph (local preparation only).
   - Context: `docs/planning/work-graph.json` only contains the baseline W issues; journey exploration produced additional X candidates.
   - Acceptance: One acyclic graph exists, overlaps are removed, wave order is recalculated, and shared-file ownership warnings are either resolved or intentionally serialized.
   - Suggested labels: `needs-triage`, `type:planning`, `priority:p0`

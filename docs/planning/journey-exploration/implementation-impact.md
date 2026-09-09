@@ -1,6 +1,6 @@
 # 기존 이슈 계획과 ADR에 확장 요구를 반영하는 방법
 
-이 문서는 spec-to-issues의 요구 추출·작업 경계·의존성 분석 단계다. **아래 후보는 외부 GitHub Issue가 아니며, 기존 work-graph.json에도 아직 병합하지 않았다.** 제품 범위와 ADR 후보 검토 후 하나의 통합 graph로 재검증하고 사용자 승인 뒤 발행한다. 과거 계획만으로 이번 추가 범위를 전부 구현할 수 있다고 간주하지 않는다.
+이 문서는 확장 요구의 최초 영향 분석이다. W/X 후보는 현재 [work-graph.json](../work-graph.json)에 통합됐고 [통합 발행 초안](../implementation-issues.md)에 최신 제목·선행·wave·AC를 기록했다. GitHub Issue는 아직 발행하지 않았다. 아래 표보다 통합 초안이 우선하며 X6 fixture 완료와 X8 실서버 통합을 분리한다.
 
 ## 기존 계획의 수정점
 
