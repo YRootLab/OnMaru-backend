@@ -1,5 +1,19 @@
 # handoff.md
 
+## Active Restart Session (2026-09-09)
+
+- Request: check PR #48, triage P0, unify W/X candidates, review ADRs, and prepare spec-to-issues publication. Runtime implementation remains gated.
+- Actual workspace: `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/prd-planning`; branch `feature/backend-prd-planning`; starting HEAD `2548b42`.
+- PR #48 is MERGED into `develop`; head `665a01d5e100b097c9f62c58bb1b368599a866b2`. CI `verify` succeeded; `gemini-review` failed; CodeRabbit succeeded. Review decision field is empty, so human approval is not established by this query.
+- This section supersedes the historical branch, PR creation, and restart instructions below. Preserve the merged planning commit; do not rewrite it or reuse its deleted work branch.
+- Missing contest inputs and the two references were requested; keep them pending unless supplied.
+- Current graph: 21 candidates, waves 0-9, no graph errors; five shared Gradle conflict warnings are intentionally serialized by the integration policy in `docs/planning/implementation-issues.md`.
+- ADR-0002 records only the user-selected Spring Boot business API / FastAPI AI roles. D1-D4/E1-E5 remain proposals; review results are in `docs/planning/p0-triage.md`.
+- External schema guide has uncommitted changes; metadata alone is not a reproducible snapshot. FE specs are clean at the recorded source commit.
+- No GitHub Issues were created, no runtime scaffold started, no push or new PR performed.
+- Tracking Issue #49 was created for this planning follow-up PR. No runtime scaffold started.
+- Next: resolve scope/reference inputs and W0 security/snapshot/architecture gates; review the concrete `implementation-issues.md` publication draft; publish and verify native Issue relationships before starting implementation.
+
 ## Session Snapshot
 
 - Date: 2026-09-09 KST.

@@ -1,188 +1,170 @@
-# 이슈 기반 실행 계획
+# 통합 implementation issue 발행 초안
 
-현재 실행 기준은 [통합 발행 초안](implementation-issues.md)과 work-graph.json이다. 아래 W 전용 계획은 최초 근거 기록이며 최신 wave나 책임 배분으로 사용하지 않는다.
+2026-09-09. 준비용 산출물이며 GitHub Issues 미발행. 실행 Source of Truth는 발행 후 GitHub Issues다. work-graph.json이 W0~W11/X0~X8의 단일 graph이며 이전 issue-plan.md의 W 전용 wave와 책임 배분을 대체한다.
 
-검토용 초안 / 2026-09-09. Root 1개 + Child 12개. 실제 GitHub 번호가 아니라 W0~W11의 안정된 작업 ID를 사용한다. 지금 단계에서는 보고서와 실행 그래프를 작성하며 GitHub 생성이나 애플리케이션 개발을 시작하지 않는다.
+## Root
 
-## 사전 조사
-
-대상은 `YRootLab/OnMaru-backend`, 기본 branch는 main이다. 현재 조회한 기존 Issue는 모두 closed이며 열린 중복 작업은 없다. 과거 API 분석 Issue #5~9, #22~23은 이 구현 작업과 구분한다. 기존 labels `BE`, `Planning`, `api-spec`, `Feature`를 재사용한다. milestone과 Project는 현재 없다.
-
-## 생성 예정 목록
-
-| ID | 제목 | 선행 | Wave |
-|---|---|---|---:|
-| W0 | FE 계약·원본 데이터 검증 및 출시 범위 확정 | 없음 | 0 |
-| W1 | Spring 골격과 아키텍처 위반 CI 구축 | 없음 | 0 |
-| W2 | Catalog 스키마·원본 ID·공간 저장 계약 구현 | W0, W1 | 1 |
-| W3 | TourAPI 장소 수집과 실패 복원 구현 | W2 | 2 |
-| W4 | 한옥 목록·상세·월별 큐레이션 API 구현 | W3 | 3 |
-| W5 | 작성 주체와 중앙 온기 피드 구현 | W2 | 2 |
-| W6 | 주변 장소와 출처 기반 혼잡 관측 API 구현 | W4 | 4 |
-| W7 | Odii 언어별 수집·대본 revision·오디오 API 구현 | W2 | 2 |
-| W8 | FastAPI 문서 색인과 RAG 검색 기준선 구축 | W7 | 3 |
-| W9 | 도슨트 질문 API와 AI 장애·비용 격리 구현 | W8 | 4 |
-| W10 | FE 연결 전환과 전체 사용자 동선 검증 | W4, W5, W6, W7, W9 | 5 |
-| W11 | 단계 출시 운영·복구·릴리스 게이트 완성 | W10 | 6 |
-
-전체 기능은 여러 PR에 걸친 규모지만 빈 에픽 계층은 추가하지 않았다. 12개를 넘어 세부 기능이 커지면 출시 단계별 parent로 재분해한다. 하나의 Child가 독립 PR/검증 단위가 되도록 하고 현재 L 작업은 구현 중 커지면 다시 분해한다.
-
-## Root 본문 초안
-
-### Goal
+OnMaru Spring Boot·FastAPI 백엔드 단계 구축
 
 현재 FE 탐색·온기·오디오·도슨트를 신뢰 가능한 데이터와 교체 가능한 기술 경계로 제공한다.
 
-### Background / Motivation
+범위: 계약 확인, pure core, PostgreSQL/PostGIS, 관광 수집, 중앙 온기, Odii, FastAPI RAG, FE 통합, 운영; 이야기길 게시·관계·탐색·통합과 선택 P2 행동 집계
 
-docs/specs BE-REQ-001~009 및 2026-09-09 architecture-blueprint.md 검토안
+제외: H3 체크인, 정-길, 예약/결제, MSA, 개인화, 빈 모듈 선행 생성
 
-### Scope
-
-계약 확인, pure core, PostgreSQL/PostGIS, 관광 수집, 중앙 온기, Odii, FastAPI RAG, FE 통합, 운영
-
-### Out of Scope
-
-H3 체크인, 정-길, 예약/결제, MSA, 개인화, 빈 모듈 선행 생성
-
-### Success Criteria
-
+성공 기준:
 - BE-REQ-001~009 추적 및 인수 기준 충족
 - 외부 관광/AI outage에도 저장된 핵심 콘텐츠 조회
 - 아키텍처 위반 CI 실패, 데이터·계약·통합 테스트 통과
+- JX-01~11 인수 기준 및 X8 통합 통과; JX-10 노출은 표본 충족 조건
 
-### Architecture / Approach
-
-Spring modular monolith + pure Java core/ports + technology adapters; FastAPI separate contract and AI schema
-
-### Child Issues
-
-- [ ] W0: FE 계약·원본 데이터 검증 및 출시 범위 확정
-- [ ] W1: Spring 골격과 아키텍처 위반 CI 구축
-- [ ] W2: Catalog 스키마·원본 ID·공간 저장 계약 구현
-- [ ] W3: TourAPI 장소 수집과 실패 복원 구현
-- [ ] W4: 한옥 목록·상세·월별 큐레이션 API 구현
-- [ ] W5: 작성 주체와 중앙 온기 피드 구현
-- [ ] W6: 주변 장소와 출처 기반 혼잡 관측 API 구현
-- [ ] W7: Odii 언어별 수집·대본 revision·오디오 API 구현
-- [ ] W8: FastAPI 문서 색인과 RAG 검색 기준선 구축
-- [ ] W9: 도슨트 질문 API와 AI 장애·비용 격리 구현
-- [ ] W10: FE 연결 전환과 전체 사용자 동선 검증
-- [ ] W11: 단계 출시 운영·복구·릴리스 게이트 완성
-
-### Dependency Graph
-
-계약·골격 → Catalog 모델 → 수집/온기/오디오 → 한옥/RAG → 지도/도슨트 → 전체 FE 통합 → 운영 출시. 모든 edge는 아래 DAG를 따른다.
-
-```mermaid
-flowchart LR
-    subgraph Wave0
-        W0["W0: FE 계약·원본 데이터 검증 및 출시 범위 확정"]
-        W1["W1: Spring 골격과 아키텍처 위반 CI 구축"]
-    end
-    subgraph Wave1
-        W2["W2: Catalog 스키마·원본 ID·공간 저장 계약 구현"]
-    end
-    subgraph Wave2
-        W3["W3: TourAPI 장소 수집과 실패 복원 구현"]
-        W5["W5: 작성 주체와 중앙 온기 피드 구현"]
-        W7["W7: Odii 언어별 수집·대본 revision·오디오 API 구현"]
-    end
-    subgraph Wave3
-        W4["W4: 한옥 목록·상세·월별 큐레이션 API 구현"]
-        W8["W8: FastAPI 문서 색인과 RAG 검색 기준선 구축"]
-    end
-    subgraph Wave4
-        W6["W6: 주변 장소와 출처 기반 혼잡 관측 API 구현"]
-        W9["W9: 도슨트 질문 API와 AI 장애·비용 격리 구현"]
-    end
-    subgraph Wave5
-        W10["W10: FE 연결 전환과 전체 사용자 동선 검증"]
-    end
-    subgraph Wave6
-        W11["W11: 단계 출시 운영·복구·릴리스 게이트 완성"]
-    end
-    W0 --> W2
-    W1 --> W2
-    W2 --> W3
-    W3 --> W4
-    W2 --> W5
-    W4 --> W6
-    W2 --> W7
-    W7 --> W8
-    W8 --> W9
-    W4 --> W10
-    W5 --> W10
-    W6 --> W10
-    W7 --> W10
-    W9 --> W10
-    W10 --> W11
-```
-
-
-### Execution Waves
-
-Wave 0:
-  - W0: FE 계약·원본 데이터 검증 및 출시 범위 확정
-  - W1: Spring 골격과 아키텍처 위반 CI 구축
-Wave 1:
-  - W2: Catalog 스키마·원본 ID·공간 저장 계약 구현
-Wave 2:
-  - W3: TourAPI 장소 수집과 실패 복원 구현
-  - W5: 작성 주체와 중앙 온기 피드 구현
-  - W7: Odii 언어별 수집·대본 revision·오디오 API 구현
-Wave 3:
-  - W4: 한옥 목록·상세·월별 큐레이션 API 구현
-  - W8: FastAPI 문서 색인과 RAG 검색 기준선 구축
-Wave 4:
-  - W6: 주변 장소와 출처 기반 혼잡 관측 API 구현
-  - W9: 도슨트 질문 API와 AI 장애·비용 격리 구현
-Wave 5:
-  - W10: FE 연결 전환과 전체 사용자 동선 검증
-Wave 6:
-  - W11: 단계 출시 운영·복구·릴리스 게이트 완성
-
-### Integration Gates
-
-- Wave 0 → 1: 계약 예제·source qualification 상태·작성 주체 결정을 검토하고 순수 core의 금지 dependency fixture가 실패하는지 확인한다.
-- Wave 1 → 2: 실제 DB migration/unique/FK/공간 fixture와 공개 PlaceLookup API 계약을 함께 검증한다.
-- Wave 2 → 3: source 실패 복구, community rollback, audio 언어별 ID/revision 보장이 각각 통과하고 통합 boot가 깨지지 않는지 확인한다.
-- Wave 3 → 4: 한옥 FE decoder/원본 장애 조회와 AI document revision/filter를 검증한다. R1은 관련 게이트만 통과하면 별도로 출시할 수 있다.
-- Wave 4 → 5: nearby/관측 결측과 AI outage/취소/인용/비용 게이트를 실제 두 서버에서 검증한다.
-- Wave 5 → 6: FE 전체 사용자 동선, canonical ID 이행, fallback이 staging에서 통과한다.
-- Wave 6 → release: backup restore, load, secret/권한, CI release 차단과 rollback을 검증한다.
-
-Wave는 병렬 가능성 지도다. 한 명이 개발하면 같은 Wave도 순서대로 진행한다. 공유 파일 쓰기권한은 항상 하나의 통합 담당자에게 있다. endpoint별 단계 출시에는 해당 선행 작업과 통합 게이트를 적용하고 관련 없는 AI 작업 완료를 기다리게 하지 않는다.
-
-### Risks
-
-- 인원/일정/예산 미정
-- 원본API/FE 계약 차이
-- auth/provider 선택과 데이터 재사용 범위 확인 필요
-- FE touch point의 `../OnMaruFE`는 별도 저장소의 논리 경로다. 실제 checkout은 현재 `/Users/yangseunghyeon/Development/OnMaru/OnMaruFE`이며 작업 시 worktree 경로를 확인한다.
-- 미정 source/provider가 있는 Issue는 stub 검증과 production 활성화 조건을 분리해야 한다. 실 API 검증 없이 production 완료로 닫지 않는다.
-
-### Definition of Done
-
+완료 조건:
 - Child별 검증과 통합 게이트 통과
 - FE/BE PR merge 상태 확인
 - 운영/복구/비용 측정 및 장기 결정 ADR 기록
+- 핵심 출시 W11과 선택 P2 X7 완료를 별도 추적; 전체 Root 종료는 채택한 모든 Child 완료 후
 
-## 병렬 충돌 검토
+## 발행 전 확인
 
-검증기는 W5↔W6, W5↔W7, W5↔W9, W6↔W7, W6↔W9의 공통 `settings.gradle.kts` 접근을 경고한다. app build.gradle.kts도 공통 변경 대상이다. 이는 논리 dependency가 아닌 **공통 모듈 등록 파일의 쓰기 충돌**이다.
+- GitHub 전체 Issue 26건 조회: 모두 closed. 신규 graph와 동일한 열린 구현 Issue는 없다. 과거 데이터 조사 #4~#9는 배경 참고이며 신규 구현 완료 근거가 아니다.
+- 기존 labels BE/FE/Feature/Planning/api-spec 재사용. milestone과 organization project 조회 결과는 비어 있다.
+- Root는 BE 저장소, X6는 FE 저장소 별도 발행 후보다. 실제 FE repo와 native cross-repo 관계 지원을 발행 시 확인하고 external 경로를 BE 파일 경로로 사용하지 않는다.
+- 제목·관계·wave·AC를 검토한 뒤 발행한다. Root/Child 생성, native sub-issue와 blocked-by 연결, 번호 역기입, 재조회 검증이 남아 있다.
+- X7은 선택 P2로 출시 W11의 선행이 아니다. Root 전체 종료와 핵심 출시 완료는 구분한다.
 
-해소 방법: worker는 context 파일만 수정하고, 모듈 등록 패치를 단일 통합 담당자에게 전달한다. 담당자는 공통 파일 등록을 직렬 반영하고 각 Issue의 전체 build를 다시 검증한다. 이런 통합 담당자/쓰기 lease를 확보하지 못하면 해당 작업을 직렬 dependency로 바꾸고 재검증한다. `parallel_notes`에 같은 조건을 기록했다. migration version도 W2의 예약 규칙을 사용한다. 경고를 무시한 무조건 병렬 실행은 허용하지 않는다.
+## 의존성과 Wave
 
-## GitHub 등록 및 추적
+| ID | 제목 | 선행 | Wave |
+|---|---|---|---|
+| W0 | FE 계약·원본 데이터 검증 및 출시 범위 확정 | 없음 | 0 |
+| W1 | Spring 골격과 아키텍처 위반 CI 구축 | W0 | 1 |
+| W2 | Catalog 스키마·원본 ID·공간 저장 계약 구현 | W0, W1 | 2 |
+| W3 | TourAPI 장소 수집과 실패 복원 구현 | W2 | 3 |
+| W4 | 한옥 목록·상세 API 구현 | W3 | 4 |
+| W5 | 작성 주체와 중앙 온기 피드 구현 | W2 | 3 |
+| W6 | 주변 장소와 출처 기반 혼잡 관측 API 구현 | W4 | 5 |
+| W7 | Odii 언어별 수집·대본 revision·오디오 API 구현 | W2 | 3 |
+| W8 | FastAPI 문서 색인과 RAG 검색 기준선 구축 | W7 | 4 |
+| W9 | 도슨트 질문 API와 AI 장애·비용 격리 구현 | W8 | 5 |
+| W10 | FE 연결 전환과 전체 사용자 동선 검증 | W4, W5, W6, W7, W9, X1 | 6 |
+| W11 | 단계 출시 운영·복구·릴리스 게이트 완성 | W10, X8 | 9 |
+| X0 | 이야기길 매칭·버전 계약 fixture 확정 | W0 | 1 |
+| X1 | 게시 콘텐츠·월별/주간 edition·placement API 구현 | X0, W2, W7 | 4 |
+| X2 | 선택 보존 session·proposal·SSE lifecycle 구현 | X0, W1, W5 | 4 |
+| X3 | 근거 관계·공개 projection 검색 기준선 구현 | X0, W3, W7, W8 | 5 |
+| X4 | 모델 비교·제한 탐색 harness 검증 | X3 | 6 |
+| X5 | 탐색 AI adapter·canonical hydrate·stream 통합 | X2, X4, W9 | 7 |
+| X6 | FE fixture 기반 선택 보드·재접속 구현 | X0 | 2 |
+| X7 | 유효 행동·주간 인기 집계 구현 | X1, W5 | 5 |
+| X8 | 이야기길 실제 FE 연결·평가·장애 검증 | X1, X5, X6, W6, W10 | 8 |
 
-spec-to-issues [SKILL.md](/Users/yangseunghyeon/.codex/plugins/cache/personal/agent-toolkit-skills/0.3.20+codex.20260908040643/skills/spec-to-issues/SKILL.md)는 "생성할 Issue 전체 목록(제목 + 관계 + wave)을 사용자에게 보여주고 승인받은 뒤" 실제 생성을 요구한다. 위 목록은 그 검토 자료다. 이번 우선 요청인 보고서 작성 범위를 완료한 후, 확정된 범위로 등록한다.
+```mermaid
+flowchart LR
+  W0["W0: FE 계약·원본 데이터 검증 및 출시 범위 확정"]
+  W1["W1: Spring 골격과 아키텍처 위반 CI 구축"]
+  W2["W2: Catalog 스키마·원본 ID·공간 저장 계약 구현"]
+  W3["W3: TourAPI 장소 수집과 실패 복원 구현"]
+  W4["W4: 한옥 목록·상세 API 구현"]
+  W5["W5: 작성 주체와 중앙 온기 피드 구현"]
+  W6["W6: 주변 장소와 출처 기반 혼잡 관측 API 구현"]
+  W7["W7: Odii 언어별 수집·대본 revision·오디오 API 구현"]
+  W8["W8: FastAPI 문서 색인과 RAG 검색 기준선 구축"]
+  W9["W9: 도슨트 질문 API와 AI 장애·비용 격리 구현"]
+  W10["W10: FE 연결 전환과 전체 사용자 동선 검증"]
+  W11["W11: 단계 출시 운영·복구·릴리스 게이트 완성"]
+  X0["X0: 이야기길 매칭·버전 계약 fixture 확정"]
+  X1["X1: 게시 콘텐츠·월별/주간 edition·placement API 구현"]
+  X2["X2: 선택 보존 session·proposal·SSE lifecycle 구현"]
+  X3["X3: 근거 관계·공개 projection 검색 기준선 구현"]
+  X4["X4: 모델 비교·제한 탐색 harness 검증"]
+  X5["X5: 탐색 AI adapter·canonical hydrate·stream 통합"]
+  X6["X6: FE fixture 기반 선택 보드·재접속 구현"]
+  X7["X7: 유효 행동·주간 인기 집계 구현"]
+  X8["X8: 이야기길 실제 FE 연결·평가·장애 검증"]
+  W0 --> W1
+  W0 --> W2
+  W1 --> W2
+  W2 --> W3
+  W3 --> W4
+  W2 --> W5
+  W4 --> W6
+  W2 --> W7
+  W7 --> W8
+  W8 --> W9
+  W4 --> W10
+  W5 --> W10
+  W6 --> W10
+  W7 --> W10
+  W9 --> W10
+  X1 --> W10
+  W10 --> W11
+  X8 --> W11
+  W0 --> X0
+  X0 --> X1
+  W2 --> X1
+  W7 --> X1
+  X0 --> X2
+  W1 --> X2
+  W5 --> X2
+  X0 --> X3
+  W3 --> X3
+  W7 --> X3
+  W8 --> X3
+  X3 --> X4
+  X2 --> X5
+  X4 --> X5
+  W9 --> X5
+  X0 --> X6
+  X1 --> X7
+  W5 --> X7
+  X1 --> X8
+  X5 --> X8
+  X6 --> X8
+  W6 --> X8
+  W10 --> X8
+```
 
-등록 시 기존 Issue를 다시 조회한다. Root 먼저 생성 → Child 생성 → native Sub-Issue/blocked-by 연결 → 실제 번호로 전체/로컬 DAG 갱신 → 관계 조회로 검증한다. 설치된 gh의 --help에서 기능을 확인하고 없는 옵션은 공식 REST/GraphQL API를 확인한 뒤 사용한다. 텍스트 링크만으로 native dependency가 연결됐다고 보고하지 않는다.
+## 통합 게이트
 
-작업 PR은 develop을 대상으로 하므로 기본 branch main 대상의 자동 종료만 믿지 않는다. merge 상태와 AC를 확인해 Issue를 닫는다. Root는 최종 게이트 후 닫는다. 열린 dependency를 우회해 구현 완료 처리하지 않는다.
+| 완료 Wave | 다음 착수 전 증거 |
+|---|---|
+| 0 | W0 범위·출처·보안·인증·필요 ADR 승인, 계약 검증. 미해결이면 scaffold 차단 |
+| 1 | W1 build/architecture smoke, X0 schema/fixture 버전 일치 |
+| 2 | W2 migration/ID/DB 역할 검증, X6 fixture FE 계약 통과 |
+| 3 | 수집·작성·오디오 병합 후 migration 및 transaction 회귀 |
+| 4 | 조회·색인·게시·session fake AI 통합 계약 검증 |
+| 5 | 관측·도슨트·검색 회귀; X7 미채택/표본 부족이면 인기 노출 차단 |
+| 6 | 기존 FE 전체 동선 및 모델 평가/예산 게이트 |
+| 7 | AI hydrate와 stale/cancel/timeout backend E2E |
+| 8 | 실제 FE 탐색 연결·장애·비용 검증과 양쪽 PR merge |
+| 9 | W11 배포/복구/CI 및 출시 조건 확인 |
 
-아래 Child 본문은 source graph에서 만든 검토 자료다. 실제 번호를 발급받으면 Dependencies/Blocks/Position을 번호로 치환한다.
+Wave는 DAG 일정 계산이다. 선택 X7 때문에 관련 없는 핵심 흐름을 차단하지 않는다.
+
+## 공유 파일 통합
+
+기존 경고 5쌍(W5/W9, W5/W6, W5/W7, W6/W9, W6/W7)은 settings.gradle.kts와 app build wiring의 쓰기 충돌이다. 각 기능 코드는 병렬 가능하지만 공유 파일 변경은 한 통합 담당자가 W5, W7, W6, W9 순서의 대기열로 반영한다. 담당자/쓰기 예약 없이 공유 파일 변경을 시작하지 않는다. 공통 composition, migration 번호, docs/database/schema.md도 같은 규칙을 적용한다. W9/X5 adapter와 W10/X8 E2E는 명시 선행으로 직렬화했다.
+
+## 요구 추적과 중복 제거
+
+| 요구 | 소유 작업 |
+|---|---|
+| BE-REQ-001,002 | W3,W4 |
+| BE-REQ-003 | X1 (W4의 월별 게시 책임 이관) |
+| BE-REQ-004,005 | W6 |
+| BE-REQ-006,007 | W5 |
+| BE-REQ-008 | W7 |
+| BE-REQ-009 | W8,W9 |
+| JX-01 | W5,W6,X0,X1,X7,X8 |
+| JX-02,03 | X1 |
+| JX-04,05 | X3,X4,X5 |
+| JX-06 | X5,X6,X8 |
+| JX-07,08,09 | X2,X5,X6,X8 |
+| JX-10 | X7 (P2), X8 비공개 fallback 검증 |
+| JX-11 | X3,X4,X6,X8 |
+| JX-12 | 출시 제외 실험 inbox 유지 |
+
+W0는 공통 source/auth/계약, X0는 이야기길 fixture 확장이다. W8은 색인/삭제/revision 엔진, X3는 관계 projection과 검색 확장이다. W9의 기존 ask와 X2의 durable run은 서로 다른 취소 수명주기를 가진다. X6 완료는 fixture 구현이고 실제 연결 완료는 X8이다.
 
 ## W0. FE 계약·원본 데이터 검증 및 출시 범위 확정
 
@@ -212,23 +194,15 @@ contracts/openapi, docs/reference-snapshots, docs/planning/contract-qualificatio
 
 ### Dependencies (blocked-by)
 
-없음 (Wave 0)
+없음
 
 ### Blocks
 
-W2
+W1, W2, X0
 
 ### Position in Graph
 
-Wave 0. 같은 Wave 이웃: W1.
-
-```mermaid
-flowchart LR
-    W0["**W0: FE 계약·원본 데이터 검증 및 출시 범위 확정**"]
-    W2["W2: Catalog 스키마·원본 ID·공간 저장 계약 구현"]
-    W0 --> W2
-```
-
+Wave 0. 같은 Wave: 없음.
 
 ### Expected Touch Points
 
@@ -245,10 +219,15 @@ flowchart LR
 - [ ] 한옥/지도/후기/오디/질문 정상·오류 예제의 schema validation 통과
 - [ ] 공공 API operation/category와 언어ID/자막/관측단위를 실 fixture로 확인하거나 해당 production 기능을 명시 차단
 - [ ] 작성 인증 방식과 문서 스냅샷 upstream commit/hash 기록
+- [ ] 참가 범위/마감/팀/예산/데모와 두 참고 자료 확인 또는 명시적 제외 승인
+- [ ] FE 키 fallback 제거·노출 평가·필요한 회전 증거 연결; 키 값 기록 금지
+- [ ] D1/D2/D3 및 인증/배포 선택 승인 근거 연결
 
 ### Verification Method
 
 OpenAPI lint/예제 검증, FE decoder fixture, source qualification checklist
+
+Labels: BE, Planning, api-spec. Size: L. Good first issue: 아니오.
 
 ## W1. Spring 골격과 아키텍처 위반 CI 구축
 
@@ -278,23 +257,15 @@ settings.gradle.kts, build.gradle.kts, gradle, build-logic, apps/spring-api/buil
 
 ### Dependencies (blocked-by)
 
-없음 (Wave 0)
+W0
 
 ### Blocks
 
-W2
+W2, X2
 
 ### Position in Graph
 
-Wave 0. 같은 Wave 이웃: W0.
-
-```mermaid
-flowchart LR
-    W1["**W1: Spring 골격과 아키텍처 위반 CI 구축**"]
-    W2["W2: Catalog 스키마·원본 ID·공간 저장 계약 구현"]
-    W1 --> W2
-```
-
+Wave 1. 같은 Wave: X0.
 
 ### Expected Touch Points
 
@@ -323,6 +294,8 @@ flowchart LR
 ### Verification Method
 
 ./gradlew check, 의도적 위반 fixture 검증, Boot smoke
+
+Labels: BE, Feature. Size: M. Good first issue: 아니오.
 
 ## W2. Catalog 스키마·원본 ID·공간 저장 계약 구현
 
@@ -356,27 +329,11 @@ W0, W1
 
 ### Blocks
 
-W3, W5, W7
+W3, W5, W7, X1
 
 ### Position in Graph
 
-Wave 1. 같은 Wave 이웃: 없음.
-
-```mermaid
-flowchart LR
-    W0["W0: FE 계약·원본 데이터 검증 및 출시 범위 확정"]
-    W1["W1: Spring 골격과 아키텍처 위반 CI 구축"]
-    W2["**W2: Catalog 스키마·원본 ID·공간 저장 계약 구현**"]
-    W3["W3: TourAPI 장소 수집과 실패 복원 구현"]
-    W5["W5: 작성 주체와 중앙 온기 피드 구현"]
-    W7["W7: Odii 언어별 수집·대본 revision·오디오 API 구현"]
-    W0 --> W2
-    W1 --> W2
-    W2 --> W3
-    W2 --> W5
-    W2 --> W7
-```
-
+Wave 2. 같은 Wave: X6.
 
 ### Expected Touch Points
 
@@ -401,6 +358,8 @@ flowchart LR
 ### Verification Method
 
 schema_analyzer.py, PostgreSQL/PostGIS Testcontainers, EXPLAIN baseline
+
+Labels: BE, Feature. Size: M. Good first issue: 아니오.
 
 ## W3. TourAPI 장소 수집과 실패 복원 구현
 
@@ -434,21 +393,11 @@ W2
 
 ### Blocks
 
-W4
+W4, X3
 
 ### Position in Graph
 
-Wave 2. 같은 Wave 이웃: W5, W7.
-
-```mermaid
-flowchart LR
-    W2["W2: Catalog 스키마·원본 ID·공간 저장 계약 구현"]
-    W3["**W3: TourAPI 장소 수집과 실패 복원 구현**"]
-    W4["W4: 한옥 목록·상세·월별 큐레이션 API 구현"]
-    W2 --> W3
-    W3 --> W4
-```
-
+Wave 3. 같은 Wave: W5, W7.
 
 ### Expected Touch Points
 
@@ -473,7 +422,9 @@ flowchart LR
 
 mock HTTP source + 실제 DB 통합 테스트
 
-## W4. 한옥 목록·상세·월별 큐레이션 API 구현
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## W4. 한옥 목록·상세 API 구현
 
 ### Objective
 
@@ -485,7 +436,7 @@ BE-REQ-001~003. v1 data/meta와 FE villages/meta 차이는 compatibility contrac
 
 ### Scope
 
-조회 DTO/filter/page, 상세, editorial 월별 큐레이션, FE decoder acceptance
+목록·상세·검색; 월별/주간 게시 책임은 X1 소유
 
 ### Out of Scope
 
@@ -509,19 +460,7 @@ W6, W10
 
 ### Position in Graph
 
-Wave 3. 같은 Wave 이웃: W8.
-
-```mermaid
-flowchart LR
-    W10["W10: FE 연결 전환과 전체 사용자 동선 검증"]
-    W3["W3: TourAPI 장소 수집과 실패 복원 구현"]
-    W4["**W4: 한옥 목록·상세·월별 큐레이션 API 구현**"]
-    W6["W6: 주변 장소와 출처 기반 혼잡 관측 API 구현"]
-    W3 --> W4
-    W4 --> W6
-    W4 --> W10
-```
-
+Wave 4. 같은 Wave: W8, X1, X2.
 
 ### Expected Touch Points
 
@@ -540,12 +479,14 @@ flowchart LR
 ### Acceptance Criteria
 
 - [ ] region/type/keyword/hasImage/page와 total 정확
-- [ ] 월별 published 순서 검증, 없는 상세404/빈 검색200
+- [ ] 없는 상세404/빈 검색200; 월별 published 순서는 X1 검증
 - [ ] source server 종료에도 목록/상세 정상, FE decoder fixture 통과
 
 ### Verification Method
 
 Boot API + DB 통합, FE payload fixture contract
+
+Labels: BE, Feature. Size: M. Good first issue: 아니오.
 
 ## W5. 작성 주체와 중앙 온기 피드 구현
 
@@ -579,21 +520,11 @@ W2
 
 ### Blocks
 
-W10
+W10, X2, X7
 
 ### Position in Graph
 
-Wave 2. 같은 Wave 이웃: W3, W7.
-
-```mermaid
-flowchart LR
-    W10["W10: FE 연결 전환과 전체 사용자 동선 검증"]
-    W2["W2: Catalog 스키마·원본 ID·공간 저장 계약 구현"]
-    W5["**W5: 작성 주체와 중앙 온기 피드 구현**"]
-    W2 --> W5
-    W5 --> W10
-```
-
+Wave 3. 같은 Wave: W3, W7.
 
 ### Expected Touch Points
 
@@ -622,6 +553,8 @@ flowchart LR
 ### Verification Method
 
 JUnit pure domain, fake ports, security + transaction Testcontainers
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
 
 ## W6. 주변 장소와 출처 기반 혼잡 관측 API 구현
 
@@ -655,21 +588,11 @@ W4
 
 ### Blocks
 
-W10
+W10, X8
 
 ### Position in Graph
 
-Wave 4. 같은 Wave 이웃: W9.
-
-```mermaid
-flowchart LR
-    W10["W10: FE 연결 전환과 전체 사용자 동선 검증"]
-    W4["W4: 한옥 목록·상세·월별 큐레이션 API 구현"]
-    W6["**W6: 주변 장소와 출처 기반 혼잡 관측 API 구현**"]
-    W4 --> W6
-    W6 --> W10
-```
-
+Wave 5. 같은 Wave: W9, X3, X7.
 
 ### Expected Touch Points
 
@@ -700,6 +623,8 @@ flowchart LR
 ### Verification Method
 
 PostGIS integration, source fixture contract, missing-data API tests
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
 
 ## W7. Odii 언어별 수집·대본 revision·오디오 API 구현
 
@@ -733,23 +658,11 @@ W2
 
 ### Blocks
 
-W8, W10
+W8, W10, X1, X3
 
 ### Position in Graph
 
-Wave 2. 같은 Wave 이웃: W3, W5.
-
-```mermaid
-flowchart LR
-    W10["W10: FE 연결 전환과 전체 사용자 동선 검증"]
-    W2["W2: Catalog 스키마·원본 ID·공간 저장 계약 구현"]
-    W7["**W7: Odii 언어별 수집·대본 revision·오디오 API 구현**"]
-    W8["W8: FastAPI 문서 색인과 RAG 검색 기준선 구축"]
-    W2 --> W7
-    W7 --> W8
-    W7 --> W10
-```
-
+Wave 3. 같은 Wave: W3, W5.
 
 ### Expected Touch Points
 
@@ -777,6 +690,8 @@ flowchart LR
 ### Verification Method
 
 Odii HTTP fixtures + DB integration + FE audio decoder
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
 
 ## W8. FastAPI 문서 색인과 RAG 검색 기준선 구축
 
@@ -810,21 +725,11 @@ W7
 
 ### Blocks
 
-W9
+W9, X3
 
 ### Position in Graph
 
-Wave 3. 같은 Wave 이웃: W4.
-
-```mermaid
-flowchart LR
-    W7["W7: Odii 언어별 수집·대본 revision·오디오 API 구현"]
-    W8["**W8: FastAPI 문서 색인과 RAG 검색 기준선 구축**"]
-    W9["W9: 도슨트 질문 API와 AI 장애·비용 격리 구현"]
-    W7 --> W8
-    W8 --> W9
-```
-
+Wave 4. 같은 Wave: W4, X1, X2.
 
 ### Expected Touch Points
 
@@ -853,6 +758,8 @@ flowchart LR
 ### Verification Method
 
 pytest + 실제 pgvector container, indexing failure/retry, eval report
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
 
 ## W9. 도슨트 질문 API와 AI 장애·비용 격리 구현
 
@@ -886,21 +793,11 @@ W8
 
 ### Blocks
 
-W10
+W10, X5
 
 ### Position in Graph
 
-Wave 4. 같은 Wave 이웃: W6.
-
-```mermaid
-flowchart LR
-    W10["W10: FE 연결 전환과 전체 사용자 동선 검증"]
-    W8["W8: FastAPI 문서 색인과 RAG 검색 기준선 구축"]
-    W9["**W9: 도슨트 질문 API와 AI 장애·비용 격리 구현**"]
-    W8 --> W9
-    W9 --> W10
-```
-
+Wave 5. 같은 Wave: W6, X3, X7.
 
 ### Expected Touch Points
 
@@ -933,6 +830,8 @@ flowchart LR
 
 contract + resilience integration, 고정 eval, 선택 live provider smoke
 
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
 ## W10. FE 연결 전환과 전체 사용자 동선 검증
 
 ### Objective
@@ -961,33 +860,15 @@ tests/e2e, docs/integration, ../OnMaruFE/src/app/api, ../OnMaruFE/src/hanok/serv
 
 ### Dependencies (blocked-by)
 
-W4, W5, W6, W7, W9
+W4, W5, W6, W7, W9, X1
 
 ### Blocks
 
-W11
+W11, X8
 
 ### Position in Graph
 
-Wave 5. 같은 Wave 이웃: 없음.
-
-```mermaid
-flowchart LR
-    W10["**W10: FE 연결 전환과 전체 사용자 동선 검증**"]
-    W11["W11: 단계 출시 운영·복구·릴리스 게이트 완성"]
-    W4["W4: 한옥 목록·상세·월별 큐레이션 API 구현"]
-    W5["W5: 작성 주체와 중앙 온기 피드 구현"]
-    W6["W6: 주변 장소와 출처 기반 혼잡 관측 API 구현"]
-    W7["W7: Odii 언어별 수집·대본 revision·오디오 API 구현"]
-    W9["W9: 도슨트 질문 API와 AI 장애·비용 격리 구현"]
-    W4 --> W10
-    W5 --> W10
-    W6 --> W10
-    W7 --> W10
-    W9 --> W10
-    W10 --> W11
-```
-
+Wave 6. 같은 Wave: X4.
 
 ### Expected Touch Points
 
@@ -1011,6 +892,8 @@ flowchart LR
 ### Verification Method
 
 두 서버와 DB의 staging E2E + FE contract suite
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
 
 ## W11. 단계 출시 운영·복구·릴리스 게이트 완성
 
@@ -1040,7 +923,7 @@ infra, docs/operations, .github/workflows/release-please.yml, .github/workflows/
 
 ### Dependencies (blocked-by)
 
-W10
+W10, X8
 
 ### Blocks
 
@@ -1048,15 +931,7 @@ W10
 
 ### Position in Graph
 
-Wave 6. 같은 Wave 이웃: 없음.
-
-```mermaid
-flowchart LR
-    W10["W10: FE 연결 전환과 전체 사용자 동선 검증"]
-    W11["**W11: 단계 출시 운영·복구·릴리스 게이트 완성**"]
-    W10 --> W11
-```
-
+Wave 9. 같은 Wave: 없음.
 
 ### Expected Touch Points
 
@@ -1079,6 +954,535 @@ flowchart LR
 ### Verification Method
 
 staging runbook drill + load report + release gate test
-# 이 문서의 현재 역할
 
-최초 W 전용 계획의 근거 기록이다. 현재 제목·책임·선행·wave·AC는 [통합 발행 초안](implementation-issues.md)과 work-graph.json을 사용한다. W4 게시 책임은 X1로 이관했고 W1은 W0 이후, W11은 X8 이후다.
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## X0. 이야기길 매칭·버전 계약 fixture 확정
+
+### Objective
+
+이야기길 매칭·버전 계약 fixture 확정
+
+### Context
+
+JX-01~09; W0 공통 ID/인증 재사용
+
+### Scope
+
+JX-01~09; W0 공통 ID/인증 재사용
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+contracts/discovery,docs/reference-snapshots/discovery
+
+### Dependencies (blocked-by)
+
+W0
+
+### Blocks
+
+X1, X2, X3, X6
+
+### Position in Graph
+
+Wave 1. 같은 Wave: W1.
+
+### Expected Touch Points
+
+- `contracts/discovery`
+- `docs/reference-snapshots/discovery`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] 한 지역 story-place/evidence 매칭 검수
+- [ ] OpenAPI/Schema 정상·오류·빈 상태 예제와 기존 question+filters 호환 검증
+
+### Verification Method
+
+한 지역 story-place/evidence 매칭 검수; OpenAPI/Schema 정상·오류·빈 상태 예제와 기존 question+filters 호환 검증
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## X1. 게시 콘텐츠·월별/주간 edition·placement API 구현
+
+### Objective
+
+게시 콘텐츠·월별/주간 edition·placement API 구현
+
+### Context
+
+JX-02,03 및 BE-REQ-003; W4 게시 책임 이관
+
+### Scope
+
+JX-02,03 및 BE-REQ-003; W4 게시 책임 이관
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+modules/content,adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/content,apps/spring-api/src/main/java/kr/onmaru/web/content
+
+### Dependencies (blocked-by)
+
+X0, W2, W7
+
+### Blocks
+
+W10, X7, X8
+
+### Position in Graph
+
+Wave 4. 같은 Wave: W4, W8, X2.
+
+### Expected Touch Points
+
+- `modules/content`
+- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/content`
+- `apps/spring-api/src/main/java/kr/onmaru/web/content`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] 게시 승인/권한/revision/FK/기간 검증
+- [ ] 월별·주간 동일 원본, 잘못된 fallback 장소 미노출
+
+### Verification Method
+
+게시 승인/권한/revision/FK/기간 검증; 월별·주간 동일 원본, 잘못된 fallback 장소 미노출
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## X2. 선택 보존 session·proposal·SSE lifecycle 구현
+
+### Objective
+
+선택 보존 session·proposal·SSE lifecycle 구현
+
+### Context
+
+JX-07~09; fake AI 사용, 실제 연결 X5
+
+### Scope
+
+JX-07~09; fake AI 사용, 실제 연결 X5
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+modules/discovery/session,adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/discovery,apps/spring-api/src/main/java/kr/onmaru/web/discovery
+
+### Dependencies (blocked-by)
+
+X0, W1, W5
+
+### Blocks
+
+X5
+
+### Position in Graph
+
+Wave 4. 같은 Wave: W4, W8, X1.
+
+### Expected Touch Points
+
+- `modules/discovery/session`
+- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/discovery`
+- `apps/spring-api/src/main/java/kr/onmaru/web/discovery`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] ownership/pin/version/cancel/replay/snapshot 테스트
+- [ ] 연결 종료와 run 취소 구분; 이벤트 만료 후 snapshot 복구
+
+### Verification Method
+
+ownership/pin/version/cancel/replay/snapshot 테스트; 연결 종료와 run 취소 구분; 이벤트 만료 후 snapshot 복구
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## X3. 근거 관계·공개 projection 검색 기준선 구현
+
+### Objective
+
+근거 관계·공개 projection 검색 기준선 구현
+
+### Context
+
+JX-04,05,11; W8 색인 재사용
+
+### Scope
+
+JX-04,05,11; W8 색인 재사용
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+modules/discovery/relations,apps/ai-api/src/onmaru_ai/search,contracts/corpus
+
+### Dependencies (blocked-by)
+
+X0, W3, W7, W8
+
+### Blocks
+
+X4
+
+### Position in Graph
+
+Wave 5. 같은 Wave: W6, W9, X7.
+
+### Expected Touch Points
+
+- `modules/discovery/relations`
+- `apps/ai-api/src/onmaru_ai/search`
+- `contracts/corpus`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] 삭제/revision/동명 장소/좌표 없음 검증
+- [ ] 공개 projection 제한과 recall·근거 기준선 기록
+
+### Verification Method
+
+삭제/revision/동명 장소/좌표 없음 검증; 공개 projection 제한과 recall·근거 기준선 기록
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## X4. 모델 비교·제한 탐색 harness 검증
+
+### Objective
+
+모델 비교·제한 탐색 harness 검증
+
+### Context
+
+JX-04,05,09,11; SQL/편집 기준선 비교
+
+### Scope
+
+JX-04,05,09,11; SQL/편집 기준선 비교
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+apps/ai-api/src/onmaru_ai/exploration,apps/ai-api/tests/exploration,apps/ai-api/evaluation/exploration
+
+### Dependencies (blocked-by)
+
+X3
+
+### Blocks
+
+X5
+
+### Position in Graph
+
+Wave 6. 같은 Wave: W10.
+
+### Expected Touch Points
+
+- `apps/ai-api/src/onmaru_ai/exploration`
+- `apps/ai-api/tests/exploration`
+- `apps/ai-api/evaluation/exploration`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] 고정 한국어 평가셋/held-out 품질·latency·비용·라이선스 평가
+- [ ] 인젝션/allowlist/예산/timeout/repair 제한 테스트
+
+### Verification Method
+
+고정 한국어 평가셋/held-out 품질·latency·비용·라이선스 평가; 인젝션/allowlist/예산/timeout/repair 제한 테스트
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## X5. 탐색 AI adapter·canonical hydrate·stream 통합
+
+### Objective
+
+탐색 AI adapter·canonical hydrate·stream 통합
+
+### Context
+
+JX-04~09; W9 공유 transport 이후 직렬 통합
+
+### Scope
+
+JX-04~09; W9 공유 transport 이후 직렬 통합
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+adapters/ai-fastapi,apps/spring-api/src/main/java/kr/onmaru/web/discovery,apps/spring-api/src/main/java/kr/onmaru/integration/discovery
+
+### Dependencies (blocked-by)
+
+X2, X4, W9
+
+### Blocks
+
+X8
+
+### Position in Graph
+
+Wave 7. 같은 Wave: 없음.
+
+### Expected Touch Points
+
+- `adapters/ai-fastapi`
+- `apps/spring-api/src/main/java/kr/onmaru/web/discovery`
+- `apps/spring-api/src/main/java/kr/onmaru/integration/discovery`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] stale/deleted evidence 제외·늦은 version 폐기
+- [ ] AI 장애 fallback/cancel race/typed blocks backend E2E
+
+### Verification Method
+
+stale/deleted evidence 제외·늦은 version 폐기; AI 장애 fallback/cancel race/typed blocks backend E2E
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## X6. FE fixture 기반 선택 보드·재접속 구현
+
+### Objective
+
+FE fixture 기반 선택 보드·재접속 구현
+
+### Context
+
+JX-06~09,11; 별도 FE Issue/PR, 실제 서버 연결 완료는 X8
+
+### Scope
+
+JX-06~09,11; 별도 FE Issue/PR, 실제 서버 연결 완료는 X8
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+external/OnMaruFE/journey-curator,external/OnMaruFE/shared/selection,external/OnMaruFE/shared/transport
+
+### Dependencies (blocked-by)
+
+X0
+
+### Blocks
+
+X8
+
+### Position in Graph
+
+Wave 2. 같은 Wave: W2.
+
+### Expected Touch Points
+
+- `external/OnMaruFE/journey-curator`
+- `external/OnMaruFE/shared/selection`
+- `external/OnMaruFE/shared/transport`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] fixture pin/부분 실패/replay/empty 테스트
+- [ ] 모바일·키보드·선택 coordinator 검증과 FE PR 연결
+
+### Verification Method
+
+fixture pin/부분 실패/replay/empty 테스트; 모바일·키보드·선택 coordinator 검증과 FE PR 연결
+
+Labels: FE, Feature. Size: L. Good first issue: 아니오.
+
+## X7. 유효 행동·주간 인기 집계 구현
+
+### Objective
+
+유효 행동·주간 인기 집계 구현
+
+### Context
+
+JX-10; 선택 P2, 출시 blocker 아님
+
+### Scope
+
+JX-10; 선택 P2, 출시 blocker 아님
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+modules/analytics,apps/spring-api/src/main/java/kr/onmaru/scheduling/weekly
+
+### Dependencies (blocked-by)
+
+X1, W5
+
+### Blocks
+
+없음
+
+### Position in Graph
+
+Wave 5. 같은 Wave: W6, W9, X3.
+
+### Expected Touch Points
+
+- `modules/analytics`
+- `apps/spring-api/src/main/java/kr/onmaru/scheduling/weekly`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] KST 경계/중복/집계 판 재현 검증
+- [ ] 최소 표본/anti-gaming/출처/신선도 명시; 부족 시 인기 비공개
+
+### Verification Method
+
+KST 경계/중복/집계 판 재현 검증; 최소 표본/anti-gaming/출처/신선도 명시; 부족 시 인기 비공개
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.
+
+## X8. 이야기길 실제 FE 연결·평가·장애 검증
+
+### Objective
+
+이야기길 실제 FE 연결·평가·장애 검증
+
+### Context
+
+JX-01~11; W10 공통 전환 후 실제 연결
+
+### Scope
+
+JX-01~11; W10 공통 전환 후 실제 연결
+
+### Out of Scope
+
+JX-12, 임의 UI 코드 생성, 승인 없는 아키텍처 확정
+
+### Implementation Notes
+
+journey-exploration PRD와 FE handoff 참조. 실제 계약은 X0에서 확정.
+
+### Related Code / Modules
+
+tests/e2e/discovery,docs/evaluation,docs/operations/discovery,external/OnMaruFE/journey-curator
+
+### Dependencies (blocked-by)
+
+X1, X5, X6, W6, W10
+
+### Blocks
+
+W11
+
+### Position in Graph
+
+Wave 8. 같은 Wave: 없음.
+
+### Expected Touch Points
+
+- `tests/e2e/discovery`
+- `docs/evaluation`
+- `docs/operations/discovery`
+- `external/OnMaruFE/journey-curator`
+
+### Parallel Safety / Conflict Notes
+
+공통 build/composition/migration registry와 docs/database/schema.md는 단일 통합 담당자가 PR별 직렬 반영. 미예약 공유 변경은 graph 재계획. external 경로는 FE 별도 저장소 작업 경계.
+
+### Acceptance Criteria
+
+- [ ] 실서버 선택 보존/재접속/ownership E2E 및 FE/BE merge 확인
+- [ ] 시연·사용자 비교 과업·장애복구·비용 측정; X7 미완료 시 인기 비공개 검증
+
+### Verification Method
+
+실서버 선택 보존/재접속/ownership E2E 및 FE/BE merge 확인; 시연·사용자 비교 과업·장애복구·비용 측정; X7 미완료 시 인기 비공개 검증
+
+Labels: BE, Feature. Size: L. Good first issue: 아니오.

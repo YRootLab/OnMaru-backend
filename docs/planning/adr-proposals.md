@@ -1,5 +1,7 @@
 # 장기 의사결정 검토 초안
 
+2026-09-09 후속 검토: [P0/ADR 검토표](p0-triage.md). 사용자 확정 런타임 역할만 [ADR-0002](../decisions/0002-spring-business-fastapi-ai.md)에 기록했다. D1~D4 및 E1~E5의 구체적 구조는 제안 상태를 유지한다.
+
 2026-09-09. 이 파일은 보고서의 선택안이며 정식 ADR/Accepted 결정이 아니다. `adr-toolkit preflight`에서 기존 `docs/decisions`를 확인했고 `related` 조회에서 관련 ADR은 없었다. ADR-0001은 결정 기록 절차만 정의한다.
 
 사용자 확정 사실은 Java/Spring Boot, Python/FastAPI, 관계형 DB 중심, 이슈 기반 개발, core의 외부 기술 독립 목표다. 인원·hosting·auth·LLM 모델은 미정이다.
