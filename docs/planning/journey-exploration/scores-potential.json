@@ -1,0 +1,13 @@
+{
+  "problem_tourism_value": 13,
+  "differentiation": 12,
+  "tourism_data_leverage": 14,
+  "market_user_need": 10,
+  "originality": 8,
+  "product_completeness": 8,
+  "ux_demo_clarity": 8,
+  "feasibility": 4,
+  "scalability_sustainability": 4,
+  "blockers": [],
+  "notes": "CONDITIONAL SCENARIO: only after real data E2E, user evaluation, recovery, and operating-cost gates pass. Not measured quality or an award probability."
+}

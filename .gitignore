@@ -1,0 +1,94 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node.js
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.nuxt/
+.turbo/
+.vite/
+
+# Java / Spring Boot
+.gradle/
+build/
+out/
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Maven
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+gradle-app.setting
+!gradle-wrapper.jar
+
+# Spring Boot local config
+application-local.yml
+application-local.yaml
+application-local.properties
+application-secret.yml
+application-secret.yaml
+application-secret.properties
+
+# IDEs and editors
+.idea/
+*.iml
+*.iws
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Test and tooling caches
+.pytest_cache/
+.ruff_cache/
+.eslintcache
+.cache/
+.tmp/
+tmp/
+temp/
+
+# OS and archive artifacts
+Thumbs.db
+Desktop.ini
+*.zip
+*.tar
+*.tar.gz
+*.tgz
