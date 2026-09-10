@@ -1,5 +1,18 @@
 # handoff.md
 
+## Active Discussion - 2026-09-09
+
+- Current workspace: `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/prd-planning-2`; branch: `feature/onmaru-be-prd-planningv2-2`. The snapshot below describes the earlier session.
+- User requested a critical discussion of Cline's story-to-place proposal for journey exploration and Odii AI docent, including stronger alternatives. This is product exploration, not approval to implement or finalize the proposal.
+- Review focus: distinguish a useful interaction from defensible advantage; verify competitor claims; compare story-to-place recommendations with question-driven, on-site observation and follow-up exploration.
+- Still unresolved: target use moment (before a visit or on site), pilot content coverage, and whether the proposed experience improves actual exploration over a static curated guide. New alternatives remain unvalidated hypotheses.
+- At the user's request, saved the critique, alternatives, proposed flow, and validation questions in `docs/planning/journey-exploration/kick-brief.md`; the brief remains unapproved product exploration.
+- User subsequently endorsed continuity from pre-visit web exploration to on-site web/app use and explicitly requested login/member features in the plan. User also asked to clarify a broader journey exploration page using OnMaru data and its relationship to Odii.
+- Added `docs/planning/journey-exploration/journey-service-plan.md`: proposed shared exploration workspace, lightweight Odii entry, multi-source discovery, focused relation view, member save/resume/share, and JE-01~07 acceptance candidates. Updated planning entry links and the previous account-management deferral. Detailed policies remain proposals; no runtime, schema, or GitHub Issue changes were made.
+- Tracking is provisionally interpreted as explicit exploration/selection history. GPS route tracking remains unconfirmed. Pilot region/tasks, auth provider, retention, AI quotas, app technology, and detailed UX still need decisions; the earlier on-site-only validation suggestion has been broadened to pre-visit and on-site use.
+- 2026-09-10: User requested continued review. Cross-checked the journey/member proposal against API and issue planning; documented ANSWER-only results, apply vs durable save, explicit add/remove commands, anonymous-to-member copy after run completion, supported graph refs, sharing boundaries, and separate playback concurrency. Updated `fe-api-handoff.md` and JE-to-W/X impact mapping as proposals. OpenAPI, runtime tests, unified work graph, and actual Issues remain outstanding.
+- 2026-09-10 MVP decision: about seven days remain. User chose to implement the journey exploration experience before Odii-specific AI and selected Kakao Login as the sole MVP login provider. Added `seven-day-mvp-fe-handoff.md` with the landing-to-workspace transition, maximum three candidates, pin-preserving proposal flow, small relation view, responsive FE states, Spring/FastAPI boundary, Kakao save flow, seven-day split, acceptance checks, and explicit exclusions. Odii AI, multi-agent, live warmth, sharing, GPS, and native app are outside submission P0.
+
 ## Session Snapshot
 
 - Date: 2026-09-09 KST.
