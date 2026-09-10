@@ -6,6 +6,8 @@
 
 대상: OnMaru FE·Spring Boot·FastAPI 구현 담당
 
+화면별 배치, 가로·세로 flow, API-to-component mapping과 모바일 구현 규칙은 [AI 여정 탐색 FE 경험·API 구현 보고서](fe-experience-api-implementation-report.md)를 함께 따른다.
+
 ## 1. 이번 제출에서 만들 제품
 
 **여정 탐색은 사용자의 한 문장을 실제 장소 후보와 연결 이유로 바꾸고, 마음에 든 장소를 남긴 채 대화로 나머지 선택을 좁혀 가는 화면이다.**
@@ -27,6 +29,7 @@
 | 검색 이후 | 랜딩이 축소되고 같은 페이지 안에서 작업 공간으로 전환 |
 | 결과 | 한 지역의 장소 후보 최대 3개와 후보별 연결 이유 |
 | 핵심 상호작용 | 고정, 제외, 대화형 수정, 변경안 비교, 적용·취소 |
+| 여정 표현 | 이야기 순서의 가로 흐름과 장소 간 직선거리 기반 상대 길이 |
 | 정보 보기 | 여정·지도·연결 3개 보기. 연결은 선택 주변의 작은 관계망 |
 | 회원 | 카카오 로그인 1종, 여정 저장, 저장한 여정 다시 열기 |
 | 비회원 | 검색·수정 가능. 저장 시 로그인 요청, 로그인 취소 시 현재 결과 유지 |
@@ -50,9 +53,10 @@ MVP는 다음 가설 하나를 검증한다.
 3. 사용자가 한 장소를 고정한다.
 4. “시장은 빼고 역사 이야기를 더 넣어줘”라고 요청한다.
 5. 기존 보드 위에 `유지 / 제외 / 추가` 변경안이 표시된다. 고정한 장소는 `유지`다.
-6. 사용자가 적용하면 여정·지도·연결 보기가 같은 후보로 갱신된다. 취소하면 기존 보드가 그대로다.
-7. 저장을 누르면 카카오 로그인을 요청한다. 취소해도 보드는 유지된다.
-8. 로그인에 성공하면 현재 확정 보드를 저장하고 저장 목록에서 다시 연다.
+6. 가로 여정 흐름에서 빠지는 장소와 새 장소, 다시 계산된 상대 거리를 적용 전에 확인한다.
+7. 사용자가 적용하면 여정·지도·연결 보기가 같은 후보로 갱신된다. 취소하면 기존 보드가 그대로다.
+8. 저장을 누르면 카카오 로그인을 요청한다. 취소해도 보드는 유지된다.
+9. 로그인에 성공하면 현재 확정 보드를 저장하고 저장 목록에서 다시 연다.
 
 데모 문장은 파일럿 자료에 맞춰 변경할 수 있지만 `고정 → 조건 수정 → 변경 비교 → 적용 → 저장` 순서는 바꾸지 않는다.
 
@@ -108,7 +112,8 @@ stateDiagram-v2
 |---|---|---|
 | Landing search | 최초 질문·예시 질문·제출 | `JourneyHeroSearch`를 idle/compact 두 형태로 확장 |
 | Journey context | 현재 지역·관심·명시 조건 | 결과 상단의 짧은 summary와 removable condition chip |
-| Candidate board | 후보 1~3개 선택·고정·제외 | 고정 4종 Bento 대신 반복 가능한 place card rail/grid |
+| Journey flow | 후보 1~3개의 이야기 순서와 상대 거리 | 가로 place rail과 거리 connector, 모바일 horizontal scroll |
+| Candidate board | 후보 1~3개 선택·고정·제외 | 고정 4종 Bento 대신 반복 가능한 place card |
 | Selected detail | 연결 이유·근거·확인 불가 정보 | 선택된 카드 하나의 상세만 열기 |
 | View switcher | 여정·지도·연결 전환 | 데스크톱과 모바일에서 같은 선택 상태 공유 |
 | Relation view | 선택 주변 관계와 이유 | `KnowledgeGraphView`를 전체 장식에서 선택형 도구로 변경 |
@@ -133,6 +138,28 @@ stateDiagram-v2
 일정 시각, 총 소요시간, 도보 거리, 운영시간, 접근성은 검증된 데이터가 있을 때만 노출한다. 후보 수를 맞추기 위해 허구 정보를 생성하지 않는다.
 
 `실시간 온기`, `혼잡 지수`, `현재 방문객이 적다`, `추천 시간대`는 이번 데모에서 제거한다. 공공 지역 관측이나 실제 사용자 데이터의 의미·기준일·공간 단위가 검증된 후 별도 block으로 복귀시킨다.
+
+### 장소 사이의 상대 거리 표현
+
+이번 MVP는 길찾기 API나 실제 도보 경로를 계산하지 않는다. AI가 제안한 후보 순서를 **이야기 순서**로 사용하고, Spring이 순서상 인접한 두 장소의 좌표로 직선거리를 계산한다. FE는 이를 실제 비율 그대로 늘리지 않고 제한된 시각 단계로 바꿔 가로 흐름에 표시한다.
+
+| `distanceBand` | 기본 의미 | 권장 connector 길이 |
+|---|---|---|
+| `NEAR` | 상대적으로 가까움 | 48px |
+| `MEDIUM` | 중간 거리 | 88px |
+| `FAR` | 상대적으로 멂 | 128px |
+| `UNKNOWN` | 좌표 또는 계산값 없음 | 64px 점선 |
+
+거리 구간의 미터 기준은 Day 1 파일럿 좌표 분포를 보고 fixture와 함께 고정한다. FE가 임의 threshold로 다시 분류하지 않으며, px 값은 반응형 레이아웃 안에서 조정할 수 있다.
+
+- 표기 문구는 `장소 간 상대 거리` 또는 `직선 약 420m`를 사용한다.
+- `추천 동선`, `최적 경로`, `도보 8분`처럼 실제 길찾기로 오인되는 문구는 사용하지 않는다.
+- 선은 도로 모양의 지도 polyline이 아니라 두 장소의 관계를 잇는 단순 connector다.
+- 데스크톱은 한 줄을 우선하되 컨테이너를 넘으면 가로 스크롤한다. 모바일은 카드 폭과 connector 길이를 고정하고 scroll snap을 사용한다.
+- 정확한 거리를 읽지 못하는 사용자도 순서를 알 수 있도록 카드에 `1`, `2`, `3` 순번을 함께 제공한다.
+- `prefers-reduced-motion`에서는 장소 교체와 connector 재배치를 즉시 반영한다.
+
+변경안에서는 확정 흐름을 유지한 채 `removed` 장소와 기존 connector를 흐리게, `added` 장소와 새 connector를 구분해 표시한다. 애니메이션은 결과를 설명하는 보조 수단이며 `유지 / 제외 / 추가` 텍스트와 적용·취소 동작을 대체하지 않는다.
 
 ## 8. 작은 관계 보기
 
@@ -443,11 +470,23 @@ interface JourneyCandidate {
   constraintChecks: ConstraintCheck[];
 }
 
+type DistanceBand = 'NEAR' | 'MEDIUM' | 'FAR' | 'UNKNOWN';
+
+interface JourneyLeg {
+  fromRef: ResourceRef & { type: 'PLACE' };
+  toRef: ResourceRef & { type: 'PLACE' };
+  order: number;
+  distanceMeters: number | null;
+  distanceKind: 'STRAIGHT_LINE' | 'UNKNOWN';
+  distanceBand: DistanceBand;
+}
+
 interface JourneyBoard {
   title: string;
   querySummary: string;
   regionRef: ResourceRef & { type: 'REGION' };
   candidates: JourneyCandidate[]; // 1..3
+  legs: JourneyLeg[]; // candidates가 2개 이상이면 순서상 인접 장소 사이 N-1개
   resources: Array<PlaceResource | RegionResource | TopicResource>;
   relations: Relation[]; // max 10
   evidence: Evidence[];
@@ -475,7 +514,28 @@ interface ExplorationSnapshot {
     status: RunStatus;
   } | null;
   pendingProposal: JourneyProposal | null;
+  recentHistory: JourneyHistoryItem[]; // 시간 오름차순, 최대 20개
   updatedAt: string;
+}
+
+type JourneyHistoryType =
+  | 'QUERY_SUBMITTED'
+  | 'BOARD_COMMITTED'
+  | 'PIN_CHANGED'
+  | 'PROPOSAL_READY'
+  | 'PROPOSAL_APPLIED'
+  | 'PROPOSAL_DISMISSED'
+  | 'RUN_FAILED';
+
+interface JourneyHistoryItem {
+  id: string;
+  type: JourneyHistoryType;
+  createdAt: string;
+  query: string | null;
+  runId: string | null;
+  stateVersion: number;
+  proposalId: string | null;
+  affectedRefs: ResourceRef[];
 }
 
 interface MemberSummary {
@@ -565,6 +625,7 @@ MVP 오류 코드는 `INVALID_INPUT`, `AUTH_REQUIRED`, `NOT_FOUND`, `ACTIVE_RUN`
 | 지역 | Spring region mapping | canonical code, 이름 | 문자열에서 임의 생성한 행정구역 |
 | 주제 | 운영자가 고정한 작은 taxonomy | ID, 이름, 설명 | LLM이 즉석 생성한 무제한 주제 |
 | 위치 관계 | Spring 좌표 계산 | LOCATED_IN, NEARBY와 계산 근거 | 실제 도보 경로·소요시간 |
+| 여정 구간 | Spring 좌표 계산 | 후보 순서, 인접 장소 직선거리, 상대 거리 단계 | 길찾기 경로, 도보시간, 최단 순서 |
 | 주제 관계 | 검수 relation fixture | SHARES_VERIFIED_TOPIC | 의미 유사성을 역사적 사실로 승격 |
 | 편집 관계 | 제출용 검수 fixture | EDITORIAL_PAIRING과 이유 | AI가 근거 없이 만든 연결 |
 | 이미지 | 원천 사용 가능 이미지 | URL, alt, source | 무관한 stock 이미지 fallback |
@@ -631,9 +692,9 @@ Spring은 run을 DB에 먼저 저장하고 제한된 task executor에서 FastAPI
 2. Spring이 전달한 최대30개 후보 안에서 keyword·metadata 기준선을 적용한다.
 3. 필요할 때만 embedding 또는 LLM reranking으로 후보 순서를 조정한다.
 4. 검수 주제 관계와 좌표 기반 관계를 붙인다.
-5. 후보 최대3개와 근거를 참조하는 변경 이유를 만든다.
+5. 후보 최대3개와 근거를 참조하는 변경 이유 및 이야기 순서를 만든다.
 6. schema, evidence allowlist, pinned 보존을 코드로 검사한다.
-7. Spring이 canonical data로 다시 검증한 결과만 FE에 전달한다.
+7. Spring이 canonical data를 다시 검증하고 인접 후보의 직선거리와 `distanceBand`를 계산한 결과만 FE에 전달한다.
 
 LangGraph를 사용한다면 위 고정 node의 실행 제어 용도로만 사용한다. 단순 query는 LLM 없이 처리할 수 있다. 필요하면 LLM 역할을 `조건 해석`과 `연결 이유 작성`으로 나눌 수 있지만 별도 자율 agent, agent 간 대화, 임의 도구 선택은 넣지 않는다. validator는 코드 규칙으로 구현한다.
 
@@ -660,6 +721,7 @@ Day 1 계약과 fixture가 늦어지면 FE는 현재 mock 구조를 더 확장�
 - 후보별 연결 이유·근거 접근
 - 선택·고정·대화형 변경 요청
 - 유지·제외·추가 preview와 적용·취소
+- 이야기 순서의 가로 흐름과 직선거리 기반 상대 connector
 - 여정·지도·작은 관계 보기의 선택 동기화
 - AI 실패·빈 결과에서도 기존 보드 유지
 - 카카오 로그인, 저장, 다시 열기
@@ -667,20 +729,25 @@ Day 1 계약과 fixture가 늦어지면 FE는 현재 mock 구조를 더 확장�
 
 ### 시간이 남을 때 한 가지씩 추가
 
-1. 저장 여정 제목 수정과 목록 polish
-2. 답변 전용 질문 block
-3. 관계 보기 전환 animation과 추가 접근성 점검
-4. 오디 이야기 한 건을 읽기 전용 관련 콘텐츠로 연결
+1. 로그인 없이 현재 committed board를 PDF로 인쇄·파일 저장
+2. 로그인 회원의 committed board로 읽기 전용 공유 링크 생성
+3. 저장 여정 제목 수정과 목록 polish
+4. 답변 전용 질문 block
+5. 관계 보기 전환 animation과 추가 접근성 점검
+6. 오디 이야기 한 건을 읽기 전용 관련 콘텐츠로 연결
+
+PDF는 FE의 인쇄 전용 layout과 브라우저 `window.print()`를 우선하며 서버 PDF 생성은 하지 않는다. 공유 링크는 익명 exploration URL을 노출하지 않고 개인 질문·위치·탐색 이력을 제외한 별도 snapshot을 생성해야 한다. 두 기능 모두 P0 카카오 저장·다시 열기가 안정된 뒤 착수하며, 공유 링크는 PDF보다 후순위다.
 
 ### 이번 제출에서 제외
 
 - 오디 전용 AI 도슨트와 듣던 구간 질문
 - 여러 자율 agent 또는 multi-agent 협업
 - 전국 자동 일정·예약·결제·최적 경로
+- 실제 도보 경로·도보시간 계산과 지도 경로선
 - GPS 이동 추적과 방문 인증
 - 실시간 혼잡·실시간 온기·행동 기반 인기 순위
 - 장기 취향 학습과 개인화 모델
-- 공유·공동 편집·다중 인증 공급자
+- 제출 P0의 공유 링크, 공동 편집·다중 인증 공급자
 - 네이티브 앱, PWA 오프라인 패키지
 - 임의 웹 검색·임의 SQL·임의 UI 생성
 
@@ -689,6 +756,8 @@ Day 1 계약과 fixture가 늦어지면 FE는 현재 mock 구조를 더 확장�
 - 1440px와 390px viewport에서 핵심 행동과 텍스트가 겹치지 않는다.
 - 랜딩에서 검색 후 workspace로 이동하고, 뒤로 가기 또는 새 탐색으로 시작 상태를 회복한다.
 - 카드·지도·관계 보기의 선택이 같은 canonical ref를 가리킨다.
+- 가로 흐름의 순서와 `JourneyBoard.candidates`, `JourneyLeg`의 ref가 일치한다.
+- 상대 거리 connector가 직선거리임을 알 수 있고 실제 도보 경로나 시간으로 표현되지 않는다.
 - 고정한 후보가 변경 preview와 적용 후에도 유지된다.
 - proposal 취소, AI timeout, 로그인 취소에서 마지막 확정 보드가 유지된다.
 - 로딩·빈 결과·오류·저장 중·저장 완료 상태에 layout shift가 크지 않다.
@@ -706,7 +775,7 @@ Day 1 계약과 fixture가 늦어지면 FE는 현재 mock 구조를 더 확장�
 - Kakao Developers 앱의 redirect URI와 요청 동의 항목
 - Spring·FE origin, cookie, CSRF 및 배포 도메인
 - AI 사용량 상한과 timeout 수치
-- 지도에서 실제 경로선을 표시할지, 위치 핀만 표시할지
+- 상대 거리 `NEAR / MEDIUM / FAR`의 파일럿 미터 threshold
 
 위 항목은 기능 방향을 다시 논의하기 위한 목록이 아니다. Day 1 fixture와 배포 환경을 확정하기 위한 구현 입력이다.
 
