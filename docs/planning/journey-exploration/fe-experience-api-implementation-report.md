@@ -23,6 +23,8 @@
 
 충돌 시 7일 제출 범위에는 `seven-day-mvp-fe-handoff.md`와 이 문서를 우선한다. API field의 최종 Source of Truth는 아직 작성되지 않은 OpenAPI가 되며, OpenAPI 생성 전에는 두 문서의 타입을 함께 변경한다.
 
+실사용 staging, 비상 demo 환경, release 승격과 성공 지표는 [여정 탐색 환경·릴리스·성공 게이트](staging-demo-release-and-success-gates.md)를 따른다. Demo는 별도 mock 제품이나 제품 성과의 근거로 사용하지 않는다.
+
 ## 2. 제품 구조: 세로는 대화의 시간, 가로는 여정의 공간
 
 한 방향만 사용하지 않는다.

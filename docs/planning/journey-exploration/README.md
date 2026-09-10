@@ -19,6 +19,7 @@
 9. [웹·앱 여정 탐색과 회원 경험](journey-service-plan.md): 후속 사용자 요청인 로그인·회원 기능, 폭넓은 데이터 탐색, 오디와의 역할 분담 및 JE 요구. 웹·앱 연속 사용 방향을 반영했으며 세부 정책은 검토 중이다. 페이지명은 `여정 탐색`을 작업 기준으로 하고 `이야기길`은 경험 이름 후보로 남긴다.
 10. [7일 MVP FE 전달서](seven-day-mvp-fe-handoff.md): 제출 우선순위로 확정한 여정 탐색 중심 범위. 랜딩 전환, 후보3개, 선택 보존형 재탐색, REST polling, 실제 FE payload, Spring↔FastAPI 계약, 카카오 로그인·저장과7일 실행 순서를 정한다. 이번 제출 범위에서는 SSE·오디 AI·multi-agent를 제외한다.
 11. [AI 여정 탐색 FE 경험·API 구현 보고서](fe-experience-api-implementation-report.md): 세로 대화와 가로 여정의 결합, 상대 거리 rail, 변경안 비교, 모바일 반응형 구조, API-to-component mapping, 상태 소유권과 FE 완료 기준을 구체화한다.
+12. [환경·릴리스·성공 게이트](staging-demo-release-and-success-gates.md): staging을 실사용 검증 기준으로 삼고 demo를 동일 계약의 비상 시연 환경으로 격리하는 방식, 환경 설정 불변식, 제품·시연 지표와 라이브 심사 runbook을 정한다.
 
 ## 근거의 수준과 미확인 입력
 
