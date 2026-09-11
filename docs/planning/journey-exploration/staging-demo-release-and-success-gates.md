@@ -1,5 +1,8 @@
 # 여정 탐색 환경·릴리스·성공 게이트
 
+> **2026-09-11 개선 설계:** [감사 후속 계약](../revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+
+
 작성일: 2026-09-10  
 상태: 사용자 승인 방향 / 구현 전 설계  
 대상: OnMaru FE, Spring Boot, FastAPI, 배포 담당
@@ -17,8 +20,8 @@ OnMaru 여정 탐색은 **실사용 가능한 `staging`과 `prod`를 제품 검�
 | `local` | 개발자 구현·디버깅 | fixture 또는 로컬 snapshot | stub 또는 실제 provider | 로컬 설정 |
 | `test` | 자동 단위·계약·E2E 테스트 | 테스트 fixture | deterministic fake | 테스트 principal |
 | `demo` | 비상 시연·반복 리허설 | 실제 장소를 검수한 고정 snapshot | deterministic adapter | 격리 DB와 카카오 테스트 앱 |
-| `staging` | 실사용 전 통합 검증·기본 시연 | 실제 canonical 데이터 | 실제 provider | 실제 OAuth 흐름과 격리 DB |
-| `prod` | 실제 사용자 서비스 | 실제 canonical 데이터 | 실제 provider | 운영 OAuth와 운영 DB |
+| `staging` | 실사용 전 통합 검증·기본 시연 | 실제 canonical 데이터 | BASELINE 또는 승인된 LLM | 실제 OAuth 흐름과 격리 DB |
+| `prod` | 실제 사용자 서비스 | 실제 canonical 데이터 | BASELINE 또는 승인된 LLM | 운영 OAuth와 운영 DB |
 
 `release`는 환경명이 아니라 검증을 통과한 versioned artifact다. 배포 흐름은 다음과 같다.
 
@@ -57,7 +60,7 @@ flowchart LR
 ```yaml
 APP_ENV: demo
 DATA_MODE: VERIFIED_SNAPSHOT
-AI_MODE: DETERMINISTIC
+ENGINE: BASELINE
 AUTH_MODE: KAKAO_TEST_APP
 DATASET_REVISION: seochon-2026-09-10
 ```
@@ -67,15 +70,15 @@ DATASET_REVISION: seochon-2026-09-10
 ```text
 APP_ENV  = local | test | demo | staging | prod
 DATA_MODE = FIXTURE | VERIFIED_SNAPSHOT | LIVE_CANONICAL
-AI_MODE   = FAKE | DETERMINISTIC | LIVE_PROVIDER
+ENGINE = BASELINE | LLM
 AUTH_MODE = TEST_PRINCIPAL | KAKAO_TEST_APP | KAKAO_LIVE_APP
 ```
 
 허용 조합을 시작 시 검증한다.
 
-- `prod`: `LIVE_CANONICAL + LIVE_PROVIDER + KAKAO_LIVE_APP`만 허용
-- `staging`: `LIVE_CANONICAL + LIVE_PROVIDER`를 기본으로 사용
-- `demo`: `VERIFIED_SNAPSHOT + DETERMINISTIC + KAKAO_TEST_APP`만 허용
+- `prod`: `LIVE_CANONICAL + (BASELINE 또는 LLM) + KAKAO_LIVE_APP` 허용; LLM은 평가와 금액/token cap 통과 필수
+- `staging`: `LIVE_CANONICAL + BASELINE`을 기본으로 사용하고 LLM을 별도 평가
+- `demo`: `VERIFIED_SNAPSHOT + BASELINE + KAKAO_TEST_APP`만 허용
 - `test`: 외부 API와 운영 credential 접근 금지
 - `local`: 명시적으로 선택하되 운영 credential을 기본값으로 사용하지 않음
 
@@ -91,7 +94,7 @@ Deterministic AI adapter는 같은 요청에 schema가 같은 재현 가능한 �
 interface ExecutionDisclosure {
   environment: 'DEMO' | 'STAGING' | 'PRODUCTION';
   dataMode: 'VERIFIED_SNAPSHOT' | 'LIVE_CANONICAL';
-  aiMode: 'DETERMINISTIC' | 'LIVE_PROVIDER';
+  engine: 'BASELINE' | 'LLM';
   datasetRevision: string;
 }
 ```
@@ -100,7 +103,7 @@ FE는 `DEMO`일 때 Header 또는 query context에 `데모 환경`을 지속 표
 
 ## 6. Staging과 실사용 원칙
 
-`staging`은 실제 관광 원천에서 수집·정규화한 canonical 데이터와 실제 AI provider를 사용한다. 지원 범위 밖의 지역이나 근거가 부족한 조건은 후보 수를 억지로 채우지 않고 `NO_RESULTS` 또는 미확인 상태로 반환한다.
+`staging`은 실제 관광 원천에서 수집·정규화한 canonical 데이터와 BASELINE 또는 평가를 통과한 LLM을 사용한다. 지원 범위 밖의 지역이나 근거가 부족한 조건은 후보 수를 억지로 채우지 않고 `NO_RESULTS` 또는 미확인 상태로 반환한다.
 
 AI 장애 fallback이 필요하면 mock 답변이 아니라 현재 canonical 데이터에 대한 keyword·metadata baseline을 사용하고 결과에 실행 방식을 기록한다. fallback도 canonical/evidence 검증과 pin 보존 규칙을 통과해야 한다.
 
@@ -108,7 +111,7 @@ AI 장애 fallback이 필요하면 mock 답변이 아니라 현재 canonical 데
 
 ### 제품 성공 지표
 
-Staging 또는 prod의 실제 데이터와 실제 AI 경로에서만 측정한다.
+Staging 또는 prod의 실제 canonical 데이터에서 측정하고 BASELINE/LLM별로 분리한다. Demo 결과는 포함하지 않는다.
 
 | 지표 | MVP 목표 |
 |---|---:|

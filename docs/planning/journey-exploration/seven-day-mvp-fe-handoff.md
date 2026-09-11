@@ -1,5 +1,8 @@
 # 7일 MVP: 대화형 여정 탐색 FE 전달서
 
+> **2026-09-11 개선 설계:** [감사 후속 계약](../revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+
+
 작성일: 2026-09-10.
 
 상태: 사용자 방향 승인 / FE·BE 계약 검토안.
@@ -200,7 +203,7 @@ FE는 다음 상태를 분리한다.
 - 완료 결과를 snapshot으로 읽으므로 새로고침과 로그인 왕복 후에도 같은 상태를 복구할 수 있다.
 - SSE를 위한 event 저장·cursor·gap replay·proxy buffering까지 7일에 함께 구현하지 않아도 된다.
 
-FE는 run 응답의 `retryAfterMs`를 따르며 기본 1초 간격으로 조회한다. 브라우저가 background 상태일 때는 2초로 늦춘다. `COMPLETED`, `FAILED`, `CANCELLED`에서 polling을 끝낸다. 20초가 지나도 terminal 상태가 아니면 FE가 임의 성공 처리하지 않고 마지막 조회 후 `AI_TIMEOUT` 안내와 재시도 동작을 제공한다.
+FE는 run 응답의 `retryAfterMs`를 따르며 기본 1초 간격으로 조회한다. 브라우저가 background 상태일 때는 2초로 늦춘다. `COMPLETED`, `FAILED`, `CANCELLED`에서 polling을 끝낸다. 20초 deadline 뒤 FE는 마지막 run 조회를 하고, 서버 도달 실패는 상태 확인 불가로 표시한다. 서버의 terminal 결과 없이 FE가 AI_TIMEOUT을 확정하지 않는다.
 
 SSE가 필요해지면 동일한 run 상태와 snapshot을 유지한 채 진행 이벤트 전송만 추가한다. 장기 설계인 `fe-api-handoff.md`의 SSE 계약은 이번 제출 구현 기준이 아니다.
 
@@ -261,7 +264,7 @@ POST /api/v1/explorations
 ```http
 HTTP 202
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "explorationId": "exp_01",
   "runId": "run_01",
   "stateVersion": 0,
@@ -276,19 +279,21 @@ HTTP 202
 ```json
 GET /api/v1/explorations/exp_01/runs/run_01
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "runId": "run_01",
   "status": "RUNNING",
   "stage": "RETRIEVING",
   "outcome": null,
   "retryAfterMs": 1000,
+  "clarification": null,
+  "createdAt": "2026-09-10T12:00:00Z",
   "startedAt": "2026-09-10T12:00:00Z",
   "deadlineAt": "2026-09-10T12:00:20Z",
   "error": null
 }
 ```
 
-`status`는 `QUEUED | RUNNING | COMPLETED | FAILED | CANCELLED`, `stage`는 `INTERPRETING | RETRIEVING | VALIDATING | PERSISTING`이다. `outcome`은 terminal 상태에서 `INITIAL_BOARD | PROPOSAL | CLARIFICATION_REQUIRED | NO_RESULTS` 중 하나다. stage 문구는 FE에서 한국어로 변환하며 서버 문자열을 그대로 사용자에게 노출하지 않는다.
+`status`는 `QUEUED | RUNNING | COMPLETED | FAILED | CANCELLED`, `stage`는 `INTERPRETING | RETRIEVING | VALIDATING | PERSISTING`이다. `outcome`은 COMPLETED 상태에서 `INITIAL_BOARD | PROPOSAL | CLARIFICATION_REQUIRED | NO_RESULTS` 중 하나다. FAILED/CANCELLED에서는 outcome=null이다. stage 문구는 FE에서 한국어로 변환하며 서버 문자열을 그대로 사용자에게 노출하지 않는다.
 
 `INITIAL_BOARD`가 성공하면 Spring이 최초 보드를 확정하고 `stateVersion`을 0에서 1로 올린다. 이후 수정 run의 `PROPOSAL`은 `pendingProposal`만 만들고 stateVersion을 바꾸지 않는다. 사용자가 APPLY해야 다음 확정 버전이 된다.
 
@@ -319,7 +324,7 @@ POST /api/v1/explorations/exp_01/actions
 }
 ```
 
-`action.type`은 `PIN | UNPIN | APPLY_PROPOSAL | DISMISS_PROPOSAL`만 허용한다. APPLY와 DISMISS는 `proposalId`를 요구한다. 실제 보드 변경만 `stateVersion`을 1 증가시킨다. 오래된 `baseVersion`은 `409 VERSION_CONFLICT`이며 FE가 사용자 명령을 자동 재적용하지 않는다.
+`action.type`은 `PIN | UNPIN | EXCLUDE | UNEXCLUDE | APPLY_PROPOSAL | DISMISS_PROPOSAL`만 허용한다. APPLY와 DISMISS는 `proposalId`를 요구한다. board·pin·excludedRefs가 실제 변경되면 `stateVersion`을 1 증가시킨다. active run 중 action/save는 409 ACTIVE_RUN이다. pin 변경은 pending proposal을 무효화한다. 오래된 `baseVersion`은 `409 VERSION_CONFLICT`이며 FE가 사용자 명령을 자동 재적용하지 않는다.
 
 ### 카카오 로그인과 저장
 
@@ -375,7 +380,7 @@ interface CreateExplorationRequest {
 }
 
 interface AcceptedRun {
-  schemaVersion: '1.0';
+  schemaVersion: '1.1';
   explorationId: string;
   runId: string;
   stateVersion: number;
@@ -385,15 +390,17 @@ interface AcceptedRun {
 }
 
 interface RunSnapshot {
-  schemaVersion: '1.0';
+  schemaVersion: '1.1';
   runId: string;
   status: RunStatus;
   stage: RunStage | null;
   outcome: RunOutcome | null;
-  retryAfterMs: number | null;
+  clarification: { id: string; reason: 'REGION_MISSING' | 'REGION_AMBIGUOUS' | 'UNSUPPORTED_CONDITION'; question: string; choices: Array<{id:string;label:string;regionCode:string|null}>; allowFreeText:boolean } | null;
+  createdAt: string;
+  retryAfterMs: number;
   startedAt: string | null;
   deadlineAt: string;
-  error: ErrorEnvelope['error'] | null;
+  error: {code:string;requestId:string} | null;
 }
 
 interface ResourceRef {
@@ -499,20 +506,20 @@ interface JourneyProposal {
   keptRefs: ResourceRef[];
   addedRefs: ResourceRef[];
   removedRefs: ResourceRef[];
+  orderedRefs: Array<ResourceRef & {type: "PLACE"}>; // final complete order
   board: JourneyBoard;
   unknowns: string[];
 }
 
 interface ExplorationSnapshot {
-  schemaVersion: '1.0';
+  schemaVersion: '1.1';
   explorationId: string;
   stateVersion: number;
   board: JourneyBoard | null;
   pinnedRefs: ResourceRef[];
-  latestRun: {
-    runId: string;
-    status: RunStatus;
-  } | null;
+  excludedRefs: ResourceRef[];
+  execution: {dataMode: string; engine: "BASELINE" | "LLM"; rankingVersion: string; datasetRevision: string};
+  latestRun: RunSnapshot | null;
   pendingProposal: JourneyProposal | null;
   recentHistory: JourneyHistoryItem[]; // 시간 오름차순, 최대 20개
   updatedAt: string;
@@ -540,9 +547,7 @@ interface JourneyHistoryItem {
 
 interface MemberSummary {
   id: string;
-  nickname: string;
-  profileImageUrl: string | null;
-  provider: 'KAKAO';
+  displayName: null; // minimal account response
 }
 
 interface SavedJourneySummary {
@@ -567,6 +572,8 @@ interface SavedJourneyDetail {
 type ExplorationAction =
   | { type: 'PIN'; resourceRef: ResourceRef }
   | { type: 'UNPIN'; resourceRef: ResourceRef }
+  | { type: 'EXCLUDE'; resourceRef: ResourceRef }
+  | { type: 'UNEXCLUDE'; resourceRef: ResourceRef }
   | { type: 'APPLY_PROPOSAL'; proposalId: string }
   | { type: 'DISMISS_PROPOSAL'; proposalId: string };
 
@@ -577,24 +584,13 @@ interface ActionRequest {
 }
 
 interface ErrorEnvelope {
-  error: {
-    code:
-      | 'INVALID_INPUT'
-      | 'AUTH_REQUIRED'
-      | 'NOT_FOUND'
-      | 'ACTIVE_RUN'
-      | 'VERSION_CONFLICT'
-      | 'RATE_LIMITED'
-      | 'AI_TIMEOUT'
-      | 'AI_UNAVAILABLE'
-      | 'NO_RESULTS'
-      | 'RESOURCE_WITHDRAWN';
-    message: string;
-    retryable: boolean;
-    traceId: string;
-    details: Record<string, unknown> | null;
-  };
+  schemaVersion: '1.1';
+  code: string; // enum and HTTP mapping: revision-2026-09-11/api-contract.md
+  message: string;
+  requestId: string;
+  details: Record<string, unknown>;
 }
+
 ```
 
 `focusedRef`, active tab, hover, 열린 상세, 입력 중 query는 이 응답에 넣지 않는다. FE 로컬 표현 상태다. `resources`, `relations`, `evidence`의 모든 ref는 같은 snapshot 안에서 해석 가능해야 한다.
@@ -603,17 +599,15 @@ interface ErrorEnvelope {
 
 ```json
 {
-  "error": {
-    "code": "VERSION_CONFLICT",
-    "message": "최신 여정을 다시 불러와 주세요.",
-    "retryable": false,
-    "traceId": "trace_01",
-    "details": {"currentStateVersion": 3}
-  }
+  "schemaVersion": "1.1",
+  "code": "VERSION_CONFLICT",
+  "message": "최신 여정을 다시 불러와 주세요.",
+  "requestId": "request_01",
+  "details": {"currentStateVersion": 3}
 }
 ```
 
-MVP 오류 코드는 `INVALID_INPUT`, `AUTH_REQUIRED`, `NOT_FOUND`, `ACTIVE_RUN`, `VERSION_CONFLICT`, `RATE_LIMITED`, `AI_TIMEOUT`, `AI_UNAVAILABLE`, `NO_RESULTS`, `RESOURCE_WITHDRAWN`으로 제한한다.
+코드와 HTTP status의 전체 대응은 [최신 REST 계약](../revision-2026-09-11/api-contract.md)을 따른다. NO_RESULTS는 run outcome이며 HTTP 오류가 아니다.
 
 ## 13. 실제로 채울 데이터와 제외할 데이터
 
@@ -638,12 +632,19 @@ Day 1에는 파일럿 장소3개 이상, REGION1개, TOPIC2~4개, relation 최�
 
 Spring은 비즈니스 상태·회원·canonical data의 소유자다. FastAPI는 후보 제안만 하고 DB 상태를 직접 변경하지 않는다.
 
-Spring은 지역과 공개 상태로 최대30개 후보 문서를 먼저 제한한 뒤 FastAPI에 전달한다. 이 방식은 7일 MVP에서 outbox·별도 vector DB·전체 corpus 동기화를 피하면서도, 허용된 자료 안에서 조건 해석과 reranking을 검증할 수 있게 한다.
+Spring은 canonical 지역을 먼저 확정하고 모호하면 public clarification을 반환한다. hard filter 뒤 top30을 ranking하고 pin을 포함한 최대12개 문서를 byte/token 상한 안에서 FastAPI에 전달한다. 이 방식은 7일 MVP에서 outbox·별도 vector DB·전체 corpus 동기화를 피하면서도, 허용된 자료 안에서 조건 해석과 reranking을 검증할 수 있게 한다.
 
 ```ts
 interface AiProposalRequest {
   runId: string;
   mode: 'INITIAL' | 'REFINE';
+  deadlineAt: string;
+  remainingBudgetMs: number;
+  baseVersion: number;
+  datasetRevision: string;
+  rankingVersion: string;
+  engine: 'BASELINE' | 'LLM';
+  excludedRefs: ResourceRef[];
   query: string;
   locale: 'ko-KR';
   currentRefs: ResourceRef[];
@@ -670,6 +671,7 @@ interface AiProposalResponse {
   keptRefs: ResourceRef[];
   addedRefs: ResourceRef[];
   removedRefs: ResourceRef[];
+  orderedRefs: Array<ResourceRef & {type:"PLACE"}>;
   reasons: Array<{
     placeRef: ResourceRef;
     text: string;
@@ -680,23 +682,23 @@ interface AiProposalResponse {
 
 FastAPI는 전달받지 않은 place·topic·evidence ID를 반환할 수 없다. Spring은 schema 검사 후 공개 여부, ref 존재, evidence 포함, 후보 최대3개, 고정 장소 보존을 다시 검증하고 canonical title·image·location을 hydrate한다. FastAPI가 반환한 장소명·좌표·운영정보를 저장하지 않는다.
 
-Spring은 run을 DB에 먼저 저장하고 제한된 task executor에서 FastAPI를 동기 호출한다. browser 요청 thread에서 AI 완료를 기다리지 않는다. 초기 기준은 FastAPI connect timeout 1초, response timeout 15초, 전체 run deadline 20초다. 명시적 validation·rate limit 오류는 재시도하지 않는다. 응답을 받기 전 transport 실패만 같은 `runId`로 1회 재시도할 수 있다.
+Spring은 run을 DB에 먼저 저장하고 제한된 task executor에서 FastAPI를 동기 호출한다. browser 요청 thread에서 AI 완료를 기다리지 않는다. 초기 상한은 connect500ms, 응답 min(12초,remaining-2초), queue 포함 run deadline20초, 생성 자동 retry0이다. worker2/queue2/global active4이며 구체적 admission/terminal CAS는 최신 runtime 정책을 따른다.
 
-별도 broker, Redis, outbox, vector database는 이번 제출에 넣지 않는다. 프로세스 재시작으로 남은 `RUNNING` 상태는 deadline 이후 `FAILED/AI_UNAVAILABLE`로 정리하고 사용자가 같은 보드에서 다시 요청할 수 있게 한다.
+별도 broker, Redis, outbox, vector database는 이번 제출에 넣지 않는다. startup/매1초/GET에서 QUEUED age>2초는 FAILED/QUEUE_TIMEOUT, RUNNING deadline초과는 FAILED/AI_TIMEOUT으로 정리하고 사용자가 같은 보드에서 다시 요청할 수 있게 한다.
 
 ## 15. FastAPI workflow
 
 여러 agent를 만들지 않는다. 하나의 제한된 workflow가 다음 단계를 수행한다.
 
 1. 질문에서 지역·관심·제외·유지 조건을 구조화한다.
-2. Spring이 전달한 최대30개 후보 안에서 keyword·metadata 기준선을 적용한다.
+2. Spring이 ranking한 최대12개 후보에서 baseline 제안 또는 승인된 LLM을 실행한다.
 3. 필요할 때만 embedding 또는 LLM reranking으로 후보 순서를 조정한다.
 4. 검수 주제 관계와 좌표 기반 관계를 붙인다.
 5. 후보 최대3개와 근거를 참조하는 변경 이유 및 이야기 순서를 만든다.
 6. schema, evidence allowlist, pinned 보존을 코드로 검사한다.
 7. Spring이 canonical data를 다시 검증하고 인접 후보의 직선거리와 `distanceBand`를 계산한 결과만 FE에 전달한다.
 
-LangGraph를 사용한다면 위 고정 node의 실행 제어 용도로만 사용한다. 단순 query는 LLM 없이 처리할 수 있다. 필요하면 LLM 역할을 `조건 해석`과 `연결 이유 작성`으로 나눌 수 있지만 별도 자율 agent, agent 간 대화, 임의 도구 선택은 넣지 않는다. validator는 코드 규칙으로 구현한다.
+LangGraph를 사용한다면 위 고정 node의 실행 제어 용도로만 사용한다. 단순 query는 LLM 없이 처리할 수 있다. 후속 확장에서 LLM 역할을 나눌 수 있지만 MVP는 생성 call1회 이내이며 별도 자율 agent, agent 간 대화, 임의 도구 선택은 넣지 않는다. validator는 코드 규칙으로 구현한다.
 
 ## 16. 7일 실행 순서
 

@@ -1,5 +1,8 @@
 # 데이터 모델·API·RAG 설계
 
+> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+
+
 > 후속 정정: 실제 FE 도슨트는 `question+filters` 계약이다. [FE 감사](journey-exploration/fe-data-audit.md), [추천·관계 데이터 확장](journey-exploration/architecture-and-recommendation.md), [새 탐색 API/SSE](journey-exploration/fe-api-handoff.md)를 함께 읽는다. 선택 이야기 Q&A 제안과 현재 구현을 구분하며, durable exploration run은 기존 단일 요청의 취소 정책과 별도다.
 
 검토용 제안. 실행 DDL과 OpenAPI는 W0/W2에서 확정한다. 이 문서는 필드/관계와 인수 기준을 제공하며 현재 배포된 스키마라고 주장하지 않는다.
@@ -22,11 +25,15 @@
 
 ## DB 선정
 
-**PostgreSQL + PostGIS**를 비즈니스 DB로 권고한다. 관계 제약, 근거리 쿼리, 복합 원본 키, batch upsert를 함께 처리한다. pgvector는 AI 단계의 retrieval 저장소로 추가한다. MySQL + 별도 vector store는 팀의 운영 경험 또는 기존 인프라가 강할 때 대안이다. PostgreSQL + 별도 vector DB는 vector 작업량·격리 필요가 실제로 커졌을 때 대안이다.
+**PostgreSQL + PostGIS**를 비즈니스 DB로 권고한다. 관계 제약, 근거리 쿼리, 복합 원본 키, batch upsert를 함께 처리한다. pgvector는 held-out 평가 후 승인하는 optional RAG 저장소이며 MVP에는 추가하지 않는다. MySQL + 별도 vector store는 팀의 운영 경험 또는 기존 인프라가 강할 때 대안이다. PostgreSQL + 별도 vector DB는 vector 작업량·격리 필요가 실제로 커졌을 때 대안이다.
 
 Supabase는 관리형 PostgreSQL/Auth 후보일 뿐 확정이 아니다. 선택해도 Spring이 비즈니스 쓰기 권한과 invariants의 진입점이다. DB 접속 경로와 role/RLS 적용 대상은 배포 설계에서 명확히 한다. 브라우저에 DB 관리 권한을 노출하지 않는다.
 
-비즈니스 schema 예: `catalog`, `community`, `audio`, `insights`, `operations`. AI는 `ai` schema와 별도 role. migration owner, Spring runtime, AI runtime, readonly 운영 role을 분리한다. 같은 Spring 프로세스의 context간 쓰기 소유권은 코드/CI로 강제하며 DB role만으로 완전 격리했다고 주장하지 않는다.
+비즈니스 schema 예: `catalog`, `community`, `audio`, `insights`, `operations`. MVP FastAPI는 DB 접근이 없다. optional RAG 승인 시 AI는 `ai` schema와 별도 role. migration owner, Spring runtime, AI runtime, readonly 운영 role을 분리한다. 같은 Spring 프로세스의 context간 쓰기 소유권은 코드/CI로 강제하며 DB role만으로 완전 격리했다고 주장하지 않는다.
+
+## 최신 회원·방문 후기·탐색·게시 모델
+
+[영속 모델 및 제약](revision-2026-09-11/data-and-identity.md)과 [LKG revision/lease 모델](revision-2026-09-11/runtime-and-operations.md)을 현재 설계로 추가한다. 기존 community.actors를 identity.members로 대체하며 VisitReview/ReviewLike는 기존 Warmth와 별개다. catalog.places 직접 page-upsert를 폐기하고 stable identity+versioned rows+active dataset pointer를 사용한다. 아래 표의 관련 이전 모델은 migration 출발점이 아니다.
 
 ## 관계 모델
 
@@ -160,7 +167,7 @@ Odii의 `stid`는 유지하되 Ask에는 `storyId`를 사용한다. locale 하�
 2. HTTP 호출은 DB transaction 밖에서 한다. connect 1s, 전체 5s, retry 2회 이내 예산 초안을 사용한다. 429는 Retry-After/쿼터 reset을 존중한다.
 3. HTTP 200이어도 원본 header 오류를 검사한다. item object/list/null을 정상화한다. service key 중복 인코딩을 막고 URL query를 로그에서 지운다.
 4. provider,dataset,external_id,language로 중복 방지한다. category/좌표/숫자/날짜를 검증하고 실패 row는 quarantine한다.
-5. 한 page씩 짧은 transaction으로 stage/upsert한다. 부분 실패는 완료 watermark를 전진시키지 않는다. 마지막 정상 공개 snapshot은 유지한다.
+5. page는 비공개 dataset revision에만 stage한다. 전체 검증 뒤 lease generation을 재확인하고 active pointer·성공 watermark를 한 transaction으로 전환한다. 부분 실패는 pointer를 유지하며 canonical 공개행 직접 upsert는 금지한다.
 6. full sync에서 “못 본 항목”은 전체 pagination이 성공한 뒤에만 삭제 후보로 본다. sync D는 tombstone으로 기록하고 조회 제외한다.
 7. 명시적 source 수정일을 비교해 오래된 재시도가 최신 데이터를 덮어쓰지 않게 한다. page 단위 checkpoint와 재수집 겹침 window로 누락을 방지한다.
 8. 대본 게시/삭제에서 outbox를 쓰고 AI revision 색인을 재시도한다. catalog만 출시하는 시점에는 AI outbox를 먼저 만들지 않는다.
@@ -169,7 +176,7 @@ TourAPI/Odii/DataLab은 하나의 generic DTO로 통합하지 않는다. 국문 
 
 ## RAG 파이프라인
 
-첫 대상은 **선택한 오디 이야기의 검증된 대본**이다. 전체 웹 검색이나 모든 관광 데이터 ingestion은 초기 요구가 아니다. 짧은 대본은 통째로 context로 사용하는 baseline과 chunk retrieval을 비교한다.
+아래는 **후속 오디 대본 RAG** 설계다. 현재 여정 탐색의 우선 검색·청킹·평가 계약은 [retrieval](revision-2026-09-11/retrieval.md)이며 vector 없는 baseline부터 시작한다. 오디 RAG의 첫 대상은 **선택한 오디 이야기의 검증된 대본**이다. 전체 웹 검색이나 모든 관광 데이터 ingestion은 초기 요구가 아니다. 짧은 대본은 통째로 context로 사용하는 baseline과 chunk retrieval을 비교한다.
 
 ```mermaid
 flowchart LR

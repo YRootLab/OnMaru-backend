@@ -1,5 +1,25 @@
 # handoff.md
 
+## Active Revision - 2026-09-11
+
+- 사용자 요청: 감사 F01–F21 개선 정책, 헥사고날/DDD·모듈 DAG, DB/인증/저장, 검색 top-k/optional RAG, 지도 전체·지역·인근·viewport 조회, REST/polling/SSE와 실행 자원 예산을 구체화하고 planning 및 FE API 계약에 반영한다.
+- 원본 `docs/report/2026-09-10-architecture-review*.md`는 기준선으로 보존한다. 토론 기록과 개선 추적/예상 재평가는 별도 작성한다. 실제 운영 개선 검증이나 감사 finding closure를 의미하지 않는다.
+- ADR은 toolkit preflight/related/significance 후 검토 초안을 준비하며, 사용자의 명시적인 초안 승인 전 create/status 변경을 하지 않는다.
+- 사용자 확인: 지도 게시글은 기존 온기가 아닌 한옥/한옥 숙박/한옥 카페/전통시장 방문 후 짧은 후기와 좋아요이며 대댓글은 없다. VisitReview를 별도 모델로 설계한다. 기능 설계가 여정 우선 MVP의 출시 필수 범위를 자동 확장하지 않는다.
+- 현재 branch는 `feature/onmaru-be-prd-planningv2-2`; 작업 시작 시 `docs/report/`만 untracked. 오래된 아래 snapshot의 branch/plugin/재시작 지시는 현재 작업 지시가 아니다.
+
+- 후속 사용자 요청: 현재 감사·설계 문서를 작업 브랜치에 커밋하고 origin으로 push한다. 이 요청은 ADR 초안 승인이나 PR/merge 승인이 아니다. 커밋 직전 repository hygiene, JSON/문서 링크, 방문 후기 OpenAPI 검증을 다시 통과했다.
+
+### 2026-09-11 산출물과 검증
+
+- `docs/planning/revision-2026-09-11/`에 구조/데이터/FE REST/검색/실행/3라운드 토론/ADR 승인자료와 방문후기 OpenAPI를 작성했다. 기존 Blueprint/data API/7일전달서/환경설정에 최신 정책과 링크를 반영했다.
+- 사용자 확인된 지도 글은 VisitReview+ReviewLike이며 기존 Warmth와 별개다. 300자/5줄·댓글 전체 제외는 제안 기본값이다.
+- 원본 감사 두 파일 보존, 별도 `docs/report/2026-09-11-design-remediation.md`에 F01–F21 추적과 예상79/100(기준58, +21)을 기록했다. 공식 재감사/운영점수가 아니다.
+- 검증: git diff --check 및 CI filesystem baseline 통과. 새 Markdown 상대링크30개/코드fence/JSON 파싱 통과. openapi-spec-validator로 OpenAPI3.1/고유operation6개 확인; 요청 schema 정상·길이·개행·기존mood거절 등7사례 통과. 이는 runtime endpoint 테스트가 아니다.
+- ADR toolkit preflight/related(0개)/significance(5개 recommended,13/14/14/14/13)/validate(기존1개,오류0)/check(findings0,warnings0). check는 적용할 구조규칙이 없어 NOT_APPLICABLE이며 전체설계 준수 증명이 아니다.
+- 승인 대기: `revision-2026-09-11/adr-review.md`의 5개 구조초안. 사용자 승인 후 toolkit create로 proposed 등록; accepted 전환은 별도. docs/decisions는 아직 변경하지 않았다.
+- 남은 구현게이트: 전체여정 OpenAPI/FE fixture/DDL/ArchUnit, 실제hosting/부하/보안/kill/restore, F13 workflow 수정, F21 pinned source 전환, Issue graph 발행. 이번 작업은 앱/CI구현이나commit/PR을 수행하지 않았다.
+
 ## Active Discussion - 2026-09-09
 
 - Current workspace: `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/prd-planning-2`; branch: `feature/onmaru-be-prd-planningv2-2`. The snapshot below describes the earlier session.
