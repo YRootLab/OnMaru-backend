@@ -14,3 +14,5 @@ This file is reserved for long-term vision and milestone-level goals. Actionable
 - PostgreSQL hosting, authentication, security, and observability decision (provider pending).
 - MVP backend implementation and release pipeline hardening.
 - Source-grounded FastAPI docent with evaluation, cost controls, and failure isolation.
+- Personal memory milestone: show saved places, Odii stories, and saved journeys as a monthly timeline in the member profile.
+- Later social organization milestone: save lightweight visit reviews and group saved items into user collections after privacy, moderation, and list-sharing policies are defined.

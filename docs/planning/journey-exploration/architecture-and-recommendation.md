@@ -1,5 +1,8 @@
 # 서버가 사실과 상태를 소유하고 AI는 검증 가능한 후보를 제안한다
 
+> **2026-09-11 개선 설계:** [감사 후속 계약](../revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+
+
 ## 1. 기존 구조의 확장
 
 Spring Boot modular monolith + pure domain/application + 외부 adapter 원칙을 유지한다. Python/FastAPI는 독립 배포 AI 실행기다. 이번 요구로 `discovery`와 다중 자원 `content` 경계에 실제 책임이 생겼다. 처음부터 `rag`, `llm`, `embedding`, `agent`를 각각 Gradle 도메인으로 만들지 않는다.

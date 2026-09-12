@@ -1,0 +1,38 @@
+Enum journey_saved_resource_type {
+  PLACE
+  ODII_STORY
+}
+
+Table journey_saved_journeys [headercolor: #76B7B2] {
+  id uuid [pk]
+  member_id uuid [not null]
+  source_exploration_id uuid
+  source_version int [not null]
+  saved_at timestamptz [not null]
+  title varchar [not null]
+  snapshot jsonb [not null]
+  snapshot_hash varchar [not null]
+
+  Indexes {
+    (member_id, source_exploration_id, source_version) [unique]
+    (member_id, saved_at, id)
+  }
+}
+
+Table journey_saved_resources [headercolor: #76B7B2] {
+  id uuid [pk]
+  member_id uuid [not null]
+  resource_type journey_saved_resource_type [not null]
+  resource_id uuid [not null, note: 'PLACE -> catalog_place_identity.id, ODII_STORY -> audio_odii_stories.id; enforced by application eligibility port']
+  saved_at timestamptz [not null]
+
+  Indexes {
+    (member_id, resource_type, resource_id) [unique]
+    (member_id, resource_type, saved_at, id)
+  }
+}
+
+TableGroup journey [color: #76B7B2, note: 'Saved journey snapshots, saved place/Odii resources, and member timeline read model source rows.'] {
+  journey_saved_journeys
+  journey_saved_resources
+}

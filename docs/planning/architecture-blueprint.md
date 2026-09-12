@@ -1,12 +1,15 @@
 # OnMaru Architecture Blueprint
 
+> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+
+
 > 후속 제안: [이야기길 아키텍처 확장](journey-exploration/architecture-and-recommendation.md)은 다중 자원 콘텐츠와 선택 보존형 탐색 요구에 따라 content/discovery 경계를 추가한다. 아래 빈 recommendation 모듈 보류 판단은 최초 범위의 판단이며, 새 기능까지 제외한다는 뜻이 아니다.
 
 상태: 검토용 제안 v0.1, 2026-09-09. 근거와 기술 문서: [설계 인덱스](README.md). 요구사항: [백엔드 PRD](backend-prd.md).
 
 ## 1. Executive Decision
 
-**Spring Boot 단일 배포의 도메인 중심 Modular Monolith에 선택적 Hexagonal 경계와 Lightweight DDD를 적용하고, 순수 Java 코어를 Gradle로 보호하며, FastAPI RAG는 버전 계약을 가진 별도 배포로 연결한다.**
+**Spring Boot 단일 배포의 도메인 중심 Modular Monolith에 선택적 Hexagonal 경계와 Lightweight DDD를 적용하고, 순수 Java 코어를 Gradle로 보호하며, 경량 FastAPI proposal workflow는 버전 계약을 가진 별도 배포로 연결한다.**
 
 Spring과 Spring Boot는 경쟁 제품이 아니다. Spring Framework 위에서 자동 설정과 실행·운영 구성을 제공하는 Spring Boot로 서버를 만든다. 이 프로젝트는 사용 빈도 순위를 추정하는 대신 사용자가 선택한 Java 생태계, 트랜잭션, 테스트, Python AI 분리를 근거로 Boot를 사용한다. Java 21 + Boot 4.1 계열을 호환성 검증 시작점으로 삼고 최신 patch와 Gradle wrapper는 W1에서 고정한다. 공식 요구사항은 [Spring Boot 문서](https://docs.spring.io/spring-boot/system-requirements.html)를 따른다.
 
@@ -46,9 +49,9 @@ flowchart LR
   BOOT -. 측정 후 .-> CACHE[(선택 Redis)]
 ```
 
-PG와 VEC는 초기에는 한 PostgreSQL 인스턴스의 별도 schema/role이다. **공유 서버이지 공유 쓰기 모델이 아니다.** Spring은 AI 테이블에 직접 쓰지 않고 Python은 비즈니스 테이블에 직접 쓰지 않는다. Python 확장 부하가 DB를 압박하면 별도 인스턴스로 옮긴다.
+위 VEC/outbox/CDN 그림은 장기 확장이다. MVP는 환경당 PostgreSQL+PostGIS DB 1개이며 FastAPI DB credential은 없다. 선택 RAG 승인 시 PG와 VEC는 한 PostgreSQL 인스턴스의 별도 schema/role이다. **공유 서버이지 공유 쓰기 모델이 아니다.** Spring은 AI 테이블에 직접 쓰지 않고 Python은 비즈니스 테이블에 직접 쓰지 않는다. Python 확장 부하가 DB를 압박하면 별도 인스턴스로 옮긴다.
 
-첫 한옥 출시 시에는 Spring + PostgreSQL만 필요하다. FastAPI·vector·outbox는 AI 단계에서 활성화한다. Spring 배포의 scheduled task는 다중 replica에서도 DB lease로 한 실행만 선출한다. 오디오 파일은 Spring이 전체 프록시하지 않는다.
+현재 첫 출시 우선순위는 여정 탐색·카카오 로그인·저장이며 Spring+경량 FastAPI+PostgreSQL을 기준으로 한다. Vector와 색인 outbox는 선택 RAG 단계다. Spring 배포의 scheduled task는 다중 replica에서도 DB lease로 한 실행만 선출한다. 오디오 파일은 Spring이 전체 프록시하지 않는다.
 
 ## 4. Domain Boundary
 
@@ -61,7 +64,7 @@ PG와 VEC는 초기에는 한 PostgreSQL 인스턴스의 별도 schema/role이�
 | Docent `:docent` | 질문 사용 사례, quota 정책, 근거 문서 허용 범위 | 서버 검증 context만 전달, 결과 근거 검증. 공급자와 독립 |
 | AI 내부 Python | 문서 revision별 chunk, embedding, retrieval, 생성 | 검증된 corpus만 검색, cited evidence, model/index version |
 
-`user`, `trip`, `recommendation`, `content`를 예시 이름 때문에 생성하지 않는다. 초기 identity는 community에서 필요한 opaque actor와 보안 adapter로 충분하다. 계정 lifecycle·북마크·개인화가 독립적으로 복잡해지면 identity를 승격한다. 월별 큐레이션은 catalog 내부 package다. 오디오를 장소의 자식 엔티티 하나로 축소하지 않는다. 하나의 Odii spot은 여러 장소와 관계를 가질 수 있고 매핑이 없어도 오디오를 제공할 수 있다.
+최신 core는 identity/catalog/discovery/journey이며 지도 VisitReview·좋아요 구현 시 community를 추가한다. 콘텐츠는 MVP catalog package가 소유한다. 위 audio/insights/docent는 후속 범위다. 회원 lifecycle·세션·저장 aggregate와 port/adapter 전체 표는 [최신 모듈 설계](revision-2026-09-11/architecture.md)를 따른다.
 
 사용자 제안과 달리 이미 Python은 별도 deployable이므로 전체 시스템을 엄밀하게 단일 monolith라 부르지 않는다. **Spring 비즈니스 영역이 modular monolith**이고 AI는 격리된 보조 시스템이다.
 
@@ -79,7 +82,7 @@ PG와 VEC는 초기에는 한 PostgreSQL 인스턴스의 별도 schema/role이�
 | `:tourism-api` / `adapters/tourism-api` | 외부 관광 DTO 해석과 호출 | catalog/audio/insights port | DB 구현체와 web |
 | `:ai-fastapi` / `adapters/ai-fastapi` | Docent port를 내부 HTTP로 구현 | docent port, HTTP client | 다른 adapter 및 비즈니스 DB |
 
-이는 최종 목표 구성이다. W1 첫 골격은 app/catalog/persistence-jpa/tourism-api만 만든다. 나머지 core와 ai adapter는 해당 기능 Issue에서 추가한다. Redis는 실제 사용 시 새 adapter 또는 app 내부 기술 package로 시작한다.
+이는 최종 목표 구성이다. 여정 우선 첫 골격은 app/identity/catalog/discovery/journey와 필요한 persistence/tourism/ai/kakao adapter다. 아래 과거 W1 분해와 work-graph는 Issue 발행 전에 재조정한다. 나머지 core와 ai adapter는 해당 기능 Issue에서 추가한다. Redis는 실제 사용 시 새 adapter 또는 app 내부 기술 package로 시작한다.
 
 단일 persistence 모듈은 migration·JPA 설정을 공유하여 파일 수를 줄이지만 모든 context를 볼 수 있다. 따라서 package allowlist로 `persistence.community`가 `catalog.domain`이나 `persistence.audio`를 import하지 못하게 한다. 이것이 반복적으로 깨지거나 독립 변경/빌드가 실제로 필요하면 context별 persistence 모듈로 승격한다. DB 엔진을 교체해도 도메인은 보호되지만 SQL·PostGIS·migration의 교체 비용은 남는다.
 
@@ -232,7 +235,7 @@ Repository port는 `JpaRepository<T, ID>`의 복제가 아니다. `save`, `findB
 
 단순 reference/code 조회는 JDBC projection도 허용한다. 공간 SQL은 persistence 내부에 집중한다. mapper 생성 라이브러리는 실제 반복 비용을 측정한 뒤 도입한다. 한 개 JPA entity에 domain까지 합치면 파일 수는 줄지만 사용자 요구인 framework independence가 깨지므로 선택하지 않는다.
 
-PostgreSQL + PostGIS가 공간 검색과 정합성을 한 곳에서 제공한다. AI 단계에서 pgvector를 같은 서버의 독립 schema에 추가한다. MySQL도 RDBMS 후보이나 이 프로젝트의 공간·벡터 조합을 위해 추가 기술이 늘어날 수 있다. Supabase는 PostgreSQL을 대체하는 엔진이 아니라 hosting/Auth 선택이며 별도 판단한다. Redis는 저장소의 정답이 아니다. 상세 모델은 [데이터 설계](data-api-design.md)를 따른다.
+PostgreSQL + PostGIS가 공간 검색과 정합성을 한 곳에서 제공한다. 평가로 도입이 승인된 optional RAG 단계에서만 pgvector를 같은 서버의 독립 schema에 추가한다. MySQL도 RDBMS 후보이나 이 프로젝트의 공간·벡터 조합을 위해 추가 기술이 늘어날 수 있다. Supabase는 PostgreSQL을 대체하는 엔진이 아니라 hosting/Auth 선택이며 별도 판단한다. Redis는 저장소의 정답이 아니다. 상세 모델은 [데이터 설계](data-api-design.md)를 따른다.
 
 ## 12. Architecture Enforcement
 

@@ -1,5 +1,8 @@
 # 데이터 모델·API·RAG 설계
 
+> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+
+
 > 후속 정정: 실제 FE 도슨트는 `question+filters` 계약이다. [FE 감사](journey-exploration/fe-data-audit.md), [추천·관계 데이터 확장](journey-exploration/architecture-and-recommendation.md), [새 탐색 API/SSE](journey-exploration/fe-api-handoff.md)를 함께 읽는다. 선택 이야기 Q&A 제안과 현재 구현을 구분하며, durable exploration run은 기존 단일 요청의 취소 정책과 별도다.
 
 검토용 제안. 실행 DDL과 OpenAPI는 W0/W2에서 확정한다. 이 문서는 필드/관계와 인수 기준을 제공하며 현재 배포된 스키마라고 주장하지 않는다.
@@ -22,11 +25,15 @@
 
 ## DB 선정
 
-**PostgreSQL + PostGIS**를 비즈니스 DB로 권고한다. 관계 제약, 근거리 쿼리, 복합 원본 키, batch upsert를 함께 처리한다. pgvector는 AI 단계의 retrieval 저장소로 추가한다. MySQL + 별도 vector store는 팀의 운영 경험 또는 기존 인프라가 강할 때 대안이다. PostgreSQL + 별도 vector DB는 vector 작업량·격리 필요가 실제로 커졌을 때 대안이다.
+**PostgreSQL + PostGIS**를 비즈니스 DB로 권고한다. 관계 제약, 근거리 쿼리, 복합 원본 키, batch upsert를 함께 처리한다. pgvector는 held-out 평가 후 승인하는 optional RAG 저장소이며 MVP에는 추가하지 않는다. MySQL + 별도 vector store는 팀의 운영 경험 또는 기존 인프라가 강할 때 대안이다. PostgreSQL + 별도 vector DB는 vector 작업량·격리 필요가 실제로 커졌을 때 대안이다.
 
 Supabase는 관리형 PostgreSQL/Auth 후보일 뿐 확정이 아니다. 선택해도 Spring이 비즈니스 쓰기 권한과 invariants의 진입점이다. DB 접속 경로와 role/RLS 적용 대상은 배포 설계에서 명확히 한다. 브라우저에 DB 관리 권한을 노출하지 않는다.
 
-비즈니스 schema 예: `catalog`, `community`, `audio`, `insights`, `operations`. AI는 `ai` schema와 별도 role. migration owner, Spring runtime, AI runtime, readonly 운영 role을 분리한다. 같은 Spring 프로세스의 context간 쓰기 소유권은 코드/CI로 강제하며 DB role만으로 완전 격리했다고 주장하지 않는다.
+비즈니스 schema 예: `catalog`, `community`, `audio`, `insights`, `operations`. MVP FastAPI는 DB 접근이 없다. optional RAG 승인 시 AI는 `ai` schema와 별도 role. migration owner, Spring runtime, AI runtime, readonly 운영 role을 분리한다. 같은 Spring 프로세스의 context간 쓰기 소유권은 코드/CI로 강제하며 DB role만으로 완전 격리했다고 주장하지 않는다.
+
+## 최신 회원·방문 후기·탐색·게시 모델
+
+[영속 모델 및 제약](revision-2026-09-11/data-and-identity.md)과 [LKG revision/lease 모델](revision-2026-09-11/runtime-and-operations.md)을 현재 설계로 추가한다. 기존 community.actors를 identity.members로 대체하며 VisitReview/ReviewLike는 기존 Warmth와 별개다. catalog.places 직접 page-upsert를 폐기하고 stable identity+versioned rows+active dataset pointer를 사용한다. 아래 표의 관련 이전 모델은 migration 출발점이 아니다.
 
 ## 관계 모델
 
@@ -54,39 +61,39 @@ erDiagram
   AI_CHUNK ||--o{ AI_EMBEDDING : embeds
 ```
 
-STORY_REVISION→AI_DOCUMENTはHTTP契約の論理参照でありDB FKではない。SpringとPythonの独立 migrationを保つためである。AI結果は現在の許可revisionに一致する場合のみ採用する。
+STORY_REVISION→AI_DOCUMENT는 HTTP 계약상의 논리 참조이며 DB FK가 아니다. Spring과 Python의 독립 migration을 유지하기 위함이다. AI 결과는 현재 허용된 revision과 일치하는 경우에만 채택한다.
 
-### テーブルごとの責任と制約
+### 테이블별 책임과 제약
 
-以下の名前・型は論理/物理設計の候補。UUID生成はサーバー、時刻は `timestamptz`、日付統計は `date`。API文字列とDB型を混同しない。
+아래 이름과 타입은 논리/물리 설계 후보이다. UUID 생성은 서버가 담당하고, 시각은 `timestamptz`, 일자 통계는 `date`를 사용한다. API 문자열과 DB 타입을 혼동하지 않는다.
 
-| Table | key / 主な属性 | FK・制約・cardinality |
+| Table | key / 주요 속성 | FK·제약·cardinality |
 |---|---|---|
-| catalog.regions | id, display_name | id PK。原本行政コードは source namespaceごとのmapping |
-| catalog.places | UUID id, region_id, name, category, address, location geography(Point,4326), overview, publication_status, version | region FK、name非空、座標欠損可。categoryと伝統判定は根拠を持つ |
-| catalog.place_sources | id, place_id, provider, dataset, external_id, language, observed_at, fetched_at, payload_hash | place FK、UNIQUE(provider,dataset,external_id,language)。language未指定は空文字など単一正規値 |
-| catalog.place_images | id, place_id, url, caption, position, source_ref | place FK、UNIQUE(place_id,position)、position>=0 |
-| catalog.hanok_details | place_id, type, hours, parking, homepage | place_id PK/FK。既知でない情報はNULL、作り話で埋めない |
-| catalog.curation_editions | id, month, locale, title, body, status | UNIQUE(month,locale)、月初日、DRAFT/PUBLISHED |
-| catalog.curation_items | edition_id, place_id, position, editorial_text | 両FK、PK(edition_id,place_id)、UNIQUE(edition_id,position) |
-| community.actors | UUID id, issuer, subject, status | UNIQUE(issuer,subject)。auth.usersへの固定依存を作らない |
-| community.warmths | UUID id, place_id, actor_id, text, mood, score, status, created_at | 両FK RESTRICT、100 code points以内のtrim済非空、mood BUSY/QUIET、score NULLまたは1..5 |
-| community.warmth_tags | warmth_id, tag | PK(warmth_id,tag)、FK、タグ数・長さはapplication制限 |
-| community.idempotency_records | actor_id, operation, key, request_hash, resource_id, expires_at | UNIQUE(actor_id,operation,key)、actor FK。同じkey違う内容は409 |
-| audio.odii_spots | UUID id, provider, tid, tlid, lang_code, title, location, status | UNIQUE(provider,tid,tlid)。言語が別でも上書きしない |
-| audio.odii_stories | UUID id, spot_id, provider, stid, stlid, lang_code, title, audio_url, duration_seconds, status | spot FK、UNIQUE(provider,stid,stlid)、duration>=0またはNULL |
-| audio.place_odii_links | place_id, spot_id, match_method, confidence, verified_at | 両FK、PK(place_id,spot_id)。名前/距離だけの推測を確定linkにしない |
-| audio.story_revisions | UUID id, story_id, revision, script, content_hash, published_at, status | story FK、UNIQUE(story_id,revision)、不変な本文revision |
-| audio.subtitle_lines | revision_id, position, start_seconds, text, timing_mode | PK(revision_id,position)、FK、非負時刻、順序単調はimport時検証 |
-| insights.visitor_observations | provider, region_id, basis_date, visitor_type, count, fetched_at | 複合PK(provider,region_id,basis_date,visitor_type)、region FK、count>=0 |
-| insights.tourism_targets | UUID id, provider, source_target_key, region_id, source_name | UNIQUE(provider,source_target_key)、region FK。原本IDがない場合は正規キーを版管理 |
-| insights.target_place_links | target_id, place_id, match_method, verified_at | target PK/FK、place FK。未解決はlinkなし |
-| insights.concentration_observations | target_id, basis_date, metric_type, value, fetched_at | PK(target_id,basis_date,metric_type)、target FK。原本値と変換指標を区別 |
-| operations.sync_runs | id, source, dataset, status, checkpoint, lease_until, counts, error_code | RUNNING/SUCCEEDED/FAILED、完走時のみ成功watermark前進 |
-| operations.outbox_events | UUID event_id, document_id, revision, event_type, payload, available_at, attempts, delivered_at | event_id PK、delivery可視化、revisionをpayload契約に含める |
-| ai.documents | document_id, revision, content_hash, active, source metadata | PK(document_id,revision)、corpus契約に由来。business FKなし |
-| ai.chunks | chunk_id, document_id, revision, position, text, offsets | document複合FK、UNIQUE(document_id,revision,position) |
-| ai.embeddings | chunk_id, embedding_profile_id, vector | 複合PK(chunk_id,embedding_profile_id)、chunk FK。profileはモデル/次元/距離関数を固定 |
+| catalog.regions | id, display_name | id PK. 원본 행정 코드는 source namespace별 mapping으로 관리 |
+| catalog.places | UUID id, region_id, name, category, address, location geography(Point,4326), overview, publication_status, version | region FK, name 비어 있음 금지, 좌표 결측 허용. category와 전통 판정은 근거를 보존 |
+| catalog.place_sources | id, place_id, provider, dataset, external_id, language, observed_at, fetched_at, payload_hash | place FK, UNIQUE(provider,dataset,external_id,language). language 미지정은 빈 문자열 등 단일 정규값 사용 |
+| catalog.place_images | id, place_id, url, caption, position, source_ref | place FK, UNIQUE(place_id,position), position>=0 |
+| catalog.hanok_details | place_id, type, hours, parking, homepage | place_id PK/FK. 알려지지 않은 정보는 NULL로 두고 임의로 채우지 않음 |
+| catalog.curation_editions | id, month, locale, title, body, status | UNIQUE(month,locale), month는 월 첫날, DRAFT/PUBLISHED |
+| catalog.curation_items | edition_id, place_id, position, editorial_text | 양쪽 FK, PK(edition_id,place_id), UNIQUE(edition_id,position) |
+| community.actors | UUID id, issuer, subject, status | UNIQUE(issuer,subject). auth.users에 대한 고정 의존을 만들지 않음 |
+| community.warmths | UUID id, place_id, actor_id, text, mood, score, status, created_at | 양쪽 FK RESTRICT, 100 code points 이내의 trim된 비어 있지 않은 text, mood BUSY/QUIET, score NULL 또는 1..5 |
+| community.warmth_tags | warmth_id, tag | PK(warmth_id,tag), FK, 태그 수와 길이는 application에서 제한 |
+| community.idempotency_records | actor_id, operation, key, request_hash, resource_id, expires_at | UNIQUE(actor_id,operation,key), actor FK. 같은 key에 다른 내용이면 409 |
+| audio.odii_spots | UUID id, provider, tid, tlid, lang_code, title, location, status | UNIQUE(provider,tid,tlid). 언어가 달라도 덮어쓰지 않음 |
+| audio.odii_stories | UUID id, spot_id, provider, stid, stlid, lang_code, title, audio_url, duration_seconds, status | spot FK, UNIQUE(provider,stid,stlid), duration>=0 또는 NULL |
+| audio.place_odii_links | place_id, spot_id, match_method, confidence, verified_at | 양쪽 FK, PK(place_id,spot_id). 이름/거리만으로 추정한 후보를 확정 link로 공개하지 않음 |
+| audio.story_revisions | UUID id, story_id, revision, script, content_hash, published_at, status | story FK, UNIQUE(story_id,revision), 불변 본문 revision |
+| audio.subtitle_lines | revision_id, position, start_seconds, text, timing_mode | PK(revision_id,position), FK, 음수 시간 금지, 순서 단조성은 import 시 검증 |
+| insights.visitor_observations | provider, region_id, basis_date, visitor_type, count, fetched_at | 복합 PK(provider,region_id,basis_date,visitor_type), region FK, count>=0 |
+| insights.tourism_targets | UUID id, provider, source_target_key, region_id, source_name | UNIQUE(provider,source_target_key), region FK. 원본 ID가 없으면 정규키 생성 방식을 버전 관리 |
+| insights.target_place_links | target_id, place_id, match_method, verified_at | target PK/FK, place FK. 미해결 대상은 link 없음 |
+| insights.concentration_observations | target_id, basis_date, metric_type, value, fetched_at | PK(target_id,basis_date,metric_type), target FK. 원본값과 변환 지표를 구분 |
+| operations.sync_runs | id, source, dataset, status, checkpoint, lease_until, counts, error_code | RUNNING/SUCCEEDED/FAILED, 완주 시에만 성공 watermark 전진 |
+| operations.outbox_events | UUID event_id, document_id, revision, event_type, payload, available_at, attempts, delivered_at | event_id PK, delivery 가시화, revision을 payload 계약에 포함 |
+| ai.documents | document_id, revision, content_hash, active, source metadata | PK(document_id,revision), corpus 계약에서 유래. business FK 없음 |
+| ai.chunks | chunk_id, document_id, revision, position, text, offsets | document 복합 FK, UNIQUE(document_id,revision,position) |
+| ai.embeddings | chunk_id, embedding_profile_id, vector | 복합 PK(chunk_id,embedding_profile_id), chunk FK. profile은 모델/차원/거리 함수를 고정 |
 
 모든 FK 삭제 기본은 RESTRICT이며, 완전한 소유 자식(자막/후기 태그)만 명시적 cascade 후보로 한다. 장소 폐기 시 후기를 무조건 물리 삭제하지 않고 게시 상태를 먼저 변경한다. 개인정보 보존/삭제 정책은 W5에서 확정하고 식별자 pseudonymization과 공개 콘텐츠 처리를 구분한다.
 
@@ -160,7 +167,7 @@ Odii의 `stid`는 유지하되 Ask에는 `storyId`를 사용한다. locale 하�
 2. HTTP 호출은 DB transaction 밖에서 한다. connect 1s, 전체 5s, retry 2회 이내 예산 초안을 사용한다. 429는 Retry-After/쿼터 reset을 존중한다.
 3. HTTP 200이어도 원본 header 오류를 검사한다. item object/list/null을 정상화한다. service key 중복 인코딩을 막고 URL query를 로그에서 지운다.
 4. provider,dataset,external_id,language로 중복 방지한다. category/좌표/숫자/날짜를 검증하고 실패 row는 quarantine한다.
-5. 한 page씩 짧은 transaction으로 stage/upsert한다. 부분 실패는 완료 watermark를 전진시키지 않는다. 마지막 정상 공개 snapshot은 유지한다.
+5. page는 비공개 dataset revision에만 stage한다. 전체 검증 뒤 lease generation을 재확인하고 active pointer·성공 watermark를 한 transaction으로 전환한다. 부분 실패는 pointer를 유지하며 canonical 공개행 직접 upsert는 금지한다.
 6. full sync에서 “못 본 항목”은 전체 pagination이 성공한 뒤에만 삭제 후보로 본다. sync D는 tombstone으로 기록하고 조회 제외한다.
 7. 명시적 source 수정일을 비교해 오래된 재시도가 최신 데이터를 덮어쓰지 않게 한다. page 단위 checkpoint와 재수집 겹침 window로 누락을 방지한다.
 8. 대본 게시/삭제에서 outbox를 쓰고 AI revision 색인을 재시도한다. catalog만 출시하는 시점에는 AI outbox를 먼저 만들지 않는다.
@@ -169,7 +176,7 @@ TourAPI/Odii/DataLab은 하나의 generic DTO로 통합하지 않는다. 국문 
 
 ## RAG 파이프라인
 
-첫 대상은 **선택한 오디 이야기의 검증된 대본**이다. 전체 웹 검색이나 모든 관광 데이터 ingestion은 초기 요구가 아니다. 짧은 대본은 통째로 context로 사용하는 baseline과 chunk retrieval을 비교한다.
+아래는 **후속 오디 대본 RAG** 설계다. 현재 여정 탐색의 우선 검색·청킹·평가 계약은 [retrieval](revision-2026-09-11/retrieval.md)이며 vector 없는 baseline부터 시작한다. 오디 RAG의 첫 대상은 **선택한 오디 이야기의 검증된 대본**이다. 전체 웹 검색이나 모든 관광 데이터 ingestion은 초기 요구가 아니다. 짧은 대본은 통째로 context로 사용하는 baseline과 chunk retrieval을 비교한다.
 
 ```mermaid
 flowchart LR
