@@ -1,0 +1,60 @@
+---
+id: ADR-0002
+title: Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다
+status: accepted
+date: 2026-09-09
+locale: ko
+decision_makers:
+  - 사용자
+related: []
+affected_paths:
+  - docs/planning/
+  - AGENTS.md
+tags:
+  - runtime
+  - ownership
+retrospective: true
+---
+
+# Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다
+
+## 맥락 및 문제 설명
+
+문서 중심 저장소에서 이후 구현의 언어와 서버 역할 기준이 필요하다. 런타임은 아직 없다.
+
+## Confirmed Evidence
+
+* 사용자가 2026-09-09 Java/Spring Boot 비즈니스 API와 Python/FastAPI AI를 선택했고 이번 요청에서 같은 기반의 순차 개발을 재확인했다.
+* AGENTS.md와 docs/planning/README.md에 같은 역할이 기록되어 있다.
+* 사용자가 확정할 결정만 정식 ADR로 기록하도록 요청했다. 이 기록은 위 선택만 보존한다.
+
+## Inferred Rationale
+
+* 언어별 업무 구현과 AI 개발 도구를 활용하기 위한 분리로 해석한다. 이는 추론이며 성능 측정이나 사용자 발언으로 확인된 선정 이유는 아니다.
+
+## Unknown
+
+* 최초 선택의 비교 평가, 버전, 배포 환경, 인증 제공자, DB 엔진, 서비스 간 전송 방식은 미확정이다.
+
+## 검토한 대안
+
+* 선택된 Spring Boot 비즈니스 API와 FastAPI AI 구성.
+* 단일 런타임 구성은 비교 가능한 대안이지만 사용자가 이를 평가하거나 기각한 구체적 근거는 확인되지 않았다.
+
+## 결정 결과
+
+선택한 대안: **Java/Spring Boot 비즈니스 API + Python/FastAPI AI**. 사용자 선택을 구현 계획의 기준으로 기록한다. D1의 Gradle/Hexagonal 구조, D2의 PostgreSQL/PostGIS, D4/E5의 구체적인 호출·DB 권한 계약까지 승인하는 결정은 아니다.
+
+## 결과 및 영향
+
+* 두 언어의 빌드·테스트 및 서버 간 계약 검증이 필요하다.
+* 추가 운영 부담은 예상 영향이며 실측된 비용은 없다.
+
+## 확인 방법
+
+* W1은 Spring Boot 골격, W8은 FastAPI 골격 및 각각의 CI 검증을 제공한다.
+* 구현 전에 모듈 구조·DB·인증·통신 계약의 별도 결정 게이트를 통과한다.
+
+## 재검토 조건
+
+* 팀 역량·운영 예산·실측 요구가 두 런타임 구성을 지속하기 어렵게 만들면 재검토한다.

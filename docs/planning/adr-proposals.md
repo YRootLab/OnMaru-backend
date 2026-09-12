@@ -2,6 +2,7 @@
 
 > **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
 
+2026-09-09 후속 검토: [P0/ADR 검토표](p0-triage.md). 사용자 확정 런타임 역할만 [ADR-0002](../decisions/0002-spring-business-fastapi-ai.md)에 기록했다. D1~D4 및 E1~E5의 구체적 구조는 제안 상태를 유지한다.
 
 2026-09-09. 이 파일은 보고서의 선택안이며 정식 ADR/Accepted 결정이 아니다. `adr-toolkit preflight`에서 기존 `docs/decisions`를 확인했고 `related` 조회에서 관련 ADR은 없었다. ADR-0001은 결정 기록 절차만 정의한다.
 

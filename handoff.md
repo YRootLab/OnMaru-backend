@@ -12,6 +12,19 @@
 - 다음 세션에서 할 일: 아직 승인되지 않은 ADR 초안은 `docs/planning/revision-2026-09-11/adr-review.md`에서 확인한다. 사용자 명시 승인 전 `docs/decisions`에 ADR을 생성하거나 상태 변경하지 않는다.
 - 다음 세션에서 할 일: 최종 커밋 전 `npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres`, `node scripts/azimutt-export.mjs`, `git diff --check`를 실행한다.
 
+## Active Restart Session (2026-09-09)
+
+- Request: check PR #48, triage P0, unify W/X candidates, review ADRs, and prepare spec-to-issues publication. Runtime implementation remains gated.
+- Actual workspace: `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/prd-planning`; branch `feature/backend-prd-planning`; starting HEAD `2548b42`.
+- PR #48 is MERGED into `develop`; head `665a01d5e100b097c9f62c58bb1b368599a866b2`. CI `verify` succeeded; `gemini-review` failed; CodeRabbit succeeded. Review decision field is empty, so human approval is not established by this query.
+- This section supersedes the historical branch, PR creation, and restart instructions below. Preserve the merged planning commit; do not rewrite it or reuse its deleted work branch.
+- Missing contest inputs and the two references were requested; keep them pending unless supplied.
+- Current graph: 21 candidates, waves 0-9, no graph errors; five shared Gradle conflict warnings are intentionally serialized by the integration policy in `docs/planning/implementation-issues.md`.
+- ADR-0002 records only the user-selected Spring Boot business API / FastAPI AI roles. D1-D4/E1-E5 remain proposals; review results are in `docs/planning/p0-triage.md`.
+- External schema guide has uncommitted changes; metadata alone is not a reproducible snapshot. FE specs are clean at the recorded source commit.
+- No GitHub Issues were created, no runtime scaffold started, no push or new PR performed.
+- Tracking Issue #49 was created for this planning follow-up PR. No runtime scaffold started.
+- Next: resolve scope/reference inputs and W0 security/snapshot/architecture gates; review the concrete `implementation-issues.md` publication draft; publish and verify native Issue relationships before starting implementation.
 
 ## Active Revision - 2026-09-11
 
@@ -19,7 +32,7 @@
 - 추가 요청: 사용자는 장소와 오디 이야기를 담아두기 대상으로 확정하고, 후기 담아두기와 컬렉션은 `project-roadmap.md`의 장기 후보로 남기길 원한다. 여정 저장과 담아두기는 다른 lifecycle로 문서화한다.
 - 추가 요청: 기존 FE에 없거나 새로 추가된 기능/API를 FE에게 전달할 별도 md 보고서로 작성한다. `revision-2026-09-11/fe-change-report.md`에 장소/오디 담아두기, 지도 1.2, VisitReview, run/paging/auth 전환 체크리스트를 기록한다.
 - 추가 요청: 내 정보 화면은 단순 컬렉션보다 월간 타임라인을 우선한다. 담아둔 장소, 담아둔 오디 이야기, 저장 여정을 월별 흐름으로 보여주고 FE 전달서에도 상세 flow를 추가한다.
-- 추가 요청: DB schema relation이 한눈에 보이지 않아 dbdiagram.io DBML 기반 ERD를 Level 1 overview와 Level 2 domain detail로 구성한다. 실제 구현/JPA/migration이 없음을 명시하고, 한국관광공사 국문 TourAPI 저장 테이블도 명시적으로 포함한다.
+- 추가 요청: DB schema relation이 한눈에 보이지 않아 DBML 기반 ERD를 Level 1 overview와 Level 2 domain detail로 구성한다. 실제 구현/JPA/migration이 없음을 명시하고, 한국관광공사 국문 TourAPI 저장 테이블도 명시적으로 포함한다.
 
 - 사용자 요청: 감사 F01–F21 개선 정책, 헥사고날/DDD·모듈 DAG, DB/인증/저장, 검색 top-k/optional RAG, 지도 전체·지역·인근·viewport 조회, REST/polling/SSE와 실행 자원 예산을 구체화하고 planning 및 FE API 계약에 반영한다.
 - 원본 `docs/report/2026-09-10-architecture-review*.md`는 기준선으로 보존한다. 토론 기록과 개선 추적/예상 재평가는 별도 작성한다. 실제 운영 개선 검증이나 감사 finding closure를 의미하지 않는다.
@@ -39,23 +52,6 @@
 - 승인 대기: `revision-2026-09-11/adr-review.md`의 5개 구조초안. 사용자 승인 후 toolkit create로 proposed 등록; accepted 전환은 별도. docs/decisions는 아직 변경하지 않았다.
 - 남은 구현게이트: 전체여정 OpenAPI/FE fixture/DDL/ArchUnit, 실제hosting/부하/보안/kill/restore, F13 workflow 수정, F21 pinned source 전환, Issue graph 발행. 이번 작업은 앱/CI구현이나commit/PR을 수행하지 않았다.
 
-## Active Discussion - 2026-09-09
-
-- Current workspace: `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/prd-planning-2`; branch: `feature/onmaru-be-prd-planningv2-2`. The snapshot below describes the earlier session.
-- User requested a critical discussion of Cline's story-to-place proposal for journey exploration and Odii AI docent, including stronger alternatives. This is product exploration, not approval to implement or finalize the proposal.
-- Review focus: distinguish a useful interaction from defensible advantage; verify competitor claims; compare story-to-place recommendations with question-driven, on-site observation and follow-up exploration.
-- Still unresolved: target use moment (before a visit or on site), pilot content coverage, and whether the proposed experience improves actual exploration over a static curated guide. New alternatives remain unvalidated hypotheses.
-- At the user's request, saved the critique, alternatives, proposed flow, and validation questions in `docs/planning/journey-exploration/kick-brief.md`; the brief remains unapproved product exploration.
-- User subsequently endorsed continuity from pre-visit web exploration to on-site web/app use and explicitly requested login/member features in the plan. User also asked to clarify a broader journey exploration page using OnMaru data and its relationship to Odii.
-- Added `docs/planning/journey-exploration/journey-service-plan.md`: proposed shared exploration workspace, lightweight Odii entry, multi-source discovery, focused relation view, member save/resume/share, and JE-01~07 acceptance candidates. Updated planning entry links and the previous account-management deferral. Detailed policies remain proposals; no runtime, schema, or GitHub Issue changes were made.
-- Tracking is provisionally interpreted as explicit exploration/selection history. GPS route tracking remains unconfirmed. Pilot region/tasks, auth provider, retention, AI quotas, app technology, and detailed UX still need decisions; the earlier on-site-only validation suggestion has been broadened to pre-visit and on-site use.
-- 2026-09-10: User requested continued review. Cross-checked the journey/member proposal against API and issue planning; documented ANSWER-only results, apply vs durable save, explicit add/remove commands, anonymous-to-member copy after run completion, supported graph refs, sharing boundaries, and separate playback concurrency. Updated `fe-api-handoff.md` and JE-to-W/X impact mapping as proposals. OpenAPI, runtime tests, unified work graph, and actual Issues remain outstanding.
-- 2026-09-10 MVP decision: about seven days remain. User chose to implement the journey exploration experience before Odii-specific AI and selected Kakao Login as the sole MVP login provider. Added `seven-day-mvp-fe-handoff.md` with the landing-to-workspace transition, maximum three candidates, pin-preserving proposal flow, small relation view, responsive FE states, Spring/FastAPI boundary, Kakao save flow, seven-day split, acceptance checks, and explicit exclusions. Odii AI, multi-agent, live warmth, sharing, GPS, and native app are outside submission P0.
-- 2026-09-10 contract refinement: User requested a concrete transport choice and sendable data types. The seven-day handoff now selects REST command + 1-second polling + snapshot instead of SSE for submission, defines browser endpoints, request/response examples, FE TypeScript types, error enums, source-to-field availability, Spring-to-FastAPI allowlisted candidate documents, timeouts, retry rules, and no-broker execution. Kakao Login is confirmed as missing current user-facing implementation and remains P0. OpenAPI/JSON Schema files still need to be generated from the reviewed contract.
-- 2026-09-10 journey-flow decision: User approved a horizontal journey flow without an MVP routing engine. AI proposes an evidence-bounded story order; Spring calculates straight-line distance between adjacent canonical coordinates and returns `JourneyLeg`; FE renders `NEAR / MEDIUM / FAR / UNKNOWN` as bounded connector lengths. The UI must label this as relative or straight-line distance, never as an optimal route, walking distance, or walking time. Actual route calculation and map polylines remain excluded.
-- 2026-09-10 FE report request: Added `fe-experience-api-implementation-report.md` as the concrete FE/BE handoff for vertical conversation plus horizontal journey rails, proposal comparison, responsive behavior, API-to-component mapping, recent history, ownership boundaries, failure recovery, and acceptance checks. ADR Toolkit preflight passed, no related ADR was found, and the Spring-owned typed snapshot/AI proposal boundary scored 14 (`recommended`). The ADR itself still requires the toolkit's explicit draft approval before creation.
-- 2026-09-10 save/export/share roadmap: User fixed the order as Kakao-authenticated server save/reopen first, anonymous browser PDF print/file save if time remains, then authenticated read-only share snapshots. PDF uses a print layout rather than a submission-time server renderer. Share URLs must not expose guest exploration ownership or private questions/history, and remain outside P0 until save/reopen is stable.
-- 2026-09-10 environment decision: User chose real-use staging/prod as the product target while retaining a demo environment for live-judging contingencies. Added `staging-demo-release-and-success-gates.md`: staging uses live canonical data, live AI, and real Kakao flow; demo uses the same release artifact/OpenAPI with a verified real-place snapshot, deterministic adapter, isolated DB/Kakao test app, and visible disclosure. Product success metrics exclude demo results; separate rehearsal, contract-equivalence, credential, and data-isolation gates apply.
 
 ## Session Snapshot
 
