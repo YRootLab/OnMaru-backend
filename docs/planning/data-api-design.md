@@ -61,39 +61,39 @@ erDiagram
   AI_CHUNK ||--o{ AI_EMBEDDING : embeds
 ```
 
-STORY_REVISION→AI_DOCUMENTはHTTP契約の論理参照でありDB FKではない。SpringとPythonの独立 migrationを保つためである。AI結果は現在の許可revisionに一致する場合のみ採用する。
+STORY_REVISION→AI_DOCUMENT는 HTTP 계약상의 논리 참조이며 DB FK가 아니다. Spring과 Python의 독립 migration을 유지하기 위함이다. AI 결과는 현재 허용된 revision과 일치하는 경우에만 채택한다.
 
-### テーブルごとの責任と制約
+### 테이블별 책임과 제약
 
-以下の名前・型は論理/物理設計の候補。UUID生成はサーバー、時刻は `timestamptz`、日付統計は `date`。API文字列とDB型を混同しない。
+아래 이름과 타입은 논리/물리 설계 후보이다. UUID 생성은 서버가 담당하고, 시각은 `timestamptz`, 일자 통계는 `date`를 사용한다. API 문자열과 DB 타입을 혼동하지 않는다.
 
-| Table | key / 主な属性 | FK・制約・cardinality |
+| Table | key / 주요 속성 | FK·제약·cardinality |
 |---|---|---|
-| catalog.regions | id, display_name | id PK。原本行政コードは source namespaceごとのmapping |
-| catalog.places | UUID id, region_id, name, category, address, location geography(Point,4326), overview, publication_status, version | region FK、name非空、座標欠損可。categoryと伝統判定は根拠を持つ |
-| catalog.place_sources | id, place_id, provider, dataset, external_id, language, observed_at, fetched_at, payload_hash | place FK、UNIQUE(provider,dataset,external_id,language)。language未指定は空文字など単一正規値 |
-| catalog.place_images | id, place_id, url, caption, position, source_ref | place FK、UNIQUE(place_id,position)、position>=0 |
-| catalog.hanok_details | place_id, type, hours, parking, homepage | place_id PK/FK。既知でない情報はNULL、作り話で埋めない |
-| catalog.curation_editions | id, month, locale, title, body, status | UNIQUE(month,locale)、月初日、DRAFT/PUBLISHED |
-| catalog.curation_items | edition_id, place_id, position, editorial_text | 両FK、PK(edition_id,place_id)、UNIQUE(edition_id,position) |
-| community.actors | UUID id, issuer, subject, status | UNIQUE(issuer,subject)。auth.usersへの固定依存を作らない |
-| community.warmths | UUID id, place_id, actor_id, text, mood, score, status, created_at | 両FK RESTRICT、100 code points以内のtrim済非空、mood BUSY/QUIET、score NULLまたは1..5 |
-| community.warmth_tags | warmth_id, tag | PK(warmth_id,tag)、FK、タグ数・長さはapplication制限 |
-| community.idempotency_records | actor_id, operation, key, request_hash, resource_id, expires_at | UNIQUE(actor_id,operation,key)、actor FK。同じkey違う内容は409 |
-| audio.odii_spots | UUID id, provider, tid, tlid, lang_code, title, location, status | UNIQUE(provider,tid,tlid)。言語が別でも上書きしない |
-| audio.odii_stories | UUID id, spot_id, provider, stid, stlid, lang_code, title, audio_url, duration_seconds, status | spot FK、UNIQUE(provider,stid,stlid)、duration>=0またはNULL |
-| audio.place_odii_links | place_id, spot_id, match_method, confidence, verified_at | 両FK、PK(place_id,spot_id)。名前/距離だけの推測を確定linkにしない |
-| audio.story_revisions | UUID id, story_id, revision, script, content_hash, published_at, status | story FK、UNIQUE(story_id,revision)、不変な本文revision |
-| audio.subtitle_lines | revision_id, position, start_seconds, text, timing_mode | PK(revision_id,position)、FK、非負時刻、順序単調はimport時検証 |
-| insights.visitor_observations | provider, region_id, basis_date, visitor_type, count, fetched_at | 複合PK(provider,region_id,basis_date,visitor_type)、region FK、count>=0 |
-| insights.tourism_targets | UUID id, provider, source_target_key, region_id, source_name | UNIQUE(provider,source_target_key)、region FK。原本IDがない場合は正規キーを版管理 |
-| insights.target_place_links | target_id, place_id, match_method, verified_at | target PK/FK、place FK。未解決はlinkなし |
-| insights.concentration_observations | target_id, basis_date, metric_type, value, fetched_at | PK(target_id,basis_date,metric_type)、target FK。原本値と変換指標を区別 |
-| operations.sync_runs | id, source, dataset, status, checkpoint, lease_until, counts, error_code | RUNNING/SUCCEEDED/FAILED、完走時のみ成功watermark前進 |
-| operations.outbox_events | UUID event_id, document_id, revision, event_type, payload, available_at, attempts, delivered_at | event_id PK、delivery可視化、revisionをpayload契約に含める |
-| ai.documents | document_id, revision, content_hash, active, source metadata | PK(document_id,revision)、corpus契約に由来。business FKなし |
-| ai.chunks | chunk_id, document_id, revision, position, text, offsets | document複合FK、UNIQUE(document_id,revision,position) |
-| ai.embeddings | chunk_id, embedding_profile_id, vector | 複合PK(chunk_id,embedding_profile_id)、chunk FK。profileはモデル/次元/距離関数を固定 |
+| catalog.regions | id, display_name | id PK. 원본 행정 코드는 source namespace별 mapping으로 관리 |
+| catalog.places | UUID id, region_id, name, category, address, location geography(Point,4326), overview, publication_status, version | region FK, name 비어 있음 금지, 좌표 결측 허용. category와 전통 판정은 근거를 보존 |
+| catalog.place_sources | id, place_id, provider, dataset, external_id, language, observed_at, fetched_at, payload_hash | place FK, UNIQUE(provider,dataset,external_id,language). language 미지정은 빈 문자열 등 단일 정규값 사용 |
+| catalog.place_images | id, place_id, url, caption, position, source_ref | place FK, UNIQUE(place_id,position), position>=0 |
+| catalog.hanok_details | place_id, type, hours, parking, homepage | place_id PK/FK. 알려지지 않은 정보는 NULL로 두고 임의로 채우지 않음 |
+| catalog.curation_editions | id, month, locale, title, body, status | UNIQUE(month,locale), month는 월 첫날, DRAFT/PUBLISHED |
+| catalog.curation_items | edition_id, place_id, position, editorial_text | 양쪽 FK, PK(edition_id,place_id), UNIQUE(edition_id,position) |
+| community.actors | UUID id, issuer, subject, status | UNIQUE(issuer,subject). auth.users에 대한 고정 의존을 만들지 않음 |
+| community.warmths | UUID id, place_id, actor_id, text, mood, score, status, created_at | 양쪽 FK RESTRICT, 100 code points 이내의 trim된 비어 있지 않은 text, mood BUSY/QUIET, score NULL 또는 1..5 |
+| community.warmth_tags | warmth_id, tag | PK(warmth_id,tag), FK, 태그 수와 길이는 application에서 제한 |
+| community.idempotency_records | actor_id, operation, key, request_hash, resource_id, expires_at | UNIQUE(actor_id,operation,key), actor FK. 같은 key에 다른 내용이면 409 |
+| audio.odii_spots | UUID id, provider, tid, tlid, lang_code, title, location, status | UNIQUE(provider,tid,tlid). 언어가 달라도 덮어쓰지 않음 |
+| audio.odii_stories | UUID id, spot_id, provider, stid, stlid, lang_code, title, audio_url, duration_seconds, status | spot FK, UNIQUE(provider,stid,stlid), duration>=0 또는 NULL |
+| audio.place_odii_links | place_id, spot_id, match_method, confidence, verified_at | 양쪽 FK, PK(place_id,spot_id). 이름/거리만으로 추정한 후보를 확정 link로 공개하지 않음 |
+| audio.story_revisions | UUID id, story_id, revision, script, content_hash, published_at, status | story FK, UNIQUE(story_id,revision), 불변 본문 revision |
+| audio.subtitle_lines | revision_id, position, start_seconds, text, timing_mode | PK(revision_id,position), FK, 음수 시간 금지, 순서 단조성은 import 시 검증 |
+| insights.visitor_observations | provider, region_id, basis_date, visitor_type, count, fetched_at | 복합 PK(provider,region_id,basis_date,visitor_type), region FK, count>=0 |
+| insights.tourism_targets | UUID id, provider, source_target_key, region_id, source_name | UNIQUE(provider,source_target_key), region FK. 원본 ID가 없으면 정규키 생성 방식을 버전 관리 |
+| insights.target_place_links | target_id, place_id, match_method, verified_at | target PK/FK, place FK. 미해결 대상은 link 없음 |
+| insights.concentration_observations | target_id, basis_date, metric_type, value, fetched_at | PK(target_id,basis_date,metric_type), target FK. 원본값과 변환 지표를 구분 |
+| operations.sync_runs | id, source, dataset, status, checkpoint, lease_until, counts, error_code | RUNNING/SUCCEEDED/FAILED, 완주 시에만 성공 watermark 전진 |
+| operations.outbox_events | UUID event_id, document_id, revision, event_type, payload, available_at, attempts, delivered_at | event_id PK, delivery 가시화, revision을 payload 계약에 포함 |
+| ai.documents | document_id, revision, content_hash, active, source metadata | PK(document_id,revision), corpus 계약에서 유래. business FK 없음 |
+| ai.chunks | chunk_id, document_id, revision, position, text, offsets | document 복합 FK, UNIQUE(document_id,revision,position) |
+| ai.embeddings | chunk_id, embedding_profile_id, vector | 복합 PK(chunk_id,embedding_profile_id), chunk FK. profile은 모델/차원/거리 함수를 고정 |
 
 모든 FK 삭제 기본은 RESTRICT이며, 완전한 소유 자식(자막/후기 태그)만 명시적 cascade 후보로 한다. 장소 폐기 시 후기를 무조건 물리 삭제하지 않고 게시 상태를 먼저 변경한다. 개인정보 보존/삭제 정책은 W5에서 확정하고 식별자 pseudonymization과 공개 콘텐츠 처리를 구분한다.
 

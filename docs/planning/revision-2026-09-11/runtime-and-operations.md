@@ -45,6 +45,8 @@ Spring의 [TaskExecutor 설정](https://docs.spring.io/spring-framework/referenc
 
 ## 수집 LKG는 dataset revision 단위로 게시한다
 
+[원천별 스키마와03:00 KST 일정·수면 복구](regional-map-and-ingestion.md)를 후속안으로 추가한다. 증분 revision도 기존 전체 집합에 delta를 적용한 완전한 공개 집합이어야 한다. 아래 lease/fence/LKG 원칙을 모든 수집 dataset에 적용한다.
+
 Canonical stable ID와 versioned 공개 행을 분리한다. `catalog.place_identity(id PK)`는 안정 ID이고 여러 source는 `place_sources(place_id FK,provider,dataset,external_id,language,UNIQUE(provider,dataset,external_id,language))`로 매핑한다. `dataset_revisions(id,dataset,status,sourceObservedAt,fetchedAt,publishedAt)`, `place_versions(revision_id,place_id,normalized fields,hash)` 복합PK, `active_datasets(dataset PK,revision_id FK)`를 둔다. 기존places 수정형 모델은 이 revision 모델의 current view로 대체한다. source별 여러 dataset 조합은 response의 datasetRevisions로 노출하고 전국 모든 원천의 동시 일관성을 약속하지 않는다.
 
 Sync는 `operations.sync_leases(dataset PK,owner_token,generation,lease_until)`을 DB clock으로 획득한다. lease30초, heartbeat10초; 재획득마다 generation+1. 모든 stage write와 publish transaction은 lease row를 잠그고 owner/generation/expiry 검증 후 수행한다. 외부 호출 중 lease row 잠금 금지. heartbeat 실패/만료면 즉시 중지하고 늦은 worker 쓰기를 거절한다.

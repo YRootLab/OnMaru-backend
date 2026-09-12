@@ -33,13 +33,13 @@ flowchart LR
 
 | Core | 소유와 책임 | Input / Output port | 불변식 |
 |---|---|---|---|
-| identity | member, credential session, OAuth state, guest grant | Login/Logout/ResolveActor; IdentityStore, KakaoIdentityPort | provider subject 유일, 만료 credential 거절, state 1회 소비 |
+| identity | member, credential session, OAuth state, guest grant | Login/Logout/ResolveActor; IdentityStore, ExternalIdentityPort | provider/issuer/subject 유일, 만료 credential 거절, state 1회 소비 |
 | catalog | canonical ID, 지역, 게시 revision, 출처, 검수 관계/콘텐츠 | CatalogQueries/PublishDataset; PublishedCatalogPort, StagingPort, TourismSourcePort | 불완전 revision 비공개, 원본 natural key 유일 |
 | discovery | exploration, pin/exclude, run, proposal | Start/Turn/Act/GetSnapshot; ExplorationStore, CandidateSearchPort, ProposalPort | actor당 active 1, pin 보존, version CAS, terminal 불변 |
-| journey | saved snapshot, 저장 목록, 재개 요청 | Save/List/Get/Resume; SavedJourneyStore, ExplorationSnapshotPort, NewExplorationPort | 회원 소유, 확정 snapshot만 저장, saved immutable |
+| journey | saved snapshot, 저장 목록, 재개 요청, 장소/오디 담아두기, 내 월간 타임라인 | Save/List/Get/Resume; SaveResource/ListSavedResources; GetMemberTimeline; SavedJourneyStore, SavedResourceStore, ExplorationSnapshotPort, NewExplorationPort, ResourceEligibilityPort | 회원 소유, 확정 snapshot만 저장, saved immutable, 담아두기 중복 금지 |
 | community | VisitReview/ReviewLike, 작성/삭제/좋아요 정책 | Publish/Delete/List/SetLike; VisitReviewStore, ReviewLikeStore, PlaceEligibilityPort | 공개 장소, 회원 작성, 본인 삭제, 300 code points/5줄, 회원별 좋아요 유일 |
 
-Catalog 조회는 projection 중심이다. 모든 읽기에 aggregate를 복원하거나 domain service를 만들지 않는다. Discovery의 `Exploration`은 board+pins+excludedRefs+stateVersion의 일관성 경계, Run은 별도 lifecycle이지만 exploration 잠금으로 상태 경쟁을 조정한다. SavedJourney는 독립 immutable aggregate다. Identity 삭제/저장/재개처럼 여러 context가 관여하는 강한 일관성 작업만 app orchestration이 동일 DB transaction에서 공개 API를 조합한다.
+Catalog 조회는 projection 중심이다. 모든 읽기에 aggregate를 복원하거나 domain service를 만들지 않는다. Discovery의 `Exploration`은 board+pins+excludedRefs+stateVersion의 일관성 경계, Run은 별도 lifecycle이지만 exploration 잠금으로 상태 경쟁을 조정한다. SavedJourney는 독립 immutable aggregate다. SavedResource는 장소/오디의 현재 공개 projection을 다시 읽는 개인 참조이며 여정 snapshot과 다른 lifecycle을 가진다. MemberTimeline은 journey가 제공하는 read use case이며 saved resource, saved journey, 후속 visit review를 시간순으로 합성한다. Identity 삭제/저장/재개처럼 여러 context가 관여하는 강한 일관성 작업만 app orchestration이 동일 DB transaction에서 공개 API를 조합한다.
 
 `content`는 MVP에서 catalog의 검수 콘텐츠 package로 통합한다. Audio/Insights/Docent는 후속 모듈이고 빈 Gradle module을 미리 만들지 않는다. 장기 설계의 content/discovery 구분은 catalog 콘텐츠의 별도 편집·게시 주기가 생길 때 다시 검토한다.
 

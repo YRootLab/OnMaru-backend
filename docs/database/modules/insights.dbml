@@ -1,0 +1,61 @@
+Table insights_visitor_observations [headercolor: #B07AA1] {
+  revision_id uuid [not null]
+  region_id uuid [not null]
+  basis_date date [not null]
+  visitor_type varchar [not null, note: 'local, domestic visitor, foreign visitor, or provider code']
+  provider varchar [not null]
+  spatial_level varchar [not null]
+  visitor_count bigint [not null]
+  source_observed_at timestamptz
+  fetched_at timestamptz [not null]
+
+  Indexes {
+    (revision_id, region_id, basis_date, visitor_type) [pk]
+    (region_id, basis_date)
+  }
+}
+
+Table insights_tourism_targets [headercolor: #B07AA1] {
+  id uuid [pk]
+  provider varchar [not null]
+  source_target_key varchar [not null]
+  region_id uuid [not null]
+  source_name varchar [not null]
+
+  Indexes {
+    (provider, source_target_key) [unique]
+    region_id
+  }
+}
+
+Table insights_target_place_links [headercolor: #B07AA1] {
+  target_id uuid [pk]
+  place_id uuid [not null]
+  match_method varchar [not null]
+  verified_at timestamptz
+}
+
+Table insights_concentration_observations [headercolor: #B07AA1] {
+  revision_id uuid [not null]
+  target_id uuid [not null]
+  basis_date date [not null]
+  metric_type varchar [not null]
+  value numeric [not null]
+  unit varchar [not null]
+  source_observed_at timestamptz
+  fetched_at timestamptz [not null]
+
+  Indexes {
+    (revision_id, target_id, basis_date, metric_type) [pk]
+    (target_id, basis_date)
+  }
+}
+
+TableGroup insights [color: #B07AA1, note: 'KTO DataLab visitor observations and tourism concentration metrics. Historical estimates, not live app users.'] {
+  insights_visitor_observations
+  insights_tourism_targets
+  insights_target_place_links
+  insights_concentration_observations
+}
+
+Ref: insights_target_place_links.target_id > insights_tourism_targets.id

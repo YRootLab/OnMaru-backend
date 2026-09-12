@@ -4,4 +4,5 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Document post-audit backend planning refinements, DBML ERD modules, and Azimutt PNG handoff workflow.
 - Initialize project operating harness, Git Flow policy, release automation baseline, and ADR directory.

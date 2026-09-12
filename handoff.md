@@ -1,6 +1,25 @@
 # handoff.md
 
+## Next Session Quick Handoff - 2026-09-12
+
+- 현재 작업 브랜치: `feature/onmaru-be-prd-planningv2-2`. 새 세션 시작 시 `git status --short --branch`로 다시 확인한다.
+- 이번 세션은 구현이 아니라 문서/설계 보강이다. Spring Boot/FastAPI 애플리케이션, JPA Entity, migration은 아직 없다.
+- DB/ERD 원본은 `docs/database/schema.dbml`과 `docs/database/modules/*.dbml`이다. 한국관광공사 국문, Odii, 지역 통계, 회원/인증, 탐색, 저장/타임라인, 지도 후기, sync 운영, optional RAG 테이블이 모듈별로 정리돼 있다.
+- ERD 시각화는 Azimutt로 확정했다. import 기본 파일은 `docs/database/azimutt/onmaru-schema.azimutt-strict.sql`이고, 재생성 명령은 `node scripts/azimutt-export.mjs`다. Azimutt에서 view를 정리한 뒤 PNG로 export해서 `docs/database/azimutt/exports/`에 저장한다.
+- ChartDB, drawDB, ERDCloud, dbdiagram.io, D2, Graphviz 산출물과 관련 스크립트는 혼선을 줄이기 위해 제거했다. `docs/database/README.md`도 Azimutt+PNG 흐름으로 단순화했다.
+- 다음 세션에서 할 일: Azimutt에서 권장 view PNG를 export해 `docs/database/azimutt/exports/`에 추가한다. 권장 파일명은 `onmaru-erd-system-overview.png`, `onmaru-erd-identity-auth.png`, `onmaru-erd-catalog-kto.png`, `onmaru-erd-discovery-journey.png`, `onmaru-erd-map-community.png`, `onmaru-erd-operations-sync.png`, `onmaru-erd-ai-rag.png`다.
+- 다음 세션에서 할 일: `docs/database/README.md`, `docs/database/azimutt/README.md`, `docs/database/schema.md`를 빠르게 검토해 Azimutt 경로와 DBML source of truth 설명이 일관적인지 확인한다.
+- 다음 세션에서 할 일: 아직 승인되지 않은 ADR 초안은 `docs/planning/revision-2026-09-11/adr-review.md`에서 확인한다. 사용자 명시 승인 전 `docs/decisions`에 ADR을 생성하거나 상태 변경하지 않는다.
+- 다음 세션에서 할 일: 최종 커밋 전 `npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres`, `node scripts/azimutt-export.mjs`, `git diff --check`를 실행한다.
+
+
 ## Active Revision - 2026-09-11
+
+- 추가 요청: 공급자 독립 회원 ID, 관광공사/오디/지역 통계 수집 스키마와 03:00 KST 누락 복구, 행정구역 집계 지도와 명시적 목록 조회, FE cursor 종료 규칙을 재검토한다. `revision-2026-09-11/regional-map-and-ingestion.md`에 후속 설계안을 기록한다. 기존 viewport 자동 조회는 이 제안과 충돌하며 FE 전환 승인 전 구현하지 않는다.
+- 추가 요청: 사용자는 장소와 오디 이야기를 담아두기 대상으로 확정하고, 후기 담아두기와 컬렉션은 `project-roadmap.md`의 장기 후보로 남기길 원한다. 여정 저장과 담아두기는 다른 lifecycle로 문서화한다.
+- 추가 요청: 기존 FE에 없거나 새로 추가된 기능/API를 FE에게 전달할 별도 md 보고서로 작성한다. `revision-2026-09-11/fe-change-report.md`에 장소/오디 담아두기, 지도 1.2, VisitReview, run/paging/auth 전환 체크리스트를 기록한다.
+- 추가 요청: 내 정보 화면은 단순 컬렉션보다 월간 타임라인을 우선한다. 담아둔 장소, 담아둔 오디 이야기, 저장 여정을 월별 흐름으로 보여주고 FE 전달서에도 상세 flow를 추가한다.
+- 추가 요청: DB schema relation이 한눈에 보이지 않아 dbdiagram.io DBML 기반 ERD를 Level 1 overview와 Level 2 domain detail로 구성한다. 실제 구현/JPA/migration이 없음을 명시하고, 한국관광공사 국문 TourAPI 저장 테이블도 명시적으로 포함한다.
 
 - 사용자 요청: 감사 F01–F21 개선 정책, 헥사고날/DDD·모듈 DAG, DB/인증/저장, 검색 top-k/optional RAG, 지도 전체·지역·인근·viewport 조회, REST/polling/SSE와 실행 자원 예산을 구체화하고 planning 및 FE API 계약에 반영한다.
 - 원본 `docs/report/2026-09-10-architecture-review*.md`는 기준선으로 보존한다. 토론 기록과 개선 추적/예상 재평가는 별도 작성한다. 실제 운영 개선 검증이나 감사 finding closure를 의미하지 않는다.

@@ -1,0 +1,39 @@
+Enum community_review_status {
+  PUBLISHED
+  HIDDEN
+  DELETED
+}
+
+Table community_visit_reviews [headercolor: #E15759] {
+  id uuid [pk]
+  member_id uuid [not null]
+  place_id uuid [not null]
+  text text [not null]
+  status community_review_status [not null]
+  created_at timestamptz [not null]
+  deleted_at timestamptz
+
+  Indexes {
+    (created_at, id)
+    (place_id, created_at, id)
+    member_id
+  }
+}
+
+Table community_review_likes [headercolor: #E15759] {
+  review_id uuid [not null]
+  member_id uuid [not null]
+  created_at timestamptz [not null]
+
+  Indexes {
+    (review_id, member_id) [pk]
+    member_id
+  }
+}
+
+TableGroup community [color: #E15759, note: 'Short visit reviews and likes. Separate from historical Warmth mood/score model.'] {
+  community_visit_reviews
+  community_review_likes
+}
+
+Ref: community_review_likes.review_id > community_visit_reviews.id

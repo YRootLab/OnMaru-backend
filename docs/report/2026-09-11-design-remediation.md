@@ -4,6 +4,8 @@
 
 ## 이번에 달라진 점
 
+추가 검토: [인증·수집·행정구역 지도 보완](../planning/revision-2026-09-11/regional-map-and-ingestion.md). 원천 테이블은 기존 data-api-design에 있었으나 revision 통합이 부족했다. 공급자 독립 identity,03:00 KST 누락 복구, 원천별 versioned schema, 집계/명시적 REGION 목록 및 cursor 종료를 추가 제안했다. 지도 기존1.1과 후속1.2는 아직 FE/OpenAPI 통합 전이다. 아래79점 예측은 상향하지 않으며 새 계약 통합 전 확정 점수로 보지 않는다.
+
 [개선 문서 인덱스](../planning/revision-2026-09-11/README.md)에 최신 정책을 묶고 기존 Blueprint, data API, 7일 FE 전달서, 환경설정을 실제 수정했다. 핵심 변경은 런타임/컴파일 그림 분리, 소비자 port와 bridge DAG, identity/discovery/journey/VisitReview 책임, 환경당 DB1개, 검색rank30→전달12→표시3, 선택RAG 평가, 지도범위/cursor/좋아요, 인증grant/저장재개, run 만료와 LKG 원자게시다.
 
 사용자 정정에 따라 지도 게시글은 온기와 별도의 방문 짧은 후기다. 좋아요·대댓글 없음은 사용자 요구이며 300자/5줄·댓글 전체 제외는 제안값이다. 방문 인증을 수행하지 않으므로 실제 방문 여부를 보증하지 않는다. 지도 전체/지역/인근/viewport 상세 설계는 준비했지만 여정 중심 P0에 자동 포함하지 않는다.

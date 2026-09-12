@@ -1,0 +1,115 @@
+Enum operations_sync_run_status {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  ABANDONED
+}
+
+Table operations_idempotency [headercolor: #9C755F] {
+  actor_key varchar [not null]
+  operation varchar [not null]
+  key uuid [not null]
+  request_hash varchar [not null]
+  response_status int [not null]
+  response_body jsonb
+  expires_at timestamptz [not null]
+
+  Indexes {
+    (actor_key, operation, key) [pk]
+    expires_at
+  }
+}
+
+Table operations_admission [headercolor: #9C755F] {
+  scope_key varchar [pk]
+  window_start timestamptz [not null]
+  consumed int [not null]
+  active_count int [not null]
+}
+
+Table operations_sync_schedules [headercolor: #9C755F] {
+  dataset varchar [pk]
+  timezone varchar [not null]
+  local_time varchar [not null]
+  enabled boolean [not null]
+  next_due_at timestamptz [not null]
+}
+
+Table operations_sync_runs [headercolor: #9C755F] {
+  id uuid [pk]
+  dataset varchar [not null]
+  scheduled_for timestamptz [not null]
+  attempt int [not null]
+  status operations_sync_run_status [not null]
+  revision_id uuid
+  started_at timestamptz
+  finished_at timestamptz
+  next_attempt_at timestamptz
+  error_code varchar
+  counts jsonb
+
+  Indexes {
+    (dataset, scheduled_for, attempt) [unique]
+    (dataset, status)
+  }
+}
+
+Table operations_sync_checkpoints [headercolor: #9C755F] {
+  run_id uuid [not null]
+  partition_key varchar [not null]
+  next_page int
+  source_cursor varchar
+  expected_total int
+  seen_count int [not null]
+  last_source_modified varchar
+  last_external_id varchar
+
+  Indexes {
+    (run_id, partition_key) [pk]
+  }
+}
+
+Table operations_sync_leases [headercolor: #9C755F] {
+  dataset varchar [pk]
+  owner_token varchar [not null]
+  generation int [not null]
+  lease_until timestamptz [not null]
+}
+
+Table operations_sync_watermarks [headercolor: #9C755F] {
+  dataset varchar [pk]
+  source_modified_at varchar
+  external_id varchar
+  last_full_success_at timestamptz
+  last_success_at timestamptz
+  revision_id uuid [not null]
+}
+
+Table operations_sync_quarantine [headercolor: #9C755F] {
+  run_id uuid [not null]
+  record_key varchar [not null]
+  error_code varchar [not null]
+  payload_hash varchar [not null]
+  redacted_payload jsonb
+  expires_at timestamptz [not null]
+
+  Indexes {
+    (run_id, record_key) [pk]
+    expires_at
+  }
+}
+
+TableGroup operations [color: #9C755F, note: 'Idempotency, rate admission, durable KST 03:00 sync schedules, runs, checkpoints, leases, watermarks, and quarantine.'] {
+  operations_idempotency
+  operations_admission
+  operations_sync_schedules
+  operations_sync_runs
+  operations_sync_checkpoints
+  operations_sync_leases
+  operations_sync_watermarks
+  operations_sync_quarantine
+}
+
+Ref: operations_sync_checkpoints.run_id > operations_sync_runs.id
+Ref: operations_sync_quarantine.run_id > operations_sync_runs.id

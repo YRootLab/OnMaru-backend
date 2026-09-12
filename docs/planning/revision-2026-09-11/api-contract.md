@@ -1,5 +1,7 @@
 # 지도와 여정 탐색의 FE REST 계약을 고정한다
 
+> 후속 요청: [행정구역 지도 1.2 변경안](regional-map-and-ingestion.md)이 지역 집계·명시적 후기 조회·커서 종료를 정의한다. 본문의 NEARBY/VIEWPORT·이동 후 자동 요청은 이전1.1안이며 새 지도 구현에 그대로 적용하지 않는다. 연결된 OpenAPI도 아직1.1이다. FE와1.2 OpenAPI 전환 후 계약 동결이 필요하다. 여정1.1은 별개로 유지한다.
+
 2026-09-11 개선안. `/api/v1`, HTTPS JSON, `schemaVersion: "1.1"`. 미배포 v1 검토안의 변경이며 기존 1.0 fixture와 동시에 배포하지 않는다. 필드/enum 변경은 FE decoder와 함께 전환한다. ID는 opaque string; 시간 UTC ISO-8601; 좌표 WGS84, lng=경도/lat=위도다. 지정하지 않은 필드는 생성하지 않는다. NULL과 누락을 혼용하지 않는다.
 
 ## 공통 계약
@@ -77,6 +79,12 @@ Public 응답도 mine이 있어 개인화되므로 no-store를 기본으로 한�
 | GET /saved-journeys/{id} | 없음 | 200 SavedJourney; 읽기 전용 |
 | POST /saved-journeys/{id}/resume | `{}` | 201 `{exploration:ExplorationSnapshot,unavailableRefs:PlaceRef[]}` |
 | DELETE /saved-journeys/{id} | 없음 | 204 본인만 |
+| PUT /saved-resources/places/{placeId} | body 없음 | 200 `{resourceType:"PLACE",resourceId,savedByMe:true,savedAt}`; 회원+공개 장소 |
+| DELETE /saved-resources/places/{placeId} | body 없음 | 204; 회원, 없어도 성공 |
+| PUT /saved-resources/odii-stories/{storyId} | body 없음 | 200 `{resourceType:"ODII_STORY",resourceId,savedByMe:true,savedAt}`; 회원+공개 오디 |
+| DELETE /saved-resources/odii-stories/{storyId} | body 없음 | 204; 회원, 없어도 성공 |
+| GET /saved-resources | type=PLACE 또는 ODII_STORY, limit 1..50 default20,cursor? | 200 `{items:[SavedResourceSummary],nextCursor,hasMore}`; savedAt DESC,id DESC |
+| GET /me/timeline | month=YYYY-MM, limit 1..50 default20,cursor? | 200 `{month,groups,nextCursor,hasMore,unavailableCount}`; occurredAt DESC,id DESC |
 | GET /members/me | 없음 | 200 `{id,displayName:null}`; 401 비회원 |
 | GET /auth/csrf | 없음 | 200 `{token,headerName:"X-CSRF-TOKEN"}` + guest cookie 필요 시 |
 | GET /auth/kakao/login | returnTo=/discover, explorationId? | 302 Kakao; 소유권 확인 후 state 발급 |
@@ -85,6 +93,10 @@ Public 응답도 mine이 있어 개인화되므로 no-store를 기본으로 한�
 | DELETE /members/me | 없음 | 202 `{status:"DELETING"}`; token 즉시 폐기 |
 
 Saved 목록 cursor는 member ID/limit/lastSavedAt/lastId/asOf/10분 만료를 묶는다. saved에는 pending proposal·원문 turn·guest token·사용자 위치를 넣지 않는다. 로그인 성공 자체로 자동 저장하지 않고 FE가 유지한 저장 intent로 POST한다.
+
+SavedResource 목록 cursor도 member ID/type/limit/lastSavedAt/lastId/asOf/10분 만료를 묶는다. `type` 생략으로 장소와 오디를 섞어 반환하지 않는다. `PLACE` item은 현재 공개 place projection으로 `placeId,name,category,regionName,thumbnailUrl|null,savedByMe:true`를 hydrate한다. `ODII_STORY` item은 현재 공개 오디 projection으로 `storyId,spotId,title,placeId|null,durationSeconds|null,savedByMe:true`를 hydrate한다. 비회원은 저장 상태를 서버에 쓰지 않으며 FE가 임시 intent를 보존한 뒤 로그인 후 같은 PUT을 다시 보낸다. 장소 카드와 오디 카드 public DTO는 로그인 회원일 때 `savedByMe:boolean`을 포함한다. 익명 응답은 `savedByMe:false`로 내려도 되지만, localStorage 값을 서버 truth처럼 신뢰하지 않는다.
+
+`GET /me/timeline`은 내 정보 화면의 월간 흐름 API다. `month`는 KST 기준 `YYYY-MM`이며 생략하면 현재 월이다. item type은 `SAVED_PLACE`, `SAVED_ODII_STORY`, `SAVED_JOURNEY`, 후속 `WROTE_VISIT_REVIEW`다. 서버는 day별 group을 내려주고, 각 item은 `id,type,occurredAt,title,subtitle,thumbnailUrl,target`을 가진다. `target`은 `{type:'PLACE',placeId}` 또는 `{type:'ODII_STORY',storyId,placeId|null}` 또는 `{type:'SAVED_JOURNEY',savedJourneyId}`다. 월간 타임라인은 개인 응답이므로 no-store이며, 다른 회원에게 공유하지 않는다. cursor는 member/month/limit/lastOccurredAt/lastId/asOf/10분 만료를 묶는다.
 
 ## 빠진 public DTO와 상태 전이를 보완한다
 

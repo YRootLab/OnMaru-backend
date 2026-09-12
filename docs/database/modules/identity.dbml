@@ -1,0 +1,91 @@
+Enum identity_member_status {
+  ACTIVE
+  DELETING
+}
+
+Table identity_members [headercolor: #4E79A7] {
+  id uuid [pk]
+  status identity_member_status [not null]
+  created_at timestamptz [not null]
+}
+
+Table identity_external_accounts [headercolor: #4E79A7] {
+  id uuid [pk]
+  member_id uuid [not null]
+  provider varchar [not null, note: 'KAKAO active for MVP; GOOGLE/NAVER can be added through allowlist']
+  issuer varchar [not null]
+  subject varchar [not null]
+  created_at timestamptz [not null]
+
+  Indexes {
+    (provider, issuer, subject) [unique]
+    member_id
+  }
+}
+
+Table identity_sessions [headercolor: #4E79A7] {
+  token_hash varchar [pk]
+  member_id uuid [not null]
+  created_at timestamptz [not null]
+  last_seen_at timestamptz [not null]
+  absolute_expires_at timestamptz [not null]
+  revoked_at timestamptz
+
+  Indexes {
+    member_id
+    absolute_expires_at
+  }
+}
+
+Table identity_guests [headercolor: #4E79A7] {
+  id uuid [pk]
+  token_hash varchar [not null, unique]
+  expires_at timestamptz [not null]
+  revoked_at timestamptz
+
+  Indexes {
+    expires_at
+  }
+}
+
+Table identity_oauth_states [headercolor: #4E79A7] {
+  state_hash varchar [pk]
+  guest_id uuid
+  browser_nonce_hash varchar [not null]
+  exploration_id uuid
+  provider varchar [not null]
+  return_path varchar [not null]
+  expires_at timestamptz [not null]
+  consumed_at timestamptz
+
+  Indexes {
+    guest_id
+    exploration_id
+    expires_at
+  }
+}
+
+Table identity_exploration_grants [headercolor: #4E79A7] {
+  member_id uuid [not null]
+  exploration_id uuid [not null]
+  expires_at timestamptz [not null]
+
+  Indexes {
+    (member_id, exploration_id) [pk]
+    expires_at
+  }
+}
+
+TableGroup identity [color: #4E79A7, note: 'Member identity, external OAuth accounts, guest identity, sessions, and temporary exploration grants.'] {
+  identity_members
+  identity_external_accounts
+  identity_sessions
+  identity_guests
+  identity_oauth_states
+  identity_exploration_grants
+}
+
+Ref: identity_external_accounts.member_id > identity_members.id
+Ref: identity_sessions.member_id > identity_members.id
+Ref: identity_oauth_states.guest_id >? identity_guests.id
+Ref: identity_exploration_grants.member_id > identity_members.id
