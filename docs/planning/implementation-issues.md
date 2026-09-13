@@ -1,5 +1,7 @@
 # 통합 implementation issue 발행 초안
 
+> **ARCHIVED - 발행 금지:** 이 문서는 2026-09-09의 과거 graph다. 도슨트 Q&A, 문서 RAG, SSE lifecycle 등 현재 제외 또는 재설계된 범위를 포함한다. GitHub Issue는 이 파일이나 `work-graph.json`에서 발행하지 않는다. 현재 MVP와 구현 게이트는 [implementation readiness](implementation-readiness.md), [AI 설계](../ai/README.md), [REST 계약](../contracts/rest-api.md)를 기준으로 계획 완료 뒤 새 graph를 작성한다.
+
 2026-09-09. 준비용 산출물이며 GitHub Issues 미발행. 실행 Source of Truth는 발행 후 GitHub Issues다. work-graph.json이 W0~W11/X0~X8의 단일 graph이며 이전 issue-plan.md의 W 전용 wave와 책임 배분을 대체한다.
 
 ## Root

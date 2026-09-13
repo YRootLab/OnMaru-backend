@@ -1,4 +1,4 @@
-# 구조를 단순하게 유지하면서 구현 가능한 정책까지 명세한다
+# 2026-09-11 architecture debate record
 
 2026-09-11. 요청된 backend-architect-engineer와 backend-developer의 관점을 적용하고 red-blue-team 방식으로 검토했다. 한 작성자가 두 페르소나를 수행했다. 독립 전문가/에이전트 검증이나 사용자 승인으로 간주하지 않는다.
 
@@ -58,7 +58,7 @@
 
 **결론을 바꿀 증거:** warm/cold 부하, 한국어 retrieval 평가, actor/삭제 negative test, kill/late-worker 실험, 복원drill 결과. 상한 내에서 실패하면 scope/설정을 축소하거나 배포 자원을 다시 결정한다.
 
-검토 제안은 이번 문서 묶음에 반영했다. 구조 선택에 대한 최종 판단은 [ADR 승인 자료](adr-review.md)를 검토한 사용자에게 남아 있다.
+검토 제안은 책임별 설계 문서에 반영했다. 구조 선택에 대한 정식 판단은 [ADR 구조 초안](../../decisions/drafts/foundation-architecture.md)을 검토한 사용자에게 남아 있다.
 
 ## 사용자 정정 반영
 

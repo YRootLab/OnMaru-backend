@@ -1,9 +1,18 @@
-# OnMaru 백엔드 설계 보고서
+# OnMaru 기획과 구현 착수 준비
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **이 폴더의 역할:** PRD, 구현 Issue 후보, 조사와 검토 이력이다. 현재 시스템 설계의 기준은 [문서 안내](../README.md)와 책임별 문서다. 이 폴더의 예전 제안이 최신 설계와 충돌하면 최신 책임별 설계가 우선한다.
 
 
 작성일: 2026-09-09. 상태: 검토용 제안 v0.1. 애플리케이션 구현이나 배포 완료를 의미하지 않는다.
+
+## 문서 단계
+
+| 구분 | 위치 | 의미 |
+|---|---|---|
+| 확정 결정 | [`../decisions/`](../decisions/README.md) | 승인된 ADR. 구조 선택이 충돌하면 이 기록이 우선한다. |
+| 현재 설계 | [문서 안내](../README.md) | Spring, FastAPI, DB, 계약, 운영별로 구현 전에 합의할 목표 설계다. 코드 구현을 뜻하지 않는다. |
+| 기획·작업 분해 | 이 폴더 | PRD, Issue 후보 DAG, 미확정 입력과 검토 기록이다. GitHub Issue 발행 전까지 실행 backlog가 아니다. |
+| 구현 검증 | 각 현재 설계의 `구현 전 게이트` | OpenAPI fixture, migration, 실제 외부 API, 보안/부하 검증 등 착수 조건이다. |
 
 사용자가 정한 방향은 Java/Spring Boot 비즈니스 서버, Python/FastAPI AI 서버, 이슈 기반 개발이다. 나머지 선택은 아래 근거와 검증 조건을 갖춘 제안이다. 출시 시점·인원·운영 예산은 아직 미정이다.
 
@@ -14,9 +23,10 @@
 1. [Architecture Blueprint](architecture-blueprint.md): 요청한 15개 항목, 35개 질문, 평가표.
 2. [브레인스토밍과 백엔드 PRD](backend-prd.md): 대안 발산/수렴, 사용자 기능, 출시 단계, 인수 기준.
 3. [데이터·API·RAG 상세 설계](data-api-design.md): 데이터 소유권, 관계, API 전환, 데이터 정합성.
-4. [실행 계획](issue-plan.md): Root/Child 초안, 선행 관계, 통합 게이트.
-5. [Work Graph](work-graph.json): spec-to-issues 검증 스크립트 입력.
+4. [실행 계획](issue-plan.md): 과거 Root/Child 초안과 선행 관계. 현재 발행 기준은 readiness 완료 뒤 새로 작성한다.
+5. [Work Graph](work-graph.json): 과거 spec-to-issues 입력이며 현재 MVP 발행에 사용하지 않는다.
 6. [ADR 검토 초안](adr-proposals.md): 결정별 선택 이유, 비용, 재검토 조건. 정식 ADR 등록 전 검토 자료.
+7. [Implementation readiness](implementation-readiness.md): 구현 Issue 발행 전 닫아야 할 결정·검증 게이트.
 
 PRD는 **무엇을, 누구를 위해, 어디까지 만들고 어떻게 검증할지**를 정의한다. Blueprint는 **어떤 경계와 의존성으로 구현할지**, ADR은 **대안 중 왜 그 선택을 했는지**, Issue는 **누가 독립적으로 구현·검증할 작업인지**를 정의한다.
 

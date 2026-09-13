@@ -1,8 +1,10 @@
 # 이슈 기반 실행 계획
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **현재 설계 기준:** [문서 안내](../README.md)의 책임별 설계를 따른다. 이 문서는 GitHub Issue 발행 전 작업 분해안이며, 구현 완료를 뜻하지 않는다.
 
-현재 실행 기준은 [통합 발행 초안](implementation-issues.md)과 work-graph.json이다. 아래 W 전용 계획은 최초 근거 기록이며 최신 wave나 책임 배분으로 사용하지 않는다.
+> **ARCHIVED - 발행 금지:** 아래 W0~W11은 과거 분해안이며 현재 제외된 도슨트 Q&A, polling 중심 lifecycle, Spring 범위의 RAG를 포함한다. planning 완료 뒤 [implementation readiness](implementation-readiness.md)와 책임별 최신 설계를 기준으로 새 Issue graph를 작성한다.
+
+현재 실행 기준은 implementation readiness의 모든 gate를 닫은 뒤 새로 작성할 GitHub Issue graph다. 아래 W 전용 계획은 최초 근거 기록이며 최신 wave나 책임 배분으로 사용하지 않는다.
 
 검토용 초안 / 2026-09-09. Root 1개 + Child 12개. 실제 GitHub 번호가 아니라 W0~W11의 안정된 작업 ID를 사용한다. 지금 단계에서는 보고서와 실행 그래프를 작성하며 GitHub 생성이나 애플리케이션 개발을 시작하지 않는다.
 
@@ -178,7 +180,7 @@ Wave는 병렬 가능성 지도다. 한 명이 개발하면 같은 Wave도 순�
 
 ## GitHub 등록 및 추적
 
-spec-to-issues [SKILL.md](/Users/yangseunghyeon/.codex/plugins/cache/personal/agent-toolkit-skills/0.3.20+codex.20260908040643/skills/spec-to-issues/SKILL.md)는 "생성할 Issue 전체 목록(제목 + 관계 + wave)을 사용자에게 보여주고 승인받은 뒤" 실제 생성을 요구한다. 위 목록은 그 검토 자료다. 이번 우선 요청인 보고서 작성 범위를 완료한 후, 확정된 범위로 등록한다.
+`spec-to-issues` 작업 규칙은 “생성할 Issue 전체 목록(제목 + 관계 + wave)을 사용자에게 보여주고 승인받은 뒤” 실제 생성을 요구한다. 위 목록은 과거 검토 자료이며, 이 문서는 archived 상태이므로 현재 Issue graph로 사용하지 않는다.
 
 등록 시 기존 Issue를 다시 조회한다. Root 먼저 생성 → Child 생성 → native Sub-Issue/blocked-by 연결 → 실제 번호로 전체/로컬 DAG 갱신 → 관계 조회로 검증한다. 설치된 gh의 --help에서 기능을 확인하고 없는 옵션은 공식 REST/GraphQL API를 확인한 뒤 사용한다. 텍스트 링크만으로 native dependency가 연결됐다고 보고하지 않는다.
 

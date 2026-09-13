@@ -1,9 +1,0 @@
-{
-  "reversal_cost": 2,
-  "alternatives_considered": 2,
-  "quality_attribute_impact": 2,
-  "boundary_or_pattern_change": 2,
-  "multi_developer_relevance": 2,
-  "ops_security_data_impact": 2,
-  "future_rationale_query_likelihood": 2
-}
