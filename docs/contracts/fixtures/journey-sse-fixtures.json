@@ -1,0 +1,13 @@
+{
+  "contractVersion": "1.2",
+  "fixtures": [
+    {"name": "accepted-opens-stream", "given": "POST succeeds", "then": ["RunAccepted.eventsUrl is present", "FE subscribes once", "GET snapshot remains render source"]},
+    {"name": "replay", "given": "Last-Event-ID 3 and buffer contains 4", "then": ["id 4 is delivered", "sequence remains monotonic"]},
+    {"name": "reset", "given": "Last-Event-ID is older than the buffer or process restarted", "then": ["reset contains runId", "FE GETs run then exploration before rendering"]},
+    {"name": "terminal", "given": "run.terminal COMPLETED", "then": ["FE closes stream", "FE GETs exploration snapshot", "terminal payload alone never renders board"]},
+    {"name": "provider-degraded-baseline", "given": "LLM quota, timeout, malformed response, or FastAPI failure after Spring candidate validation", "then": ["no second provider call", "same run is COMPLETED with engine BASELINE and a degradedReason", "FE renders the deterministic board as a basic exploration result"]},
+    {"name": "network-close", "given": "stream closes before terminal", "then": ["one exponential-backoff reconnect", "then GET run and exploration", "EventSource-unavailable client polls GET run at 1 second only until terminal"]},
+    {"name": "auth-expired", "given": "reconnect returns 401", "then": ["FE stops stream", "does not expose prior private data", "follows normal login recovery"]},
+    {"name": "cancel-race", "given": "cancel races completion", "then": ["one terminal snapshot wins by CAS", "SSE and GET return that same terminal state"]}
+  ]
+}
