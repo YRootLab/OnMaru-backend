@@ -44,6 +44,12 @@ Untriaged follow-up ideas captured during work. GitHub Issues are the source of 
 
 ## P1 - High Value After Scope Is Confirmed
 
+- [ ] Re-evaluate the public Gemini usage policy with measured quota and abuse evidence.
+  - Context: The provisional MVP policy is two AI journey runs per KST day for guests and five for signed-in members. AI requires explicit opt-in; baseline exploration remains available after exhaustion or provider failure.
+  - Acceptance: Provider quota, latency, failure rate, opt-in conversion, abuse signals, and user value are measured; then decide whether to retain limits, add a paid tier, or keep AI demo-only.
+  - Suggested labels: `needs-triage`, `type:ai`, `type:product`, `priority:p1`
+  - Issue: none
+
 - [ ] Expand CI after backend scaffold exists.
   - Context: The repository currently has no package manifest or backend source tree, so CI can only run repository hygiene checks.
   - Acceptance: CI runs Gradle build/test, Python test/lint if FastAPI exists, architecture tests, migration validation, and OpenAPI/schema validation.

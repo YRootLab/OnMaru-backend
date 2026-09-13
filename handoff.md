@@ -2,14 +2,21 @@
 
 ## Next Session Quick Handoff - 2026-09-12
 
-- 현재 작업 브랜치: `feature/onmaru-be-prd-planningv2-2`. 새 세션 시작 시 `git status --short --branch`로 다시 확인한다.
+- 현재 작업 브랜치: `feature/setup-issues`. 새 세션 시작 시 `git status --short --branch`로 다시 확인한다.
+- 임시 공개 MVP AI 정책: Gemini는 명시적 opt-in 후 비회원 KST 일 2회, 로그인 회원 KST 일 5회만 허용한다. 한도 소진·AI 실패 뒤 baseline 탐색은 계속 가능하며, 유료 전환은 실제 quota/abuse/전환 데이터를 본 뒤 별도 GitHub Issue에서 결정한다.
+- Gemini timeout, quota 소진, malformed output, FastAPI 내부 장애 시 Spring은 이미 검증한 자연어 intent·후보 집합을 같은 run의 `engine=BASELINE` 결과로 완료한다. 이는 두 번째 provider 호출이 아니며, 지역/주제 해석·후보 검색 실패, cancel, 정책 거절, Spring 불변식 실패에는 적용하지 않는다. FE는 raw 장애 대신 기본 탐색 결과로 표시한다.
+- 기획 확정 뒤 GitHub Issue graph에 반드시 포함할 공개 출시 작업: (1) VisitReview 작성 화면의 개인정보·금지 내용 안내, 신고 안내, 계정 삭제 경로, 개인정보 처리방침/서비스 정책 초안과 public-write 전 검증, (2) 운영 배포 도메인 확정 후 Kakao Login 운영 Redirect URI·동의항목·운영 앱 소유 계정·개발/운영 앱 분리 설정과 callback/logout/error fixture. 이는 roadmap/improvements가 아닌 독립 Issue로 발행한다.
+- FE에 전달할 신규·변경 백엔드 기능은 `docs/toFE/`에 모았다. `feature-delta.md`는 기존 `docs/specs` 대비 변화, `integration-checklist.md`는 화면/fixture 완료 조건, `README.md`는 기계 계약 링크를 제공한다. API 필드의 정답은 계속 `docs/contracts/`다.
+- 문화 Q&A와 한옥 문화 콘텐츠 페이지는 현재 여정 MVP와 Issue graph에서 제외한다. 원천 라이선스·corpus 검수·안전 정책을 별도 승인할 수 있을 때만 `project-roadmap.md`의 장기 옵션으로 재검토한다.
+- 여정 AI는 Spring의 deterministic intake/지역·후보 검색과 FastAPI의 provider-neutral typed proposal adapter로 분리한다. 여정 진행은 SSE 알림과 GET snapshot 복구를 사용한다. FastAPI가 RAG corpus sync·embedding·retrieval·`ai` schema를 소유하고 Spring은 revision-pinned corpus export만 제공한다. Gemini tool calling, LangChain/LangGraph, 외부 URL/검색 tool은 MVP 기본 경로에서 제외하며 상세 계약은 `docs/ai/journey-guardrails.md`와 `docs/ai/application-architecture.md`에 있다.
+- 관측성 기준은 Spring Actuator + Micrometer/OTel 및 FastAPI OpenTelemetry SDK에서 Grafana Cloud로 OTLP를 보내는 구성이다. Grafana Cloud dashboard/alert history가 운영 기준이고, warning은 Discord, critical은 Discord+email으로 통지한다. 향후 운영 보조 AI는 read-only signal을 분류·runbook 제안만 하며 DB 변경이나 alert close 권한을 갖지 않는다. 상세는 `docs/operations/runtime-and-reliability.md`의 Grafana Cloud 절을 따른다.
 - 이번 세션은 구현이 아니라 문서/설계 보강이다. Spring Boot/FastAPI 애플리케이션, JPA Entity, migration은 아직 없다.
 - DB/ERD 원본은 `docs/database/schema.dbml`과 `docs/database/modules/*.dbml`이다. 한국관광공사 국문, Odii, 지역 통계, 회원/인증, 탐색, 저장/타임라인, 지도 후기, sync 운영, optional RAG 테이블이 모듈별로 정리돼 있다.
 - ERD 시각화는 Azimutt로 확정했다. import 기본 파일은 `docs/database/azimutt/onmaru-schema.azimutt-strict.sql`이고, 재생성 명령은 `node scripts/azimutt-export.mjs`다. Azimutt에서 view를 정리한 뒤 PNG로 export해서 `docs/database/azimutt/exports/`에 저장한다.
 - ChartDB, drawDB, ERDCloud, dbdiagram.io, D2, Graphviz 산출물과 관련 스크립트는 혼선을 줄이기 위해 제거했다. `docs/database/README.md`도 Azimutt+PNG 흐름으로 단순화했다.
 - 다음 세션에서 할 일: Azimutt에서 권장 view PNG를 export해 `docs/database/azimutt/exports/`에 추가한다. 권장 파일명은 `onmaru-erd-system-overview.png`, `onmaru-erd-identity-auth.png`, `onmaru-erd-catalog-kto.png`, `onmaru-erd-discovery-journey.png`, `onmaru-erd-map-community.png`, `onmaru-erd-operations-sync.png`, `onmaru-erd-ai-rag.png`다.
 - 다음 세션에서 할 일: `docs/database/README.md`, `docs/database/azimutt/README.md`, `docs/database/schema.md`를 빠르게 검토해 Azimutt 경로와 DBML source of truth 설명이 일관적인지 확인한다.
-- 다음 세션에서 할 일: 아직 승인되지 않은 ADR 초안은 `docs/planning/revision-2026-09-11/adr-review.md`에서 확인한다. 사용자 명시 승인 전 `docs/decisions`에 ADR을 생성하거나 상태 변경하지 않는다.
+- 다음 세션에서 할 일: 아직 정식 ADR로 등록하지 않은 구조 초안은 `docs/decisions/drafts/foundation-architecture.md`에서 확인한다. SSE run lifecycle과 FastAPI RAG ownership을 포함한 최신 설계와 모순 없는지 확인한 뒤, 정식 ADR 생성 및 상태 변경은 구현 착수 전 결정 게이트에서 별도로 한다.
 - 다음 세션에서 할 일: 최종 커밋 전 `npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres`, `node scripts/azimutt-export.mjs`, `git diff --check`를 실행한다.
 
 ## Active Restart Session (2026-09-09)
@@ -28,9 +35,9 @@
 
 ## Active Revision - 2026-09-11
 
-- 추가 요청: 공급자 독립 회원 ID, 관광공사/오디/지역 통계 수집 스키마와 03:00 KST 누락 복구, 행정구역 집계 지도와 명시적 목록 조회, FE cursor 종료 규칙을 재검토한다. `revision-2026-09-11/regional-map-and-ingestion.md`에 후속 설계안을 기록한다. 기존 viewport 자동 조회는 이 제안과 충돌하며 FE 전환 승인 전 구현하지 않는다.
+- 추가 요청: 공급자 독립 회원 ID, 관광공사/오디/지역 통계 수집 스키마와 03:00 KST 누락 복구, 행정구역 집계 지도와 명시적 목록 조회, FE cursor 종료 규칙을 재검토한다. `docs/spring/catalog-ingestion.md`에 후속 설계안을 기록한다. 기존 viewport 자동 조회는 이 제안과 충돌하며 FE 전환 승인 전 구현하지 않는다.
 - 추가 요청: 사용자는 장소와 오디 이야기를 담아두기 대상으로 확정하고, 후기 담아두기와 컬렉션은 `project-roadmap.md`의 장기 후보로 남기길 원한다. 여정 저장과 담아두기는 다른 lifecycle로 문서화한다.
-- 추가 요청: 기존 FE에 없거나 새로 추가된 기능/API를 FE에게 전달할 별도 md 보고서로 작성한다. `revision-2026-09-11/fe-change-report.md`에 장소/오디 담아두기, 지도 1.2, VisitReview, run/paging/auth 전환 체크리스트를 기록한다.
+- 추가 요청: 기존 FE에 없거나 새로 추가된 기능/API를 FE에게 전달할 별도 md 보고서로 작성한다. `docs/contracts/frontend-handoff.md`에 장소/오디 담아두기, 지도 1.2, VisitReview, run/paging/auth 전환 체크리스트를 기록한다.
 - 추가 요청: 내 정보 화면은 단순 컬렉션보다 월간 타임라인을 우선한다. 담아둔 장소, 담아둔 오디 이야기, 저장 여정을 월별 흐름으로 보여주고 FE 전달서에도 상세 flow를 추가한다.
 - 추가 요청: DB schema relation이 한눈에 보이지 않아 DBML 기반 ERD를 Level 1 overview와 Level 2 domain detail로 구성한다. 실제 구현/JPA/migration이 없음을 명시하고, 한국관광공사 국문 TourAPI 저장 테이블도 명시적으로 포함한다.
 
@@ -44,12 +51,12 @@
 
 ### 2026-09-11 산출물과 검증
 
-- `docs/planning/revision-2026-09-11/`에 구조/데이터/FE REST/검색/실행/3라운드 토론/ADR 승인자료와 방문후기 OpenAPI를 작성했다. 기존 Blueprint/data API/7일전달서/환경설정에 최신 정책과 링크를 반영했다.
+- 최신 설계는 `docs/architecture/`, `docs/spring/`, `docs/ai/`, `docs/contracts/`, `docs/operations/`으로 책임별 이동했다. `docs/planning/`은 기획/Issue 후보/검토 기록만 유지한다. 전체 권위와 단계 구분은 `docs/README.md`를 따른다.
 - 사용자 확인된 지도 글은 VisitReview+ReviewLike이며 기존 Warmth와 별개다. 300자/5줄·댓글 전체 제외는 제안 기본값이다.
 - 원본 감사 두 파일 보존, 별도 `docs/report/2026-09-11-design-remediation.md`에 F01–F21 추적과 예상79/100(기준58, +21)을 기록했다. 공식 재감사/운영점수가 아니다.
 - 검증: git diff --check 및 CI filesystem baseline 통과. 새 Markdown 상대링크30개/코드fence/JSON 파싱 통과. openapi-spec-validator로 OpenAPI3.1/고유operation6개 확인; 요청 schema 정상·길이·개행·기존mood거절 등7사례 통과. 이는 runtime endpoint 테스트가 아니다.
 - ADR toolkit preflight/related(0개)/significance(5개 recommended,13/14/14/14/13)/validate(기존1개,오류0)/check(findings0,warnings0). check는 적용할 구조규칙이 없어 NOT_APPLICABLE이며 전체설계 준수 증명이 아니다.
-- 승인 대기: `revision-2026-09-11/adr-review.md`의 5개 구조초안. 사용자 승인 후 toolkit create로 proposed 등록; accepted 전환은 별도. docs/decisions는 아직 변경하지 않았다.
+- 정식 ADR 등록 대기: `docs/decisions/drafts/foundation-architecture.md`의 5개 구조초안. draft는 구현 지시가 아니며, accepted 전환은 별도 결정이다.
 - 남은 구현게이트: 전체여정 OpenAPI/FE fixture/DDL/ArchUnit, 실제hosting/부하/보안/kill/restore, F13 workflow 수정, F21 pinned source 전환, Issue graph 발행. 이번 작업은 앱/CI구현이나commit/PR을 수행하지 않았다.
 
 

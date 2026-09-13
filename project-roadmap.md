@@ -16,3 +16,4 @@ This file is reserved for long-term vision and milestone-level goals. Actionable
 - Source-grounded FastAPI docent with evaluation, cost controls, and failure isolation.
 - Personal memory milestone: show saved places, Odii stories, and saved journeys as a monthly timeline in the member profile.
 - Later social organization milestone: save lightweight visit reviews and group saved items into user collections after privacy, moderation, and list-sharing policies are defined.
+- Optional future cultural knowledge milestone: add source-grounded Q&A and cultural pages for hanok and traditional culture only after the journey MVP is complete and source licensing, corpus curation, and response safety policies are separately approved.

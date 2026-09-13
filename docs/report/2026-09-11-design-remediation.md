@@ -4,9 +4,9 @@
 
 ## 이번에 달라진 점
 
-추가 검토: [인증·수집·행정구역 지도 보완](../planning/revision-2026-09-11/regional-map-and-ingestion.md). 원천 테이블은 기존 data-api-design에 있었으나 revision 통합이 부족했다. 공급자 독립 identity,03:00 KST 누락 복구, 원천별 versioned schema, 집계/명시적 REGION 목록 및 cursor 종료를 추가 제안했다. 지도 기존1.1과 후속1.2는 아직 FE/OpenAPI 통합 전이다. 아래79점 예측은 상향하지 않으며 새 계약 통합 전 확정 점수로 보지 않는다.
+추가 검토: [인증·수집·행정구역 지도 보완](../spring/catalog-ingestion.md). 원천 테이블은 기존 data-api-design에 있었으나 통합이 부족했다. 공급자 독립 identity,03:00 KST 누락 복구, 원천별 versioned schema, 집계/명시적 REGION 목록 및 cursor 종료를 추가 제안했다. 지도 기존1.1과 후속1.2는 아직 FE/OpenAPI 통합 전이다. 아래79점 예측은 상향하지 않으며 새 계약 통합 전 확정 점수로 보지 않는다.
 
-[개선 문서 인덱스](../planning/revision-2026-09-11/README.md)에 최신 정책을 묶고 기존 Blueprint, data API, 7일 FE 전달서, 환경설정을 실제 수정했다. 핵심 변경은 런타임/컴파일 그림 분리, 소비자 port와 bridge DAG, identity/discovery/journey/VisitReview 책임, 환경당 DB1개, 검색rank30→전달12→표시3, 선택RAG 평가, 지도범위/cursor/좋아요, 인증grant/저장재개, run 만료와 LKG 원자게시다.
+[문서 안내](../README.md)에 최신 책임별 정책을 묶고 기존 Blueprint, data API, 7일 FE 전달서, 환경설정을 실제 수정했다. 핵심 변경은 런타임/컴파일 그림 분리, 소비자 port와 bridge DAG, identity/discovery/journey/VisitReview 책임, 환경당 DB1개, 검색rank30→전달12→표시3, 선택RAG 평가, 지도범위/cursor/좋아요, 인증grant/저장재개, run 만료와 LKG 원자게시다.
 
 사용자 정정에 따라 지도 게시글은 온기와 별도의 방문 짧은 후기다. 좋아요·대댓글 없음은 사용자 요구이며 300자/5줄·댓글 전체 제외는 제안값이다. 방문 인증을 수행하지 않으므로 실제 방문 여부를 보증하지 않는다. 지도 전체/지역/인근/viewport 상세 설계는 준비했지만 여정 중심 P0에 자동 포함하지 않는다.
 
@@ -16,11 +16,11 @@
 
 | ID | 대응 정책 / 근거 | 설계 상태 | 닫기 위한 실제 증거 |
 |---|---|---|---|
-| F01 | [API](../planning/revision-2026-09-11/api-contract.md) typed clarification+answer | 설계 보완 | FE 질문렌더→같은탐색 후속run contract |
+| F01 | [API](../contracts/rest-api.md) typed clarification+answer | 설계 보완 | FE 질문렌더→같은탐색 후속run contract |
 | F02 | API EXCLUDE/UNEXCLUDE, pin충돌/version | 설계 보완 | 새로고침/재탐색에도 제외 유지 |
-| F03 | [검색](../planning/revision-2026-09-11/retrieval.md) 지역선해석+모호함 질문 | 설계 보완 | 동명이인 지역/무지역/region불일치 fixture |
-| F04 | [데이터](../planning/revision-2026-09-11/data-and-identity.md) identity/session/saved/FK/unique | 설계 보완 | 실제migration+동시login/save 검증 |
-| F05 | [실행](../planning/revision-2026-09-11/runtime-and-operations.md) QUEUED2초/RUNNING20초 만료, GET/startup/sweeper | 설계 보완 | commit-dispatch 사이kill 후run해제 |
+| F03 | [검색](../ai/retrieval-and-rag.md) 지역선해석+모호함 질문 | 설계 보완 | 동명이인 지역/무지역/region불일치 fixture |
+| F04 | [데이터](../spring/identity-and-journey.md) identity/session/saved/FK/unique | 설계 보완 | 실제migration+동시login/save 검증 |
+| F05 | [실행](../operations/runtime-and-reliability.md) QUEUED2초/RUNNING20초 만료, GET/startup/sweeper | 설계 보완 | commit-dispatch 사이kill 후run해제 |
 | F06 | 실행 dataset revision+active pointer transaction | 설계 보완 | 마지막page실패 시 공개revision 불변 |
 | F07 | 실행 owner/generation/DBclock lease/fence | 설계 보완 | A만료→B게시→A결과에서A쓰기0 |
 | F08 | 실행 remaining budget/retry0/terminal CAS | 설계 보완 | 취소/완료/만료경합 terminal 하나 |
@@ -63,7 +63,7 @@
 
 이번 검증은 repository hygiene, 새 Markdown 상대 링크, JSON/OpenAPI 구조, 방문후기 JSON Schema의 정상·길이/개행 제한 사례, ADR preflight/related/significance/기존ADR validate/check다. backend build/DB/FE runtime이 없어 통합·성능·보안·복원 실험은 실행하지 않았다. 구체적 결과는 handoff의 최신 검증 기록을 따른다.
 
-1. 사용자에게 [ADR 초안5개](../planning/revision-2026-09-11/adr-review.md)를 제시하고 승인 후 toolkit으로 proposed 등록한다.
+1. 사용자에게 [ADR 구조 초안5개](../decisions/drafts/foundation-architecture.md)를 제시하고, 구현 Issue 발행 전 정식 ADR 등록 여부와 상태를 확정한다.
 2. FE와 방문후기 범위/여정타입1.1을 동결하고 전체OpenAPI/fixture를 작성한다.
 3. GitHub Issue로 수용조건을 발행하고 W/JX/VR graph를 일치시킨다. 로컬 문서를 영구backlog로 사용하지 않는다.
 4. 구현 후 F01–F21 acceptance와 hosting/backup gate를 실제검증하고 그때 독립 재감사를 수행한다.
