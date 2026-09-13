@@ -1,5 +1,16 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-14
+
+- 현재 작업 브랜치와 worktree: `feature/setup-issues`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issues-setup`.
+- Issue #63 기반 Java 21, Spring Boot 4.1.1, Gradle Wrapper 9.7.1 멀티프로젝트와 `apps/spring-api` 실행 골격을 구축했다. Web MVC·Actuator 및 테스트 의존성은 lock하고 로컬 Gradle 캐시에 받았다.
+- Issue #64 기반 uv 관리 Python 3.12, FastAPI, Uvicorn, pytest, HTTPX, Ruff, mypy 골격을 `ai/`에 구축했다. `uv.lock`의 33개 패키지를 `ai/.venv`와 uv 캐시에 받았다.
+- Spring context/Actuator 테스트 2개와 FastAPI health/readiness 테스트 2개가 통과한다. 실제 Spring `:apps:spring-api:bootRun`의 `/actuator/health`와 Uvicorn의 `/health`, `/ready`도 HTTP 200으로 확인했다.
+- 온라인 전체 검증과 같은 장비의 `./gradlew --offline` 및 `UV_OFFLINE=1` 검증이 모두 통과했다. 다른 장비에는 캐시가 자동으로 이동하지 않는다.
+- IntelliJ 실행법은 `apps/spring-api/README.md`, VS Code 실행법은 `ai/README.md`, 전체 최초 설치·오프라인 명령은 루트 `README.md`에 있다.
+- DB, Flyway, Security, TourAPI adapter, Gemini/RAG 라이브러리는 후속 Issue 소유이므로 이번 scaffold에 미리 추가하지 않았다.
+- 이 절은 아래의 과거 “runtime scaffold 없음” 기록보다 최신 상태다. #63·#64는 branch merge와 acceptance criteria 확인 후에만 닫는다.
+
 ## Next Session Quick Handoff - 2026-09-12
 
 - 현재 작업 브랜치: `feature/setup-issues`. 새 세션 시작 시 `git status --short --branch`로 다시 확인한다.

@@ -4,7 +4,7 @@
 
 ## 현재 사실
 
-- Spring Boot와 FastAPI 애플리케이션, Gradle/Python build manifest, JPA entity, Alembic/Flyway migration, 배포 환경은 아직 없다.
+- Issue #63·#64 구현 브랜치에 Spring Boot와 FastAPI 실행 골격, Gradle/Python build manifest와 health smoke test가 추가됐다. JPA entity, Alembic/Flyway migration과 배포 환경은 아직 없다.
 - DBML은 설계 원본이며 실제 PostgreSQL schema가 아니다.
 - 지도/후기 1.2와 여정 SSE의 OpenAPI/JSON Schema/fixture 문서는 존재한다. 아직 FE reducer·Spring serializer에 연결한 실행 contract test는 없다.
 - Gemini 무료 tier를 MVP 가정으로 두지만, 실제 이용 한도·정책·비용·지역별 이용 가능 여부는 배포 전에 확인해야 한다.
@@ -28,11 +28,11 @@
 
 ## 구현 시 생성될 산출물의 자리
 
-아래는 지금 만들지 않는다. Issue가 발행된 뒤 구현과 함께 추가될 위치다.
+아래는 구현 산출물의 표준 위치다. `spring/` 역할의 최초 실행 모듈은 Issue #63에서 `apps/spring-api/`로, `ai/` 골격은 Issue #64에서 생성됐고 나머지는 후속 Issue에서 추가한다.
 
 ```text
-spring/                    Spring Boot source and tests (future application root)
-ai/                        FastAPI source and tests (future application root)
+apps/spring-api/           Spring Boot source and tests
+ai/                        FastAPI source and tests
 db/migration/              reviewed migrations (future)
 docs/contracts/openapi/    generated or hand-authored public API specifications
 docs/contracts/fixtures/   FE/BE contract fixtures (future)
