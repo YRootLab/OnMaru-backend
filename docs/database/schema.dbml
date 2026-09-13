@@ -27,6 +27,7 @@ Ref: journey_saved_journeys.source_exploration_id >? discovery_explorations.id
 Ref: community_visit_reviews.member_id > identity_members.id
 Ref: community_visit_reviews.place_id > catalog_place_identity.id
 Ref: community_review_likes.member_id > identity_members.id
+Ref: community_review_reports.reporter_member_id > identity_members.id
 
 Ref: audio_place_odii_links.place_id > catalog_place_identity.id
 

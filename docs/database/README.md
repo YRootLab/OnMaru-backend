@@ -14,6 +14,8 @@ OnMaru ERD의 source of truth는 DBML이고, GitHub에서 사람이 볼 시각 �
 | GitHub 공유 이미지 | `docs/database/azimutt/exports/*.png` |
 | 운영 migration | 아직 없음. 이 디렉터리의 SQL은 시각화/import 보조 산출물이다. |
 
+실행 DDL과 경쟁 상태의 구현 기준은 [migration and concurrency proof plan](migration-and-concurrency.md)에 둔다. 이 문서는 Flyway migration과 Testcontainers 검증을 설계하지만, 아직 실제 migration은 아니다.
+
 ChartDB, drawDB, ERDCloud, dbdiagram.io, D2, Graphviz 산출물은 기본 경로에서 제외했다. Azimutt가 무료로 잘 동작하고, 모듈별 view를 PNG로 export해서 GitHub에 올리는 흐름이 현재 프로젝트에 가장 단순하다.
 
 ## 파일 구조

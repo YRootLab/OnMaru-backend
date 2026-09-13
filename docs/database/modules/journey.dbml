@@ -23,7 +23,7 @@ Table journey_saved_resources [headercolor: #76B7B2] {
   id uuid [pk]
   member_id uuid [not null]
   resource_type journey_saved_resource_type [not null]
-  resource_id uuid [not null, note: 'PLACE -> catalog_place_identity.id, ODII_STORY -> audio_odii_stories.id; enforced by application eligibility port']
+  resource_id uuid [not null, note: 'PLACE -> catalog_place_identity.id for every public canonical tourism place (hanok, stay, cafe, experience, market, attraction); ODII_STORY -> audio_odii_stories.id only for standalone replay. Enforced by application eligibility port.']
   saved_at timestamptz [not null]
 
   Indexes {
@@ -32,7 +32,7 @@ Table journey_saved_resources [headercolor: #76B7B2] {
   }
 }
 
-TableGroup journey [color: #76B7B2, note: 'Saved journey snapshots, saved place/Odii resources, and member timeline read model source rows.'] {
+TableGroup journey [color: #76B7B2, note: 'Saved journey snapshots, public canonical tourism place saves, optional standalone Odii story saves, and member timeline read model source rows.'] {
   journey_saved_journeys
   journey_saved_resources
 }

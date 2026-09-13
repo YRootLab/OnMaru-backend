@@ -27,6 +27,8 @@ Table discovery_explorations [headercolor: #EDC948] {
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
 
+  Note: 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).'
+
   Indexes {
     (owner_member_id, updated_at)
     (owner_guest_id, updated_at)
@@ -48,6 +50,8 @@ Table discovery_runs [headercolor: #EDC948] {
   generation int [not null]
   error_code varchar
   engine varchar [not null]
+
+  Note: 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.'
 
   Indexes {
     exploration_id
