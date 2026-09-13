@@ -6,30 +6,161 @@
 - [ADR-0001 — 아키텍처 결정을 기록한다](0001-record-architecture-decisions.md)
 - [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
 
+### 제안됨
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+- [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+- [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
+
 ## 태그별
+
+### ai
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+
+### architecture
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+
+### authentication
+- [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+
+### baseline
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+
+### boundaries
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+
+### data-ownership
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+
+### dataset-revision
+- [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+
+### evaluation
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+
+### grafana
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
+
+### ingestion
+- [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+
+### modular-monolith
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+
+### observability
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
+
+### opentelemetry
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
 
 ### ownership
 - [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
+- [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+
+### postgis
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+
+### postgresql
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
 
 ### process
 - [ADR-0001 — 아키텍처 결정을 기록한다](0001-record-architecture-decisions.md)
 
+### rag
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+
+### reliability
+- [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+
+### rest
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+
+### run-lifecycle
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+
 ### runtime
 - [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
+
+### session
+- [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+
+### sse
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
 
 ## 영향 경로별
 
 ### `AGENTS.md`
 - [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
 
+### `ai/`
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
+
+### `db/`
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+
+### `docs/ai/`
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
+
+### `docs/architecture/`
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+
+### `docs/contracts/`
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+- [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+
+### `docs/database/`
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+- [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+- [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+
 ### `docs/decisions/`
 - [ADR-0001 — 아키텍처 결정을 기록한다](0001-record-architecture-decisions.md)
+
+### `docs/operations/`
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+- [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
 
 ### `docs/planning/`
 - [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
 
+### `docs/spring/`
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+- [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+- [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
+
+### `spring/`
+- [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+- [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+- [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+- [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+- [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+- [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
+
 ## 시간순 (최신순)
 
+- 2026-09-13 — [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
+- 2026-09-13 — [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
+- 2026-09-13 — [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
+- 2026-09-13 — [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
+- 2026-09-13 — [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+- 2026-09-13 — [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+- 2026-09-13 — [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
 - 2026-09-09 — [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
 - 2026-09-08 — [ADR-0001 — 아키텍처 결정을 기록한다](0001-record-architecture-decisions.md)
 
@@ -39,3 +170,39 @@
 
 
 ### 관련
+
+- ADR-0003 "Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0004 "단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0005 "여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0006 "fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0007 "검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0008 "Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0008 "Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다" 관련: ADR-0004 "단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다"
+- ADR-0009 "Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0009 "Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다" 관련: ADR-0005 "여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다"
+- ADR-0009 "Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다" 관련: ADR-0006 "fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다"
+- ADR-0009 "Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다" 관련: ADR-0007 "검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다"
+
+```mermaid
+flowchart LR
+  ADR_0001["ADR-0001<br/>아키텍처 결정을 기록한다"]
+  ADR_0002["ADR-0002<br/>Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"]
+  ADR_0003["ADR-0003<br/>Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다"]
+  ADR_0004["ADR-0004<br/>단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다"]
+  ADR_0005["ADR-0005<br/>여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다"]
+  ADR_0006["ADR-0006<br/>fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다"]
+  ADR_0007["ADR-0007<br/>검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다"]
+  ADR_0008["ADR-0008<br/>Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다"]
+  ADR_0009["ADR-0009<br/>Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다"]
+  ADR_0003 -.->|related| ADR_0002
+  ADR_0004 -.->|related| ADR_0002
+  ADR_0005 -.->|related| ADR_0002
+  ADR_0006 -.->|related| ADR_0002
+  ADR_0007 -.->|related| ADR_0002
+  ADR_0008 -.->|related| ADR_0002
+  ADR_0008 -.->|related| ADR_0004
+  ADR_0009 -.->|related| ADR_0002
+  ADR_0009 -.->|related| ADR_0005
+  ADR_0009 -.->|related| ADR_0006
+  ADR_0009 -.->|related| ADR_0007
+```

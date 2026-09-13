@@ -1,0 +1,53 @@
+---
+id: ADR-0007
+title: 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다
+status: proposed
+date: 2026-09-13
+locale: ko
+decision_makers:
+  - 사용자
+related:
+  - ADR-0002
+affected_paths:
+  - docs/ai/
+  - docs/operations/
+  - docs/contracts/
+  - ai/
+  - spring/
+tags:
+  - ai
+  - baseline
+  - rag
+  - evaluation
+retrospective: false
+---
+
+# 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다
+
+## 맥락 및 문제 설명
+
+여정 추천은 공공 데이터의 신선도·근거·비용을 사용자에게 설명할 수 있어야 한다. RAG는 corpus sync, chunking, embedding, retrieval, citation, provider 비용을 추가하지만 현재 품질 개선의 실측 근거와 운영 예산은 확정되지 않았다.
+
+## 검토한 대안
+
+1. 검증된 canonical data의 deterministic baseline을 기본으로 두고 RAG는 평가 gate 뒤 활성화한다.
+2. bounded candidate만 LLM이 순서·근거를 제안하게 한다.
+3. pgvector hybrid RAG를 초기 MVP부터 기본 경로로 사용한다.
+
+## 결정 결과
+
+선택한 대안: **LIVE_CANONICAL 또는 verified snapshot의 deterministic baseline을 기본 경로로 두고, RAG는 품질·비용·지연 평가를 통과한 뒤 feature flag로 활성화한다**, 그 이유는 provider 또는 corpus 장애에서도 신뢰 가능한 탐색을 유지하고 RAG 복잡도를 실측 가치에만 지불하기 때문이다.
+
+## 결과 및 영향
+
+* 장점: AI provider/RAG 장애 시에도 baseline 결과를 제공하며, corpus revision·allowlist·citation을 평가 가능한 조건으로 도입할 수 있다.
+* 단점: 초기 의미 검색의 회수율이 제한되고 한국어 held-out evaluation 및 corpus lifecycle 관리가 필요하다.
+
+## 확인 방법
+
+allowlist violation 0, revision/tombstone sync fixture, retrieval/citation/abstention quality, baseline 대비 품질, request별 cost와 latency budget을 기록한다. 미색인 revision은 오래된 corpus로 대체하지 않고 baseline 또는 `CONTEXT_NOT_INDEXED`를 사용한다.
+
+## 재검토 조건
+
+* held-out 평가에서 RAG가 승인된 비용·지연 예산 안에서 baseline보다 지속적으로 개선된다.
+* corpus가 context budget을 넘거나 새로운 검색 요구가 baseline 정책으로 해결되지 않는다.
