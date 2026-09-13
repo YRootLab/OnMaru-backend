@@ -1,6 +1,6 @@
 # Spring: catalog ingestion and regional map policy
 
-2026-09-11 사용자 추가 요구에 따른 검토안. 구현·FE 합의·ADR 승인을 의미하지 않는다. 이번 문서의 지도 변경은 기존 1.1 viewport 계약을 대체하는 **1.2 제안**이다. 기존 OpenAPI 1.1을 1.2 구현 계약으로 사용하지 않는다. 여정 API의 1.1 계약은 그대로다.
+2026-09-11 사용자 추가 요구를 반영하고 2026-09-14 승인한 구현 전 설계 계약이다. 이번 문서의 지도 변경은 기존 1.1 viewport 계약을 대체하는 **1.2 계약**이다. 기존 OpenAPI 1.1은 지도 1.2 구현 계약으로 사용하지 않으며, 관련 기능은 1.2 OpenAPI와 fixture를 동결한 뒤 구현한다. 여정 API의 1.1 계약은 그대로다.
 
 ## 기존 문서에서 확인한 사실과 공백
 
@@ -95,7 +95,7 @@ lease 만료 run은 ABANDONED. 안정적인 원천 snapshot/cursor가 검증된 
 
 ## FE 1.2 변경 계약
 
-prefix `/api/v1`, HTTPS JSON. 아래 endpoint는 1.2 제안이며 구현 전 OpenAPI/FE fixture 동시 전환이 필요하다. 공통 오류·CSRF·인가는 기존 계약을 계승한다.
+prefix `/api/v1`, HTTPS JSON. 아래 endpoint는 구현 전 1.2 계약이며 기능 구현 착수 전에 OpenAPI/FE fixture를 함께 동결한다. 공통 오류·CSRF·인가는 기존 계약을 계승한다.
 
 | GET | 요청 | 응답과 경계 |
 |---|---|---|

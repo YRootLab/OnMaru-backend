@@ -1,7 +1,7 @@
 ---
 id: ADR-0008
 title: Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다
-status: proposed
+status: accepted
 date: 2026-09-13
 locale: ko
 decision_makers:

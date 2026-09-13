@@ -1,7 +1,7 @@
 ---
 id: ADR-0005
 title: 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다
-status: proposed
+status: accepted
 date: 2026-09-13
 locale: ko
 decision_makers:

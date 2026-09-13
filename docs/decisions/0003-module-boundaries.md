@@ -1,7 +1,7 @@
 ---
 id: ADR-0003
 title: Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다
-status: proposed
+status: accepted
 date: 2026-09-13
 locale: ko
 decision_makers:

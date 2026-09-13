@@ -1,7 +1,7 @@
 ---
 id: ADR-0004
 title: 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다
-status: proposed
+status: accepted
 date: 2026-09-13
 locale: ko
 decision_makers:

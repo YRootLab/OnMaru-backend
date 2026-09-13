@@ -1,7 +1,7 @@
 ---
 id: ADR-0009
 title: Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다
-status: proposed
+status: accepted
 date: 2026-09-13
 locale: ko
 decision_makers:

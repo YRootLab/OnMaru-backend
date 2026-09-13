@@ -1,7 +1,7 @@
 ---
 id: ADR-0007
 title: 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다
-status: proposed
+status: accepted
 date: 2026-09-13
 locale: ko
 decision_makers:

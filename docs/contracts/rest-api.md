@@ -1,6 +1,6 @@
 # Public REST API contract
 
-2026-09-12 구현 전 계약. `/api/v1`, HTTPS JSON, `schemaVersion: "1.2"`를 현재 지도/후기 계약으로 고정한다. 여정은 REST command와 SSE 알림을 함께 사용한다. 아직 배포된 API가 아니며, OpenAPI와 FE fixture가 동결되기 전에는 구현 Issue를 발행하지 않는다.
+2026-09-12 구현 전 계약. `/api/v1`, HTTPS JSON, `schemaVersion: "1.2"`를 현재 지도/후기 계약으로 고정한다. 여정은 REST command와 SSE 알림을 함께 사용한다. 아직 배포된 API가 아니며, 계약·scaffold Issue는 먼저 발행할 수 있지만 각 기능 구현은 해당 OpenAPI와 FE fixture가 동결된 뒤 시작한다.
 
 ## 공통 계약
 

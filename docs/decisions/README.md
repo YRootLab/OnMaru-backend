@@ -5,8 +5,6 @@
 ### 승인됨
 - [ADR-0001 — 아키텍처 결정을 기록한다](0001-record-architecture-decisions.md)
 - [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
-
-### 제안됨
 - [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
 - [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
 - [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)

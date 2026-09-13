@@ -1,7 +1,7 @@
 ---
 id: ADR-0006
 title: fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다
-status: proposed
+status: accepted
 date: 2026-09-13
 locale: ko
 decision_makers:
