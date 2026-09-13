@@ -23,14 +23,14 @@
 1. [Architecture Blueprint](architecture-blueprint.md): 요청한 15개 항목, 35개 질문, 평가표.
 2. [브레인스토밍과 백엔드 PRD](backend-prd.md): 대안 발산/수렴, 사용자 기능, 출시 단계, 인수 기준.
 3. [데이터·API·RAG 상세 설계](data-api-design.md): 데이터 소유권, 관계, API 전환, 데이터 정합성.
-4. [실행 계획](issue-plan.md): 과거 Root/Child 초안과 선행 관계. 현재 발행 기준은 readiness 완료 뒤 새로 작성한다.
-5. [Work Graph](work-graph.json): 과거 spec-to-issues 입력이며 현재 MVP 발행에 사용하지 않는다.
+4. [Backend Issue Tree](github-issues/README.md): 현재 발행 대상 Root→Track→Leaf, priority, dependency, Wave 목록.
+5. [Work Graph](work-graph.json): 현재 70개 구현 Leaf의 검증 가능한 DAG. 상세 본문은 [Issue drafts](github-issues/issue-drafts.md)를 따른다.
 6. [ADR 검토 초안](adr-proposals.md): 결정별 선택 이유, 비용, 재검토 조건. 정식 ADR 등록 전 검토 자료.
 7. [Implementation readiness](implementation-readiness.md): 구현 Issue 발행 전 닫아야 할 결정·검증 게이트.
 
 PRD는 **무엇을, 누구를 위해, 어디까지 만들고 어떻게 검증할지**를 정의한다. Blueprint는 **어떤 경계와 의존성으로 구현할지**, ADR은 **대안 중 왜 그 선택을 했는지**, Issue는 **누가 독립적으로 구현·검증할 작업인지**를 정의한다.
 
-`work-graph.json`은 W0~W11과 X0~X8을 통합한 21개 후보 DAG다. [통합 발행 초안](implementation-issues.md)이 제목·선행 관계·wave·인수 조건과 기존 W 계획의 변경점을 제공한다. GitHub에는 아직 발행하지 않았다. JX-12는 제외하고 X7은 선택 P2로 분리한다. [P0 정리·ADR 검토](p0-triage.md)에 미해결 입력과 재현성 한계를 기록했다.
+현재 `work-graph.json`은 Mega Root 1개와 8개 Track 아래에서 실행할 70개 Leaf의 dependency DAG다. [발행 목록](github-issues/README.md)과 [본문 초안](github-issues/issue-drafts.md)에 priority·Wave·blocked-by·touch point·검증 방법을 기록했다. 과거 W0~W11/X0~X8 자료는 [통합 발행 초안](implementation-issues.md)에 archived 기록으로만 보존한다. GitHub 발행 뒤에는 GitHub Issues가 실행 Source of Truth다.
 
 ## 출시 입력 상태
 

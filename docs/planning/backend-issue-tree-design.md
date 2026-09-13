@@ -47,9 +47,22 @@ Mega Root와 Track은 control plane이다. 구현 코드는 최하위 Leaf Issue
 - 작업 중 새 dependency나 공통 파일 충돌을 발견하면 구현을 억지로 계속하지 않고 source work graph와 GitHub 관계를 먼저 갱신한다.
 - Agent 종류는 Issue에 고정하지 않는다. Java/Spring, Python/FastAPI, PostgreSQL, 운영처럼 필요한 역량만 label과 본문에 기록한다.
 
+## 우선순위 규칙
+
+Priority와 Wave는 다르다. Priority는 제품상 긴급도이고 Wave는 blocker가 닫히는 기술 순서다.
+
+- `P0`: 다른 구현을 여는 scaffold·계약·보안·원천 검증·migration 기반이다.
+- `P1`: R1/R2의 한옥·장소·인증·찜·지도·후기·Odii 핵심 기능이다.
+- `P2`: AI 여정, 관측성, 복구, 성능과 전체 출시 완성 기능이다.
+- `P3`: baseline과 평가를 통과한 뒤에만 활성화하는 optional RAG·후속 최적화다.
+
+세션은 높은 priority를 선호하되 `Waiting`인 P0를 우회 구현하지 않는다. `Ready`인 P1과 P2는 touch point가 분리되어 있으면 대기 중인 다른 Track과 병렬 실행할 수 있다.
+
 ## Branch와 완료 규칙
 
 - 작업 branch는 `feature/issue-<number>-<slug>`를 기본으로 하고 `develop` 대상 PR을 만든다.
+- Spring 기반 Leaf는 Java 21 toolchain, 검증된 Spring Boot plugin 버전, 저장소에 커밋된 Gradle Wrapper를 사용한다. 전역 Gradle 설치에 의존하지 않는다.
+- 기반 Leaf는 `.gitignore`에 Gradle build/cache, Python virtualenv/cache, IDE, OS 임시 파일, local environment와 secret 파일을 포함하고 추적 가능한 예제 설정은 보존한다.
 - PR 본문은 관련 Leaf Issue를 참조한다. merge가 곧 완료인 경우에만 auto-close keyword를 사용한다.
 - 코드가 없어도 독립 검증 산출물이 있는 외부 API qualification, backup/restore drill, 부하·장애 시험은 별도 Leaf가 될 수 있다.
 - Track Issue는 하위 Leaf를 모두 닫고 Track 통합 게이트를 통과한 뒤 닫는다.

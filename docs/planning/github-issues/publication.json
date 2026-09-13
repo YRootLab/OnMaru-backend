@@ -1,0 +1,324 @@
+{
+  "repo": "YRootLab/OnMaru-backend",
+  "root": {
+    "number": 52,
+    "url": "https://github.com/YRootLab/OnMaru-backend/issues/52"
+  },
+  "tracks": {
+    "TA": {
+      "number": 53,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/53"
+    },
+    "TB": {
+      "number": 54,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/54"
+    },
+    "TC": {
+      "number": 55,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/55"
+    },
+    "TD": {
+      "number": 56,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/56"
+    },
+    "TE": {
+      "number": 57,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/57"
+    },
+    "TF": {
+      "number": 58,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/58"
+    },
+    "TG": {
+      "number": 59,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/59"
+    },
+    "TH": {
+      "number": 60,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/60"
+    }
+  },
+  "leaves": {
+    "A01": {
+      "number": 61,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/61"
+    },
+    "C01": {
+      "number": 62,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/62"
+    },
+    "F01": {
+      "number": 63,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/63"
+    },
+    "F03": {
+      "number": 64,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/64"
+    },
+    "F04": {
+      "number": 65,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/65"
+    },
+    "P01": {
+      "number": 66,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/66"
+    },
+    "D01": {
+      "number": 67,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/67"
+    },
+    "F02": {
+      "number": 68,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/68"
+    },
+    "F05": {
+      "number": 69,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/69"
+    },
+    "F06": {
+      "number": 70,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/70"
+    },
+    "O01": {
+      "number": 71,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/71"
+    },
+    "O03": {
+      "number": 72,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/72"
+    },
+    "P02": {
+      "number": 73,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/73"
+    },
+    "AI01": {
+      "number": 74,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/74"
+    },
+    "D02": {
+      "number": 75,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/75"
+    },
+    "D03": {
+      "number": 76,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/76"
+    },
+    "D04": {
+      "number": 77,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/77"
+    },
+    "D05": {
+      "number": 78,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/78"
+    },
+    "D06": {
+      "number": 79,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/79"
+    },
+    "D07": {
+      "number": 80,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/80"
+    },
+    "O02": {
+      "number": 81,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/81"
+    },
+    "O07": {
+      "number": 82,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/82"
+    },
+    "AI02": {
+      "number": 83,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/83"
+    },
+    "C04": {
+      "number": 84,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/84"
+    },
+    "D08": {
+      "number": 85,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/85"
+    },
+    "I01": {
+      "number": 86,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/86"
+    },
+    "I03": {
+      "number": 87,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/87"
+    },
+    "P03": {
+      "number": 88,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/88"
+    },
+    "P04": {
+      "number": 89,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/89"
+    },
+    "P06": {
+      "number": 90,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/90"
+    },
+    "AI04": {
+      "number": 91,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/91"
+    },
+    "I02": {
+      "number": 92,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/92"
+    },
+    "I04": {
+      "number": 93,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/93"
+    },
+    "O04": {
+      "number": 94,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/94"
+    },
+    "P05": {
+      "number": 95,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/95"
+    },
+    "A02": {
+      "number": 96,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/96"
+    },
+    "AI03": {
+      "number": 97,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/97"
+    },
+    "C02": {
+      "number": 98,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/98"
+    },
+    "C03": {
+      "number": 99,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/99"
+    },
+    "C05": {
+      "number": 100,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/100"
+    },
+    "J01": {
+      "number": 101,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/101"
+    },
+    "M01": {
+      "number": 102,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/102"
+    },
+    "A03": {
+      "number": 103,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/103"
+    },
+    "A04": {
+      "number": 104,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/104"
+    },
+    "AI05": {
+      "number": 105,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/105"
+    },
+    "AI07": {
+      "number": 106,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/106"
+    },
+    "C06": {
+      "number": 107,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/107"
+    },
+    "I05": {
+      "number": 108,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/108"
+    },
+    "J02": {
+      "number": 109,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/109"
+    },
+    "M02": {
+      "number": 110,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/110"
+    },
+    "AI06": {
+      "number": 111,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/111"
+    },
+    "AI08": {
+      "number": 112,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/112"
+    },
+    "I06": {
+      "number": 113,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/113"
+    },
+    "J03": {
+      "number": 114,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/114"
+    },
+    "J04": {
+      "number": 115,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/115"
+    },
+    "J05": {
+      "number": 116,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/116"
+    },
+    "J09": {
+      "number": 117,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/117"
+    },
+    "M03": {
+      "number": 118,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/118"
+    },
+    "AI09": {
+      "number": 119,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/119"
+    },
+    "J06": {
+      "number": 120,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/120"
+    },
+    "J07": {
+      "number": 121,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/121"
+    },
+    "M04": {
+      "number": 122,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/122"
+    },
+    "M05": {
+      "number": 123,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/123"
+    },
+    "J08": {
+      "number": 124,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/124"
+    },
+    "O08": {
+      "number": 125,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/125"
+    },
+    "I07": {
+      "number": 126,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/126"
+    },
+    "J10": {
+      "number": 127,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/127"
+    },
+    "O05": {
+      "number": 128,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/128"
+    },
+    "O06": {
+      "number": 129,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/129"
+    },
+    "O09": {
+      "number": 130,
+      "url": "https://github.com/YRootLab/OnMaru-backend/issues/130"
+    }
+  },
+  "publishedAt": "2026-09-13T07:47:32.835Z"
+}
