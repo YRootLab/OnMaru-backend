@@ -1,0 +1,71 @@
+# OnMaru Backend
+
+OnMaru는 비즈니스 API를 담당하는 Java/Spring Boot 애플리케이션과 AI 처리를 담당하는 Python/FastAPI 애플리케이션을 분리해 운영한다. 현재 저장소에는 두 애플리케이션의 실행·테스트 기반과 백엔드 설계 문서가 있다.
+
+## 준비된 개발 환경
+
+| 영역 | 고정 버전 또는 도구 | 위치 |
+|---|---|---|
+| Java | Java Toolchain 21 | `build.gradle.kts` |
+| Spring | Spring Boot 4.1.1 | `gradle/libs.versions.toml` |
+| Gradle | Wrapper 9.7.1 | `gradle/wrapper/gradle-wrapper.properties` |
+| Python | CPython 3.12 계열 | `ai/.python-version`, `ai/pyproject.toml` |
+| Python package | uv와 `uv.lock` | `ai/` |
+
+Gradle은 전역 설치가 필요하지 않다. Python 환경 생성에는 [`uv`](https://docs.astral.sh/uv/getting-started/installation/)가 필요하다.
+
+## 처음 한 번 실행
+
+인터넷이 되는 환경에서 다음 명령으로 빌드 도구와 현재 scaffold 의존성을 받는다.
+
+```bash
+./gradlew --no-daemon check
+
+cd ai
+uv sync --frozen --all-groups
+uv run ruff check .
+uv run mypy src tests
+uv run pytest
+```
+
+이 명령은 Gradle 캐시와 uv 캐시, `ai/.venv`를 현재 장비에 만든다. 캐시와 가상환경은 Git에 커밋하지 않는다.
+
+## 서버 실행
+
+Spring API:
+
+```bash
+./gradlew :apps:spring-api:bootRun
+curl http://localhost:8080/actuator/health
+```
+
+FastAPI AI 서비스:
+
+```bash
+cd ai
+uv run uvicorn onmaru_ai.main:app --reload --port 8001
+curl http://localhost:8001/health
+curl http://localhost:8001/ready
+```
+
+두 서비스는 현재 DB 자격 증명이나 외부 API 키 없이 실행된다.
+
+## 같은 장비에서 오프라인 검증
+
+온라인 검증을 한 번 완료한 뒤에는 다음 명령으로 캐시에 필요한 항목이 모두 있는지 확인할 수 있다.
+
+```bash
+./gradlew --offline --no-daemon check
+
+cd ai
+UV_OFFLINE=1 uv sync --frozen --all-groups
+UV_OFFLINE=1 uv run ruff check .
+UV_OFFLINE=1 uv run mypy src tests
+UV_OFFLINE=1 uv run pytest
+```
+
+오프라인 보장은 **같은 장비와 사용자 계정의 예열된 캐시**를 전제로 한다. 다른 노트북으로 Git 저장소만 옮기면 캐시가 함께 이동하지 않으므로 인터넷 연결 상태에서 최초 실행을 다시 해야 한다. 후속 Issue에서 새 라이브러리를 추가할 때도 온라인 `check` 또는 `uv sync`를 먼저 실행해야 한다.
+
+## 문서
+
+백엔드 기획과 구현 기준은 [`docs/README.md`](docs/README.md)에서 시작한다. Spring 실행 세부사항은 [`apps/spring-api/README.md`](apps/spring-api/README.md), FastAPI 실행 세부사항은 [`ai/README.md`](ai/README.md)를 참고한다.
