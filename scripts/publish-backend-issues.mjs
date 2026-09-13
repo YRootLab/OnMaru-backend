@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { parsePublishMode, planRelationshipChanges } from './lib/issue-graph-publish.mjs';
+import { bodiesEqual, parsePublishMode, planRelationshipChanges } from './lib/issue-graph-publish.mjs';
 
 const repo = 'YRootLab/OnMaru-backend';
 const mode = parsePublishMode(process.argv.slice(2));
@@ -138,7 +138,7 @@ function inspectExistingState() {
   const inspectBody = (published, expectedBody) => {
     if (!published) return null;
     const remote = viewIssue(published.number);
-    if (remote.body !== expectedBody.trimEnd()) result.bodyUpdates += 1;
+    if (!bodiesEqual(remote.body, expectedBody)) result.bodyUpdates += 1;
     return remote;
   };
 

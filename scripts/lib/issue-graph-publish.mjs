@@ -13,3 +13,8 @@ export function planRelationshipChanges(currentNumbers, desiredNumbers) {
     remove: [...current].filter((number) => !desired.has(number)).sort((a, b) => a - b),
   };
 }
+
+export function bodiesEqual(left, right) {
+  const normalize = (value) => value.replaceAll('\r\n', '\n').trimEnd();
+  return normalize(left) === normalize(right);
+}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { parsePublishMode, planRelationshipChanges } from '../lib/issue-graph-publish.mjs';
+import { bodiesEqual, parsePublishMode, planRelationshipChanges } from '../lib/issue-graph-publish.mjs';
 
 test('defaults to dry-run and requires an explicit apply flag for mutation', () => {
   assert.equal(parsePublishMode([]), 'dry-run');
@@ -25,4 +25,9 @@ test('normalizes duplicate and unordered relationship numbers', () => {
     planRelationshipChanges([63, 61, 61], [62, 63, 62]),
     { add: [62], remove: [61] },
   );
+});
+
+test('treats GitHub newline normalization as the same body', () => {
+  assert.equal(bodiesEqual('line one\r\nline two\r\n', 'line one\nline two'), true);
+  assert.equal(bodiesEqual('line one\nline two\n', 'line one\nchanged\n'), false);
 });
