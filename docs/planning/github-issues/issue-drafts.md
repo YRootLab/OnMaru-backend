@@ -41,6 +41,7 @@ flowchart LR
     F01["F01: Java 21·Spring Boot·Gradle Wrapper 멀티모듈 골격 구축"]
     F03["F03: FastAPI Python 서비스 실행·테스트 골격 구축"]
     F04["F04: PostgreSQL·PostGIS 로컬 통합 테스트 환경 구축"]
+    F07["F07: Backend 설계 입력 snapshot·provenance manifest 고정"]
     P01["P01: 관광공사 API 실제 응답·quota·license qualification"]
     C01["C01: R1 한옥·장소·찜 OpenAPI와 fixture 동결"]
     A01["A01: Odii API 실제 응답·언어·음원 license qualification"]
@@ -49,8 +50,10 @@ flowchart LR
     F02["F02: Spring 모듈 port·adapter 경계와 ArchUnit 규칙 구현"]
     F05["F05: OpenAPI·JSON Schema·DBML 검증 CI 구축"]
     F06["F06: Spring 공통 오류·cursor·멱등 command web 기반 구현"]
+    F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
     D01["D01: Flyway migration 소유권·버전·baseline 체계 구현"]
     P02["P02: TourAPI HTTP client·envelope parser 구현"]
+    M06["M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결"]
     O01["O01: Spring·FastAPI 구조화 로그와 OpenTelemetry 계측 구현"]
     O03["O03: Server-only secret loading·rotation·redaction 정책 구현"]
   end
@@ -62,81 +65,93 @@ flowchart LR
     D06["D06: Odii spot·story·language·transcript revision schema 구현"]
     D07["D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현"]
     AI01["AI01: Spring↔FastAPI 내부 계약과 서비스 인증 구현"]
+    J11["J11: Journey actions·SavedJourney OpenAPI·fixture 완성"]
     O02["O02: Grafana Cloud dashboard·alert·resolve 통지 구성"]
     O07["O07: Spring·FastAPI container·staging·release/rollback pipeline 구현"]
   end
   subgraph Wave3
-    D08["D08: 전체 migration·동시성·rollback 계약 테스트 완성"]
+    F08["F08: 공개 API rate-limit·IP/member admission 기반 구현"]
+    D09["D09: Insights 관측·target link 실행 migration 구현"]
     P03["P03: 03:00 KST sync scheduler·lease·checkpoint 구현"]
     P04["P04: Source validation·category mapping·quarantine 구현"]
-    P06["P06: 관광 관측 DataLab 실제 계약·adapter 구현"]
+    P07["P07: 행정구역 경계 source qualification·revision import 구현"]
     C04["C04: 월별 한옥 editorial edition·placement API 구현"]
-    I01["I01: Kakao OAuth state·callback·opaque session 구현"]
     I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
     AI02["AI02: FastAPI intake normalization·privacy·safety guardrail 구현"]
   end
   subgraph Wave4
+    D08["D08: 전체 migration·동시성·rollback 계약 테스트 완성"]
     P05["P05: Dataset revision 원자 게시·watermark·tombstone 구현"]
-    I02["I02: Guest grant·exploration 소유권 승계 구현"]
-    I04["I04: 회원 조회·logout·탈퇴·보존 lifecycle 구현"]
+    P06["P06: 관광 관측 DataLab 실제 계약·adapter 구현"]
+    I01["I01: Kakao OAuth state·callback·opaque session 구현"]
     AI04["AI04: Gemini provider adapter·timeout·usage 계측 구현"]
-    O04["O04: PostgreSQL backup·PITR·restore drill 자동화"]
   end
   subgraph Wave5
     C02["C02: 한옥 목록 검색·필터·cursor API 구현"]
     C03["C03: Canonical place·한옥 상세 API 구현"]
     C05["C05: 주변·지도 canonical 장소 조회 API 구현"]
+    I02["I02: Guest grant·exploration 소유권 승계 구현"]
+    I04["I04: 회원 조회·logout·탈퇴·보존 lifecycle 구현"]
     M01["M01: 행정구역 resolve·VisitReview 지역 집계 API 구현"]
+    M07["M07: 방문자·관광지 집중률 공개 조회 API 구현"]
     A02["A02: Odii 수집·revision·tombstone publish 구현"]
     AI03["AI03: 검증 데이터 deterministic baseline 검색·ranking 구현"]
-    J01["J01: Exploration 생성·조회·turn intake와 소유권 구현"]
+    O04["O04: PostgreSQL backup·PITR·restore drill 자동화"]
   end
   subgraph Wave6
-    C06["C06: R1 serializer·OpenAPI·LKG 통합 게이트"]
     I05["I05: Canonical 관광 장소 찜 PUT·DELETE 구현"]
     M02["M02: VisitReview ALL·REGION·place 목록과 cursor 구현"]
     A03["A03: Odii story·음원·대본 공개 API 구현"]
     A04["A04: Odii–canonical place 검수 연결과 projection 구현"]
     AI05["AI05: AI proposal schema·evidence allowlist validator 구현"]
     AI07["AI07: Revision-pinned corpus export·manifest sync 구현"]
-    J02["J02: Durable run 상태 머신·command idempotency 구현"]
+    J01["J01: Exploration 생성·조회·turn intake와 소유권 구현"]
   end
   subgraph Wave7
+    C06["C06: R1 serializer·OpenAPI·LKG 통합 게이트"]
     I06["I06: Odii story 저장과 saved-resource 목록 구현"]
     M03["M03: VisitReview 작성·본인 삭제·멱등성 구현"]
     AI06["AI06: AI 품질·안전·비용·latency 평가 harness 구축"]
     AI08["AI08: FastAPI private corpus embedding·retrieval 구현"]
-    J03["J03: Spring journey worker·FastAPI baseline orchestration 구현"]
-    J04["J04: Exploration·run snapshot DTO와 복구 조회 구현"]
-    J05["J05: SSE stage·terminal·heartbeat·replay/reset 구현"]
-    J09["J09: Guest·member AI 일일 quota와 admission 구현"]
+    J02["J02: Durable run 상태 머신·command idempotency 구현"]
   end
   subgraph Wave8
     M04["M04: VisitReview 좋아요 desired-state API 구현"]
     M05["M05: VisitReview 신고·moderation audit·운영 명령 구현"]
     AI09["AI09: Optional RAG 비교 평가·activation gate 구현"]
+    J03["J03: Spring journey worker·FastAPI baseline orchestration 구현"]
+    J04["J04: Exploration·run snapshot DTO와 복구 조회 구현"]
+    J05["J05: SSE stage·terminal·heartbeat·replay/reset 구현"]
+    J09["J09: Guest·member AI 일일 quota와 admission 구현"]
+  end
+  subgraph Wave9
+    M08["M08: 보호된 moderation queue·operator drill·runbook 구현"]
     J06["J06: PIN·EXCLUDE·proposal action과 stateVersion 구현"]
     J07["J07: Run cancel·20초 deadline·sweeper 구현"]
   end
-  subgraph Wave9
+  subgraph Wave10
+    M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
     J08["J08: Saved journey 생성·목록·상세·재개·삭제 구현"]
     O08["O08: TTL·revision GC·회원 탈퇴 cleanup·복원 삭제 ledger 구현"]
   end
-  subgraph Wave10
+  subgraph Wave11
     I07["I07: 내 월간 활동 타임라인 read model 구현"]
     J10["J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트"]
   end
-  subgraph Wave11
+  subgraph Wave12
     O05["O05: API·DB·SSE 부하·성능 예산 검증"]
     O06["O06: TourAPI·Odii·FastAPI·SSE 장애 복구 리허설"]
   end
-  subgraph Wave12
+  subgraph Wave13
     O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
   end
   F01 --> F02
   F01 --> F05
   F03 --> F05
   F01 --> F06
+  F06 --> F08
+  D07 --> F08
+  F07 --> F09
   F01 --> D01
   F04 --> D01
   D01 --> D02
@@ -151,6 +166,9 @@ flowchart LR
   D05 --> D08
   D06 --> D08
   D07 --> D08
+  D09 --> D08
+  D01 --> D09
+  D02 --> D09
   F01 --> P02
   P01 --> P02
   D02 --> P03
@@ -164,6 +182,11 @@ flowchart LR
   F01 --> P06
   D02 --> P06
   D07 --> P06
+  D09 --> P06
+  P07 --> P06
+  D02 --> P07
+  D07 --> P07
+  F07 --> P07
   P05 --> C02
   C01 --> C02
   F06 --> C02
@@ -179,10 +202,13 @@ flowchart LR
   C02 --> C06
   C03 --> C06
   C04 --> C06
+  I05 --> C06
   F05 --> C06
   D03 --> I01
   F06 --> I01
   O03 --> I01
+  F08 --> I01
+  F09 --> I01
   I01 --> I02
   D04 --> I02
   F06 --> I03
@@ -191,30 +217,55 @@ flowchart LR
   I01 --> I04
   I03 --> I04
   D04 --> I04
+  F09 --> I04
   D04 --> I05
   C03 --> I05
   I01 --> I05
   I03 --> I05
+  F09 --> I05
   D04 --> I06
   A03 --> I06
   I01 --> I06
   I03 --> I06
+  F09 --> I06
   I05 --> I07
   I06 --> I07
   J08 --> I07
   M03 --> I07
+  F09 --> I07
   D02 --> M01
   D05 --> M01
   P05 --> M01
   F06 --> M01
+  P07 --> M01
+  M06 --> M01
   D05 --> M02
   C03 --> M02
   F06 --> M02
   M02 --> M03
   I03 --> M03
+  F08 --> M03
   M03 --> M04
   M03 --> M05
   I03 --> M05
+  F08 --> M05
+  F07 --> M06
+  C01 --> M06
+  D09 --> M07
+  P06 --> M07
+  M06 --> M07
+  F06 --> M07
+  M05 --> M08
+  O02 --> M08
+  M01 --> M09
+  M04 --> M09
+  M07 --> M09
+  M08 --> M09
+  A03 --> M09
+  A04 --> M09
+  I05 --> M09
+  I06 --> M09
+  F05 --> M09
   A01 --> A02
   D06 --> A02
   D07 --> A02
@@ -222,6 +273,7 @@ flowchart LR
   P05 --> A02
   A02 --> A03
   F06 --> A03
+  M06 --> A03
   A02 --> A04
   C03 --> A04
   F01 --> AI01
@@ -246,6 +298,8 @@ flowchart LR
   I02 --> J01
   I03 --> J01
   F06 --> J01
+  F08 --> J01
+  J11 --> J01
   J01 --> J02
   J02 --> J03
   AI03 --> J03
@@ -256,11 +310,13 @@ flowchart LR
   I03 --> J05
   J03 --> J06
   J04 --> J06
+  J11 --> J06
   J03 --> J07
   J05 --> J07
   J06 --> J08
   I01 --> J08
   I03 --> J08
+  J11 --> J08
   J02 --> J09
   I01 --> J09
   J05 --> J10
@@ -270,6 +326,8 @@ flowchart LR
   J09 --> J10
   AI06 --> J10
   F05 --> J10
+  F07 --> J11
+  F09 --> J11
   F01 --> O01
   F03 --> O01
   O01 --> O02
@@ -293,10 +351,7 @@ flowchart LR
   P05 --> O08
   C06 --> O09
   I07 --> O09
-  M01 --> O09
-  M04 --> O09
-  M05 --> O09
-  A04 --> O09
+  M09 --> O09
   J10 --> O09
   O02 --> O09
   O04 --> O09
@@ -310,7 +365,7 @@ flowchart LR
 
 ### Objective
 
-이 Track의 6개 Leaf 진행과 통합 상태를 추적한다. 직접 구현 코드를 포함하지 않는다.
+이 Track의 9개 Leaf 진행과 통합 상태를 추적한다. 직접 구현 코드를 포함하지 않는다.
 
 ### Child Issues
 
@@ -320,6 +375,9 @@ flowchart LR
 - [ ] F04: PostgreSQL·PostGIS 로컬 통합 테스트 환경 구축
 - [ ] F05: OpenAPI·JSON Schema·DBML 검증 CI 구축
 - [ ] F06: Spring 공통 오류·cursor·멱등 command web 기반 구현
+- [ ] F07: Backend 설계 입력 snapshot·provenance manifest 고정
+- [ ] F08: 공개 API rate-limit·IP/member admission 기반 구현
+- [ ] F09: 인증·회원·SavedResource OpenAPI·fixture 동결
 
 ### Definition of Done
 
@@ -330,7 +388,7 @@ flowchart LR
 
 ### Objective
 
-이 Track의 14개 Leaf 진행과 통합 상태를 추적한다. 직접 구현 코드를 포함하지 않는다.
+이 Track의 16개 Leaf 진행과 통합 상태를 추적한다. 직접 구현 코드를 포함하지 않는다.
 
 ### Child Issues
 
@@ -342,12 +400,14 @@ flowchart LR
 - [ ] D06: Odii spot·story·language·transcript revision schema 구현
 - [ ] D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현
 - [ ] D08: 전체 migration·동시성·rollback 계약 테스트 완성
+- [ ] D09: Insights 관측·target link 실행 migration 구현
 - [ ] P01: 관광공사 API 실제 응답·quota·license qualification
 - [ ] P02: TourAPI HTTP client·envelope parser 구현
 - [ ] P03: 03:00 KST sync scheduler·lease·checkpoint 구현
 - [ ] P04: Source validation·category mapping·quarantine 구현
 - [ ] P05: Dataset revision 원자 게시·watermark·tombstone 구현
 - [ ] P06: 관광 관측 DataLab 실제 계약·adapter 구현
+- [ ] P07: 행정구역 경계 source qualification·revision import 구현
 
 ### Definition of Done
 
@@ -399,7 +459,7 @@ flowchart LR
 
 ### Objective
 
-이 Track의 9개 Leaf 진행과 통합 상태를 추적한다. 직접 구현 코드를 포함하지 않는다.
+이 Track의 13개 Leaf 진행과 통합 상태를 추적한다. 직접 구현 코드를 포함하지 않는다.
 
 ### Child Issues
 
@@ -408,6 +468,10 @@ flowchart LR
 - [ ] M03: VisitReview 작성·본인 삭제·멱등성 구현
 - [ ] M04: VisitReview 좋아요 desired-state API 구현
 - [ ] M05: VisitReview 신고·moderation audit·운영 명령 구현
+- [ ] M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결
+- [ ] M07: 방문자·관광지 집중률 공개 조회 API 구현
+- [ ] M08: 보호된 moderation queue·operator drill·runbook 구현
+- [ ] M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 - [ ] A01: Odii API 실제 응답·언어·음원 license qualification
 - [ ] A02: Odii 수집·revision·tombstone publish 구현
 - [ ] A03: Odii story·음원·대본 공개 API 구현
@@ -445,7 +509,7 @@ flowchart LR
 
 ### Objective
 
-이 Track의 10개 Leaf 진행과 통합 상태를 추적한다. 직접 구현 코드를 포함하지 않는다.
+이 Track의 11개 Leaf 진행과 통합 상태를 추적한다. 직접 구현 코드를 포함하지 않는다.
 
 ### Child Issues
 
@@ -459,6 +523,7 @@ flowchart LR
 - [ ] J08: Saved journey 생성·목록·상세·재개·삭제 구현
 - [ ] J09: Guest·member AI 일일 quota와 admission 구현
 - [ ] J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트
+- [ ] J11: Journey actions·SavedJourney OpenAPI·fixture 완성
 
 ### Definition of Done
 
@@ -866,6 +931,7 @@ endpoint 구현
 ### Blocks
 
 - C06: R1 serializer·OpenAPI·LKG 통합 게이트
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 - J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트
 - O07: Spring·FastAPI container·staging·release/rollback pipeline 구현
 
@@ -877,11 +943,13 @@ flowchart LR
   F03["F03: FastAPI Python 서비스 실행·테스트 골격 구축"]
   F05["F05: OpenAPI·JSON Schema·DBML 검증 CI 구축"]
   C06["C06: R1 serializer·OpenAPI·LKG 통합 게이트"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
   J10["J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트"]
   O07["O07: Spring·FastAPI container·staging·release/rollback pipeline 구현"]
   F01 --> F05
   F03 --> F05
   F05 --> C06
+  F05 --> M09
   F05 --> J10
   F05 --> O07
 ```
@@ -949,6 +1017,7 @@ apps/spring-api/src/main/java/kr/onmaru/web/common, modules/shared-web
 
 ### Blocks
 
+- F08: 공개 API rate-limit·IP/member admission 기반 구현
 - C02: 한옥 목록 검색·필터·cursor API 구현
 - C03: Canonical place·한옥 상세 API 구현
 - C04: 월별 한옥 editorial edition·placement API 구현
@@ -957,6 +1026,7 @@ apps/spring-api/src/main/java/kr/onmaru/web/common, modules/shared-web
 - I03: CSRF·cookie·인가·private cache 보안 경계 구현
 - M01: 행정구역 resolve·VisitReview 지역 집계 API 구현
 - M02: VisitReview ALL·REGION·place 목록과 cursor 구현
+- M07: 방문자·관광지 집중률 공개 조회 API 구현
 - A03: Odii story·음원·대본 공개 API 구현
 - J01: Exploration 생성·조회·turn intake와 소유권 구현
 
@@ -966,6 +1036,7 @@ apps/spring-api/src/main/java/kr/onmaru/web/common, modules/shared-web
 flowchart LR
   F01["F01: Java 21·Spring Boot·Gradle Wrapper 멀티모듈 골격 구축"]
   F06["F06: Spring 공통 오류·cursor·멱등 command web 기반 구현"]
+  F08["F08: 공개 API rate-limit·IP/member admission 기반 구현"]
   C02["C02: 한옥 목록 검색·필터·cursor API 구현"]
   C03["C03: Canonical place·한옥 상세 API 구현"]
   C04["C04: 월별 한옥 editorial edition·placement API 구현"]
@@ -974,9 +1045,11 @@ flowchart LR
   I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
   M01["M01: 행정구역 resolve·VisitReview 지역 집계 API 구현"]
   M02["M02: VisitReview ALL·REGION·place 목록과 cursor 구현"]
+  M07["M07: 방문자·관광지 집중률 공개 조회 API 구현"]
   A03["A03: Odii story·음원·대본 공개 API 구현"]
   J01["J01: Exploration 생성·조회·turn intake와 소유권 구현"]
   F01 --> F06
+  F06 --> F08
   F06 --> C02
   F06 --> C03
   F06 --> C04
@@ -985,6 +1058,7 @@ flowchart LR
   F06 --> I03
   F06 --> M01
   F06 --> M02
+  F06 --> M07
   F06 --> A03
   F06 --> J01
 ```
@@ -1014,6 +1088,268 @@ MockMvc와 concurrency test
 - blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
 - PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
 
+## F07. Backend 설계 입력 snapshot·provenance manifest 고정
+
+**Priority:** P0
+
+**Wave:** 0
+
+**Parent Track:** TA
+
+### Objective
+
+개인 절대경로 없이 모든 Agent와 CI가 동일한 backend 입력 문서를 재현한다.
+
+### Context
+
+docs/specs와 backend schema guide가 현재 개인 개발 경로 symlink라 다른 checkout에서 내용이 달라지거나 사라질 수 있다.
+
+### Scope
+
+allowlisted repository-local snapshot, upstream repository/commit/path/hash manifest, 갱신 절차, secret scan
+
+### Out of Scope
+
+FE 컴포넌트 구현·원본 repository 자동 동기화
+
+### Implementation Notes
+
+복사한 입력은 원본 commit과 SHA-256을 기록하고 민감정보를 포함하지 않는다.
+
+### Related Code / Modules
+
+docs/reference-snapshots/planning-inputs, scripts/verify-planning-inputs
+
+### Dependencies (blocked-by)
+
+- 없음 (즉시 Ready 후보)
+
+### Blocks
+
+- F09: 인증·회원·SavedResource OpenAPI·fixture 동결
+- P07: 행정구역 경계 source qualification·revision import 구현
+- M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결
+- J11: Journey actions·SavedJourney OpenAPI·fixture 완성
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  F07["F07: Backend 설계 입력 snapshot·provenance manifest 고정"]
+  F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
+  P07["P07: 행정구역 경계 source qualification·revision import 구현"]
+  M06["M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결"]
+  J11["J11: Journey actions·SavedJourney OpenAPI·fixture 완성"]
+  F07 --> F09
+  F07 --> P07
+  F07 --> M06
+  F07 --> J11
+```
+
+### Expected Touch Points
+
+- `docs/reference-snapshots/planning-inputs`
+- `scripts/verify-planning-inputs`
+
+### Parallel Safety / Conflict Notes
+
+runtime·DB 파일을 수정하지 않는 문서 입력 전용 작업.
+
+### Acceptance Criteria
+
+- [ ] 원본 checkout 없이 manifest 검증과 backend 요구 추출 가능
+- [ ] 내용 변조·누락·secret fixture에서 CI 실패
+
+### Verification Method
+
+clean checkout manifest/hash/secret-scan tests
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## F08. 공개 API rate-limit·IP/member admission 기반 구현
+
+**Priority:** P0
+
+**Wave:** 3
+
+**Parent Track:** TA
+
+### Objective
+
+로그인·작성·신고·여정 command의 남용을 원자적으로 제한하고 일관된 429를 반환한다.
+
+### Context
+
+AI quota 외에도 public command별 IP/member 예산과 proxy 신뢰 경계가 필요하다.
+
+### Scope
+
+trusted proxy client identity, operation budget policy, atomic admission store, Retry-After, metrics
+
+### Out of Scope
+
+결제 quota·WAF vendor 종속 설정
+
+### Implementation Notes
+
+X-Forwarded-For는 allowlisted proxy에서만 신뢰하고 AI 일일 quota는 J09가 소유한다.
+
+### Related Code / Modules
+
+modules/operations/admission, apps/spring-api/web/admission
+
+### Dependencies (blocked-by)
+
+- F06: Spring 공통 오류·cursor·멱등 command web 기반 구현
+- D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현
+
+### Blocks
+
+- I01: Kakao OAuth state·callback·opaque session 구현
+- M03: VisitReview 작성·본인 삭제·멱등성 구현
+- M05: VisitReview 신고·moderation audit·운영 명령 구현
+- J01: Exploration 생성·조회·turn intake와 소유권 구현
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  F06["F06: Spring 공통 오류·cursor·멱등 command web 기반 구현"]
+  D07["D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현"]
+  F08["F08: 공개 API rate-limit·IP/member admission 기반 구현"]
+  I01["I01: Kakao OAuth state·callback·opaque session 구현"]
+  M03["M03: VisitReview 작성·본인 삭제·멱등성 구현"]
+  M05["M05: VisitReview 신고·moderation audit·운영 명령 구현"]
+  J01["J01: Exploration 생성·조회·turn intake와 소유권 구현"]
+  F06 --> F08
+  D07 --> F08
+  F08 --> I01
+  F08 --> M03
+  F08 --> M05
+  F08 --> J01
+```
+
+### Expected Touch Points
+
+- `modules/operations/src/main/java/kr/onmaru/operations/admission`
+- `apps/spring-api/src/main/java/kr/onmaru/web/admission`
+
+### Parallel Safety / Conflict Notes
+
+공통 web primitive와 operations schema가 완료된 뒤 admission package만 소유.
+
+### Acceptance Criteria
+
+- [ ] 동시 요청에서도 operation별 한도 초과 승인 0
+- [ ] 비신뢰 forwarded header 위조 거부와 429 Retry-After contract 통과
+
+### Verification Method
+
+fake clock·proxy header·DB concurrency integration tests
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## F09. 인증·회원·SavedResource OpenAPI·fixture 동결
+
+**Priority:** P0
+
+**Wave:** 1
+
+**Parent Track:** TA
+
+### Objective
+
+session·CSRF·회원 lifecycle·개인 저장 API를 구현 전에 기계 판독 계약으로 고정한다.
+
+### Context
+
+rest-api prose에는 endpoint가 있지만 현재 OpenAPI는 인증·회원·saved resource를 포함하지 않는다.
+
+### Scope
+
+auth/login/callback/logout/csrf, members/me, place/Odii save, saved list, timeline schemas and fixtures
+
+### Out of Scope
+
+endpoint runtime 구현·FE 컴포넌트
+
+### Implementation Notes
+
+cookie, redirect, no-store, 401/403/404/409와 savedByMe 익명/회원 차이를 예제로 고정한다.
+
+### Related Code / Modules
+
+docs/contracts/openapi/identity-saved.openapi.yaml, docs/contracts/fixtures/identity-saved
+
+### Dependencies (blocked-by)
+
+- F07: Backend 설계 입력 snapshot·provenance manifest 고정
+
+### Blocks
+
+- I01: Kakao OAuth state·callback·opaque session 구현
+- I04: 회원 조회·logout·탈퇴·보존 lifecycle 구현
+- I05: Canonical 관광 장소 찜 PUT·DELETE 구현
+- I06: Odii story 저장과 saved-resource 목록 구현
+- I07: 내 월간 활동 타임라인 read model 구현
+- J11: Journey actions·SavedJourney OpenAPI·fixture 완성
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  F07["F07: Backend 설계 입력 snapshot·provenance manifest 고정"]
+  F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
+  I01["I01: Kakao OAuth state·callback·opaque session 구현"]
+  I04["I04: 회원 조회·logout·탈퇴·보존 lifecycle 구현"]
+  I05["I05: Canonical 관광 장소 찜 PUT·DELETE 구현"]
+  I06["I06: Odii story 저장과 saved-resource 목록 구현"]
+  I07["I07: 내 월간 활동 타임라인 read model 구현"]
+  J11["J11: Journey actions·SavedJourney OpenAPI·fixture 완성"]
+  F07 --> F09
+  F09 --> I01
+  F09 --> I04
+  F09 --> I05
+  F09 --> I06
+  F09 --> I07
+  F09 --> J11
+```
+
+### Expected Touch Points
+
+- `docs/contracts/openapi/identity-saved.openapi.yaml`
+- `docs/contracts/fixtures/identity-saved`
+
+### Parallel Safety / Conflict Notes
+
+R1·R2·Journey 계약 파일과 분리된 identity/saved bundle.
+
+### Acceptance Criteria
+
+- [ ] rest-api의 인증·회원·저장 endpoint 누락 0
+- [ ] OpenAPI lint와 정상·권한·멱등 fixture schema 검증 통과
+
+### Verification Method
+
+OpenAPI validator and fixture schema tests
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
 ## D01. Flyway migration 소유권·버전·baseline 체계 구현
 
 **Priority:** P0
@@ -1032,7 +1368,7 @@ MockMvc와 concurrency test
 
 ### Scope
 
-schema namespace, version registry, baseline, migration checksum policy
+schema namespace, version registry, baseline, migration checksum policy, database role grants
 
 ### Out of Scope
 
@@ -1059,6 +1395,7 @@ db/migration/, docs/database/README.md
 - D05: VisitReview·like·report·moderation schema 구현
 - D06: Odii spot·story·language·transcript revision schema 구현
 - D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현
+- D09: Insights 관측·target link 실행 migration 구현
 
 ### Position in Graph
 
@@ -1073,6 +1410,7 @@ flowchart LR
   D05["D05: VisitReview·like·report·moderation schema 구현"]
   D06["D06: Odii spot·story·language·transcript revision schema 구현"]
   D07["D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현"]
+  D09["D09: Insights 관측·target link 실행 migration 구현"]
   F01 --> D01
   F04 --> D01
   D01 --> D02
@@ -1081,6 +1419,7 @@ flowchart LR
   D01 --> D05
   D01 --> D06
   D01 --> D07
+  D01 --> D09
 ```
 
 ### Expected Touch Points
@@ -1096,6 +1435,7 @@ flowchart LR
 
 - [ ] empty migrate와 baseline upgrade 통과
 - [ ] 중복 version/checksum 변경 CI 실패
+- [ ] migration/runtime/readonly/backup role이 분리되고 runtime role의 DDL이 거부됨
 
 ### Verification Method
 
@@ -1147,9 +1487,11 @@ db/migration/catalog, adapters/persistence-jpa/catalog
 ### Blocks
 
 - D08: 전체 migration·동시성·rollback 계약 테스트 완성
+- D09: Insights 관측·target link 실행 migration 구현
 - P03: 03:00 KST sync scheduler·lease·checkpoint 구현
 - P04: Source validation·category mapping·quarantine 구현
 - P06: 관광 관측 DataLab 실제 계약·adapter 구현
+- P07: 행정구역 경계 source qualification·revision import 구현
 - C04: 월별 한옥 editorial edition·placement API 구현
 - M01: 행정구역 resolve·VisitReview 지역 집계 API 구현
 
@@ -1160,16 +1502,20 @@ flowchart LR
   D01["D01: Flyway migration 소유권·버전·baseline 체계 구현"]
   D02["D02: Catalog canonical place·source·revision schema 구현"]
   D08["D08: 전체 migration·동시성·rollback 계약 테스트 완성"]
+  D09["D09: Insights 관측·target link 실행 migration 구현"]
   P03["P03: 03:00 KST sync scheduler·lease·checkpoint 구현"]
   P04["P04: Source validation·category mapping·quarantine 구현"]
   P06["P06: 관광 관측 DataLab 실제 계약·adapter 구현"]
+  P07["P07: 행정구역 경계 source qualification·revision import 구현"]
   C04["C04: 월별 한옥 editorial edition·placement API 구현"]
   M01["M01: 행정구역 resolve·VisitReview 지역 집계 API 구현"]
   D01 --> D02
   D02 --> D08
+  D02 --> D09
   D02 --> P03
   D02 --> P04
   D02 --> P06
+  D02 --> P07
   D02 --> C04
   D02 --> M01
 ```
@@ -1571,10 +1917,12 @@ db/migration/operations, adapters/persistence-jpa/operations
 
 ### Blocks
 
+- F08: 공개 API rate-limit·IP/member admission 기반 구현
 - D08: 전체 migration·동시성·rollback 계약 테스트 완성
 - P03: 03:00 KST sync scheduler·lease·checkpoint 구현
 - P04: Source validation·category mapping·quarantine 구현
 - P06: 관광 관측 DataLab 실제 계약·adapter 구현
+- P07: 행정구역 경계 source qualification·revision import 구현
 - A02: Odii 수집·revision·tombstone publish 구현
 
 ### Position in Graph
@@ -1583,16 +1931,20 @@ db/migration/operations, adapters/persistence-jpa/operations
 flowchart LR
   D01["D01: Flyway migration 소유권·버전·baseline 체계 구현"]
   D07["D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현"]
+  F08["F08: 공개 API rate-limit·IP/member admission 기반 구현"]
   D08["D08: 전체 migration·동시성·rollback 계약 테스트 완성"]
   P03["P03: 03:00 KST sync scheduler·lease·checkpoint 구현"]
   P04["P04: Source validation·category mapping·quarantine 구현"]
   P06["P06: 관광 관측 DataLab 실제 계약·adapter 구현"]
+  P07["P07: 행정구역 경계 source qualification·revision import 구현"]
   A02["A02: Odii 수집·revision·tombstone publish 구현"]
   D01 --> D07
+  D07 --> F08
   D07 --> D08
   D07 --> P03
   D07 --> P04
   D07 --> P06
+  D07 --> P07
   D07 --> A02
 ```
 
@@ -1625,7 +1977,7 @@ DB concurrency tests
 
 **Priority:** P0
 
-**Wave:** 3
+**Wave:** 4
 
 **Parent Track:** TB
 
@@ -1661,6 +2013,7 @@ testing/database-contracts
 - D05: VisitReview·like·report·moderation schema 구현
 - D06: Odii spot·story·language·transcript revision schema 구현
 - D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현
+- D09: Insights 관측·target link 실행 migration 구현
 
 ### Blocks
 
@@ -1677,6 +2030,7 @@ flowchart LR
   D05["D05: VisitReview·like·report·moderation schema 구현"]
   D06["D06: Odii spot·story·language·transcript revision schema 구현"]
   D07["D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현"]
+  D09["D09: Insights 관측·target link 실행 migration 구현"]
   D08["D08: 전체 migration·동시성·rollback 계약 테스트 완성"]
   O04["O04: PostgreSQL backup·PITR·restore drill 자동화"]
   O08["O08: TTL·revision GC·회원 탈퇴 cleanup·복원 삭제 ledger 구현"]
@@ -1686,6 +2040,7 @@ flowchart LR
   D05 --> D08
   D06 --> D08
   D07 --> D08
+  D09 --> D08
   D08 --> O04
   D08 --> O08
 ```
@@ -1706,6 +2061,91 @@ flowchart LR
 ### Verification Method
 
 Testcontainers full matrix
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## D09. Insights 관측·target link 실행 migration 구현
+
+**Priority:** P0
+
+**Wave:** 3
+
+**Parent Track:** TB
+
+### Objective
+
+방문자·관광지 집중률 관측을 provenance와 공간 단위가 보존되는 executable schema에 저장한다.
+
+### Context
+
+DBML에는 insights 테이블이 있으나 기존 D01~D08에 이를 실행 migration으로 소유하는 Leaf가 없다.
+
+### Scope
+
+visitor observations, tourism targets, target-place links, concentration observations, keys/indexes/checks
+
+### Out of Scope
+
+provider HTTP·public heatmap query
+
+### Implementation Notes
+
+basis date, revision, region/target와 metric unit을 DB constraint로 강제하고 결측을 0으로 저장하지 않는다.
+
+### Related Code / Modules
+
+db/migration/insights, adapters/persistence-jpa/insights
+
+### Dependencies (blocked-by)
+
+- D01: Flyway migration 소유권·버전·baseline 체계 구현
+- D02: Catalog canonical place·source·revision schema 구현
+
+### Blocks
+
+- D08: 전체 migration·동시성·rollback 계약 테스트 완성
+- P06: 관광 관측 DataLab 실제 계약·adapter 구현
+- M07: 방문자·관광지 집중률 공개 조회 API 구현
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  D01["D01: Flyway migration 소유권·버전·baseline 체계 구현"]
+  D02["D02: Catalog canonical place·source·revision schema 구현"]
+  D09["D09: Insights 관측·target link 실행 migration 구현"]
+  D08["D08: 전체 migration·동시성·rollback 계약 테스트 완성"]
+  P06["P06: 관광 관측 DataLab 실제 계약·adapter 구현"]
+  M07["M07: 방문자·관광지 집중률 공개 조회 API 구현"]
+  D01 --> D09
+  D02 --> D09
+  D09 --> D08
+  D09 --> P06
+  D09 --> M07
+```
+
+### Expected Touch Points
+
+- `db/migration/insights`
+- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/insights`
+
+### Parallel Safety / Conflict Notes
+
+insights 전용 migration 범위로 다른 context migration과 병렬 가능.
+
+### Acceptance Criteria
+
+- [ ] DBML의 insights 네 테이블과 FK·unique·range constraint가 migration으로 재현됨
+- [ ] clean/upgrade migration과 잘못된 단위·음수·고아 revision 거부 test 통과
+
+### Verification Method
+
+PostgreSQL/PostGIS repository migration tests
 
 ### Agent Session State
 
@@ -2143,7 +2583,7 @@ publication concurrency integration tests
 
 **Priority:** P2
 
-**Wave:** 3
+**Wave:** 4
 
 **Parent Track:** TB
 
@@ -2176,10 +2616,12 @@ adapters/tourism-api/insights, modules/insights
 - F01: Java 21·Spring Boot·Gradle Wrapper 멀티모듈 골격 구축
 - D02: Catalog canonical place·source·revision schema 구현
 - D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현
+- D09: Insights 관측·target link 실행 migration 구현
+- P07: 행정구역 경계 source qualification·revision import 구현
 
 ### Blocks
 
-- 없음
+- M07: 방문자·관광지 집중률 공개 조회 API 구현
 
 ### Position in Graph
 
@@ -2188,10 +2630,16 @@ flowchart LR
   F01["F01: Java 21·Spring Boot·Gradle Wrapper 멀티모듈 골격 구축"]
   D02["D02: Catalog canonical place·source·revision schema 구현"]
   D07["D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현"]
+  D09["D09: Insights 관측·target link 실행 migration 구현"]
+  P07["P07: 행정구역 경계 source qualification·revision import 구현"]
   P06["P06: 관광 관측 DataLab 실제 계약·adapter 구현"]
+  M07["M07: 방문자·관광지 집중률 공개 조회 API 구현"]
   F01 --> P06
   D02 --> P06
   D07 --> P06
+  D09 --> P06
+  P07 --> P06
+  P06 --> M07
 ```
 
 ### Expected Touch Points
@@ -2211,6 +2659,92 @@ catalog sync와 별도 dataset/package.
 ### Verification Method
 
 provider fixture and DB integration tests
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## P07. 행정구역 경계 source qualification·revision import 구현
+
+**Priority:** P1
+
+**Wave:** 3
+
+**Parent Track:** TB
+
+### Objective
+
+좌표 resolve와 지역 관측에 사용할 행정경계를 출처·권리·revision과 함께 안전하게 적재한다.
+
+### Context
+
+검증된 경계 자료가 없으면 좌표→지역 기능을 활성화할 수 없다.
+
+### Scope
+
+source/license qualification, SIDO/SIGUNGU code mapping, MultiPolygon validation, revision import/activation
+
+### Out of Scope
+
+FE GeoJSON 렌더링·반경 검색
+
+### Implementation Notes
+
+유효하지 않은 geometry와 부모 없는 code를 quarantine하고 원본 출처·관측시각을 보존한다.
+
+### Related Code / Modules
+
+docs/reference-snapshots/region-boundaries, modules/catalog/region-boundary, apps/spring-api/scheduling/region-boundary
+
+### Dependencies (blocked-by)
+
+- D02: Catalog canonical place·source·revision schema 구현
+- D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현
+- F07: Backend 설계 입력 snapshot·provenance manifest 고정
+
+### Blocks
+
+- P06: 관광 관측 DataLab 실제 계약·adapter 구현
+- M01: 행정구역 resolve·VisitReview 지역 집계 API 구현
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  D02["D02: Catalog canonical place·source·revision schema 구현"]
+  D07["D07: Sync run·lease·checkpoint·quarantine·outbox schema 구현"]
+  F07["F07: Backend 설계 입력 snapshot·provenance manifest 고정"]
+  P07["P07: 행정구역 경계 source qualification·revision import 구현"]
+  P06["P06: 관광 관측 DataLab 실제 계약·adapter 구현"]
+  M01["M01: 행정구역 resolve·VisitReview 지역 집계 API 구현"]
+  D02 --> P07
+  D07 --> P07
+  F07 --> P07
+  P07 --> P06
+  P07 --> M01
+```
+
+### Expected Touch Points
+
+- `docs/reference-snapshots/region-boundaries`
+- `modules/catalog/src/main/java/kr/onmaru/catalog/regionboundary`
+- `apps/spring-api/src/main/java/kr/onmaru/scheduling/regionboundary`
+
+### Parallel Safety / Conflict Notes
+
+TourAPI place ingestion과 별도 dataset·scheduler package를 사용.
+
+### Acceptance Criteria
+
+- [ ] 경계 source URL·license·attribution·revision hash 증거 기록
+- [ ] 서울/부산 동명 구·구 없는 시군·경계점 fixture와 invalid geometry quarantine 통과
+
+### Verification Method
+
+source manifest, PostGIS import and boundary resolution tests
 
 ### Agent Session State
 
@@ -2261,6 +2795,7 @@ docs/contracts/openapi/r1.openapi.yaml, docs/contracts/fixtures/r1
 - C03: Canonical place·한옥 상세 API 구현
 - C04: 월별 한옥 editorial edition·placement API 구현
 - C05: 주변·지도 canonical 장소 조회 API 구현
+- M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결
 
 ### Position in Graph
 
@@ -2271,10 +2806,12 @@ flowchart LR
   C03["C03: Canonical place·한옥 상세 API 구현"]
   C04["C04: 월별 한옥 editorial edition·placement API 구현"]
   C05["C05: 주변·지도 canonical 장소 조회 API 구현"]
+  M06["M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결"]
   C01 --> C02
   C01 --> C03
   C01 --> C04
   C01 --> C05
+  C01 --> M06
 ```
 
 ### Expected Touch Points
@@ -2645,7 +3182,7 @@ PostGIS API integration tests
 
 **Priority:** P1
 
-**Wave:** 6
+**Wave:** 7
 
 **Parent Track:** TC
 
@@ -2659,7 +3196,7 @@ PostGIS API integration tests
 
 ### Scope
 
-serializer examples, fixture seed, source outage E2E, Swagger publication
+serializer examples, fixture seed, source outage E2E, Swagger publication, place save/savedByMe
 
 ### Out of Scope
 
@@ -2678,6 +3215,7 @@ apps/spring-api/src/test/java/kr/onmaru/r1, docs/contracts/openapi/r1.openapi.ya
 - C02: 한옥 목록 검색·필터·cursor API 구현
 - C03: Canonical place·한옥 상세 API 구현
 - C04: 월별 한옥 editorial edition·placement API 구현
+- I05: Canonical 관광 장소 찜 PUT·DELETE 구현
 - F05: OpenAPI·JSON Schema·DBML 검증 CI 구축
 
 ### Blocks
@@ -2692,6 +3230,7 @@ flowchart LR
   C02["C02: 한옥 목록 검색·필터·cursor API 구현"]
   C03["C03: Canonical place·한옥 상세 API 구현"]
   C04["C04: 월별 한옥 editorial edition·placement API 구현"]
+  I05["I05: Canonical 관광 장소 찜 PUT·DELETE 구현"]
   F05["F05: OpenAPI·JSON Schema·DBML 검증 CI 구축"]
   C06["C06: R1 serializer·OpenAPI·LKG 통합 게이트"]
   O05["O05: API·DB·SSE 부하·성능 예산 검증"]
@@ -2699,6 +3238,7 @@ flowchart LR
   C02 --> C06
   C03 --> C06
   C04 --> C06
+  I05 --> C06
   F05 --> C06
   C06 --> O05
   C06 --> O09
@@ -2710,12 +3250,13 @@ flowchart LR
 
 ### Parallel Safety / Conflict Notes
 
-R1 endpoints 완료 후 통합 tests만 소유.
+R1 endpoints와 장소 찜 완료 후 통합 tests만 소유.
 
 ### Acceptance Criteria
 
 - [ ] Swagger와 runtime response schema 일치
-- [ ] TourAPI 차단 상태에서 목록·상세·월별 E2E 통과
+- [ ] TourAPI 차단 상태에서 목록·상세·월별·장소 찜 E2E 통과
+- [ ] 익명/회원 savedByMe와 반복 PUT/DELETE fixture 통과
 
 ### Verification Method
 
@@ -2732,7 +3273,7 @@ contract + E2E suite
 
 **Priority:** P0
 
-**Wave:** 3
+**Wave:** 4
 
 **Parent Track:** TD
 
@@ -2765,6 +3306,8 @@ modules/identity, apps/spring-api/security/oauth/kakao
 - D03: Member·OAuth identity·session·guest grant schema 구현
 - F06: Spring 공통 오류·cursor·멱등 command web 기반 구현
 - O03: Server-only secret loading·rotation·redaction 정책 구현
+- F08: 공개 API rate-limit·IP/member admission 기반 구현
+- F09: 인증·회원·SavedResource OpenAPI·fixture 동결
 
 ### Blocks
 
@@ -2782,6 +3325,8 @@ flowchart LR
   D03["D03: Member·OAuth identity·session·guest grant schema 구현"]
   F06["F06: Spring 공통 오류·cursor·멱등 command web 기반 구현"]
   O03["O03: Server-only secret loading·rotation·redaction 정책 구현"]
+  F08["F08: 공개 API rate-limit·IP/member admission 기반 구현"]
+  F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
   I01["I01: Kakao OAuth state·callback·opaque session 구현"]
   I02["I02: Guest grant·exploration 소유권 승계 구현"]
   I04["I04: 회원 조회·logout·탈퇴·보존 lifecycle 구현"]
@@ -2792,6 +3337,8 @@ flowchart LR
   D03 --> I01
   F06 --> I01
   O03 --> I01
+  F08 --> I01
+  F09 --> I01
   I01 --> I02
   I01 --> I04
   I01 --> I05
@@ -2829,7 +3376,7 @@ OAuth mock + DB security tests
 
 **Priority:** P0
 
-**Wave:** 4
+**Wave:** 5
 
 **Parent Track:** TD
 
@@ -3010,7 +3557,7 @@ MockMvc security negative tests
 
 **Priority:** P1
 
-**Wave:** 4
+**Wave:** 5
 
 **Parent Track:** TD
 
@@ -3043,6 +3590,7 @@ modules/identity/member-lifecycle, apps/spring-api/web/member
 - I01: Kakao OAuth state·callback·opaque session 구현
 - I03: CSRF·cookie·인가·private cache 보안 경계 구현
 - D04: Exploration·run·saved journey·saved resource schema 구현
+- F09: 인증·회원·SavedResource OpenAPI·fixture 동결
 
 ### Blocks
 
@@ -3055,11 +3603,13 @@ flowchart LR
   I01["I01: Kakao OAuth state·callback·opaque session 구현"]
   I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
   D04["D04: Exploration·run·saved journey·saved resource schema 구현"]
+  F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
   I04["I04: 회원 조회·logout·탈퇴·보존 lifecycle 구현"]
   O08["O08: TTL·revision GC·회원 탈퇴 cleanup·복원 삭제 ledger 구현"]
   I01 --> I04
   I03 --> I04
   D04 --> I04
+  F09 --> I04
   I04 --> O08
 ```
 
@@ -3126,10 +3676,13 @@ modules/journey/saved-resource/place, apps/spring-api/web/saved/place
 - C03: Canonical place·한옥 상세 API 구현
 - I01: Kakao OAuth state·callback·opaque session 구현
 - I03: CSRF·cookie·인가·private cache 보안 경계 구현
+- F09: 인증·회원·SavedResource OpenAPI·fixture 동결
 
 ### Blocks
 
+- C06: R1 serializer·OpenAPI·LKG 통합 게이트
 - I07: 내 월간 활동 타임라인 read model 구현
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 
 ### Position in Graph
 
@@ -3139,13 +3692,19 @@ flowchart LR
   C03["C03: Canonical place·한옥 상세 API 구현"]
   I01["I01: Kakao OAuth state·callback·opaque session 구현"]
   I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
+  F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
   I05["I05: Canonical 관광 장소 찜 PUT·DELETE 구현"]
+  C06["C06: R1 serializer·OpenAPI·LKG 통합 게이트"]
   I07["I07: 내 월간 활동 타임라인 read model 구현"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
   D04 --> I05
   C03 --> I05
   I01 --> I05
   I03 --> I05
+  F09 --> I05
+  I05 --> C06
   I05 --> I07
+  I05 --> M09
 ```
 
 ### Expected Touch Points
@@ -3211,10 +3770,12 @@ modules/journey/saved-resource/odii, apps/spring-api/web/saved/list
 - A03: Odii story·음원·대본 공개 API 구현
 - I01: Kakao OAuth state·callback·opaque session 구현
 - I03: CSRF·cookie·인가·private cache 보안 경계 구현
+- F09: 인증·회원·SavedResource OpenAPI·fixture 동결
 
 ### Blocks
 
 - I07: 내 월간 활동 타임라인 read model 구현
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 
 ### Position in Graph
 
@@ -3224,13 +3785,17 @@ flowchart LR
   A03["A03: Odii story·음원·대본 공개 API 구현"]
   I01["I01: Kakao OAuth state·callback·opaque session 구현"]
   I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
+  F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
   I06["I06: Odii story 저장과 saved-resource 목록 구현"]
   I07["I07: 내 월간 활동 타임라인 read model 구현"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
   D04 --> I06
   A03 --> I06
   I01 --> I06
   I03 --> I06
+  F09 --> I06
   I06 --> I07
+  I06 --> M09
 ```
 
 ### Expected Touch Points
@@ -3262,7 +3827,7 @@ API contract tests
 
 **Priority:** P1
 
-**Wave:** 10
+**Wave:** 11
 
 **Parent Track:** TD
 
@@ -3296,6 +3861,7 @@ modules/journey/timeline, apps/spring-api/web/me/timeline
 - I06: Odii story 저장과 saved-resource 목록 구현
 - J08: Saved journey 생성·목록·상세·재개·삭제 구현
 - M03: VisitReview 작성·본인 삭제·멱등성 구현
+- F09: 인증·회원·SavedResource OpenAPI·fixture 동결
 
 ### Blocks
 
@@ -3309,12 +3875,14 @@ flowchart LR
   I06["I06: Odii story 저장과 saved-resource 목록 구현"]
   J08["J08: Saved journey 생성·목록·상세·재개·삭제 구현"]
   M03["M03: VisitReview 작성·본인 삭제·멱등성 구현"]
+  F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
   I07["I07: 내 월간 활동 타임라인 read model 구현"]
   O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
   I05 --> I07
   I06 --> I07
   J08 --> I07
   M03 --> I07
+  F09 --> I07
   I07 --> O09
 ```
 
@@ -3381,11 +3949,13 @@ modules/community/region-read, apps/spring-api/web/map/region
 - D05: VisitReview·like·report·moderation schema 구현
 - P05: Dataset revision 원자 게시·watermark·tombstone 구현
 - F06: Spring 공통 오류·cursor·멱등 command web 기반 구현
+- P07: 행정구역 경계 source qualification·revision import 구현
+- M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결
 
 ### Blocks
 
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 - O05: API·DB·SSE 부하·성능 예산 검증
-- O09: Backend 전체 staging release gate와 운영 인수 완료
 
 ### Position in Graph
 
@@ -3395,15 +3965,19 @@ flowchart LR
   D05["D05: VisitReview·like·report·moderation schema 구현"]
   P05["P05: Dataset revision 원자 게시·watermark·tombstone 구현"]
   F06["F06: Spring 공통 오류·cursor·멱등 command web 기반 구현"]
+  P07["P07: 행정구역 경계 source qualification·revision import 구현"]
+  M06["M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결"]
   M01["M01: 행정구역 resolve·VisitReview 지역 집계 API 구현"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
   O05["O05: API·DB·SSE 부하·성능 예산 검증"]
-  O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
   D02 --> M01
   D05 --> M01
   P05 --> M01
   F06 --> M01
+  P07 --> M01
+  M06 --> M01
+  M01 --> M09
   M01 --> O05
-  M01 --> O09
 ```
 
 ### Expected Touch Points
@@ -3552,6 +4126,7 @@ modules/community/review-command, apps/spring-api/web/review/command
 
 - M02: VisitReview ALL·REGION·place 목록과 cursor 구현
 - I03: CSRF·cookie·인가·private cache 보안 경계 구현
+- F08: 공개 API rate-limit·IP/member admission 기반 구현
 
 ### Blocks
 
@@ -3565,12 +4140,14 @@ modules/community/review-command, apps/spring-api/web/review/command
 flowchart LR
   M02["M02: VisitReview ALL·REGION·place 목록과 cursor 구현"]
   I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
+  F08["F08: 공개 API rate-limit·IP/member admission 기반 구현"]
   M03["M03: VisitReview 작성·본인 삭제·멱등성 구현"]
   I07["I07: 내 월간 활동 타임라인 read model 구현"]
   M04["M04: VisitReview 좋아요 desired-state API 구현"]
   M05["M05: VisitReview 신고·moderation audit·운영 명령 구현"]
   M02 --> M03
   I03 --> M03
+  F08 --> M03
   M03 --> I07
   M03 --> M04
   M03 --> M05
@@ -3639,7 +4216,7 @@ modules/community/review-like, apps/spring-api/web/review/like
 
 ### Blocks
 
-- O09: Backend 전체 staging release gate와 운영 인수 완료
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 
 ### Position in Graph
 
@@ -3647,9 +4224,9 @@ modules/community/review-like, apps/spring-api/web/review/like
 flowchart LR
   M03["M03: VisitReview 작성·본인 삭제·멱등성 구현"]
   M04["M04: VisitReview 좋아요 desired-state API 구현"]
-  O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
   M03 --> M04
-  M04 --> O09
+  M04 --> M09
 ```
 
 ### Expected Touch Points
@@ -3713,10 +4290,11 @@ modules/community/moderation, apps/spring-api/operations/moderation
 
 - M03: VisitReview 작성·본인 삭제·멱등성 구현
 - I03: CSRF·cookie·인가·private cache 보안 경계 구현
+- F08: 공개 API rate-limit·IP/member admission 기반 구현
 
 ### Blocks
 
-- O09: Backend 전체 staging release gate와 운영 인수 완료
+- M08: 보호된 moderation queue·operator drill·runbook 구현
 
 ### Position in Graph
 
@@ -3724,11 +4302,13 @@ modules/community/moderation, apps/spring-api/operations/moderation
 flowchart LR
   M03["M03: VisitReview 작성·본인 삭제·멱등성 구현"]
   I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
+  F08["F08: 공개 API rate-limit·IP/member admission 기반 구현"]
   M05["M05: VisitReview 신고·moderation audit·운영 명령 구현"]
-  O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
+  M08["M08: 보호된 moderation queue·operator drill·runbook 구현"]
   M03 --> M05
   I03 --> M05
-  M05 --> O09
+  F08 --> M05
+  M05 --> M08
 ```
 
 ### Expected Touch Points
@@ -3748,6 +4328,356 @@ likes와 다른 aggregate/package.
 ### Verification Method
 
 authorization/domain/DB tests
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## M06. 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결
+
+**Priority:** P1
+
+**Wave:** 1
+
+**Parent Track:** TE
+
+### Objective
+
+R2 public query와 연결 resource DTO를 기능 구현 전에 기계 판독 계약으로 고정한다.
+
+### Context
+
+VisitReview OpenAPI는 존재하지만 지도 장소·행정구역·Odii·insights 계약은 prose와 개별 문서에 흩어져 있다.
+
+### Scope
+
+map place, region resolve/count, Odii story, observation/heatmap paths and schemas, shared fixtures
+
+### Out of Scope
+
+runtime endpoint 구현·FE component
+
+### Implementation Notes
+
+기존 visit-reviews OpenAPI를 참조하고 중복 schema는 shared component로 정리한다.
+
+### Related Code / Modules
+
+docs/contracts/openapi/r2-map-audio-insights.openapi.yaml, docs/contracts/fixtures/r2
+
+### Dependencies (blocked-by)
+
+- F07: Backend 설계 입력 snapshot·provenance manifest 고정
+- C01: R1 한옥·장소·찜 OpenAPI와 fixture 동결
+
+### Blocks
+
+- M01: 행정구역 resolve·VisitReview 지역 집계 API 구현
+- M07: 방문자·관광지 집중률 공개 조회 API 구현
+- A03: Odii story·음원·대본 공개 API 구현
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  F07["F07: Backend 설계 입력 snapshot·provenance manifest 고정"]
+  C01["C01: R1 한옥·장소·찜 OpenAPI와 fixture 동결"]
+  M06["M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결"]
+  M01["M01: 행정구역 resolve·VisitReview 지역 집계 API 구현"]
+  M07["M07: 방문자·관광지 집중률 공개 조회 API 구현"]
+  A03["A03: Odii story·음원·대본 공개 API 구현"]
+  F07 --> M06
+  C01 --> M06
+  M06 --> M01
+  M06 --> M07
+  M06 --> A03
+```
+
+### Expected Touch Points
+
+- `docs/contracts/openapi/r2-map-audio-insights.openapi.yaml`
+- `docs/contracts/fixtures/r2`
+
+### Parallel Safety / Conflict Notes
+
+identity와 Journey 계약 파일을 수정하지 않는 R2 전용 bundle.
+
+### Acceptance Criteria
+
+- [ ] R2 public read endpoint·결측/언어/coverage status 누락 0
+- [ ] OpenAPI lint와 지도·Odii·관측 정상/결측/error fixture 검증 통과
+
+### Verification Method
+
+OpenAPI validator and fixture schema tests
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## M07. 방문자·관광지 집중률 공개 조회 API 구현
+
+**Priority:** P1
+
+**Wave:** 5
+
+**Parent Track:** TE
+
+### Objective
+
+관측 날짜·공간 단위·결측 상태가 명확한 지도 insights를 제공한다.
+
+### Context
+
+BE-REQ-005는 지연 관측을 실시간 혼잡도로 오인하지 않는 public heatmap 계약을 요구한다.
+
+### Scope
+
+regional visitor observation query, tourism target concentration query, basisDate/spatialLevel/unit/status projection
+
+### Out of Scope
+
+실시간 crowd score·개인 위치 추적·예측 모델
+
+### Implementation Notes
+
+관측이 없으면 0을 합성하지 않고 NOT_AVAILABLE/STALE 등 계약된 상태를 반환한다.
+
+### Related Code / Modules
+
+modules/insights/query, apps/spring-api/web/insights
+
+### Dependencies (blocked-by)
+
+- D09: Insights 관측·target link 실행 migration 구현
+- P06: 관광 관측 DataLab 실제 계약·adapter 구현
+- M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결
+- F06: Spring 공통 오류·cursor·멱등 command web 기반 구현
+
+### Blocks
+
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  D09["D09: Insights 관측·target link 실행 migration 구현"]
+  P06["P06: 관광 관측 DataLab 실제 계약·adapter 구현"]
+  M06["M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결"]
+  F06["F06: Spring 공통 오류·cursor·멱등 command web 기반 구현"]
+  M07["M07: 방문자·관광지 집중률 공개 조회 API 구현"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
+  D09 --> M07
+  P06 --> M07
+  M06 --> M07
+  F06 --> M07
+  M07 --> M09
+```
+
+### Expected Touch Points
+
+- `modules/insights/src/main/java/kr/onmaru/insights/query`
+- `apps/spring-api/src/main/java/kr/onmaru/web/insights`
+
+### Parallel Safety / Conflict Notes
+
+VisitReview 지역 집계와 다른 insights read package를 소유.
+
+### Acceptance Criteria
+
+- [ ] basisDate·spatialLevel·unit·source status가 모든 item에 보존됨
+- [ ] 결측·stale 관측을 0이나 실시간으로 표시하지 않고 OpenAPI serializer test 통과
+
+### Verification Method
+
+MockMvc + PostgreSQL fixture contract tests
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## M08. 보호된 moderation queue·operator drill·runbook 구현
+
+**Priority:** P1
+
+**Wave:** 9
+
+**Parent Track:** TE
+
+### Objective
+
+운영자가 공개 DB 직접 수정 없이 신고를 처리하고 숨김 데이터 재노출을 검증한다.
+
+### Context
+
+moderation 문서는 보호된 queue, SLA, alert 연결과 public write 전 synthetic drill을 요구한다.
+
+### Scope
+
+internal queue query, operator authorization, SLA/age projection, runbook, synthetic report/hide/restore/remove drill
+
+### Out of Scope
+
+일반 공개 관리자 UI·별도 workflow engine
+
+### Implementation Notes
+
+reporter identity와 private note를 public DTO·telemetry에서 제외하고 모든 disposition은 M05 command를 사용한다.
+
+### Related Code / Modules
+
+apps/spring-api/operations/moderation/queue, docs/operations/runbooks/moderation.md, testing/e2e/moderation
+
+### Dependencies (blocked-by)
+
+- M05: VisitReview 신고·moderation audit·운영 명령 구현
+- O02: Grafana Cloud dashboard·alert·resolve 통지 구성
+
+### Blocks
+
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  M05["M05: VisitReview 신고·moderation audit·운영 명령 구현"]
+  O02["O02: Grafana Cloud dashboard·alert·resolve 통지 구성"]
+  M08["M08: 보호된 moderation queue·operator drill·runbook 구현"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
+  M05 --> M08
+  O02 --> M08
+  M08 --> M09
+```
+
+### Expected Touch Points
+
+- `apps/spring-api/src/main/java/kr/onmaru/operations/moderation/queue`
+- `docs/operations/runbooks/moderation.md`
+- `testing/e2e/moderation`
+
+### Parallel Safety / Conflict Notes
+
+M07 insights query와 파일·도메인 경계가 분리됨.
+
+### Acceptance Criteria
+
+- [ ] 비운영자 queue 접근 거부와 reporter identity/public telemetry 노출 0
+- [ ] 모든 reason·중복 신고·PII hide·false positive restore·remove·audit·public cache 배제 drill 통과
+
+### Verification Method
+
+authorization integration tests and recorded synthetic operator drill
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## M09. R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
+
+**Priority:** P1
+
+**Wave:** 10
+
+**Parent Track:** TE
+
+### Objective
+
+R2 기능을 독립 unit이 아니라 사용자 흐름과 runtime 계약으로 출시 가능하게 검증한다.
+
+### Context
+
+현재 최종 O09 전에는 지도·후기·Odii·찜을 묶는 명시적 R2 gate가 없다.
+
+### Scope
+
+region select, place/review read-write-like-report, Odii link/save, insights missing/stale, authorization, serializer drift
+
+### Out of Scope
+
+FE component automation·Journey R3
+
+### Implementation Notes
+
+provider는 고정 fixture를 사용하고 OpenAPI response와 runtime serializer를 같은 suite에서 검사한다.
+
+### Related Code / Modules
+
+testing/e2e/r2, docs/operations/release-evidence/r2
+
+### Dependencies (blocked-by)
+
+- M01: 행정구역 resolve·VisitReview 지역 집계 API 구현
+- M04: VisitReview 좋아요 desired-state API 구현
+- M07: 방문자·관광지 집중률 공개 조회 API 구현
+- M08: 보호된 moderation queue·operator drill·runbook 구현
+- A03: Odii story·음원·대본 공개 API 구현
+- A04: Odii–canonical place 검수 연결과 projection 구현
+- I05: Canonical 관광 장소 찜 PUT·DELETE 구현
+- I06: Odii story 저장과 saved-resource 목록 구현
+- F05: OpenAPI·JSON Schema·DBML 검증 CI 구축
+
+### Blocks
+
+- O09: Backend 전체 staging release gate와 운영 인수 완료
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  M01["M01: 행정구역 resolve·VisitReview 지역 집계 API 구현"]
+  M04["M04: VisitReview 좋아요 desired-state API 구현"]
+  M07["M07: 방문자·관광지 집중률 공개 조회 API 구현"]
+  M08["M08: 보호된 moderation queue·operator drill·runbook 구현"]
+  A03["A03: Odii story·음원·대본 공개 API 구현"]
+  A04["A04: Odii–canonical place 검수 연결과 projection 구현"]
+  I05["I05: Canonical 관광 장소 찜 PUT·DELETE 구현"]
+  I06["I06: Odii story 저장과 saved-resource 목록 구현"]
+  F05["F05: OpenAPI·JSON Schema·DBML 검증 CI 구축"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
+  O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
+  M01 --> M09
+  M04 --> M09
+  M07 --> M09
+  M08 --> M09
+  A03 --> M09
+  A04 --> M09
+  I05 --> M09
+  I06 --> M09
+  F05 --> M09
+  M09 --> O09
+```
+
+### Expected Touch Points
+
+- `testing/e2e/r2`
+- `docs/operations/release-evidence/r2`
+
+### Parallel Safety / Conflict Notes
+
+모든 R2 leaf 완료 후 통합 evidence만 소유.
+
+### Acceptance Criteria
+
+- [ ] 정상·비회원·비공개·source outage·관측 결측 R2 E2E 통과
+- [ ] R2 OpenAPI/fixture/runtime drift 0과 moderation hidden text 재노출 0
+
+### Verification Method
+
+Spring+PostgreSQL provider-fixture E2E suite
 
 ### Agent Session State
 
@@ -3960,10 +4890,12 @@ modules/audio/query, apps/spring-api/web/audio
 
 - A02: Odii 수집·revision·tombstone publish 구현
 - F06: Spring 공통 오류·cursor·멱등 command web 기반 구현
+- M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결
 
 ### Blocks
 
 - I06: Odii story 저장과 saved-resource 목록 구현
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 - O06: TourAPI·Odii·FastAPI·SSE 장애 복구 리허설
 
 ### Position in Graph
@@ -3972,12 +4904,16 @@ modules/audio/query, apps/spring-api/web/audio
 flowchart LR
   A02["A02: Odii 수집·revision·tombstone publish 구현"]
   F06["F06: Spring 공통 오류·cursor·멱등 command web 기반 구현"]
+  M06["M06: 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결"]
   A03["A03: Odii story·음원·대본 공개 API 구현"]
   I06["I06: Odii story 저장과 saved-resource 목록 구현"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
   O06["O06: TourAPI·Odii·FastAPI·SSE 장애 복구 리허설"]
   A02 --> A03
   F06 --> A03
+  M06 --> A03
   A03 --> I06
+  A03 --> M09
   A03 --> O06
 ```
 
@@ -4045,7 +4981,7 @@ modules/audio/place-link, apps/spring-api/operations/audio-link
 
 ### Blocks
 
-- O09: Backend 전체 staging release gate와 운영 인수 완료
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 
 ### Position in Graph
 
@@ -4054,10 +4990,10 @@ flowchart LR
   A02["A02: Odii 수집·revision·tombstone publish 구현"]
   C03["C03: Canonical place·한옥 상세 API 구현"]
   A04["A04: Odii–canonical place 검수 연결과 projection 구현"]
-  O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
   A02 --> A04
   C03 --> A04
-  A04 --> O09
+  A04 --> M09
 ```
 
 ### Expected Touch Points
@@ -4819,7 +5755,7 @@ eval report + feature flag E2E
 
 **Priority:** P2
 
-**Wave:** 5
+**Wave:** 6
 
 **Parent Track:** TG
 
@@ -4853,6 +5789,8 @@ modules/journey/exploration, apps/spring-api/web/exploration
 - I02: Guest grant·exploration 소유권 승계 구현
 - I03: CSRF·cookie·인가·private cache 보안 경계 구현
 - F06: Spring 공통 오류·cursor·멱등 command web 기반 구현
+- F08: 공개 API rate-limit·IP/member admission 기반 구현
+- J11: Journey actions·SavedJourney OpenAPI·fixture 완성
 
 ### Blocks
 
@@ -4866,12 +5804,16 @@ flowchart LR
   I02["I02: Guest grant·exploration 소유권 승계 구현"]
   I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
   F06["F06: Spring 공통 오류·cursor·멱등 command web 기반 구현"]
+  F08["F08: 공개 API rate-limit·IP/member admission 기반 구현"]
+  J11["J11: Journey actions·SavedJourney OpenAPI·fixture 완성"]
   J01["J01: Exploration 생성·조회·turn intake와 소유권 구현"]
   J02["J02: Durable run 상태 머신·command idempotency 구현"]
   D04 --> J01
   I02 --> J01
   I03 --> J01
   F06 --> J01
+  F08 --> J01
+  J11 --> J01
   J01 --> J02
 ```
 
@@ -4904,7 +5846,7 @@ API ownership/intake tests
 
 **Priority:** P2
 
-**Wave:** 6
+**Wave:** 7
 
 **Parent Track:** TG
 
@@ -4989,7 +5931,7 @@ transaction concurrency tests
 
 **Priority:** P2
 
-**Wave:** 7
+**Wave:** 8
 
 **Parent Track:** TG
 
@@ -5074,7 +6016,7 @@ two-service fake/real contract tests
 
 **Priority:** P2
 
-**Wave:** 7
+**Wave:** 8
 
 **Parent Track:** TG
 
@@ -5153,7 +6095,7 @@ OpenAPI serializer tests
 
 **Priority:** P2
 
-**Wave:** 7
+**Wave:** 8
 
 **Parent Track:** TG
 
@@ -5235,7 +6177,7 @@ parsed-frame schema and reconnect tests
 
 **Priority:** P2
 
-**Wave:** 8
+**Wave:** 9
 
 **Parent Track:** TG
 
@@ -5267,6 +6209,7 @@ modules/journey/actions, apps/spring-api/web/exploration/actions
 
 - J03: Spring journey worker·FastAPI baseline orchestration 구현
 - J04: Exploration·run snapshot DTO와 복구 조회 구현
+- J11: Journey actions·SavedJourney OpenAPI·fixture 완성
 
 ### Blocks
 
@@ -5279,11 +6222,13 @@ modules/journey/actions, apps/spring-api/web/exploration/actions
 flowchart LR
   J03["J03: Spring journey worker·FastAPI baseline orchestration 구현"]
   J04["J04: Exploration·run snapshot DTO와 복구 조회 구현"]
+  J11["J11: Journey actions·SavedJourney OpenAPI·fixture 완성"]
   J06["J06: PIN·EXCLUDE·proposal action과 stateVersion 구현"]
   J08["J08: Saved journey 생성·목록·상세·재개·삭제 구현"]
   J10["J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트"]
   J03 --> J06
   J04 --> J06
+  J11 --> J06
   J06 --> J08
   J06 --> J10
 ```
@@ -5317,7 +6262,7 @@ domain/property/DB tests
 
 **Priority:** P2
 
-**Wave:** 8
+**Wave:** 9
 
 **Parent Track:** TG
 
@@ -5399,7 +6344,7 @@ fake clock concurrency tests
 
 **Priority:** P2
 
-**Wave:** 9
+**Wave:** 10
 
 **Parent Track:** TG
 
@@ -5432,6 +6377,7 @@ modules/journey/saved-journey, apps/spring-api/web/saved-journey
 - J06: PIN·EXCLUDE·proposal action과 stateVersion 구현
 - I01: Kakao OAuth state·callback·opaque session 구현
 - I03: CSRF·cookie·인가·private cache 보안 경계 구현
+- J11: Journey actions·SavedJourney OpenAPI·fixture 완성
 
 ### Blocks
 
@@ -5445,12 +6391,14 @@ flowchart LR
   J06["J06: PIN·EXCLUDE·proposal action과 stateVersion 구현"]
   I01["I01: Kakao OAuth state·callback·opaque session 구현"]
   I03["I03: CSRF·cookie·인가·private cache 보안 경계 구현"]
+  J11["J11: Journey actions·SavedJourney OpenAPI·fixture 완성"]
   J08["J08: Saved journey 생성·목록·상세·재개·삭제 구현"]
   I07["I07: 내 월간 활동 타임라인 read model 구현"]
   J10["J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트"]
   J06 --> J08
   I01 --> J08
   I03 --> J08
+  J11 --> J08
   J08 --> I07
   J08 --> J10
 ```
@@ -5484,7 +6432,7 @@ API ownership and snapshot tests
 
 **Priority:** P2
 
-**Wave:** 7
+**Wave:** 8
 
 **Parent Track:** TG
 
@@ -5563,7 +6511,7 @@ fake clock concurrency tests
 
 **Priority:** P2
 
-**Wave:** 10
+**Wave:** 11
 
 **Parent Track:** TG
 
@@ -5650,6 +6598,91 @@ flowchart LR
 ### Verification Method
 
 Spring+FastAPI+Postgres E2E
+
+### Agent Session State
+
+- blocked-by가 모두 Closed이면 `Ready`.
+- 담당자 또는 연결된 열린 PR이 있으면 `In progress`.
+- blocked-by가 하나라도 Open이면 `Waiting`이며 구현을 시작하지 않는다.
+- PR CI·review 중에는 `Review`; merge와 AC 확인 후에만 `Done`으로 닫는다.
+
+## J11. Journey actions·SavedJourney OpenAPI·fixture 완성
+
+**Priority:** P2
+
+**Wave:** 2
+
+**Parent Track:** TG
+
+### Objective
+
+여정의 모든 public command·snapshot·saved journey 계약을 구현 전에 기계 판독 가능하게 완성한다.
+
+### Context
+
+현재 Journey OpenAPI는 exploration 기본 run·SSE·cancel만 포함하고 actions와 saved journey endpoint가 빠져 있다.
+
+### Scope
+
+actions, proposal/version errors, saved journey create/list/detail/resume/delete, shared snapshot schema and fixtures
+
+### Out of Scope
+
+runtime implementation·FE reducer 구현
+
+### Implementation Notes
+
+기존 journey.openapi.yaml과 SSE schema를 확장하고 identity/session schema는 F09를 참조한다.
+
+### Related Code / Modules
+
+docs/contracts/openapi/journey.openapi.yaml, docs/contracts/fixtures/journey
+
+### Dependencies (blocked-by)
+
+- F07: Backend 설계 입력 snapshot·provenance manifest 고정
+- F09: 인증·회원·SavedResource OpenAPI·fixture 동결
+
+### Blocks
+
+- J01: Exploration 생성·조회·turn intake와 소유권 구현
+- J06: PIN·EXCLUDE·proposal action과 stateVersion 구현
+- J08: Saved journey 생성·목록·상세·재개·삭제 구현
+
+### Position in Graph
+
+```mermaid
+flowchart LR
+  F07["F07: Backend 설계 입력 snapshot·provenance manifest 고정"]
+  F09["F09: 인증·회원·SavedResource OpenAPI·fixture 동결"]
+  J11["J11: Journey actions·SavedJourney OpenAPI·fixture 완성"]
+  J01["J01: Exploration 생성·조회·turn intake와 소유권 구현"]
+  J06["J06: PIN·EXCLUDE·proposal action과 stateVersion 구현"]
+  J08["J08: Saved journey 생성·목록·상세·재개·삭제 구현"]
+  F07 --> J11
+  F09 --> J11
+  J11 --> J01
+  J11 --> J06
+  J11 --> J08
+```
+
+### Expected Touch Points
+
+- `docs/contracts/openapi/journey.openapi.yaml`
+- `docs/contracts/fixtures/journey`
+
+### Parallel Safety / Conflict Notes
+
+R2와 identity 계약 파일을 수정하지 않는 Journey 전용 bundle.
+
+### Acceptance Criteria
+
+- [ ] rest-api Journey actions·saved-journeys endpoint 누락 0
+- [ ] stateVersion·idempotency·409·resume unavailableRefs fixture와 OpenAPI lint 통과
+
+### Verification Method
+
+OpenAPI validator, JSON Schema and scenario fixture tests
 
 ### Agent Session State
 
@@ -5778,6 +6811,7 @@ observability/grafana
 
 ### Blocks
 
+- M08: 보호된 moderation queue·operator drill·runbook 구현
 - O09: Backend 전체 staging release gate와 운영 인수 완료
 
 ### Position in Graph
@@ -5786,8 +6820,10 @@ observability/grafana
 flowchart LR
   O01["O01: Spring·FastAPI 구조화 로그와 OpenTelemetry 계측 구현"]
   O02["O02: Grafana Cloud dashboard·alert·resolve 통지 구성"]
+  M08["M08: 보호된 moderation queue·operator drill·runbook 구현"]
   O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
   O01 --> O02
+  O02 --> M08
   O02 --> O09
 ```
 
@@ -5911,7 +6947,7 @@ configuration negative tests and runbook drill
 
 **Priority:** P2
 
-**Wave:** 4
+**Wave:** 5
 
 **Parent Track:** TH
 
@@ -5990,7 +7026,7 @@ recorded restore drill
 
 **Priority:** P2
 
-**Wave:** 11
+**Wave:** 12
 
 **Parent Track:** TH
 
@@ -6075,7 +7111,7 @@ repeatable load scripts and EXPLAIN
 
 **Priority:** P2
 
-**Wave:** 11
+**Wave:** 12
 
 **Parent Track:** TH
 
@@ -6225,6 +7261,7 @@ release workflow 단일 소유.
 
 - [ ] 두 image build/scan와 staging smoke 통과
 - [ ] migration 실패 시 deploy 차단과 이전 release rollback
+- [ ] migration/runtime/readonly/backup credential이 분리되고 runtime DDL 권한이 없음
 
 ### Verification Method
 
@@ -6241,7 +7278,7 @@ CI staging deployment rehearsal
 
 **Priority:** P2
 
-**Wave:** 9
+**Wave:** 10
 
 **Parent Track:** TH
 
@@ -6326,7 +7363,7 @@ fake clock DB integration tests
 
 **Priority:** P2
 
-**Wave:** 12
+**Wave:** 13
 
 **Parent Track:** TH
 
@@ -6358,10 +7395,7 @@ docs/operations/release-evidence, testing/release-gate
 
 - C06: R1 serializer·OpenAPI·LKG 통합 게이트
 - I07: 내 월간 활동 타임라인 read model 구현
-- M01: 행정구역 resolve·VisitReview 지역 집계 API 구현
-- M04: VisitReview 좋아요 desired-state API 구현
-- M05: VisitReview 신고·moderation audit·운영 명령 구현
-- A04: Odii–canonical place 검수 연결과 projection 구현
+- M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트
 - J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트
 - O02: Grafana Cloud dashboard·alert·resolve 통지 구성
 - O04: PostgreSQL backup·PITR·restore drill 자동화
@@ -6380,10 +7414,7 @@ docs/operations/release-evidence, testing/release-gate
 flowchart LR
   C06["C06: R1 serializer·OpenAPI·LKG 통합 게이트"]
   I07["I07: 내 월간 활동 타임라인 read model 구현"]
-  M01["M01: 행정구역 resolve·VisitReview 지역 집계 API 구현"]
-  M04["M04: VisitReview 좋아요 desired-state API 구현"]
-  M05["M05: VisitReview 신고·moderation audit·운영 명령 구현"]
-  A04["A04: Odii–canonical place 검수 연결과 projection 구현"]
+  M09["M09: R2 지도·후기·Odii·찜 통합 계약 E2E 게이트"]
   J10["J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트"]
   O02["O02: Grafana Cloud dashboard·alert·resolve 통지 구성"]
   O04["O04: PostgreSQL backup·PITR·restore drill 자동화"]
@@ -6394,10 +7425,7 @@ flowchart LR
   O09["O09: Backend 전체 staging release gate와 운영 인수 완료"]
   C06 --> O09
   I07 --> O09
-  M01 --> O09
-  M04 --> O09
-  M05 --> O09
-  A04 --> O09
+  M09 --> O09
   J10 --> O09
   O02 --> O09
   O04 --> O09

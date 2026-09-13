@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { parsePublishMode, planRelationshipChanges } from './lib/issue-graph-publish.mjs';
 
 const repo = 'YRootLab/OnMaru-backend';
+const mode = parsePublishMode(process.argv.slice(2));
 const graphPath = 'docs/planning/github-issues/work-graph.json';
 const treePath = 'docs/planning/github-issues/issue-tree.json';
 const statePath = 'docs/planning/github-issues/publication.json';
@@ -27,6 +29,14 @@ for (const issue of graph.issues) getWave(issue.id);
 
 function gh(args) {
   return execFileSync('gh', [...args, '--repo', repo], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+}
+
+function viewIssue(number) {
+  return JSON.parse(gh(['issue', 'view', String(number), '--json', 'number,body,parent,blockedBy']));
+}
+
+function editIssue(number, args) {
+  if (args.length) gh(['issue', 'edit', String(number), ...args]);
 }
 
 function save() {
@@ -112,6 +122,75 @@ function leafBody(issue) {
   return `${lines.join('\n')}\n`;
 }
 
+const ordered = [...graph.issues].sort((a, b) => getWave(a.id) - getWave(b.id) || a.id.localeCompare(b.id));
+
+function inspectExistingState() {
+  const result = {
+    createRoot: state.root ? 0 : 1,
+    createTracks: tree.tracks.filter((track) => !state.tracks[track.id]).length,
+    createLeaves: graph.issues.filter((issue) => !state.leaves[issue.id]).map((issue) => issue.id),
+    bodyUpdates: 0,
+    parentUpdates: [],
+    blockedByAdds: [],
+    blockedByRemoves: [],
+  };
+
+  const inspectBody = (published, expectedBody) => {
+    if (!published) return null;
+    const remote = viewIssue(published.number);
+    if (remote.body !== expectedBody.trimEnd()) result.bodyUpdates += 1;
+    return remote;
+  };
+
+  inspectBody(state.root, state.root ? rootBody() : '');
+  for (const track of tree.tracks) {
+    const published = state.tracks[track.id];
+    const remote = inspectBody(published, published ? trackBody(track) : '');
+    if (remote && remote.parent?.number !== state.root.number) {
+      result.parentUpdates.push({ id: track.id, number: published.number, parent: state.root.number });
+    }
+  }
+
+  for (const issue of graph.issues) {
+    const published = state.leaves[issue.id];
+    const remote = inspectBody(published, published ? leafBody(issue) : '');
+    if (!remote) continue;
+    const desiredParent = state.tracks[trackByLeaf.get(issue.id).id].number;
+    if (remote.parent?.number !== desiredParent) {
+      result.parentUpdates.push({ id: issue.id, number: published.number, parent: desiredParent });
+    }
+    const current = remote.blockedBy.nodes.map((node) => node.number);
+    const desired = issue.dependencies.map((id) => state.leaves[id]?.number).filter(Boolean);
+    const relationshipChanges = planRelationshipChanges(current, desired);
+    if (relationshipChanges.add.length) result.blockedByAdds.push({ id: issue.id, number: published.number, numbers: relationshipChanges.add });
+    if (relationshipChanges.remove.length) result.blockedByRemoves.push({ id: issue.id, number: published.number, numbers: relationshipChanges.remove });
+  }
+  return result;
+}
+
+function printPlan(plan) {
+  console.log(JSON.stringify({
+    mode,
+    issuesAfterApply: 1 + tree.tracks.length + graph.issues.length,
+    create: {
+      root: plan.createRoot,
+      tracks: plan.createTracks,
+      leaves: plan.createLeaves,
+    },
+    update: {
+      bodies: plan.bodyUpdates,
+      parents: plan.parentUpdates.length,
+      blockedByAdds: plan.blockedByAdds.reduce((sum, item) => sum + item.numbers.length, 0),
+      blockedByRemoves: plan.blockedByRemoves.reduce((sum, item) => sum + item.numbers.length, 0),
+    },
+  }, null, 2));
+}
+
+if (mode === 'dry-run') {
+  printPlan(inspectExistingState());
+  process.exit(0);
+}
+
 for (const [name, color, description] of [
   ['priority:P0', 'B60205', 'Blocks foundational backend work'],
   ['priority:P1', 'D93F0B', 'Required R1/R2 product work'],
@@ -131,7 +210,6 @@ for (const track of tree.tracks) if (!state.tracks[track.id]) {
   console.log(`created ${track.id} #${state.tracks[track.id].number}`);
 }
 
-const ordered = [...graph.issues].sort((a, b) => getWave(a.id) - getWave(b.id) || a.id.localeCompare(b.id));
 for (const issue of ordered) if (!state.leaves[issue.id]) {
   const dependencyNumbers = issue.dependencies.map((id) => state.leaves[id].number);
   const track = trackByLeaf.get(issue.id);
@@ -140,10 +218,17 @@ for (const issue of ordered) if (!state.leaves[issue.id]) {
   console.log(`created ${issue.id} #${state.leaves[issue.id].number}`);
 }
 
-gh(['issue', 'edit', String(state.root.number), '--body', rootBody()]);
-for (const track of tree.tracks) gh(['issue', 'edit', String(state.tracks[track.id].number), '--body', trackBody(track)]);
-for (const issue of graph.issues) gh(['issue', 'edit', String(state.leaves[issue.id].number), '--body', leafBody(issue)]);
+const plan = inspectExistingState();
+if (plan.bodyUpdates) {
+  editIssue(state.root.number, ['--body', rootBody()]);
+  for (const track of tree.tracks) editIssue(state.tracks[track.id].number, ['--body', trackBody(track)]);
+  for (const issue of graph.issues) editIssue(state.leaves[issue.id].number, ['--body', leafBody(issue)]);
+}
+for (const update of plan.parentUpdates) editIssue(update.number, ['--parent', String(update.parent)]);
+for (const update of plan.blockedByAdds) editIssue(update.number, ['--add-blocked-by', update.numbers.join(',')]);
+for (const update of plan.blockedByRemoves) editIssue(update.number, ['--remove-blocked-by', update.numbers.join(',')]);
 
 state.publishedAt = new Date().toISOString();
 save();
+printPlan(plan);
 console.log(`published ${1 + tree.tracks.length + graph.issues.length} issues`);
