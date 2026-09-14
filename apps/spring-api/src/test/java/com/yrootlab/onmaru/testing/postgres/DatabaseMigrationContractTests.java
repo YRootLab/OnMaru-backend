@@ -135,6 +135,7 @@ class DatabaseMigrationContractTests {
         try (var connection = connect();
              var statement = connection.createStatement()) {
             assertOwnerXorRejectsBothInvalidShapes(statement);
+            assertConcurrentExternalIdentityLinkCreatesNoOrphanMember(statement);
             assertOperationAdmissionRaceAllowsNoOverLimit(statement);
             assertRunAdmissionRaceAllowsOneActiveRun(statement);
             assertActorAdmissionRaceAllowsOneActiveActorRun(statement);
@@ -204,6 +205,33 @@ class DatabaseMigrationContractTests {
                 FROM onmaru.operations_admission
                 WHERE scope_key = 'review.write:member:member-1'
                 """)).isEqualTo(1);
+    }
+
+    private static void assertConcurrentExternalIdentityLinkCreatesNoOrphanMember(Statement statement)
+            throws Exception {
+        var results = runRace(
+                () -> insertMemberAndExternalAccount(UUID.randomUUID(), "KAKAO", "https://kauth.kakao.com", "race-subject"),
+                () -> insertMemberAndExternalAccount(UUID.randomUUID(), "KAKAO", "https://kauth.kakao.com", "race-subject")
+        );
+
+        assertThat(results).containsExactlyInAnyOrder(RaceResult.SUCCESS, RaceResult.CONFLICT);
+        assertThat(countRows(statement, """
+                SELECT COUNT(*)
+                FROM onmaru.identity_external_accounts
+                WHERE provider = 'KAKAO'
+                  AND issuer = 'https://kauth.kakao.com'
+                  AND subject = 'race-subject'
+                """)).isEqualTo(1);
+        assertThat(countRows(statement, """
+                SELECT COUNT(*)
+                FROM onmaru.identity_members member
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM onmaru.identity_external_accounts account
+                    WHERE account.member_id = member.id
+                )
+                  AND member.created_at = '2026-09-15T00:00:00Z'
+                """)).isZero();
     }
 
     private static void assertRunAdmissionRaceAllowsOneActiveRun(Statement statement) throws Exception {
@@ -568,6 +596,38 @@ class DatabaseMigrationContractTests {
                 """.formatted(runId, explorationId, actorKey, status, sqlNullable(outcome)));
     }
 
+    private static RaceResult insertMemberAndExternalAccount(
+            UUID memberId,
+            String provider,
+            String issuer,
+            String subject
+    ) throws Exception {
+        try (var connection = connect()) {
+            connection.setAutoCommit(false);
+            try (var statement = connection.createStatement()) {
+                statement.execute("""
+                        INSERT INTO onmaru.identity_members (id, status, created_at)
+                        VALUES ('%s', 'ACTIVE', '2026-09-15T00:00:00Z')
+                        """.formatted(memberId));
+                statement.execute("""
+                        INSERT INTO onmaru.identity_external_accounts (
+                            id, member_id, provider, issuer, subject, created_at
+                        ) VALUES (
+                            gen_random_uuid(), '%s', '%s', '%s', '%s', CURRENT_TIMESTAMP
+                        )
+                        """.formatted(memberId, provider, issuer, subject));
+                connection.commit();
+                return RaceResult.SUCCESS;
+            } catch (SQLException exception) {
+                connection.rollback();
+                if (isUniqueViolation(exception)) {
+                    return RaceResult.CONFLICT;
+                }
+                throw exception;
+            }
+        }
+    }
+
     private static void insertRun(
             Statement statement,
             UUID runId,
@@ -657,11 +717,15 @@ class DatabaseMigrationContractTests {
             statement.execute(sql);
             return RaceResult.SUCCESS;
         } catch (SQLException exception) {
-            if ("23505".equals(exception.getSQLState())) {
+            if (isUniqueViolation(exception)) {
                 return RaceResult.CONFLICT;
             }
             throw exception;
         }
+    }
+
+    private static boolean isUniqueViolation(SQLException exception) {
+        return "23505".equals(exception.getSQLState());
     }
 
     private static RaceResult updateRows(String sql) throws Exception {
