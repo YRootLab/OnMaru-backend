@@ -39,6 +39,9 @@ jobs:
       - name: TourAPI adapter tests
         run: ./gradlew :adapters:tourism-api:test --no-daemon
 
+      - name: Catalog module tests
+        run: ./gradlew :modules:catalog:test --no-daemon
+
       - name: Spring API tests
         run: ./gradlew :apps:spring-api:test --no-daemon
 
