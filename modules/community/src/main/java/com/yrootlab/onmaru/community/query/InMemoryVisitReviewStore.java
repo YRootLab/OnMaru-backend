@@ -1,8 +1,10 @@
 package com.yrootlab.onmaru.community.query;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 
 public final class InMemoryVisitReviewStore implements VisitReviewStore {
 
@@ -28,6 +30,20 @@ public final class InMemoryVisitReviewStore implements VisitReviewStore {
     public void replace(VisitReviewProjection review) {
         remove(review.id());
         add(review);
+    }
+
+    public synchronized Optional<VisitReviewProjection> update(
+            UUID reviewId,
+            Function<VisitReviewProjection, VisitReviewProjection> updater) {
+        for (int index = 0; index < reviews.size(); index++) {
+            var current = reviews.get(index);
+            if (current.id().equals(reviewId)) {
+                var updated = updater.apply(current);
+                reviews.set(index, updated);
+                return Optional.of(updated);
+            }
+        }
+        return Optional.empty();
     }
 
     public void clear() {
