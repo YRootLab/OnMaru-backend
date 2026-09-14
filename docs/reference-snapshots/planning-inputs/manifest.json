@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "generated_at": "2026-09-14T08:35:42.049Z",
+  "entries": [
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/backend_schema_design_guide.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-docs.git",
+      "source_commit": "adbab72c1ee121554d914117b262929d94a3cd99",
+      "source_path": "backend_schema_design_guide.md",
+      "sha256": "509a8350d78c161cacfcc468cdb92f2c7eb1c672862258ea898f50b0e6be1db0"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/ANALYSIS_REPORT.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/ANALYSIS_REPORT.md",
+      "sha256": "83c449bd1ad21c8f710ae57943ec7a5e140911cd3318cd125a405509762bdb44"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/BACKEND_HANDOFF_PROMPT.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/BACKEND_HANDOFF_PROMPT.md",
+      "sha256": "a7342111e3f13241bd2282f3c66945959bdef4ed2440ad6fc1b06d149bec631c"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/README.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/README.md",
+      "sha256": "3b3e3f180e1ef027a5a5b0460935762c71c42cb219f2d50fbe3fbf43bc4f5147"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/backend-requirements/hanok-archive-backend.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/backend-requirements/hanok-archive-backend.md",
+      "sha256": "c5f106c7c404152a907e8b20595e326ceecbf6826c2fae872cf64145cc21aa1f"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/backend-requirements/map-backend.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/backend-requirements/map-backend.md",
+      "sha256": "3aaece27f4422ef28a263043a311199b188e8fddab2a0baa71469691eaaa0847"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/backend-requirements/odii-backend.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/backend-requirements/odii-backend.md",
+      "sha256": "07d72e584785f662533282752b096853547970c54635a1438b28407bc04c8e6f"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/backend-requirements/persistence-entity-model.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/backend-requirements/persistence-entity-model.md",
+      "sha256": "639aee1fc274e64fc78292fc676d074b53a0efdd05a11f1d620b886e692b75ea"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/data-contracts/hanok-village.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/data-contracts/hanok-village.md",
+      "sha256": "971d3fe4075d8eb79b37bc9b5fb426998c64a4088ce4318ab1bd1a01de2d5c92"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/data-contracts/map-warmth-heat.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/data-contracts/map-warmth-heat.md",
+      "sha256": "0dce2f7cabde92900762710f226562039aec9ac55686ef0a9d52858c89ce42f6"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/data-contracts/odii-audio-story.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/data-contracts/odii-audio-story.md",
+      "sha256": "e17b9becac4f838d49f6701196dadba176c0109b4eb74e272e52e4422c22e348"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/data-contracts/place-canonical.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/data-contracts/place-canonical.md",
+      "sha256": "3f44d41fb866e66a4ac683898e18bd5ef1b3062dfca0be01c8c85128d125f87b"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/integrations/datalab-congestion.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/integrations/datalab-congestion.md",
+      "sha256": "71c48bb456d3ed5c709fdede6cd621c16e93531428bf3d2789b3c8b4166a0b7f"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/integrations/kakao-map-sdk.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/integrations/kakao-map-sdk.md",
+      "sha256": "3ee041c9dde20fcee41678a2243c78d33897bec40d31e8a6df2ae983ea1509ad"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/integrations/tourapi-adapter.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/integrations/tourapi-adapter.md",
+      "sha256": "3357b11f072c28855dba6a0be0a3a44f4de5e20ab2f64a618c448e70ed2a867c"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/pages/hanok-archive-page.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/pages/hanok-archive-page.md",
+      "sha256": "d8bdb31a64ceda6c925062b8c98efb9282832bcfbca3eeef6aa774bafa5dbc84"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/pages/landing-page.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/pages/landing-page.md",
+      "sha256": "2d2b8c92ee65e6a899545be20f1696c031a07c23be03c5d86d0fe3a314e2b0e2"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/pages/map-page.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/pages/map-page.md",
+      "sha256": "f9750992f470de7f0cf848c3758761d5e3b2c3ca8dcfc5f5f93d95112450b57f"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/pages/odii-page.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/pages/odii-page.md",
+      "sha256": "be7b1f3cd14799e3c30d34229ba523e04822c92a6e7bd9fe9a03d9c017db2e21"
+    },
+    {
+      "snapshot_path": "docs/reference-snapshots/planning-inputs/specs/traceability/fe-be-traceability-matrix.md",
+      "source_repository": "https://github.com/YRootLab/OnMaru-Frontend.git",
+      "source_commit": "a208897e955fe6462a927a265644f86e150f9ee0",
+      "source_path": "docs/specs/traceability/fe-be-traceability-matrix.md",
+      "sha256": "4d3bffd86c0e501335f46cd075731eda354cbe50add6a08b04ef84054c133f1d"
+    }
+  ]
+}
