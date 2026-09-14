@@ -1,0 +1,25 @@
+{
+  "name": "service-unavailable",
+  "description": "Temporary upstream or projection failures keep the R2 public error envelope stable.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/insights/heatmap",
+    "query": {
+      "date": "2026-09-14",
+      "metric": "CONGESTION_SCORE"
+    }
+  },
+  "response": {
+    "status": 503,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "Tourism insight data is temporarily unavailable.",
+      "requestId": "req-r2-service-unavailable",
+      "details": {
+        "retryAfterMs": 30000
+      }
+    }
+  }
+}

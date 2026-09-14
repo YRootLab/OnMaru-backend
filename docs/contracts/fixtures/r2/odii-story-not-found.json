@@ -1,0 +1,24 @@
+{
+  "name": "odii-story-not-found",
+  "description": "Unpublished or unmapped Odii stories return the public error envelope.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/odii/stories/odii-story-private-01",
+    "query": {
+      "language": "ko-KR"
+    }
+  },
+  "response": {
+    "status": 404,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "NOT_FOUND",
+      "message": "The requested Odii story is not available.",
+      "requestId": "req-r2-odii-not-found",
+      "details": {
+        "resourceType": "ODII_STORY"
+      }
+    }
+  }
+}

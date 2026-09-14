@@ -6,9 +6,11 @@
 - [Frontend handoff](frontend-handoff.md): FE 반영 범위와 전환 체크리스트
 - [`openapi/journey.openapi.yaml`](openapi/journey.openapi.yaml): AI 여정 REST command/snapshot/SSE endpoint OpenAPI 3.1 초안
 - [`openapi/r1.openapi.yaml`](openapi/r1.openapi.yaml): R1 한옥·장소·찜·월간 타임라인 OpenAPI 3.1 초안
+- [`openapi/r2-map-audio-insights.openapi.yaml`](openapi/r2-map-audio-insights.openapi.yaml): R2 지도·행정구역·Odii·관광 관측 OpenAPI 3.1 초안
 - [`schemas/journey-sse-event.schema.json`](schemas/journey-sse-event.schema.json): 여정 진행 알림 event data JSON Schema
 - [`fixtures/journey-sse-fixtures.json`](fixtures/journey-sse-fixtures.json): reconnect/reset/cancel contract fixture 목록
 - [`fixtures/r1`](fixtures/r1): R1 한옥·장소·찜 정상·빈·404·cursor·auth·unavailable 예제
+- [`fixtures/r2`](fixtures/r2): R2 지도·행정구역·Odii·관광 관측 정상·결측·error 예제
 - [`fixtures/saved-place-fixtures.json`](fixtures/saved-place-fixtures.json): 한옥·지도·Odii 연결 장소의 공통 찜 및 월간 타임라인 fixture
 - [`openapi/visit-reviews.openapi.json`](openapi/visit-reviews.openapi.json): 지도 후기 OpenAPI 3.1 초안
 

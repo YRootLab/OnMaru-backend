@@ -1,0 +1,47 @@
+{
+  "name": "odii-stories-normal",
+  "description": "Odii story list returns normalized story IDs, language status, and linked canonical place IDs.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/odii/stories",
+    "query": {
+      "language": "ko-KR",
+      "regionCode": "kr-45-jeonju",
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "OdiiStoryPage",
+    "body": {
+      "schemaVersion": "1.2",
+      "coverageStatus": "COMPLETE",
+      "language": "ko-KR",
+      "languageStatus": "EXACT",
+      "items": [
+        {
+          "storyId": "odii-story-jeonju-hanok-01",
+          "title": "전주의 한옥 골목 이야기",
+          "audioTitle": "전주 한옥마을 산책",
+          "category": "한옥/고택",
+          "region": {
+            "regionCode": "kr-45-jeonju",
+            "name": "전북 전주시",
+            "level": "CITY",
+            "parentRegionCode": "kr-45"
+          },
+          "coordinates": {
+            "lat": 35.817632,
+            "lng": 127.152948
+          },
+          "durationSeconds": 185,
+          "imageUrl": "https://cdn.onmaru.example/odii/odii-story-jeonju-hanok-01.jpg",
+          "linkedPlaceId": "p-jeonju-hanok-village",
+          "savedByMe": false
+        }
+      ],
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}
