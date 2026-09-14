@@ -32,6 +32,15 @@
       "checksum": "d03-v003-20260915",
       "sha256": "3796a30cbbb6c32fa2ee7825707598d3467eecf5d7f5233301a23f7c03d71679",
       "description": "Member, OAuth identity, opaque session, guest grant, and deletion ledger schema"
+    },
+    {
+      "version": "004",
+      "reservedFor": "D07",
+      "issueNumber": 80,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V004__d07_sync_operations_schema.sql",
+      "checksum": "d07-v004-20260915",
+      "sha256": "9c474f10ec3cf60831c831be83751c1c21224fed21d8dc477e678280aa9706be",
+      "description": "Sync operations schedules, runs, leases, checkpoints, watermarks, quarantine, and outbox schema"
     }
   ]
 }

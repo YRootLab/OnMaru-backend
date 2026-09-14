@@ -7,6 +7,7 @@ DBML is the logical source of schema intent. Flyway migration SQL is the executa
 - D01 owns `V001__d01_flyway_migration_baseline.sql`, the `onmaru` and `onmaru_registry` namespaces, NOLOGIN group roles, grants, and `db/migration/registry/migrations.json`.
 - D02 owns `V002__d02_catalog_revision_schema.sql`, the catalog canonical place/source/revision tables, catalog enums, provider source uniqueness, and PostGIS geometry/geography indexes.
 - D03 owns `V003__d03_identity_session_schema.sql`, provider-independent members, external OAuth identities, opaque session/guest/state hash storage, exploration grants, and deletion ledger tables.
+- D07 owns `V004__d07_sync_operations_schema.sql`, sync schedules, runs, leases, checkpoints, watermarks, quarantine rows, and durable outbox events for retryable publication work.
 - Environment-specific login roles and passwords are provisioned outside application migration SQL, then granted membership in `onmaru_migration`, `onmaru_runtime`, `onmaru_readonly`, or `onmaru_backup`.
 - Flyway uses `baselineOnMigrate=true` with `baselineVersion=0` so an existing pre-Flyway database can still apply `V001`.
 - Every migration has a stable `-- onmaru-checksum:` marker and one registry entry. CI runs `scripts/test/migration-policy.test.mjs` to reject duplicate versions and marker drift.
