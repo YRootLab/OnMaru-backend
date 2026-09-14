@@ -10,10 +10,28 @@ const SECRET_PATTERNS = [
   /GEMINI_API_KEY/i,
 ];
 
+const URL_PATTERN = /https?:\/\/[^\s"'<>\\]+/g;
+const SECRET_TOKEN_PATTERN = /^[A-Za-z0-9+/=_-]{80,}$/;
+
 export function assertNoSecretText(text, context) {
   for (const pattern of SECRET_PATTERNS) {
     if (pattern.test(text)) {
       throw new Error(`secret-like value found in ${context}`);
+    }
+  }
+
+  for (const match of text.matchAll(URL_PATTERN)) {
+    const rawUrl = match[0];
+    let url;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      continue;
+    }
+    for (const value of url.searchParams.values()) {
+      if (SECRET_TOKEN_PATTERN.test(value)) {
+        throw new Error(`secret-like value found in ${context}`);
+      }
     }
   }
 }
