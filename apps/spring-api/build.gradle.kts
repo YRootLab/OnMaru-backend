@@ -10,7 +10,10 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
     implementation(libs.flyway.core)
+    runtimeOnly("io.micrometer:micrometer-registry-otlp")
+    runtimeOnly("io.opentelemetry:opentelemetry-exporter-otlp")
     runtimeOnly(libs.flyway.postgresql)
     runtimeOnly(libs.postgresql)
 

@@ -22,6 +22,16 @@ onmaru:
       retry-count: 2
 
 management:
+  otlp:
+    metrics:
+      export:
+        enabled: ${ONMARU_OTLP_METRICS_ENABLED:false}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/metrics}}
+        headers:
+          Authorization: ${OTEL_EXPORTER_OTLP_HEADERS_AUTHORIZATION:}
+  tracing:
+    sampling:
+      probability: ${ONMARU_TRACE_SAMPLING_PROBABILITY:1.0}
   endpoints:
     web:
       exposure:

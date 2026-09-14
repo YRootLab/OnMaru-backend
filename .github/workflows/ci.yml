@@ -80,7 +80,7 @@ jobs:
       - name: Install Python 3.12 for FastAPI service
         run: uv python install 3.12
 
-      - name: FastAPI service tests
+      - name: FastAPI service quality gates
         working-directory: ai
         run: uv run pytest
 
