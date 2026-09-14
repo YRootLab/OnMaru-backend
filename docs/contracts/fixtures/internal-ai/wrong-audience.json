@@ -1,0 +1,16 @@
+{
+  "name": "internal-ai-wrong-audience",
+  "request": {
+    "method": "POST",
+    "path": "/internal/v1/journey/proposals"
+  },
+  "response": {
+    "status": 401,
+    "schema": "InternalError",
+    "body": {
+      "schemaVersion": "internal.ai.v1",
+      "code": "INTERNAL_AUTH_INVALID_AUDIENCE",
+      "message": "INTERNAL_AUTH_INVALID_AUDIENCE"
+    }
+  }
+}

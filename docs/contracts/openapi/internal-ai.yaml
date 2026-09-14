@@ -1,0 +1,168 @@
+openapi: 3.1.0
+info:
+  title: OnMaru Internal AI Service API
+  version: internal.ai.v1
+  description: >-
+    Private Spring-to-FastAPI contract. Browser credentials, provider keys,
+    raw user text, and member identity never cross this boundary.
+servers:
+  - url: /internal/v1
+tags:
+  - name: JourneyProposal
+paths:
+  /journey/proposals:
+    post:
+      tags: [JourneyProposal]
+      operationId: createInternalJourneyProposal
+      summary: Accept a bounded journey proposal request from Spring.
+      security:
+        - InternalServiceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/Revision'
+        - $ref: '#/components/parameters/Traceparent'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalJourneyProposalRequest'
+      responses:
+        '202':
+          description: Request authenticated and accepted by the private AI boundary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalJourneyProposalAccepted'
+        '401':
+          $ref: '#/components/responses/InternalAuthError'
+        '403':
+          $ref: '#/components/responses/InternalAuthError'
+components:
+  securitySchemes:
+    InternalServiceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: HS256-JWT
+      description: >-
+        Short-lived service token signed by Spring. Required claims are iss,
+        sub, aud, scope, exp, and jti. FastAPI accepts current and previous
+        service secrets only during the rotation overlap.
+  parameters:
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    RunId:
+      name: X-Run-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    Revision:
+      name: X-Revision
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    Traceparent:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: '^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'
+  responses:
+    InternalAuthError:
+      description: Internal service authentication failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
+  schemas:
+    InternalJourneyProposalRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - requestId
+        - runId
+        - candidateCount
+      properties:
+        schemaVersion:
+          type: string
+          const: internal.ai.v1
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        runId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        candidateCount:
+          type: integer
+          minimum: 0
+          maximum: 12
+    InternalJourneyProposalAccepted:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - status
+        - requestId
+        - runId
+        - traceId
+      properties:
+        schemaVersion:
+          type: string
+          const: internal.ai.v1
+        status:
+          type: string
+          const: accepted
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        runId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        traceId:
+          type: string
+          pattern: '^[0-9a-f]{32}$'
+    InternalError:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - code
+        - message
+      properties:
+        schemaVersion:
+          type: string
+          const: internal.ai.v1
+        code:
+          type: string
+          enum:
+            - INTERNAL_AUTH_MISSING
+            - INTERNAL_AUTH_MALFORMED
+            - INTERNAL_AUTH_UNSUPPORTED_ALG
+            - INTERNAL_AUTH_BAD_SIGNATURE
+            - INTERNAL_AUTH_INVALID_ISSUER
+            - INTERNAL_AUTH_INVALID_AUDIENCE
+            - INTERNAL_AUTH_FORBIDDEN_SCOPE
+            - INTERNAL_AUTH_EXPIRED
+        message:
+          type: string
+          minLength: 1
+          maxLength: 128
