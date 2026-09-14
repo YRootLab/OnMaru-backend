@@ -1,0 +1,38 @@
+{
+  "name": "saved-resources-odii-page",
+  "description": "Saved ODII_STORY list hydrates Odii story projection with optional linked place.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/saved-resources",
+    "query": {
+      "type": "ODII_STORY",
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "SavedResourcePage",
+    "headers": {
+      "Cache-Control": "no-store"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "items": [
+        {
+          "schemaVersion": "1.2",
+          "resourceType": "ODII_STORY",
+          "resourceId": "odii-story-jeonju-01",
+          "storyId": "odii-story-jeonju-01",
+          "spotId": "odii-spot-jeonju-01",
+          "title": "전주의 한옥 골목 이야기",
+          "placeId": "p-jeonju-hanok-village",
+          "durationSeconds": 480,
+          "savedByMe": true,
+          "savedAt": "2026-09-14T07:40:00Z"
+        }
+      ],
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}
