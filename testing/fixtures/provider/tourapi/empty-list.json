@@ -1,0 +1,45 @@
+{
+  "caseId": "empty-list",
+  "provider": "kto-tourapi-korean",
+  "operation": "searchKeyword2",
+  "redacted": {
+    "serviceKey": true,
+    "requestUrl": true,
+    "traceHeaders": true
+  },
+  "request": {
+    "serviceKey": "<REDACTED>",
+    "params": {
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json",
+      "numOfRows": 10,
+      "pageNo": 1,
+      "keyword": "ONMARU_NO_RESULT_SENTINEL_20260914"
+    }
+  },
+  "observed": {
+    "httpStatus": 200,
+    "contentType": "application/json",
+    "capturedAt": "2026-09-14T15:35:00+09:00"
+  },
+  "body": {
+    "response": {
+      "header": {
+        "resultCode": "0000",
+        "resultMsg": "OK"
+      },
+      "body": {
+        "items": "",
+        "numOfRows": 10,
+        "pageNo": 1,
+        "totalCount": 0
+      }
+    }
+  },
+  "expected": {
+    "classification": "success-empty",
+    "retryable": false,
+    "itemShape": "empty-string"
+  }
+}

@@ -2,6 +2,11 @@
 
 ## Current Session Quick Handoff - 2026-09-14
 
+- 현재 작업 브랜치와 worktree: `chore/66-p01-tour-api-validation`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/66-p01`.
+- Issue #66 기반 한국관광공사 국문 TourAPI qualification manifest와 redacted provider fixture 9종을 추가했다. 산출물은 `docs/reference-snapshots/tourapi/manifest.json`, `docs/reference-snapshots/tourapi/README.md`, `testing/fixtures/provider/tourapi/*.json`이다.
+- #66 fixture는 정상 목록, 좌표 기반 목록, 상세 공통 정보, 빈 목록, 마지막 page, HTTP 200 오류 envelope, 4xx 인증 오류, 5xx/GW 장애, 429 quota 초과를 포함한다. 서비스 키와 원본 query string은 저장하지 않고 `<REDACTED>`만 사용한다.
+- CI에 `node --test scripts/test/*.test.mjs` documentation fixture 검증을 추가했다. 로컬 검증은 `node --test scripts/test/*.test.mjs` 통과.
+- PR은 #66 완료로 닫아야 하므로 본문에 `Closes #66`를 사용한다.
 - 현재 작업 브랜치와 worktree: `feature/setup-issues`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issues-setup`.
 - Issue #63 기반 Java 21, Spring Boot 4.1.1, Gradle Wrapper 9.7.1 멀티프로젝트와 `apps/spring-api` 실행 골격을 구축했다. Web MVC·Actuator 및 테스트 의존성은 lock하고 로컬 Gradle 캐시에 받았다.
 - Issue #64 기반 uv 관리 Python 3.12, FastAPI, Uvicorn, pytest, HTTPX, Ruff, mypy 골격을 `ai/`에 구축했다. `uv.lock`의 33개 패키지를 `ai/.venv`와 uv 캐시에 받았다.
