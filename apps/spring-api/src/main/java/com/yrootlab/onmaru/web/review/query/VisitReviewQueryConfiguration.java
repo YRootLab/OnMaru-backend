@@ -5,6 +5,9 @@ import com.yrootlab.onmaru.community.command.review.VisitReviewCommandService;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlace;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlaceLookup;
 import com.yrootlab.onmaru.community.like.VisitReviewLikeService;
+import com.yrootlab.onmaru.community.moderation.InMemoryReviewReportStore;
+import com.yrootlab.onmaru.community.moderation.ReviewReportIdGenerator;
+import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewQueryService;
@@ -49,6 +52,24 @@ class VisitReviewQueryConfiguration {
     }
 
     @Bean
+    InMemoryReviewReportStore reviewReportStore() {
+        return new InMemoryReviewReportStore();
+    }
+
+    @Bean
+    VisitReviewModerationService visitReviewModerationService(
+            InMemoryVisitReviewStore reviewStore,
+            InMemoryReviewReportStore reportStore,
+            Clock clock) {
+        return new VisitReviewModerationService(
+                reviewStore,
+                reportStore,
+                sequentialUuidGenerator(900),
+                sequentialUuidGenerator(1900),
+                clock);
+    }
+
+    @Bean
     VisitReviewCommandService visitReviewCommandService(
             InMemoryVisitReviewStore store,
             VisitReviewPlaceLookup placeLookup,
@@ -79,6 +100,11 @@ class VisitReviewQueryConfiguration {
     @Bean
     ReviewIdGenerator reviewIdGenerator() {
         var sequence = new AtomicLong();
+        return () -> new UUID(0, sequence.incrementAndGet());
+    }
+
+    private ReviewReportIdGenerator sequentialUuidGenerator(long offset) {
+        var sequence = new AtomicLong(offset);
         return () -> new UUID(0, sequence.incrementAndGet());
     }
 
