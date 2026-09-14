@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0",
+  "issue": 90,
+  "provider": "한국관광 데이터랩",
+  "providerId": "kto-datalab",
+  "source": {
+    "datasetUrl": "https://datalab.visitkorea.or.kr/",
+    "observedAt": "2026-09-15T07:30:00+09:00",
+    "spatialLevels": ["SIDO", "SIGUNGU", "TARGET"],
+    "basisDatePolicy": "일자별 과거 관측값이며 실시간 혼잡도나 앱 사용자 수가 아니다."
+  },
+  "license": {
+    "qualificationRequired": true,
+    "attribution": "한국관광 데이터랩",
+    "notes": "운영 credential과 원본 request URL은 저장소에 기록하지 않는다."
+  },
+  "metrics": [
+    {
+      "metric": "VISITOR_COUNT",
+      "unit": "persons",
+      "missingValuePolicy": "null + NOT_AVAILABLE. 0으로 대체하지 않는다."
+    },
+    {
+      "metric": "CONGESTION_SCORE",
+      "unit": "score",
+      "missingValuePolicy": "null + NOT_AVAILABLE. provider target link가 없으면 targetKey UNKNOWN."
+    }
+  ]
+}
