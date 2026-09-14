@@ -1,0 +1,41 @@
+name: Issue Reconcile
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: issue-reconcile-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  close-develop-issues:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconcile closing issue references
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          node scripts/print-closing-issues.mjs | while read issue; do
+            [ -n "$issue" ] || continue
+            state=$(gh issue view "$issue" --repo "$REPO" --json state -q .state)
+            if [ "$state" = "OPEN" ]; then
+              gh issue close "$issue" --repo "$REPO" --comment "PR #$PR_NUMBER가 develop에 병합되었습니다. 이 저장소는 기본 브랜치가 main이라 develop 대상 PR의 GitHub auto-close가 동작하지 않을 수 있어 post-merge workflow가 이슈를 종료합니다."
+            else
+              echo "Issue #$issue is already $state"
+            fi
+          done
