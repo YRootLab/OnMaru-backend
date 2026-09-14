@@ -1,0 +1,35 @@
+{
+  "name": "region-resolve-normal",
+  "description": "Coordinates resolve to canonical administrative region candidates without storing location data.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/regions/resolve",
+    "query": {
+      "lat": 35.8151,
+      "lng": 127.153
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "RegionResolution",
+    "body": {
+      "schemaVersion": "1.2",
+      "coordinates": {
+        "lat": 35.8151,
+        "lng": 127.153
+      },
+      "candidates": [
+        {
+          "region": {
+            "regionCode": "kr-45-jeonju",
+            "name": "전북 전주시",
+            "level": "CITY",
+            "parentRegionCode": "kr-45"
+          },
+          "confidence": 0.99
+        }
+      ],
+      "resolvedAt": "2026-09-14T08:30:00Z"
+    }
+  }
+}

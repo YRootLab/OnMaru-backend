@@ -73,6 +73,37 @@ test('rejects fixture JSON fields that leak service keys', async () => {
   }
 });
 
+test('rejects long URL-encoded token values in manifest URLs', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'odii-fixtures-'));
+  try {
+    const fixtureDir = path.join(dir, 'fixtures');
+    await mkdir(fixtureDir, { recursive: true });
+    await writeFile(path.join(fixtureDir, 'normal.json'), '{}\n');
+    await writeFile(
+      path.join(dir, 'manifest.json'),
+      JSON.stringify({
+        requiredScenarios: ['normal'],
+        captures: [
+          {
+            scenario: 'normal',
+            fixture: 'normal.json',
+            sha256: 'ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356',
+            redactedUrl:
+              'https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&token=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghij%2Bklmnopqrstuv',
+          },
+        ],
+      }),
+    );
+
+    await assert.rejects(
+      () => validateOdiiFixtureSet({ rootDir: dir, manifestPath: path.join(dir, 'manifest.json'), fixtureDir }),
+      /secret-like value/,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('rejects fixture hash mismatches', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'odii-fixtures-'));
   try {

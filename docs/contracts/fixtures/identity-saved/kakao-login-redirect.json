@@ -1,0 +1,20 @@
+{
+  "name": "kakao-login-redirect",
+  "description": "Kakao login starts with a no-store redirect and opaque state cookie.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/auth/kakao/login",
+    "query": {
+      "returnTo": "/discover",
+      "explorationId": "exp-jeonju-001"
+    }
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Location": "https://kauth.kakao.com/oauth/authorize?client_id=fixture&state=state-fixture",
+      "Set-Cookie": "onmaru_oauth_state=state-fixture; HttpOnly; Secure; SameSite=Lax"
+    }
+  }
+}

@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "onmaru.secrets.source=fake")
 @AutoConfigureMockMvc
 class CorrelationFilterTests {
 
@@ -60,6 +60,18 @@ class CorrelationFilterTests {
                 .doesNotContain("query", "location", "cookie", "token", "evidence.body");
         assertThat(event.attributes().values())
                 .doesNotContain("secret", "secret-token", "session=secret");
+    }
+
+    @Test
+    void reusesGeneratedRequestIdForResponseAndTelemetry() throws Exception {
+        var result = mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        var requestId = result.getResponse().getHeader("X-Request-Id");
+        assertThat(requestId).isNotBlank();
+        assertThat(telemetrySink.events().getFirst().attributes())
+                .containsEntry("request.id", requestId);
     }
 
     @TestConfiguration

@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import jakarta.servlet.http.HttpServletRequest;
+import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 
 record CorrelationContext(String requestId, String traceId, String runId, String revision) {
 
@@ -16,12 +17,20 @@ record CorrelationContext(String requestId, String traceId, String runId, String
 
     static CorrelationContext from(HttpServletRequest request) {
         return new CorrelationContext(
-                firstHeader(request, "X-Request-Id").orElseGet(CorrelationContext::randomUuid),
+                requestIdFrom(request).orElseGet(CorrelationContext::randomUuid),
                 firstHeader(request, "traceparent")
                         .flatMap(CorrelationContext::traceIdFromTraceparent)
                         .orElseGet(() -> randomHex(16)),
                 firstHeader(request, "X-Run-Id").orElse("unknown"),
                 firstHeader(request, "X-Revision").orElse("unknown"));
+    }
+
+    private static Optional<String> requestIdFrom(HttpServletRequest request) {
+        Object requestId = request.getAttribute(RequestIdFilter.ATTRIBUTE);
+        if (requestId instanceof String value && !value.isBlank()) {
+            return Optional.of(value);
+        }
+        return firstHeader(request, RequestIdFilter.HEADER);
     }
 
     private static Optional<String> firstHeader(HttpServletRequest request, String name) {

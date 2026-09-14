@@ -1,0 +1,33 @@
+{
+  "name": "region-count-normal",
+  "description": "Region count response exposes public visit-review counts by canonical child region.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/visit-review-regions",
+    "query": {
+      "parentRegionCode": "kr-45"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "RegionCountPage",
+    "body": {
+      "schemaVersion": "1.2",
+      "regionRevision": "region-rev-2026-09-14",
+      "countsAsOf": "2026-09-14T08:30:00Z",
+      "parentRegionCode": "kr-45",
+      "unassignedCount": 0,
+      "items": [
+        {
+          "region": {
+            "regionCode": "kr-45-jeonju",
+            "name": "전북 전주시",
+            "level": "CITY",
+            "parentRegionCode": "kr-45"
+          },
+          "reviewCount": 128
+        }
+      ]
+    }
+  }
+}

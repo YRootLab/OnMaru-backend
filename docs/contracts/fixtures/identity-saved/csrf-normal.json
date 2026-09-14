@@ -1,0 +1,21 @@
+{
+  "name": "csrf-normal",
+  "description": "CSRF endpoint returns the token and the header name FE must echo on unsafe requests.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/auth/csrf"
+  },
+  "response": {
+    "status": 200,
+    "schema": "CsrfTokenResponse",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Set-Cookie": "onmaru_guest=gst_fixture; HttpOnly; Secure; SameSite=Lax"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "token": "csrf-token-for-fixture-123456",
+      "headerName": "X-CSRF-TOKEN"
+    }
+  }
+}

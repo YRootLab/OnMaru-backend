@@ -1,0 +1,19 @@
+{
+  "policy": {
+    "ownerIssue": 67,
+    "versionFormat": "V###__description.sql",
+    "checksumMarker": "-- onmaru-checksum: <stable-id>",
+    "rule": "이미 병합된 migration SQL의 내용을 변경하지 않고, 후속 변경은 새 version으로 추가한다."
+  },
+  "migrations": [
+    {
+      "version": "001",
+      "reservedFor": "D01",
+      "issueNumber": 67,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V001__d01_flyway_migration_baseline.sql",
+      "checksum": "d01-v001-20260914",
+      "sha256": "be80e7389c52d8db92345b6e1c77ed6046944d57959059ec738367c512b5781c",
+      "description": "Flyway migration namespace, baseline registry, checksum policy, and database role grants"
+    }
+  ]
+}

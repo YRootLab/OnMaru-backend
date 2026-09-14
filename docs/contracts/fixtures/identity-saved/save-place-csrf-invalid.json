@@ -1,0 +1,22 @@
+{
+  "name": "save-place-csrf-invalid",
+  "description": "Unsafe saved-resource writes require a valid CSRF header.",
+  "request": {
+    "method": "PUT",
+    "path": "/api/v1/saved-resources/places/p-jeonju-hanok-village",
+    "headers": {
+      "X-CSRF-TOKEN": "invalid-csrf-token-for-fixture"
+    }
+  },
+  "response": {
+    "status": 403,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "CSRF_INVALID",
+      "message": "A valid CSRF token is required.",
+      "requestId": "req-save-place-csrf",
+      "details": {}
+    }
+  }
+}

@@ -57,11 +57,12 @@ Untriaged follow-up ideas captured during work. GitHub Issues are the source of 
   - Suggested labels: `needs-triage`, `type:chore`, `priority:p1`
   - Issue: #69
 
-- [ ] Formalize architecture rules with ArchUnit and Gradle boundaries.
+- [x] Formalize architecture rules with ArchUnit and Gradle boundaries.
   - Context: Planning requires domain code to avoid Spring/JPA/adapter dependencies, but no code-level enforcement exists yet.
   - Acceptance: Architecture tests fail on forbidden domain/application/adapter dependencies.
   - Suggested labels: `needs-triage`, `type:architecture`, `priority:p1`
   - Issue: #68
+  - Resolution: implemented with ArchUnit tests under `apps/spring-api/src/test/java/com/yrootlab/onmaru/architecture`; PR closes #68.
 
 - [ ] Convert prose FE API handoff into versioned OpenAPI and SSE schemas.
   - Context: Journey exploration API handoff is descriptive, not a validated contract.
