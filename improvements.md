@@ -18,11 +18,12 @@ Untriaged follow-up ideas captured during work. GitHub Issues are the source of 
   - Suggested labels: `needs-triage`, `type:research`, `priority:p0`
   - Issue: none
 
-- [ ] Create a reproducible FE and external-doc reference snapshot.
+- [x] Create a reproducible FE and external-doc reference snapshot.
   - Context: `docs/specs` and `docs/backend_schema_design_guide.md` are local symlinks. They are useful locally but not reproducible for CI or another machine unless source commit/path metadata is captured.
   - Acceptance: FE commit hash, source paths, snapshot policy, and generated contract ownership are documented.
   - Suggested labels: `needs-triage`, `type:docs`, `priority:p0`
   - Issue: #131
+  - Resolution: implemented in `docs/reference-snapshots/planning-inputs`, `scripts/verify-planning-inputs.mjs`, and CI; close via PR for #131.
 
 - [ ] Handle the observed FE hardcoded service-key fallback.
   - Context: FE source audit found a hardcoded public-data service-key fallback. Do not reproduce the key in docs, logs, commits, or issue bodies.
