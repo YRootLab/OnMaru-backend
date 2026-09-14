@@ -68,6 +68,15 @@
       "checksum": "d05-v007-20260915",
       "sha256": "885938b98900fed9946eaac36f6c5bc300d8a5ab9571dc5a51028a70362b9152",
       "description": "Visit review, like, report, and moderation audit schema"
+    },
+    {
+      "version": "008",
+      "reservedFor": "D06",
+      "issueNumber": 79,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V008__d06_odii_audio_schema.sql",
+      "checksum": "d06-v008-20260915",
+      "sha256": "c419acd48def3a6a9a331de0b78a589bd965ae99407a2b5e56b79a1130a92788",
+      "description": "Odii audio spot, story, version, subtitle, and place link schema"
     }
   ]
 }
