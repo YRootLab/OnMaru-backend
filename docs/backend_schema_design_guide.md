@@ -1,1 +1,1 @@
-/Users/yangseunghyeon/Development/OnMaru/OnMaru-docs/backend_schema_design_guide.md
+reference-snapshots/planning-inputs/backend_schema_design_guide.md

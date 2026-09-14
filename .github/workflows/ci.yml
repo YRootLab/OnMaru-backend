@@ -28,6 +28,5 @@ jobs:
           test -f docs/database/schema.md
           test -L docs/backend_schema_design_guide.md
           test -L docs/specs
-
-      - name: Documentation fixture tests
-        run: node --test scripts/test/*.test.mjs
+          node --test scripts/test/*.test.mjs
+          node scripts/verify-planning-inputs.mjs
