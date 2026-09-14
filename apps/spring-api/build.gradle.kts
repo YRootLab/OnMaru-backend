@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":adapters:tourism-api"))
     implementation(project(":modules:catalog"))
     implementation(project(":modules:identity"))
+    implementation(project(":modules:journey"))
     implementation(project(":modules:operations"))
     implementation(project(":modules:shared-web"))
 

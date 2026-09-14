@@ -3,10 +3,11 @@ package com.yrootlab.onmaru.web.place.detail;
 import com.yrootlab.onmaru.catalog.application.query.detail.CoordinatesProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.ImageProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailStore;
-import com.yrootlab.onmaru.catalog.application.query.detail.InMemorySavedPlaceStateLookup;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailQueryService;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.RegionProjection;
+import com.yrootlab.onmaru.catalog.application.query.detail.SavedPlaceStateLookup;
+import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -35,14 +36,16 @@ class CatalogDetailConfiguration {
     }
 
     @Bean
-    InMemorySavedPlaceStateLookup savedPlaceStateLookup() {
-        return new InMemorySavedPlaceStateLookup();
+    PlaceDetailQueryService placeDetailQueryService(
+            InMemoryPlaceDetailStore store,
+            SavedPlaceStateLookup savedPlaceStateLookup) {
+        return new PlaceDetailQueryService(store, savedPlaceStateLookup);
     }
 
     @Bean
-    PlaceDetailQueryService placeDetailQueryService(
-            InMemoryPlaceDetailStore store,
-            InMemorySavedPlaceStateLookup savedPlaceStateLookup) {
-        return new PlaceDetailQueryService(store, savedPlaceStateLookup);
+    SavedPlaceStateLookup savedPlaceStateLookup(InMemorySavedPlaceStore savedPlaceStore) {
+        return (memberId, placeId) -> memberId
+                .map(id -> savedPlaceStore.savedBy(id, placeId))
+                .orElse(false);
     }
 }
