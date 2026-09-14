@@ -1,7 +1,13 @@
 [versions]
 spring-boot = "4.1.1"
 spring-dependency-management = "1.1.7"
+testcontainers = "2.0.5"
+postgresql-jdbc = "42.7.13"
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+
+[libraries]
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql-jdbc" }
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }

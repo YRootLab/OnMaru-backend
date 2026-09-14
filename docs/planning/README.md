@@ -62,7 +62,7 @@ FE 소스 중 `src/hanok/services/hanokArchive.service.ts`, `src/map/warmth/warm
 
 초기 PRD는 `/Users/yangseunghyeon/Development/OnMaru/OnMaru-docs/prd.md` v2.5를 참고했다. 최신 FE는 원래 기획의 단순 상위집합이 아니다. 체크인·정-길처럼 초기 PRD에는 있지만 현재 추적표에 없는 기능과, 도슨트 Q&A처럼 별도 상세화된 기능을 구분했다.
 
-현재 `docs/specs`와 스키마 가이드는 로컬 절대경로 심볼릭 링크다. CI와 다른 개발자의 checkout에서 원본을 읽을 수 없다. W0에서 upstream commit과 콘텐츠 해시를 기록한 저장소 내부 스냅샷 또는 재현 가능한 가져오기 방식을 확정한다. 이 문서는 원본 링크를 따라 수정하지 않는다.
+현재 `docs/specs`와 스키마 가이드는 저장소 내부 [`reference-snapshots/planning-inputs`](../reference-snapshots/README.md)를 가리키는 상대 symlink다. CI는 manifest의 upstream commit, source path, SHA-256과 secret scan을 검증한다. 원본을 갱신할 때는 해당 폴더의 갱신 절차를 따른다.
 
 ## 기술 근거
 

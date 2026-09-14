@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgis/postgis:17-3.5-alpine
+    ports:
+      - "${ONMARU_POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: "${ONMARU_POSTGRES_DB:-onmaru}"
+      POSTGRES_USER: "${ONMARU_POSTGRES_USER:-onmaru}"
+      POSTGRES_PASSWORD: "${ONMARU_POSTGRES_PASSWORD:-onmaru-local}"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" && psql -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -tAc \"SELECT 1 FROM pg_extension WHERE extname = 'postgis'\" | grep -q 1"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
+      - onmaru-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  onmaru-postgres-data:

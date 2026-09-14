@@ -1,0 +1,40 @@
+{
+  "caseId": "rate-limited-429",
+  "provider": "kto-tourapi-korean",
+  "operation": "areaBasedList2",
+  "redacted": {
+    "serviceKey": true,
+    "requestUrl": true,
+    "traceHeaders": true
+  },
+  "request": {
+    "serviceKey": "<REDACTED>",
+    "params": {
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json",
+      "numOfRows": 10,
+      "pageNo": 1
+    }
+  },
+  "observed": {
+    "httpStatus": 429,
+    "contentType": "application/json",
+    "capturedAt": "2026-09-14T15:35:00+09:00",
+    "retryAfterSeconds": 60
+  },
+  "body": {
+    "OpenAPI_ServiceResponse": {
+      "cmmMsgHeader": {
+        "errMsg": "LIMITED_NUMBER_OF_SERVICE_REQUESTS_PER_SECOND_EXCEEDS_ERROR",
+        "returnAuthMsg": "초당 호출 허용량 초과",
+        "returnReasonCode": "23"
+      }
+    }
+  },
+  "expected": {
+    "classification": "rate-limited",
+    "retryable": true,
+    "adapterAction": "honor-retry-after-and-preserve-quota-budget"
+  }
+}

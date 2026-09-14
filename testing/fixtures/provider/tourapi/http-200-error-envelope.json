@@ -1,0 +1,44 @@
+{
+  "caseId": "http-200-error-envelope",
+  "provider": "kto-tourapi-korean",
+  "operation": "areaBasedList2",
+  "redacted": {
+    "serviceKey": true,
+    "requestUrl": true,
+    "traceHeaders": true
+  },
+  "request": {
+    "serviceKey": "<REDACTED>",
+    "params": {
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json",
+      "numOfRows": 10,
+      "pageNo": 0
+    }
+  },
+  "observed": {
+    "httpStatus": 200,
+    "contentType": "application/json",
+    "capturedAt": "2026-09-14T15:35:00+09:00"
+  },
+  "body": {
+    "response": {
+      "header": {
+        "resultCode": "10",
+        "resultMsg": "INVALID_REQUEST_PARAMETER_ERROR"
+      },
+      "body": {
+        "items": "",
+        "numOfRows": 10,
+        "pageNo": 0,
+        "totalCount": 0
+      }
+    }
+  },
+  "expected": {
+    "classification": "provider-parameter-error",
+    "retryable": false,
+    "adapterAction": "fail-page-without-lkg-publish"
+  }
+}
