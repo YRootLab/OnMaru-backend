@@ -1,6 +1,8 @@
 # 장기 의사결정 검토 초안
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **현재 설계 기준:** [문서 안내](../README.md)의 책임별 설계를 따른다. 이 문서는 정식 ADR 전의 과거 검토안이며, 구현 완료를 뜻하지 않는다.
+
+> **ARCHIVED:** 도슨트 Q&A/RAG 관련 과거 후보는 정식 ADR 등록 대상으로 사용하지 않는다. 현재 구조 초안은 [foundation architecture drafts](../decisions/drafts/foundation-architecture.md)를 따른다.
 
 2026-09-09 후속 검토: [P0/ADR 검토표](p0-triage.md). 사용자 확정 런타임 역할만 [ADR-0002](../decisions/0002-spring-business-fastapi-ai.md)에 기록했다. D1~D4 및 E1~E5의 구체적 구조는 제안 상태를 유지한다.
 

@@ -1,6 +1,6 @@
 # 7일 MVP: 대화형 여정 탐색 FE 전달서
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](../revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **ARCHIVED HANDOFF (2026-09-10). 구현 기준으로 사용하지 않는다.** 이 문서의 polling, `schemaVersion:1.1`, 세부 DTO와 7일 범위는 당시 제출 가설이다. 현재 AI 여정은 [REST command + SSE notification + GET snapshot](../../contracts/rest-api.md#sse-진행-알림과-snapshot-복구)이며, 기계 계약은 [Journey OpenAPI](../../contracts/openapi/journey.openapi.yaml)와 [SSE event schema](../../contracts/schemas/journey-sse-event.schema.json)만 사용한다.
 
 
 작성일: 2026-09-10.
@@ -192,20 +192,11 @@ FE는 다음 상태를 분리한다.
 
 필수 화면 상태는 `idle`, `generating`, `result`, `proposal preview`, `empty`, `failed`, `auth cancelled`, `saving`, `saved`, `version conflict`다. FE는 backend가 늦어져도 이 상태를 fixture로 먼저 구현한다.
 
-## 10. 통신 방식 결정: 이번 MVP는 polling
+## 10. 통신 방식 결정: 2026-09-12에 SSE 기준으로 대체됨
 
-이번 제출에서는 **REST JSON command + 짧은 polling + snapshot**으로 확정한다. SSE와 토큰 스트리밍은 사용하지 않는다.
+이 문서의 원래 polling 결정은 폐기됐다. 현재 AI 여정은 **REST JSON command + SSE 진행/terminal notification + HTTP snapshot**을 사용한다. 지도·후기·저장·일반 조회에는 SSE를 사용하지 않는다. SSE는 모델 토큰이나 board를 전달하지 않고, PostgreSQL snapshot이 항상 화면 상태의 정답이다.
 
-선택 이유는 다음과 같다.
-
-- 화면에 필요한 진행 단계는 `조건 분석`, `후보 검색`, `관계 검증` 세 가지뿐이며 생성 토큰을 직접 보여주지 않는다.
-- polling은 Spring·FE proxy·카카오 cookie·모바일 네트워크에서 연결 복구가 단순하다.
-- 완료 결과를 snapshot으로 읽으므로 새로고침과 로그인 왕복 후에도 같은 상태를 복구할 수 있다.
-- SSE를 위한 event 저장·cursor·gap replay·proxy buffering까지 7일에 함께 구현하지 않아도 된다.
-
-FE는 run 응답의 `retryAfterMs`를 따르며 기본 1초 간격으로 조회한다. 브라우저가 background 상태일 때는 2초로 늦춘다. `COMPLETED`, `FAILED`, `CANCELLED`에서 polling을 끝낸다. 20초 deadline 뒤 FE는 마지막 run 조회를 하고, 서버 도달 실패는 상태 확인 불가로 표시한다. 서버의 terminal 결과 없이 FE가 AI_TIMEOUT을 확정하지 않는다.
-
-SSE가 필요해지면 동일한 run 상태와 snapshot을 유지한 채 진행 이벤트 전송만 추가한다. 장기 설계인 `fe-api-handoff.md`의 SSE 계약은 이번 제출 구현 기준이 아니다.
+FE는 `RunAccepted.eventsUrl`을 한 번 구독하고 `run.stage`, `run.terminal`, `heartbeat`, `reset`만 처리한다. terminal, reconnect, reset, 탭 복귀 때는 `GET run` 및 `GET exploration`으로 재동기화한다. SSE를 지원하지 않는 환경에서만 1초 `GET run` polling fallback을 terminal까지 사용한다. 상세 형식은 [current REST contract](../../contracts/rest-api.md#sse-진행-알림과-snapshot-복구), [Journey OpenAPI](../../contracts/openapi/journey.openapi.yaml), [fixture](../../contracts/fixtures/journey-sse-fixtures.json)를 따른다.
 
 ```mermaid
 sequenceDiagram
@@ -215,16 +206,14 @@ sequenceDiagram
   participant AI as FastAPI
 
   FE->>Spring: POST exploration or turn
-  Spring-->>FE: 202 explorationId, runId, runUrl
+  Spring-->>FE: 202 explorationId, runId, eventsUrl, runUrl
   Spring->>Worker: run 제출
   Worker->>AI: POST internal proposal request
-  loop retryAfterMs 동안
-    FE->>Spring: GET run
-    Spring-->>FE: status, stage, outcome
-  end
+  FE->>Spring: GET events (SSE)
+  Spring-->>FE: run.stage / run.terminal / reset
   AI-->>Worker: candidate refs, reasons, evidence refs
   Worker->>Spring: canonical hydrate + validate + persist
-  FE->>Spring: GET snapshot
+  FE->>Spring: GET run + snapshot after terminal/reset
   Spring-->>FE: committed board or pending proposal
 ```
 
@@ -585,7 +574,7 @@ interface ActionRequest {
 
 interface ErrorEnvelope {
   schemaVersion: '1.1';
-  code: string; // enum and HTTP mapping: revision-2026-09-11/api-contract.md
+  code: string; // enum and HTTP mapping: ../../contracts/rest-api.md
   message: string;
   requestId: string;
   details: Record<string, unknown>;
@@ -607,7 +596,7 @@ interface ErrorEnvelope {
 }
 ```
 
-코드와 HTTP status의 전체 대응은 [최신 REST 계약](../revision-2026-09-11/api-contract.md)을 따른다. NO_RESULTS는 run outcome이며 HTTP 오류가 아니다.
+코드와 HTTP status의 전체 대응은 [최신 REST 계약](../../contracts/rest-api.md)을 따른다. NO_RESULTS는 run outcome이며 HTTP 오류가 아니다.
 
 ## 13. 실제로 채울 데이터와 제외할 데이터
 
@@ -705,7 +694,7 @@ LangGraph를 사용한다면 위 고정 node의 실행 제어 용도로만 사�
 | 시점 | FE | Spring Boot + FastAPI | 공동 확인 |
 |---|---|---|---|
 | Day 1 | 상태 모델·fixture·반응형 골격 | 파일럿 데이터와 계약 확정, 카카오 앱 설정 | 후보 3곳·대표 질의·응답 fixture 동결 |
-| Day 2 | Landing → generating → workspace 전환, polling client | 익명 탐색 생성·run 조회, 검색 baseline | 정상 검색과 terminal polling 종료 |
+| Day 2 | Landing → generating → workspace 전환, SSE client | 익명 탐색 생성·run/snapshot 조회, 검색 baseline | 정상 검색과 terminal snapshot 재동기화 |
 | Day 3 | 후보 선택·고정·상세·보기 전환 | 수정 run·snapshot·고정 상태 | focusedRef와 canonical ref 일치 |
 | Day 4 | proposal preview·적용·취소 | FastAPI workflow와 Spring 검증 | 고정 장소 보존, 실패 fallback |
 | Day 5 | 카카오 로그인·저장·다시 열기 | OAuth callback·회원 연결·저장 API | 취소·성공·다른 계정 접근 차단 |
@@ -767,7 +756,7 @@ PDF는 FE의 인쇄 전용 layout과 브라우저 `window.print()`를 우선하�
 - 감소된 모션 환경에서 기능 손실 없이 전환이 즉시 일어난다.
 - 실제 이미지·장소명·연결 이유가 같은 자원을 가리키며 demo/mock 여부가 섞이지 않는다.
 - 브라우저 새로고침 후 저장한 회원 여정을 다시 열 수 있다.
-- polling이 terminal 상태·화면 이탈·새 요청에서 중단되고 동시에 두 run을 만들지 않는다.
+- SSE가 terminal 상태·화면 이탈·새 요청에서 해제되고 동시에 두 run을 만들지 않는다. 미지원 환경의 polling fallback도 같은 종료 규칙을 따른다.
 - FE fixture와 Spring JSON이 같은 OpenAPI schema 및 enum을 사용한다.
 
 ## 19. 미확정이지만 Day 1에 닫을 항목
@@ -783,4 +772,4 @@ PDF는 FE의 인쇄 전용 layout과 브라우저 `window.print()`를 우선하�
 
 ## 20. 관련 문서와 우선순위
 
-이 문서는 7일 제출 범위에 한해 기존 장기 기획보다 우선한다. 장기 회원·공유·현장 경험은 `journey-service-plan.md`, 제출 이후 SSE 확장은 `fe-api-handoff.md`, 데이터 의미와 AI 경계는 `architecture-and-recommendation.md`를 따른다. 충돌하면 이번 MVP에서는 이 문서의 polling 결정, 제외 범위와 후보 수 제한을 적용한다.
+이 문서는 더 이상 어떤 현재 문서보다 우선하지 않는다. 현재 MVP는 `docs/contracts`, `docs/ai`, `docs/spring`, `docs/operations`, `docs/database`의 책임별 설계를 따르며, 본문 중 남은 과거 DTO·일정·범위는 역사 기록으로만 읽는다.

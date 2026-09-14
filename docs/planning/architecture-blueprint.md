@@ -1,6 +1,6 @@
 # OnMaru Architecture Blueprint
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **현재 설계 기준:** [문서 안내](../README.md)의 책임별 설계를 따른다. 이 문서는 최초 Blueprint와 검토 근거이며, 구현 완료를 뜻하지 않는다.
 
 
 > 후속 제안: [이야기길 아키텍처 확장](journey-exploration/architecture-and-recommendation.md)은 다중 자원 콘텐츠와 선택 보존형 탐색 요구에 따라 content/discovery 경계를 추가한다. 아래 빈 recommendation 모듈 보류 판단은 최초 범위의 판단이며, 새 기능까지 제외한다는 뜻이 아니다.
@@ -64,7 +64,7 @@ flowchart LR
 | Docent `:docent` | 질문 사용 사례, quota 정책, 근거 문서 허용 범위 | 서버 검증 context만 전달, 결과 근거 검증. 공급자와 독립 |
 | AI 내부 Python | 문서 revision별 chunk, embedding, retrieval, 생성 | 검증된 corpus만 검색, cited evidence, model/index version |
 
-최신 core는 identity/catalog/discovery/journey이며 지도 VisitReview·좋아요 구현 시 community를 추가한다. 콘텐츠는 MVP catalog package가 소유한다. 위 audio/insights/docent는 후속 범위다. 회원 lifecycle·세션·저장 aggregate와 port/adapter 전체 표는 [최신 모듈 설계](revision-2026-09-11/architecture.md)를 따른다.
+최신 core는 identity/catalog/discovery/journey이며 지도 VisitReview·좋아요 구현 시 community를 추가한다. 콘텐츠는 MVP catalog package가 소유한다. 위 audio/insights/docent는 후속 범위다. 회원 lifecycle·세션·저장 aggregate와 port/adapter 전체 표는 [최신 모듈 설계](../architecture/module-boundaries.md)를 따른다.
 
 사용자 제안과 달리 이미 Python은 별도 deployable이므로 전체 시스템을 엄밀하게 단일 monolith라 부르지 않는다. **Spring 비즈니스 영역이 modular monolith**이고 AI는 격리된 보조 시스템이다.
 
@@ -130,7 +130,7 @@ Input facade는 조회 전용 concrete class여도 된다. 외부 I/O port는 �
 ## 8. Package Structure
 
 ```text
-apps/spring-api/src/main/java/kr/onmaru/
+apps/spring-api/src/main/java/com/yrootlab/onmaru/
   boot/OnMaruApplication.java
   configuration/CatalogConfiguration.java
   web/catalog/HanokController.java
@@ -141,7 +141,7 @@ apps/spring-api/src/main/java/kr/onmaru/
   integration/docent/AudioStoryContextBridge.java
   security/
   scheduling/
-modules/community/src/main/java/kr/onmaru/community/
+modules/community/src/main/java/com/yrootlab/onmaru/community/
   api/PublishWarmth.java
   api/PublishWarmthRequest.java
   api/WarmthView.java
@@ -150,12 +150,12 @@ modules/community/src/main/java/kr/onmaru/community/
   application/port/PlaceLookupPort.java
   domain/Warmth.java
   domain/ReviewText.java
-adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/
+adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/
   community/WarmthJpaAdapter.java
   community/WarmthJpaEntity.java
   community/SpringDataWarmthRepository.java
   catalog/
-adapters/ai-fastapi/src/main/java/kr/onmaru/aifastapi/
+adapters/ai-fastapi/src/main/java/com/yrootlab/onmaru/aifastapi/
   FastApiDocentAdapter.java
   transport/
 apps/ai-api/

@@ -4,7 +4,7 @@ Table ai_documents [headercolor: #BAB0AC] {
   content_hash varchar [not null]
   active boolean [not null]
   source_type varchar [not null]
-  source_ref varchar [not null]
+  source_ref varchar [not null, note: 'Stable source identifier from Spring corpus export; not a DB FK']
   metadata jsonb
 
   Indexes {
@@ -29,17 +29,32 @@ Table ai_chunks [headercolor: #BAB0AC] {
 Table ai_embeddings [headercolor: #BAB0AC] {
   chunk_id uuid [not null]
   embedding_profile_id varchar [not null]
-  vector vector [note: 'pgvector only after optional RAG approval']
+  vector vector [note: 'FastAPI-managed pgvector index; enabled only after RAG evaluation gate']
 
   Indexes {
     (chunk_id, embedding_profile_id) [pk]
   }
 }
 
-TableGroup ai [color: #BAB0AC, note: 'Optional RAG corpus owned by AI migration/role. Not part of MVP writes.'] {
+Table ai_corpus_sync_runs [headercolor: #BAB0AC] {
+  id uuid [pk]
+  source_revision varchar [not null]
+  source_manifest_hash varchar [not null]
+  status varchar [not null, note: 'RUNNING, SUCCEEDED, FAILED']
+  started_at timestamptz [not null]
+  finished_at timestamptz
+  error_code varchar
+
+  Indexes {
+    (source_revision, source_manifest_hash) [unique]
+  }
+}
+
+TableGroup ai [color: #BAB0AC, note: 'FastAPI alone owns AI corpus sync, chunking, embedding, retrieval, and migrations in the ai schema. Spring exposes revision-pinned corpus exports but has no ai schema credential.'] {
   ai_documents
   ai_chunks
   ai_embeddings
+  ai_corpus_sync_runs
 }
 
 Ref: ai_chunks.(document_id, revision) > ai_documents.(document_id, revision)

@@ -1,9 +1,9 @@
 # OnMaru 백엔드 PRD와 브레인스토밍
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **현재 설계 기준:** [문서 안내](../README.md)의 책임별 설계를 따른다. 이 문서는 제품 요구 기획이며, 구현 완료를 뜻하지 않는다.
 
 
-> 후속 범위: [이야기길 확장 PRD](journey-exploration/product-prd.md)는 주간 추천·게시물·자연어 다중 장소 탐색을 추가한다. 아래 최소 Q&A/추천 제외 범위는 최초 안이며, 확장 기능의 최종 제외 결정이 아니다.
+> **현재 MVP 범위:** 한옥·한옥 숙박·한옥 카페·전통시장·Odii 후보를 조합하는 여정 탐색 AI다. 문화 일반 Q&A, 도슨트 질의응답, 모델 tool calling, 웹 검색은 제외한다. 과거 아이디어와 Issue 초안의 도슨트/RAG/SSE 서술은 현재 구현 범위가 아니다.
 
 검토용 v0.1 / 2026-09-09. 제품 요구사항을 구현 작업으로 변환하기 위한 보고서다. 숫자는 합의 전 목표이며, 팀 인원·출시일·예산은 미정이다.
 
@@ -18,18 +18,18 @@
 1. 한옥 목록→상세를 DB snapshot만으로 제공하는 첫 수직 기능을 완성한다.
 2. 온기 후기를 중앙 저장소로 옮겨 다른 브라우저에서도 같은 공개 피드를 읽게 한다.
 3. 모든 장소에 내부 ID와 외부 원본 ID를 함께 보관한다.
-4. 오디오 재생과 AI 질문을 분리하여 AI가 꺼져도 들을 수 있게 한다.
+4. 오디오 재생과 AI 여정 제안을 분리하여 AI가 꺼져도 탐색과 재생을 계속하게 한다.
 5. 월별 큐레이션을 AI 생성 대신 사람이 편집한 작은 목록으로 시작한다.
 6. 서버가 하루 동안 외부 인터넷 없이도 핵심 화면을 제공하는 “오프라인 박물관 모드”를 만든다.
 
 ### Wave B: 실패를 뒤집기
 
 7. 날짜가 다른 혼잡 수치를 같은 “지금”으로 보여주는 실패를 막는 관측 메타데이터를 만든다.
-8. LLM이 스토리를 바꾸어 답하는 실패를 막기 위해 story revision으로 검색 범위를 제한한다.
+8. LLM이 후보·근거를 바꾸어 제안하는 실패를 막기 위해 published revision과 evidence allowlist로 범위를 제한한다.
 9. 원본 API 응답을 fixture로 고정해 분류 변경과 singleton/list 변형을 탐지한다.
 10. Domain에 Spring annotation 하나를 넣으면 CI가 빨갛게 되는 위반 실험을 만든다.
 11. retry가 두 번 작성/과금하는 실패를 막기 위해 쓰기 요청과 색인의 멱등성을 구분한다.
-12. 데모 중 AI 서버를 일부러 종료하는 “도슨트 휴무일” 리허설을 한다.
+12. 데모 중 AI 서버를 일부러 종료하고 baseline 탐색으로 복구하는 리허설을 한다.
 
 ### Wave C: 제약을 바꾸기
 
@@ -47,8 +47,8 @@
 | Top 3 | 선정 이유 | 받아들이는 비용 |
 |---|---|---|
 | #1 snapshot 기반 한옥 수직 기능 | FE 계약·수집·DB·조회·실패 대응을 하나의 결과물로 검증 | 실시간 원본 수정 반영에는 지연이 있음 |
-| #18 근거 라벨 도슨트 | AI 차별점을 사실 검증과 연결, citation UX로 전환 가능 | 문서 revision과 색인 lifecycle 구현 필요 |
-| #12 도슨트 휴무일 | 과감한 장애 실험을 정상 출시 기준으로 바꿀 수 있음 | fallback/timeout E2E 준비 필요 |
+| #18 근거 라벨 여정 제안 | AI 차별점을 사실 검증과 연결, evidence UX로 전환 가능 | corpus revision과 색인 lifecycle 구현 필요 |
+| #12 AI 장애 리허설 | 과감한 장애 실험을 정상 출시 기준으로 바꿀 수 있음 | SSE/snapshot 복구 E2E 준비 필요 |
 
 가장 흥미로운 spark는 #6이다. 완전한 offline 제품 대신 “외부 API 없는 상황에서도 저장된 핵심 콘텐츠 조회”라는 검증 가능한 원칙을 가져온다.
 
@@ -56,7 +56,7 @@
 
 ## 제품 문제와 사용자
 
-여행자는 한옥을 찾고 그 장소의 의미를 이해하며, 주변 분위기와 오디오 이야기를 같은 흐름에서 탐색하고 싶다. 현재 FE는 장소 모델과 데이터 경로가 나뉘어 있고 일부 활동은 로컬 저장에 머문다. 서버는 중앙 데이터 정합성, 외부 API 장애 격리, 출처 있는 AI 응답을 제공해야 한다.
+여행자는 한옥을 찾고 그 장소의 의미를 이해하며, 주변 분위기와 오디오 이야기를 같은 흐름에서 탐색하고 싶다. 한옥 화면·지도·오디오 화면에서 발견한 관광 장소를 나중에 다시 볼 수 있게 모아두고 싶다. 현재 FE는 장소 모델과 데이터 경로가 나뉘어 있고 일부 활동은 로컬 저장에 머문다. 서버는 중앙 데이터 정합성, 외부 API 장애 격리, 출처 있는 AI 응답, 회원 소유의 장소 찜을 제공해야 한다.
 
 주 사용자: 한옥 방문 후보를 고르는 여행자, 현장에서 오디오를 듣는 방문자, 후기를 공유하는 사용자. 운영자는 원본 동기화 실패·큐레이션 게시·부적절한 후기를 관리한다. 초기 운영은 인증된 작업 명령/운영 절차로 시작하며 별도 관리자 UI는 자동 포함하지 않는다.
 
@@ -69,28 +69,29 @@
 | BE-REQ-003 | HANOK-F002 이달의 한옥 | 선택 월의 게시된 editorial 순서와 이야기 반환, 없으면 빈 배열 | W4 |
 | BE-REQ-004 | MAP-F001/F004 주변/상세 | 반경 m와 거리 순서 검증, category 매핑, 지도 상세 endpoint 추가 | W4,W6 |
 | BE-REQ-005 | MAP-F002 히트맵 | 관측 날짜·지역 단위·결측 상태 제공, 지연 데이터는 실시간으로 표시 안 함 | W6 |
-| BE-REQ-006 | MAP-F003 피드 | 공개 후기만 cursor 조회, mine은 서버 주체로 계산 | W5 |
-| BE-REQ-007 | MAP-F003 작성 | 100자·mood·score·태그 검사, 재전송 중복 없음, 권한 검증 | W5 |
+| BE-REQ-006 | MAP-F003 피드 | 행정구역 집계 후 명시적으로 선택한 지역의 공개 VisitReview만 cursor 조회 | 구현 Issue 발행 후 |
+| BE-REQ-007 | MAP-F003 작성 | 300자/5줄 VisitReview, 중복 없는 신고, 권한·moderation audit 검증 | 구현 Issue 발행 후 |
 | BE-REQ-008 | ODII-F001/F002/F003 | 언어별 이야기/음원/대본 제공, 추정 자막은 estimated로 표시 | W7 |
-| BE-REQ-009 | ODII-F004 도슨트 | 서버 대본 revision 기반 답변, 출처 또는 insufficient_evidence, AI outage 격리 | W8,W9 |
+| BE-REQ-009 | 여정 탐색 AI | 지역·관심사 기반 후보 순서와 evidence 근거 제안, SSE 진행 알림·snapshot 복구·AI outage 격리 | 구현 Issue 발행 후 |
+| BE-REQ-010 | 한옥·지도·Odii 연결 장소 찜 | 로그인 회원이 모든 공개 canonical 관광 장소를 같은 `placeId`로 찜/해제하고, 한옥·지도·Odii 연결 카드에서 일관된 `savedByMe` 상태를 본다 | 구현 Issue 발행 후 |
 | NFR-01 | 데이터 신뢰 | 외부 키/출처/관측일/수집일 분리, 중복·삭제·실패 sync 검증 | W0,W2,W3,W6,W7 |
 | NFR-02 | 운영/보안 | secret 미노출, health/readiness, auth/권한, trace, 복구 연습 | W1,W5,W9,W11 |
 | NFR-03 | FE 호환 | 기존 BFF payload와 ID를 명시 매핑, decoder 및 주요 동선 통과 | W0,W10 |
 | NFR-04 | 경계 | Domain/Application framework import 시 CI 실패 | W1, 각 기능 PR |
-| NFR-05 | RAG 검증 | held-out 한국어 질문과 근거 없는 질문으로 정확성·비용·latency 평가 | W8,W9 |
+| NFR-05 | FastAPI RAG 검증 | FastAPI corpus sync/allowlist가 held-out 여정 세트에서 baseline보다 품질·비용·latency 기준을 만족할 때만 활성화 | 구현 Issue 발행 후 |
 
 `/`의 LAND-F001~003 3D·일영·조립은 FE-only다. 새로운 서버 모듈을 만들지 않는다. Sound Constellation 좌표·재생 UI는 FE 책임, story metadata 조회는 BE 책임이다.
 
-다음은 **초기 PRD의 유효한 후속 후보**이며 이번 BE-REQ-001~009 구현에서 삭제한 것이 아니다: 현장 체크인, H3 온기 감쇄, 북마크, 정-길·상권, 건축물대장·개별 한옥 해부학 데이터, 다국어 확장, 개인화 추천, AI 3줄 요약. 각 후보는 사용 사례·원본 계약·완료 조건이 생길 때 별도 PRD/Issue 묶음으로 추가한다. 예약·결제·소셜 관계·multi-agent는 현 요구 범위에 없다.
+다음은 **초기 PRD의 유효한 후속 후보**이며 이번 BE-REQ-001~010 구현에서 삭제한 것이 아니다: 현장 체크인, H3 온기 감쇄, 사용자가 만든 컬렉션·메모·후기 저장, 정-길·상권, 건축물대장·개별 한옥 해부학 데이터, 다국어 확장, 개인화 추천, AI 3줄 요약. 각 후보는 사용 사례·원본 계약·완료 조건이 생길 때 별도 PRD/Issue 묶음으로 추가한다. 예약·결제·소셜 관계·multi-agent는 현 요구 범위에 없다.
 
 ## 단계별 출시
 
 | 단계 | 사용자에게 제공할 결과 | 출시 게이트 |
 |---|---|---|
 | R0 계약 및 기반 | 개발 가능한 API 예제·ID·source fixture·경계 CI | unresolved 데이터 차이를 W0에서 확인하거나 명시적 차단 |
-| R1 한옥 | 검색/필터/상세/월별 큐레이션 | TourAPI 장애에도 마지막 정상 snapshot 조회; FE decoder 통과 |
-| R2 지도/온기/오디오 | 공간 검색, 관측 히트맵, 중앙 후기, story 서빙 | 권한/중복/결측/언어/추정 자막 테스트 |
-| R3 AI 도슨트 | 검증 대본 기반 질문, 출처, 제한·장애 안내 | revision 고정·삭제 반영·eval·비용 상한·취소 검증 |
+| R1 한옥 | 검색/필터/상세/월별 큐레이션, 한옥 장소 찜 | TourAPI 장애에도 마지막 정상 snapshot 조회; FE decoder·찜 fixture 통과 |
+| R2 지도/후기/오디오 | 행정구역 집계, 중앙 VisitReview, story 서빙, 지도 관광 장소 찜 | 권한/신고/결측/언어/추정 자막·Odii 연결 장소 fixture 테스트 |
+| R3 AI 여정 | 후보 기반 여정 제안, evidence, SSE 진행, 제한·장애 안내 | revision 고정·SSE 재연결·eval·비용 상한·취소 검증 |
 
 팀 답변 전에는 단계적 출시를 계획 가정으로 사용한다. Wave는 작업 의존성이고 release는 사용자 제공 단위다. 서로 동일하지 않다. FE 전환도 R1부터 endpoint별로 수행하며 전체 기능 완료까지 한옥 출시를 막지 않는다.
 
@@ -102,10 +103,10 @@
 | warmth write | p95 800ms 이하 | 정상/중복 요청 혼합, 실제 DB, auth 포함 |
 | 가용성 | 월 99.5% 목표 제안 | 정의된 public business endpoint로 측정, 예산 확정 후 합의 |
 | 데이터 신선도 | catalog 일일 KST 03:00 수집, 최근 성공 지연 관측 | 36시간 무성공 시 경고 초안, 소스별 지연은 별도 |
-| RAG | 첫 event p95 8s, 전체 deadline 30s | 선택 모델·동시성·prompt 길이 고정 후 실측 |
+| AI 여정/SSE | 첫 진행 event p95 8s, 전체 deadline 20s | 선택 모델·SSE proxy·동시성·prompt 길이 고정 후 실측 |
 | 복구 | RPO 24h / RTO 4h 초안 | 운영 DB backup restore drill로 입증, hosting 결정 후 재합의 |
 
-부하 목표가 현재 예상 트래픽을 의미하지 않는다. 인증 제공자와 세션 방식은 W0에서 선택한다. 후속 사용자 요청을 2026-09-10 반영하여 로그인·회원 기능을 범위에 추가했다. [회원·여정 경험 상세안](journey-exploration/journey-service-plan.md)은 비회원 공개 조회·임시 탐색과 회원 저장·기기 간 이어보기를 제안한다. 후기 작성 주체와 비회원 AI 한도 등은 별도 결정한다. 기존 localStorage를 서버 소유권 증명으로 쓰지 않는다.
+부하 목표가 현재 예상 트래픽을 의미하지 않는다. 인증 제공자와 세션 방식은 W0에서 선택한다. 후속 사용자 요청을 반영하여 로그인·회원 기능과 비회원 2회/회원 5회 KST AI 한도를 범위에 추가했다. [회원·여정 경험 상세안](journey-exploration/journey-service-plan.md)은 비회원 공개 조회·임시 탐색과 회원 저장·기기 간 이어보기를 제안한다. 기존 localStorage를 서버 소유권 증명으로 쓰지 않는다.
 
 ## 열려 있는 결정과 우선순위
 
@@ -116,7 +117,7 @@
 | 공공 API 버전/권한/분류 | 문서 `1/2` operation과 cat3 상충, live fixture 확보 필요 | W3 production sync |
 | 혼잡 데이터 수준 | 관측 장소/지역 ID와 실제 갱신 시점 확인 | W6 real-data 공개 |
 | 오디오 재사용/대본 근거 | 실제 script 형태, 음원 접근, 재사용 범위 확인 | W7/W8 production corpus |
-| LLM/embedding | 공급자·한국어 품질·비용 미정 | W8 vector 차원, W9 production 생성 |
+| FastAPI RAG | FastAPI가 corpus sync·chunking·embedding·retrieval을 소유; Spring은 revision-pinned export만 제공 | RAG 활성화 Issue |
 | 기존 FE ID 전환 | TourAPI ID → canonical ID 매핑. local 후기 import는 별도 opt-in | W10 |
 
 기능을 추가할 때마다 ADR 파일을 무조건 만들지 않는다. 장기적인 경계·저장소·인증·데이터 의미·일관성·AI 근거 정책은 ADR, 일반 endpoint 구현 이유는 Issue/PR에 남긴다. 상세 선택안은 [ADR 검토 초안](adr-proposals.md)에 있다.

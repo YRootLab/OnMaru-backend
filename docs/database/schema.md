@@ -3,9 +3,9 @@
 // 이 문서는 온마루(OnMaru) 프로젝트의 데이터베이스 스키마 구조를 정의합니다.
 // 최신 회원/세션/탐색/저장/VisitReview/ReviewLike 설계:
 // 원천별 revision/FK, OAuth 확장, sync schedule/checkpoint 후속 스키마:
-// ../planning/revision-2026-09-11/regional-map-and-ingestion.md
-// ../planning/revision-2026-09-11/data-and-identity.md
-// 게시 revision 및 lease: ../planning/revision-2026-09-11/runtime-and-operations.md
+// ../spring/catalog-ingestion.md
+// ../spring/identity-and-journey.md
+// 게시 revision 및 lease: ../operations/runtime-and-reliability.md
 // 새 DBML 기반 ERD entrypoint:
 // ./schema.dbml
 // Level 1 overview:

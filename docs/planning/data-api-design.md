@@ -1,6 +1,6 @@
 # 데이터 모델·API·RAG 설계
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **현재 설계 기준:** [문서 안내](../README.md)의 책임별 설계를 따른다. 이 문서는 데이터·API 기획의 근거이며, 구현 완료를 뜻하지 않는다.
 
 
 > 후속 정정: 실제 FE 도슨트는 `question+filters` 계약이다. [FE 감사](journey-exploration/fe-data-audit.md), [추천·관계 데이터 확장](journey-exploration/architecture-and-recommendation.md), [새 탐색 API/SSE](journey-exploration/fe-api-handoff.md)를 함께 읽는다. 선택 이야기 Q&A 제안과 현재 구현을 구분하며, durable exploration run은 기존 단일 요청의 취소 정책과 별도다.
@@ -33,7 +33,7 @@ Supabase는 관리형 PostgreSQL/Auth 후보일 뿐 확정이 아니다. 선택�
 
 ## 최신 회원·방문 후기·탐색·게시 모델
 
-[영속 모델 및 제약](revision-2026-09-11/data-and-identity.md)과 [LKG revision/lease 모델](revision-2026-09-11/runtime-and-operations.md)을 현재 설계로 추가한다. 기존 community.actors를 identity.members로 대체하며 VisitReview/ReviewLike는 기존 Warmth와 별개다. catalog.places 직접 page-upsert를 폐기하고 stable identity+versioned rows+active dataset pointer를 사용한다. 아래 표의 관련 이전 모델은 migration 출발점이 아니다.
+[영속 모델 및 제약](../spring/identity-and-journey.md)과 [LKG revision/lease 모델](../operations/runtime-and-reliability.md)을 현재 설계로 추가한다. 기존 community.actors를 identity.members로 대체하며 VisitReview/ReviewLike는 기존 Warmth와 별개다. catalog.places 직접 page-upsert를 폐기하고 stable identity+versioned rows+active dataset pointer를 사용한다. 아래 표의 관련 이전 모델은 migration 출발점이 아니다.
 
 ## 관계 모델
 
@@ -176,7 +176,7 @@ TourAPI/Odii/DataLab은 하나의 generic DTO로 통합하지 않는다. 국문 
 
 ## RAG 파이프라인
 
-아래는 **후속 오디 대본 RAG** 설계다. 현재 여정 탐색의 우선 검색·청킹·평가 계약은 [retrieval](revision-2026-09-11/retrieval.md)이며 vector 없는 baseline부터 시작한다. 오디 RAG의 첫 대상은 **선택한 오디 이야기의 검증된 대본**이다. 전체 웹 검색이나 모든 관광 데이터 ingestion은 초기 요구가 아니다. 짧은 대본은 통째로 context로 사용하는 baseline과 chunk retrieval을 비교한다.
+아래는 **후속 오디 대본 RAG** 설계다. 현재 여정 탐색의 우선 검색·청킹·평가 계약은 [retrieval](../ai/retrieval-and-rag.md)이며 vector 없는 baseline부터 시작한다. 오디 RAG의 첫 대상은 **선택한 오디 이야기의 검증된 대본**이다. 전체 웹 검색이나 모든 관광 데이터 ingestion은 초기 요구가 아니다. 짧은 대본은 통째로 context로 사용하는 baseline과 chunk retrieval을 비교한다.
 
 ```mermaid
 flowchart LR

@@ -1,0 +1,21 @@
+{
+  "repo": "YRootLab/OnMaru-backend",
+  "root": {"id":"ROOT","title":"OnMaru Backend 전체 구현","tracking_only":true},
+  "tracks": [
+    {"id":"TA","title":"Track A — 기반·계약·개발환경","children":["F01","F02","F03","F04","F05","F06","F07","F08","F09"]},
+    {"id":"TB","title":"Track B — 데이터베이스·관광공사 수집","children":["D01","D02","D03","D04","D05","D06","D07","D08","D09","P01","P02","P03","P04","P05","P06","P07"]},
+    {"id":"TC","title":"Track C — 한옥·장소 공개 API","children":["C01","C02","C03","C04","C05","C06"]},
+    {"id":"TD","title":"Track D — 인증·개인 저장","children":["I01","I02","I03","I04","I05","I06","I07"]},
+    {"id":"TE","title":"Track E — 후기·지도·Odii","children":["M01","M02","M03","M04","M05","M06","M07","M08","M09","A01","A02","A03","A04"]},
+    {"id":"TF","title":"Track F — FastAPI AI 서버","children":["AI01","AI02","AI03","AI04","AI05","AI06","AI07","AI08","AI09"]},
+    {"id":"TG","title":"Track G — 여정 실행","children":["J01","J02","J03","J04","J05","J06","J07","J08","J09","J10","J11"]},
+    {"id":"TH","title":"Track H — 운영·출시","children":["O01","O02","O03","O04","O05","O06","O07","O08","O09"]}
+  ],
+  "state_rules": {
+    "ready":"OPEN and every blocked-by issue CLOSED and no active assignee/PR",
+    "waiting":"at least one blocked-by issue OPEN",
+    "in_progress":"assignee or linked open PR exists",
+    "review":"linked PR awaits CI/review",
+    "done":"acceptance criteria verified, PR merged, issue CLOSED"
+  }
+}

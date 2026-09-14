@@ -1,0 +1,52 @@
+---
+id: ADR-0004
+title: 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다
+status: accepted
+date: 2026-09-13
+locale: ko
+decision_makers:
+  - 사용자
+related:
+  - ADR-0002
+affected_paths:
+  - docs/database/
+  - docs/spring/
+  - docs/operations/
+  - db/
+  - spring/
+tags:
+  - postgresql
+  - postgis
+  - data-ownership
+retrospective: false
+---
+
+# 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다
+
+## 맥락 및 문제 설명
+
+회원·세션·탐색·저장·후기와 공간 조회는 ACID 제약, FK, 동시성 제어를 요구한다. MVP의 hosting, traffic, 운영 인력은 미정이며 다수 데이터베이스나 별도 identity/vector 서비스를 운영할 증거는 없다.
+
+## 검토한 대안
+
+1. 환경당 PostgreSQL 하나와 PostGIS를 사용하고 schema/context별 쓰기 소유권을 둔다.
+2. MySQL과 별도 공간 검색 구성을 사용한다.
+3. identity 또는 vector를 별도 서비스·DB로 분리한다.
+
+## 결정 결과
+
+선택한 대안: **환경당 PostgreSQL 하나와 PostGIS를 사용하되 context별 table write ownership과 migration role을 분리한다**, 그 이유는 공간 검색과 로컬 트랜잭션 불변식을 하나의 검증 가능한 엔진에서 낮은 운영 복잡도로 다루기 때문이다.
+
+## 결과 및 영향
+
+* 장점: owner XOR, active run, idempotency, report uniqueness 같은 불변식을 DB constraint와 transaction으로 강제할 수 있다.
+* 단점: DB 장애와 connection pool 경합이 공유되며 backup·restore·삭제 처리의 운영 책임이 생긴다.
+
+## 확인 방법
+
+Flyway forward-only migration, PostgreSQL/PostGIS Testcontainers의 concurrent start/cancel/complete test, staging backup restore drill로 확인한다. browser에는 SQL/Data API 권한을 주지 않고 runtime role에는 DDL 권한을 주지 않는다.
+
+## 재검토 조건
+
+* 공간 query 또는 DB connection 병목이 실측 SLO를 지속적으로 위반한다.
+* 규제, 독립 배포, 데이터 격리 요구가 context별 DB 분리를 요구한다.

@@ -3,7 +3,7 @@
 ## Project Context
 
 - Project: OnMaru backend.
-- Current repository shape: documentation-first backend planning repository.
+- Current repository shape: documentation-first backend repository with initial Spring Boot and FastAPI runtime scaffolds.
 - User-selected stack (2026-09-09): Java/Spring Boot for business APIs and Python/FastAPI for AI. Older Node.js guidance is historical.
 - Architecture planning entry point: `docs/planning/README.md`. Recommendations remain proposals until the corresponding decision is approved.
 - Canonical backend references:
@@ -13,6 +13,14 @@
   - `docs/api/**`
   - `docs/decisions/**`
 - Treat frontend specs in `docs/specs` as required backend input because they include FE contracts, wireframes, class diagrams, and backend requirements.
+
+## Language Policy
+
+- Use Korean by default for Pull Request titles and bodies, GitHub Issue descriptions, review summaries, work logs, and project documentation.
+- Keep explanations natural and readable in Korean instead of translating word-for-word from English templates.
+- English is allowed for Conventional Commit types such as `feat`, `fix`, and `docs`, as well as technical keywords, skill names, library/product names, code identifiers, commands, API fields, and standards terminology.
+- Conventional Commit subjects may be written in Korean after the English type and optional scope, for example `feat(api): 장소 조회 API 구현`.
+- Existing historical English documents do not need bulk translation unless the current task materially edits them.
 
 ## Source Of Truth
 
@@ -82,5 +90,5 @@
 ## Verification
 
 - Run repository-specific verification before claiming completion.
-- While this repository has no backend build manifest, use the CI workflow's documentation and repository hygiene checks as the baseline.
-- Expand CI with lint, typecheck, tests, migration validation, and OpenAPI/schema validation as soon as the backend application scaffold exists.
+- Until CI Issue #69 is implemented, use the CI workflow's documentation and repository hygiene checks plus local Gradle and Python verification as the baseline.
+- Expand CI with lint, typecheck, tests, migration validation, and OpenAPI/schema validation through Issue #69 now that the backend application scaffold exists.

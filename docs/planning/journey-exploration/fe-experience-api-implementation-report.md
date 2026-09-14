@@ -1,6 +1,8 @@
 # AI 여정 탐색 FE 경험·API 구현 보고서
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](../revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **ARCHIVED HANDOFF (2026-09-10). 구현 기준으로 사용하지 않는다.** 본문의 polling과 7일 MVP 범위는 과거 가설이다. 현재 여정 transport와 DTO는 [Public REST API](../../contracts/rest-api.md), [Journey OpenAPI](../../contracts/openapi/journey.openapi.yaml), [Frontend handoff](../../contracts/frontend-handoff.md)를 따른다.
+
+> **현재 설계 기준:** [문서 안내](../../README.md)의 책임별 설계를 따른다. 이 문서는 FE 경험 기획의 과거 보고서이며, 구현 완료를 뜻하지 않는다.
 
 
 작성일: 2026-09-10  
@@ -195,7 +197,7 @@ flowchart LR
 | `POST /api/v1/saved-journeys` | 저장 결과 | 마지막 committed board 저장 |
 | `GET /api/v1/saved-journeys/{id}` | `SavedJourneyDetail` | 저장 여정을 새 workspace로 열기 |
 
-MVP 통신은 SSE가 아니라 `REST command + 1초 polling + snapshot`이다. FE는 `retryAfterMs`를 따르고 terminal 상태, 화면 이탈, 새 run 시작에서 polling을 해제한다.
+현재 MVP 통신은 `REST command + SSE notification + snapshot`이다. FE는 terminal, reconnect, reset, 화면 복귀에서 run과 exploration snapshot을 다시 읽고 stream을 해제한다. polling은 SSE 미지원 환경의 compatibility fallback뿐이다.
 
 ```mermaid
 sequenceDiagram
@@ -455,7 +457,7 @@ ADR에 포함하지 않을 구현 세부:
 
 - 48/88/128px connector 길이
 - 180~280ms animation
-- MVP의 1초 polling 간격
+- SSE 미지원 환경의 1초 polling fallback 간격
 - 카드 세부 스타일과 문구
 
 이 세부는 제출 일정과 사용자 검증에 따라 바뀔 수 있으므로 본 보고서와 FE token에서 관리한다.

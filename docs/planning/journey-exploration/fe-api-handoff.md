@@ -1,13 +1,13 @@
 # FE 전달서: 선택·제안·서버 상태를 분리한다
 
-> **2026-09-11 개선 설계:** [감사 후속 계약](../revision-2026-09-11/README.md)이 최신 검토 기준이다. 모듈/DB·소유권·run 복구·방문 후기·검색·자원 정책은 해당 묶음을 우선한다. 구조 ADR은 초안 승인 대기이며 구현 완료를 뜻하지 않는다. 아래 장기 SSE/RAG 및 1.0 예시는 최신 MVP 계약과 구분한다.
+> **ARCHIVED HANDOFF (2026-09-10). 구현 기준으로 사용하지 않는다.** 본문의 polling/SSE 혼합안, session DTO, 도슨트·게시 기능 확장은 현재 MVP 계약이 아니다. 현재 FE 반영은 [Frontend handoff](../../contracts/frontend-handoff.md), [Public REST API](../../contracts/rest-api.md), [Journey OpenAPI](../../contracts/openapi/journey.openapi.yaml)를 따른다.
 
 
 상태: 구현 전 계약 초안. 기존 `/api/odii/ask`, 장소/온기/오디 조회의 호환성은 유지한다. 이 문서는 새 화면의 API와 UX 동작을 정하고, OpenAPI 및 JSON Schema로 옮길 때의 기준을 제공한다. 아직 SDK 생성용 전체 OpenAPI 파일은 아니다.
 
 2026-09-10 정합성 보완: [회원·여정 상세안](journey-service-plan.md)에 맞춰 답변 전용 결과와 직접 담기 동작을 확장 제안했다. 회원·공유·익명 이관은 아래 10절의 계약 요구를 함께 적용해야 하며 기존 표만으로 구현 완료를 판단하지 않는다.
 
-2026-09-10 제출 MVP 전송 결정: [7일 MVP FE 전달서](seven-day-mvp-fe-handoff.md)는 브라우저 통신을 REST command + polling + snapshot으로 확정했다. 아래 SSE event·replay 계약은 제출 P0가 아닌 후속 설계다. 이번 구현에서 두 방식을 동시에 만들지 않는다.
+2026-09-12에 이 문서의 전송 결정은 폐기됐다. AI 여정만 REST command + SSE notification + GET snapshot을 사용하며, 지도·후기·저장·일반 조회는 REST다. polling은 EventSource/fetch SSE를 사용할 수 없는 환경의 여정 fallback뿐이다.
 
 ## 1. 화면 소유권과 컴포넌트 연결
 
