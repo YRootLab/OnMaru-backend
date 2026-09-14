@@ -393,10 +393,12 @@ components:
     RegionResolution:
       type: object
       additionalProperties: false
-      required: [schemaVersion, coordinates, candidates, resolvedAt]
+      required: [schemaVersion, regionRevision, coordinates, candidates, resolvedAt]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
+        regionRevision:
+          type: string
         coordinates:
           $ref: '#/components/schemas/Coordinates'
         candidates:
