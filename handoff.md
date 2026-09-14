@@ -28,6 +28,14 @@
 - 이번 세션 보강: `scripts/test/odii-fixture-validation.test.mjs`에 긴 URL-encoded token query 값이 manifest URL에 남으면 실패하는 RED 테스트를 추가했고, `scripts/lib/odii-fixture-validation.mjs`가 URL query 값을 검사해 secret-like token을 차단하도록 구현했다.
 - 검증 통과: `node --test scripts/test/odii-fixture-validation.test.mjs`, `node scripts/validate-odii-fixtures.mjs`, `node --test scripts/test/*.test.mjs`, `./gradlew test`, `cd ai && uv run pytest`, `git diff --check`.
 - PR 생성 시 `Refs #61`로 연결한다. Issue #61은 PR #145 merge와 이번 redaction hardening PR merge, Acceptance Criteria 재확인 후 수동 close 후보로 둔다.
+## Current Session Quick Handoff - 2026-09-14 Issue #70
+
+- 현재 작업 브랜치와 worktree: `SHcommit/f06-spring-cursor-command-web`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f06-spring-cursor-command-web`.
+- 사용자 요청: Issue #70 `[F06] Spring 공통 오류·cursor·멱등 command web 기반 구현`을 `$agent-toolkit-skills:backend-developer` 기반으로 테스트와 함께 구현한다.
+- 구현 범위: `modules:shared-web` 신규 모듈을 추가하고, `com.yrootlab.onmaru.web.common` 아래에 schemaVersion `1.2` 오류 envelope, `X-Request-Id` filter, validation/cursor/idempotency exception mapping, HMAC cursor codec, `Idempotency-Key` UUID parser, idempotency fingerprint 생성기, `IdempotencyStorePort` + service + in-memory contract adapter를 추가했다.
+- Spring 앱 연결: `apps:spring-api`가 `:modules:shared-web`에 의존하도록 설정하고 dependency lockfile을 갱신했다.
+- 검증: TDD RED에서 cursor/idempotency 계약 타입 부재 compile failure와 추가 `IdempotencyKey`/`IdempotencyFingerprint` 타입 부재 compile failure를 확인한 뒤 구현했다. `./gradlew :modules:shared-web:test :apps:spring-api:test --tests '*CursorCodecTests' --tests '*IdempotencyServiceTests' --tests '*ApiErrorContractTests'`, `./gradlew :modules:shared-web:test :apps:spring-api:test --tests '*IdempotencyKeyTests' --tests '*IdempotencyFingerprintTests' --tests '*ApiErrorContractTests'`, `./gradlew test`, `cd ai && uv run pytest` 통과.
+- PR 작성 전 확인: #70 PR은 `develop` 대상으로 생성한다. acceptance는 cursor 만료/변조 contract와 동일 key/동일 payload replay 및 다른 payload 409 근거를 본문에 적고, merge가 #70 완료 조건이면 `Closes #70`를 사용한다.
 
 ## Current Session Quick Handoff - 2026-09-14 Issue #65
 
