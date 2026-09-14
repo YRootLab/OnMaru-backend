@@ -2,6 +2,16 @@
 
 ## Current Session Quick Handoff - 2026-09-14
 
+- 현재 작업 브랜치와 worktree: `feature/62-c01-place-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/62-c01`.
+- Issue #62 `[C01] R1 한옥·장소·찜 OpenAPI와 fixture 동결` 작업을 시작했다. PR에서 실제 완료할 범위이므로 본문에는 `Closes #62`를 사용한다.
+- 산출물: `docs/contracts/openapi/r1.openapi.yaml`, `docs/contracts/fixtures/r1/*.json` 13개, `scripts/test/validate-r1-contract.py`, `scripts/test/requirements-r1-contract.txt`, `.github/workflows/ci.yml`의 R1 contract validation 및 FastAPI service tests 단계.
+- 추가 CI 보강: `.github/workflows/ci.yml`에 JDK 21 Gradle cache 기반 `./gradlew test --no-daemon`을 추가했다. `scripts/verify-contracts`는 R1 OpenAPI/fixture 검증, DBML compile, Azimutt/Postgres 생성물 stale 검증을 수행한다.
+- `scripts/azimutt-export.mjs`는 `AZIMUTT_OUTPUT_DIR` 환경 변수를 지원해 CI/로컬 검증에서 임시 디렉터리에 생성물을 만들 수 있다. 이 덕분에 uncommitted working tree에서도 generated artifact diff를 검증할 수 있다.
+- #69는 blocked-by인 #63/#64가 GitHub 상 Open 상태라 이번 PR에서 자동 종료하지 말고 `Refs #69`로 연결하는 편이 안전하다.
+- #62 범위에 맞춰 endpoint code는 추가하지 않았다. public schema와 fixture에는 `contentId`, `pageNo`, provider `key`, `serviceKey`를 노출하지 않는다.
+- 한옥 상세, 지도 카드, Odii 연결 장소 카드는 fixture에서 같은 canonical `placeId`(`p-jeonju-hanok-village`)를 공유하도록 검증한다.
+- 로컬 검증 `python3 scripts/test/validate-r1-contract.py`는 표준 OpenAPI 검증과 JSON Schema fixture 검증을 포함해 13개 fixture로 통과했다. 최종 전 `git diff --check`, `./gradlew test`, `cd ai && uv run pytest`를 다시 실행한다.
+
 - 현재 작업 브랜치와 worktree: `feature/setup-issues`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issues-setup`.
 - Issue #63 기반 Java 21, Spring Boot 4.1.1, Gradle Wrapper 9.7.1 멀티프로젝트와 `apps/spring-api` 실행 골격을 구축했다. Web MVC·Actuator 및 테스트 의존성은 lock하고 로컬 Gradle 캐시에 받았다.
 - Issue #64 기반 uv 관리 Python 3.12, FastAPI, Uvicorn, pytest, HTTPX, Ruff, mypy 골격을 `ai/`에 구축했다. `uv.lock`의 33개 패키지를 `ai/.venv`와 uv 캐시에 받았다.

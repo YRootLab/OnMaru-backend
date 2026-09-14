@@ -1,0 +1,24 @@
+{
+  "name": "service-unavailable",
+  "description": "Temporary catalog read failures keep the public error envelope stable.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/hanoks",
+    "query": {
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 503,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "Catalog data is temporarily unavailable.",
+      "requestId": "req-r1-service-unavailable",
+      "details": {
+        "retryAfterMs": 30000
+      }
+    }
+  }
+}

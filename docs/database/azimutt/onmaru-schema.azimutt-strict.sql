@@ -402,6 +402,28 @@ CREATE TABLE "community_review_likes" (
   PRIMARY KEY ("review_id", "member_id")
 );
 
+CREATE TABLE "community_review_reports" (
+  "id" varchar(36) PRIMARY KEY,
+  "review_id" varchar(36) NOT NULL,
+  "reporter_member_id" varchar(36) NOT NULL,
+  "reason" varchar NOT NULL,
+  "detail" text,
+  "status" varchar(32) NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "resolved_at" timestamp
+);
+
+CREATE TABLE "community_review_moderation_actions" (
+  "id" varchar(36) PRIMARY KEY,
+  "review_id" varchar(36) NOT NULL,
+  "actor_type" varchar NOT NULL,
+  "actor_ref" varchar,
+  "previous_status" varchar(32) NOT NULL,
+  "next_status" varchar(32) NOT NULL,
+  "reason" varchar NOT NULL,
+  "created_at" timestamp NOT NULL
+);
+
 CREATE TABLE "operations_idempotency" (
   "actor_key" varchar NOT NULL,
   "operation" varchar NOT NULL,
@@ -507,6 +529,15 @@ CREATE TABLE "ai_embeddings" (
   PRIMARY KEY ("chunk_id", "embedding_profile_id")
 );
 
+CREATE TABLE "ai_corpus_sync_runs" (
+  "id" varchar(36) PRIMARY KEY,
+  "source_revision" varchar NOT NULL,
+  "source_manifest_hash" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "started_at" timestamp NOT NULL,
+  "finished_at" timestamp,
+  "error_code" varchar
+);
 
 
 
@@ -562,6 +593,19 @@ CREATE TABLE "ai_embeddings" (
 
 
 
+
+
+
+
+
+
+
+
+
+
+COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
+
+COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
 
 
 
@@ -588,6 +632,8 @@ ALTER TABLE "community_visit_reviews" ADD FOREIGN KEY ("member_id") REFERENCES "
 ALTER TABLE "community_visit_reviews" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
 
 ALTER TABLE "community_review_likes" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id");
+
+ALTER TABLE "community_review_reports" ADD FOREIGN KEY ("reporter_member_id") REFERENCES "identity_members" ("id");
 
 ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
 
@@ -682,6 +728,10 @@ ALTER TABLE "discovery_proposals" ADD FOREIGN KEY ("exploration_id") REFERENCES 
 ALTER TABLE "discovery_turns" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id");
 
 ALTER TABLE "community_review_likes" ADD FOREIGN KEY ("review_id") REFERENCES "community_visit_reviews" ("id");
+
+ALTER TABLE "community_review_reports" ADD FOREIGN KEY ("review_id") REFERENCES "community_visit_reviews" ("id");
+
+ALTER TABLE "community_review_moderation_actions" ADD FOREIGN KEY ("review_id") REFERENCES "community_visit_reviews" ("id");
 
 ALTER TABLE "operations_sync_checkpoints" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id");
 

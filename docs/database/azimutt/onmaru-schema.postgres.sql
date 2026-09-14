@@ -50,7 +50,14 @@ CREATE TYPE "journey_saved_resource_type" AS ENUM (
 CREATE TYPE "community_review_status" AS ENUM (
   'PUBLISHED',
   'HIDDEN',
+  'REMOVED',
   'DELETED'
+);
+
+CREATE TYPE "community_report_status" AS ENUM (
+  'OPEN',
+  'RESOLVED',
+  'DISMISSED'
 );
 
 CREATE TYPE "operations_sync_run_status" AS ENUM (
@@ -465,6 +472,28 @@ CREATE TABLE "community_review_likes" (
   PRIMARY KEY ("review_id", "member_id")
 );
 
+CREATE TABLE "community_review_reports" (
+  "id" uuid PRIMARY KEY,
+  "review_id" uuid NOT NULL,
+  "reporter_member_id" uuid NOT NULL,
+  "reason" varchar NOT NULL,
+  "detail" text,
+  "status" community_report_status NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "resolved_at" timestamptz
+);
+
+CREATE TABLE "community_review_moderation_actions" (
+  "id" uuid PRIMARY KEY,
+  "review_id" uuid NOT NULL,
+  "actor_type" varchar NOT NULL,
+  "actor_ref" varchar,
+  "previous_status" community_review_status NOT NULL,
+  "next_status" community_review_status NOT NULL,
+  "reason" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "operations_idempotency" (
   "actor_key" varchar NOT NULL,
   "operation" varchar NOT NULL,
@@ -570,6 +599,16 @@ CREATE TABLE "ai_embeddings" (
   PRIMARY KEY ("chunk_id", "embedding_profile_id")
 );
 
+CREATE TABLE "ai_corpus_sync_runs" (
+  "id" uuid PRIMARY KEY,
+  "source_revision" varchar NOT NULL,
+  "source_manifest_hash" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "started_at" timestamptz NOT NULL,
+  "finished_at" timestamptz,
+  "error_code" varchar
+);
+
 CREATE UNIQUE INDEX ON "identity_external_accounts" ("provider", "issuer", "subject");
 
 CREATE INDEX ON "identity_external_accounts" ("member_id");
@@ -666,6 +705,12 @@ CREATE INDEX ON "community_visit_reviews" ("member_id");
 
 CREATE INDEX ON "community_review_likes" ("member_id");
 
+CREATE UNIQUE INDEX ON "community_review_reports" ("review_id", "reporter_member_id");
+
+CREATE INDEX ON "community_review_reports" ("status", "created_at");
+
+CREATE INDEX ON "community_review_moderation_actions" ("review_id", "created_at");
+
 CREATE INDEX ON "operations_idempotency" ("expires_at");
 
 CREATE UNIQUE INDEX ON "operations_sync_runs" ("dataset", "scheduled_for", "attempt");
@@ -677,6 +722,8 @@ CREATE INDEX ON "operations_sync_quarantine" ("expires_at");
 CREATE INDEX ON "ai_documents" ("source_type", "source_ref");
 
 CREATE UNIQUE INDEX ON "ai_chunks" ("document_id", "revision", "position");
+
+CREATE UNIQUE INDEX ON "ai_corpus_sync_runs" ("source_revision", "source_manifest_hash");
 
 COMMENT ON COLUMN "identity_external_accounts"."provider" IS 'KAKAO active for MVP; GOOGLE/NAVER can be added through allowlist';
 
@@ -690,9 +737,21 @@ COMMENT ON COLUMN "audio_spot_versions"."location" IS 'PostGIS Point(4326)';
 
 COMMENT ON COLUMN "insights_visitor_observations"."visitor_type" IS 'local, domestic visitor, foreign visitor, or provider code';
 
-COMMENT ON COLUMN "journey_saved_resources"."resource_id" IS 'PLACE -> catalog_place_identity.id, ODII_STORY -> audio_odii_stories.id; enforced by application eligibility port';
+COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
-COMMENT ON COLUMN "ai_embeddings"."vector" IS 'pgvector only after optional RAG approval';
+COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
+
+COMMENT ON COLUMN "journey_saved_resources"."resource_id" IS 'PLACE -> catalog_place_identity.id for every public canonical tourism place (hanok, stay, cafe, experience, market, attraction); ODII_STORY -> audio_odii_stories.id only for standalone replay. Enforced by application eligibility port.';
+
+COMMENT ON COLUMN "community_review_reports"."reason" IS 'SPAM, ABUSE, PERSONAL_DATA, COPYRIGHT, OTHER';
+
+COMMENT ON COLUMN "community_review_moderation_actions"."actor_type" IS 'SYSTEM or OPERATOR; never a public member action';
+
+COMMENT ON COLUMN "ai_documents"."source_ref" IS 'Stable source identifier from Spring corpus export; not a DB FK';
+
+COMMENT ON COLUMN "ai_embeddings"."vector" IS 'FastAPI-managed pgvector index; enabled only after RAG evaluation gate';
+
+COMMENT ON COLUMN "ai_corpus_sync_runs"."status" IS 'RUNNING, SUCCEEDED, FAILED';
 
 ALTER TABLE "identity_oauth_states" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
@@ -713,6 +772,8 @@ ALTER TABLE "community_visit_reviews" ADD FOREIGN KEY ("member_id") REFERENCES "
 ALTER TABLE "community_visit_reviews" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "community_review_likes" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "community_review_reports" ADD FOREIGN KEY ("reporter_member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
@@ -807,6 +868,10 @@ ALTER TABLE "discovery_proposals" ADD FOREIGN KEY ("exploration_id") REFERENCES 
 ALTER TABLE "discovery_turns" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "community_review_likes" ADD FOREIGN KEY ("review_id") REFERENCES "community_visit_reviews" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "community_review_reports" ADD FOREIGN KEY ("review_id") REFERENCES "community_visit_reviews" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "community_review_moderation_actions" ADD FOREIGN KEY ("review_id") REFERENCES "community_visit_reviews" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "operations_sync_checkpoints" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

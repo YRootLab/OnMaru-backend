@@ -1,0 +1,34 @@
+{
+  "name": "hanok-list-cursor",
+  "description": "The second page keeps the original filter and returns the next cursor state.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/hanoks",
+    "query": {
+      "category": "HANOK",
+      "limit": 1,
+      "cursor": "r1.hanoks.cursor.2026-09-14T08:00:00Z.p-jeonju-hanok-village"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "HanokListResponse",
+    "body": {
+      "schemaVersion": "1.2",
+      "items": [
+        {
+          "placeId": "p-gyeongju-gyochon",
+          "name": "경주 교촌 한옥마을",
+          "category": "HANOK",
+          "regionName": "경북 경주시",
+          "thumbnailUrl": "https://cdn.onmaru.example/places/p-gyeongju-gyochon/cover.jpg",
+          "summary": "월정교와 함께 둘러보기 좋은 전통 한옥 권역입니다.",
+          "tags": ["한옥", "경주"],
+          "savedByMe": false
+        }
+      ],
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}
