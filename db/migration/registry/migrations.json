@@ -59,6 +59,15 @@
       "checksum": "d04-v006-20260915",
       "sha256": "ae1918023160dc08bcfebef0b0788712a4176f154b0598eeb9b6bd607fc5d0f3",
       "description": "Discovery exploration, run, proposal, turn, saved journey, and saved resource schema"
+    },
+    {
+      "version": "007",
+      "reservedFor": "D05",
+      "issueNumber": 78,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V007__d05_community_review_schema.sql",
+      "checksum": "d05-v007-20260915",
+      "sha256": "885938b98900fed9946eaac36f6c5bc300d8a5ab9571dc5a51028a70362b9152",
+      "description": "Visit review, like, report, and moderation audit schema"
     }
   ]
 }
