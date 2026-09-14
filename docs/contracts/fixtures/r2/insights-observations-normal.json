@@ -31,6 +31,7 @@
           "metric": "VISITOR_COUNT",
           "value": 18240,
           "unit": "persons",
+          "spatialLevel": "SIGUNGU",
           "coverageStatus": "COMPLETE"
         }
       ]

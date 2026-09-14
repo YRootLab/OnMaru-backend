@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":modules:catalog"))
     implementation(project(":modules:community"))
     implementation(project(":modules:identity"))
+    implementation(project(":modules:insights"))
     implementation(project(":modules:journey"))
     implementation(project(":modules:operations"))
     implementation(project(":modules:shared-web"))
