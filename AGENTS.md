@@ -32,11 +32,16 @@
 - During triage, keep a local note, link it to an existing Issue, promote it to a new Issue, or remove it only when completion is verified.
 - Every PR must reference its related Issue. Use auto-close keywords only when merging that PR should actually close the Issue.
 - Before closing an Issue, verify its acceptance criteria and merge state.
+- GitHub auto-close is not sufficient under this Git Flow. The repository default branch is `main`, while normal work PRs merge into `develop`; `Closes #...` may not close Issues until the change reaches the default branch.
+- After a PR into `develop` is merged, explicitly check related Issues with `gh issue view <number> --json state` if the post-merge workflow did not run or did not close them. Close manually only when the acceptance criteria, merged PR, and verification commands all match.
+- When closing manually, leave a comment that names the merged PR, explains why auto-close did not apply, and records the verification commands.
+- Prefer the post-merge Issue Reconcile workflow for this check. It may close only still-open Issues referenced by `Closes/Fixes/Resolves #...` after the PR has actually merged into `develop`, and it must leave a comment explaining the `develop` versus `main` auto-close limitation.
 
 ## Work Logs And Cleanup
 
 - Immediately before creating a Pull Request, reconcile branch name, touched files, work logs, related Issues, PR body, and verification results.
 - Immediately before merge, repeat cleanup because review may change scope, follow-ups, or Issue state.
+- Immediately after merge, reconcile GitHub Issue state for every referenced `Closes/Fixes/Resolves #...` line. If the PR merged to `develop` and the Issue remains open, decide whether to close manually or leave it open for a later `main` release, then record the reason in the Issue comment or `handoff.md`.
 - If an agent harness cannot invoke `cleaning-work-logs`, perform the equivalent scan, classification, approval, and verification manually.
 - Record ad hoc user requests immediately in `handoff.md` when they affect the current session, or `improvements.md` when they are follow-up ideas.
 

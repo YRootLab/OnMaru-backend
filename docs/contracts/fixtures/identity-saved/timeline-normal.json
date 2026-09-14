@@ -1,0 +1,70 @@
+{
+  "name": "timeline-normal",
+  "description": "Monthly timeline groups saved place, Odii story, and saved journey activity by day.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/me/timeline",
+    "query": {
+      "month": "2026-09",
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "MemberTimeline",
+    "headers": {
+      "Cache-Control": "no-store"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "month": "2026-09",
+      "groups": [
+        {
+          "date": "2026-09-14",
+          "items": [
+            {
+              "id": "tl-20260914-place-jeonju",
+              "type": "SAVED_PLACE",
+              "occurredAt": "2026-09-14T08:10:00Z",
+              "title": "전주 한옥마을",
+              "subtitle": "한옥 · 전북 전주시",
+              "thumbnailUrl": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+              "target": {
+                "type": "PLACE",
+                "placeId": "p-jeonju-hanok-village"
+              }
+            },
+            {
+              "id": "tl-20260914-odii-story",
+              "type": "SAVED_ODII_STORY",
+              "occurredAt": "2026-09-14T07:40:00Z",
+              "title": "전주의 한옥 골목 이야기",
+              "subtitle": "오디오 이야기",
+              "thumbnailUrl": null,
+              "target": {
+                "type": "ODII_STORY",
+                "storyId": "odii-story-jeonju-01",
+                "placeId": "p-jeonju-hanok-village"
+              }
+            },
+            {
+              "id": "tl-20260913-saved-journey",
+              "type": "SAVED_JOURNEY",
+              "occurredAt": "2026-09-13T11:20:00Z",
+              "title": "전주 하루 여정",
+              "subtitle": "저장한 여정",
+              "thumbnailUrl": null,
+              "target": {
+                "type": "SAVED_JOURNEY",
+                "savedJourneyId": "sj-jeonju-day-001"
+              }
+            }
+          ]
+        }
+      ],
+      "nextCursor": null,
+      "hasMore": false,
+      "unavailableCount": 0
+    }
+  }
+}

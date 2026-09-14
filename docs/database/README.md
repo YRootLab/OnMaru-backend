@@ -1,6 +1,6 @@
 # OnMaru DBML ERD
 
-이 디렉터리는 OnMaru 백엔드 설계의 DBML 기반 ERD를 관리한다. 현재 저장소에는 Spring Boot 애플리케이션 코드, JPA Entity, Repository, migration, 실행 DDL이 없다. 따라서 이 ERD는 실제 DB에서 추출한 스키마가 아니라, `docs/planning`과 `docs/api/tour`의 최신 설계를 합친 **구현 전 제안 스키마**다.
+이 디렉터리는 OnMaru 백엔드 설계의 DBML 기반 ERD를 관리한다. 현재 저장소에는 Spring Boot 애플리케이션 scaffold와 D01 Flyway baseline migration이 있다. DBML은 업무 테이블의 논리 설계 source이고, Flyway SQL은 실행 DB를 변경하는 기준이다.
 
 ## 현재 기준
 
@@ -12,9 +12,10 @@ OnMaru ERD의 source of truth는 DBML이고, GitHub에서 사람이 볼 시각 �
 | 무료 웹 시각화 | Azimutt |
 | Azimutt import 파일 | `docs/database/azimutt/onmaru-schema.azimutt-strict.sql` |
 | GitHub 공유 이미지 | `docs/database/azimutt/exports/*.png` |
-| 운영 migration | 아직 없음. 이 디렉터리의 SQL은 시각화/import 보조 산출물이다. |
+| 운영 migration | `apps/spring-api/src/main/resources/db/migration/baseline`의 Flyway SQL |
+| migration registry | `db/migration/registry/migrations.json` |
 
-실행 DDL과 경쟁 상태의 구현 기준은 [migration and concurrency proof plan](migration-and-concurrency.md)에 둔다. 이 문서는 Flyway migration과 Testcontainers 검증을 설계하지만, 아직 실제 migration은 아니다.
+실행 DDL과 경쟁 상태의 구현 기준은 [migration and concurrency proof plan](migration-and-concurrency.md)에 둔다. D01 baseline은 schema namespace, version registry, role grant를 만들고, 후속 업무 테이블 migration은 registry의 예약 규칙을 따라 새 Flyway version으로 추가한다.
 
 ChartDB, drawDB, ERDCloud, dbdiagram.io, D2, Graphviz 산출물은 기본 경로에서 제외했다. Azimutt가 무료로 잘 동작하고, 모듈별 view를 PNG로 export해서 GitHub에 올리는 흐름이 현재 프로젝트에 가장 단순하다.
 
@@ -45,6 +46,8 @@ docs/database/
     ├── operations.dbml
     └── ai.dbml
 ```
+
+실행 migration registry는 repository root의 `db/migration/registry/migrations.json`에서 관리한다. Spring Boot는 `spring.flyway.locations=classpath:db/migration/baseline`으로 baseline migration을 읽는다.
 
 ## 빠른 실행
 
@@ -100,7 +103,7 @@ npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres
 
 | 항목 | 확인 결과 |
 |---|---|
-| 실제 DB schema / migration / DDL | 없음. 현재 ERD는 구현 전 제안 스키마다. |
+| 실제 DB schema / migration / DDL | D01 baseline migration만 존재한다. 업무 table DDL은 후속 D02-D09 migration 대상이다. |
 | JPA Entity / Repository | 없음. Java/Kotlin source, Gradle, Maven manifest가 없다. |
 | FK 및 constraint | 실행 DB 기준 FK 없음. 최신 planning 문서의 FK/unique/check 제안을 DBML로 옮겼다. |
 | Spring package/module 구조 | 구현 전이다. 설계상 core는 identity, catalog, discovery, journey, community이며 audio/insights/ai는 후속 모듈이다. |

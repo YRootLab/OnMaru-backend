@@ -1,0 +1,21 @@
+{
+  "name": "saved-resources-type-required",
+  "description": "Saved resources cannot be listed without choosing PLACE or ODII_STORY.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/saved-resources"
+  },
+  "response": {
+    "status": 400,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "VALIDATION_ERROR",
+      "message": "The type query parameter is required.",
+      "requestId": "req-saved-type-required",
+      "details": {
+        "field": "type"
+      }
+    }
+  }
+}

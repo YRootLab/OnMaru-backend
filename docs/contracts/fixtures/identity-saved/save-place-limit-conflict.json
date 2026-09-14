@@ -1,0 +1,24 @@
+{
+  "name": "save-place-limit-conflict",
+  "description": "A member hitting the saved-resource limit receives a 409 SAVE_LIMIT conflict.",
+  "request": {
+    "method": "PUT",
+    "path": "/api/v1/saved-resources/places/p-jeonju-hanok-village",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    }
+  },
+  "response": {
+    "status": 409,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "SAVE_LIMIT",
+      "message": "Saved resource limit exceeded.",
+      "requestId": "req-save-place-limit",
+      "details": {
+        "limit": 500
+      }
+    }
+  }
+}

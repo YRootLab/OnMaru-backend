@@ -14,7 +14,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "onmaru.tourapi.client.connect-timeout=2s",
         "onmaru.tourapi.client.attempt-timeout=6s",
         "onmaru.tourapi.client.page-timeout=13s",
-        "onmaru.tourapi.client.retry-count=0"
+        "onmaru.tourapi.client.retry-count=0",
+        "onmaru.secrets.source=fake"
 })
 class TourApiClientConfigurationTests {
 

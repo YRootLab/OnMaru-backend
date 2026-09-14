@@ -4,11 +4,19 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 from typing import Any
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
+
+warnings.filterwarnings(
+    "ignore",
+    message="urllib3 v2 only supports OpenSSL 1.1.1+",
+    category=Warning,
+)
+
 from openapi_spec_validator import validate
 
 

@@ -1,0 +1,20 @@
+{
+  "name": "member-me-normal",
+  "description": "A signed-in user receives an opaque member id and nullable display name.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/members/me"
+  },
+  "response": {
+    "status": 200,
+    "schema": "MemberMe",
+    "headers": {
+      "Cache-Control": "no-store"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "id": "m-8f4b7a21c9",
+      "displayName": null
+    }
+  }
+}

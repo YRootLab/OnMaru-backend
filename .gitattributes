@@ -1,0 +1,5 @@
+# Shared cumulative work logs are edited by many parallel PRs.
+# Union merge preserves independently appended entries and reduces repeat conflicts.
+CHANGELOG.md merge=union
+handoff.md merge=union
+improvements.md merge=union

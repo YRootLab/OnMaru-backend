@@ -2,11 +2,12 @@ import asyncio
 
 from httpx import ASGITransport, AsyncClient, Response
 
+from onmaru_ai.config.secrets import FakeSecretProvider
 from onmaru_ai.main import create_app
 
 
 async def request(path: str) -> Response:
-    transport = ASGITransport(app=create_app())
+    transport = ASGITransport(app=create_app(secret_provider=FakeSecretProvider()))
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         return await client.get(path)
 

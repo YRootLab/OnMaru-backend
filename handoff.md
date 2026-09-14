@@ -11,6 +11,75 @@
 - CI는 `TourAPI adapter tests`와 `Spring API tests` step을 분리했다. 기존 Node/Python/contract 검증은 유지한다.
 - DB publish, scheduler, source validation/category mapping/quarantine은 #73 범위 밖이며 후속 #88/#89 성격이다.
 
+## Current Session Quick Handoff - 2026-09-14 Issue #68
+
+- 현재 작업 브랜치와 worktree: `SHcommit/f02-spring-port-adapter-archunit`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f02-spring-port-adapter-archunit`.
+- 사용자 요청: Issue #68 기반으로 Spring 모듈 port/adapter 경계와 ArchUnit 규칙을 TDD로 구현하고, PR merge 시 #68을 닫는다.
+- 구현 범위: `apps/spring-api` JUnit test suite에 ArchUnit 1.5.0을 추가하고, core의 Spring/JPA/Reactor import 금지, production module cycle 금지, 문서화된 module 방향, consumer-owned port, app bridge API-only 규칙을 검증한다.
+- fixture: framework import 위반, 정상 consumer-owned port + app bridge, direct cross-module core import 위반, module cycle 위반, bridge internal import 위반 fixture를 추가했다.
+- CI 연결: `.github/workflows/ci.yml`의 기존 `./gradlew test --no-daemon` step에서 ArchUnit 테스트가 자동 실행되므로 별도 workflow step은 추가하지 않았다.
+- 작업 로그: `troubleshooting-worklog/26.09.14 spring-archunit-module-boundary.md`.
+- 검증: `./gradlew :apps:spring-api:test --tests com.yrootlab.onmaru.architecture.ModuleBoundaryArchUnitTests`, `./gradlew test --no-daemon --rerun-tasks`, `./gradlew check`, `git diff --check`, CI workflow의 Node/planning/Odii/contract/FastAPI 로컬 검증을 통과했다. `scripts/verify-contracts`는 exit code 0이나 로컬 Python 3.9 LibreSSL warning이 출력됐다.
+- PR 본문에는 `Closes #68`을 사용한다. merge 전 review/CI 상태와 acceptance criteria를 다시 확인한다.
+## Current Session Quick Handoff - 2026-09-14 Issue #69
+
+- 현재 작업 브랜치와 worktree: `feature/69-openapi-json-schema-dbml-ci`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f05-openapi-json-schema-dbml-ci`.
+- 사용자 요청: Issue #69 OpenAPI·JSON Schema·DBML 검증 CI를 TDD로 구현하고, 작업 과정을 `troubleshooting-worklog`로 상세 기록한 뒤 PR을 올린다.
+- 구현 범위: `scripts/validate_contracts.py` 공통 검증기를 추가해 `docs/contracts/openapi` OpenAPI lint, OpenAPI component schema 기반 fixture body 검증, standalone JSON Schema check를 수행한다.
+- 기존 `scripts/verify-contracts`는 `--root`, `--contracts-only` 테스트 옵션을 지원하고, 실제 CI에서는 공통 계약 검증 뒤 R1/R2 전용 검증, DBML compile, Azimutt/Postgres generated artifact diff를 계속 수행한다.
+- TDD evidence: `scripts/test/test_contract_validation.py`를 먼저 추가했고, 초기 RED는 `scripts/validate_contracts.py` 부재와 negative fixture 미검출로 실패했다. 리뷰 후 schema name collision, OpenAPI response schema mismatch, static path 우선순위, stale generated artifact diff 경로를 추가 RED/GREEN으로 보강했다.
+- CI 변경: `.github/workflows/ci.yml`에 `Contract validator tests` 단계(`python3 -m pytest scripts/test/test_contract_validation.py`)를 추가했고, develop의 공통 `scripts/test/requirements-contract.txt`에 `pytest==8.4.2`를 유지한다.
+- 작업 로그: `troubleshooting-worklog/26.09.14 openapi-json-schema-dbml-ci.md`.
+- 로컬 검증 통과: `python3 -m pytest scripts/test/test_contract_validation.py`(7 passed), `bash scripts/verify-contracts`, `node --test scripts/test/*.test.mjs`, `node scripts/verify-planning-inputs.mjs && node scripts/validate-odii-fixtures.mjs`, `./gradlew test --no-daemon`, `cd ai && uv run pytest`, `git diff --check`.
+- PR은 `develop` 대상으로 생성한다. 이번 merge가 #69 acceptance를 완료하므로 PR 본문에 `Closes #69`를 사용한다. merge 전 GitHub Actions와 review 상태를 다시 확인한다.
+
+## Current Session Quick Handoff - 2026-09-14 Issue #132
+
+- 현재 작업 브랜치와 worktree: `SHcommit/f09-savedresource-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f09-savedresource-openapi-fixture`.
+- Issue #132 `[F09] 인증·회원·SavedResource OpenAPI·fixture 동결` 범위로 TDD 진행했다. 먼저 `scripts/test/validate-identity-saved-contract.py`를 추가하고 `identity-saved.openapi.yaml` 부재 실패를 확인한 뒤 계약과 fixture를 구현했다.
+- 산출물: `docs/contracts/openapi/identity-saved.openapi.yaml`, `docs/contracts/fixtures/identity-saved/*.json` 20개, `scripts/test/validate-identity-saved-contract.py`, `scripts/verify-contracts` 연결, `docs/contracts/README.md` 등록.
+- 계약 범위: auth/csrf, Kakao login/callback redirect, logout, members/me 조회/탈퇴, PLACE/ODII_STORY 저장/삭제, saved-resource type별 목록, monthly timeline, 401/403/404/409/error fixture.
+- CI 연결: 기존 `.github/workflows/ci.yml`의 `Contract and generated artifact validation` 단계가 `bash scripts/verify-contracts`를 실행하므로 신규 identity-saved 검증도 PR CI에서 실행된다.
+- 검증 통과: `python3 scripts/test/validate-identity-saved-contract.py`, `python3 scripts/test/validate-r1-contract.py`, `scripts/verify-contracts`, `git diff --check`. 전체 CI 동등 검증은 PR 직전 다시 실행한다.
+- PR은 `develop` 대상으로 생성한다. 이번 PR merge가 Issue #132 acceptance criteria를 충족하므로 본문에는 `Closes #132`를 사용한다.
+
+## Current Session Quick Handoff - 2026-09-14 Issue #133
+
+- 현재 작업 브랜치와 worktree: `SHcommit/m06-odii-r2-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/m06-odii-r2-openapi-fixture`.
+- Issue #133 `[M06] 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결` 작업을 진행했다.
+- 선행 조건 확인: #131, #62는 Closed이며, `gh pr list --search "133"` 기준 열린 중복 PR은 없었다.
+- TDD 기록: `python3 scripts/test/validate-r2-contract.py`를 먼저 추가했고, RED는 `docs/contracts/openapi/r2-map-audio-insights.openapi.yaml` 누락으로 실패했다.
+- 산출물: `docs/contracts/openapi/r2-map-audio-insights.openapi.yaml`, `docs/contracts/fixtures/r2/*.json` 13개, `scripts/test/validate-r2-contract.py`, `scripts/verify-contracts` R2 검증 연결, `scripts/test/requirements-contract.txt` 공통 계약 검증 의존성 파일, `docs/contracts/README.md` 링크.
+- 범위: runtime endpoint 구현은 제외하고, R2 public read endpoint·결측·언어·coverage status 계약과 fixture만 동결했다.
+- 검증 통과: `test -f scripts/test/requirements-contract.txt && ! rg -q 'requirements-r1-contract\\.txt' .github/workflows/ci.yml`, `python3 scripts/test/validate-r1-contract.py`, `python3 scripts/test/validate-r2-contract.py`, `./scripts/verify-contracts`.
+
+## Current Session Quick Handoff - 2026-09-14 Issue #61 Redaction Hardening
+
+- 현재 작업 브랜치와 worktree: `SHcommit/a01-odii-api-license-qualification`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/a01-odii-api-license-qualification`.
+- 사용자 요청: Issue #61을 `agent-toolkit-skills:backend-developer`와 TDD로 진행한다.
+- 기존 상태: PR #145 `docs(api): Odii 실제 응답 fixture 고정`은 2026-09-14에 `develop`으로 merge됐고 본문에 `Closes #61`가 있었지만, GitHub Issue #61은 아직 Open이다.
+- 이번 세션 보강: `scripts/test/odii-fixture-validation.test.mjs`에 긴 URL-encoded token query 값이 manifest URL에 남으면 실패하는 RED 테스트를 추가했고, `scripts/lib/odii-fixture-validation.mjs`가 URL query 값을 검사해 secret-like token을 차단하도록 구현했다.
+- 검증 통과: `node --test scripts/test/odii-fixture-validation.test.mjs`, `node scripts/validate-odii-fixtures.mjs`, `node --test scripts/test/*.test.mjs`, `./gradlew test`, `cd ai && uv run pytest`, `git diff --check`.
+- PR 생성 시 `Refs #61`로 연결한다. Issue #61은 PR #145 merge와 이번 redaction hardening PR merge, Acceptance Criteria 재확인 후 수동 close 후보로 둔다.
+## Current Session Quick Handoff - 2026-09-14 Issue #70
+
+- 현재 작업 브랜치와 worktree: `SHcommit/f06-spring-cursor-command-web`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f06-spring-cursor-command-web`.
+- 사용자 요청: Issue #70 `[F06] Spring 공통 오류·cursor·멱등 command web 기반 구현`을 `$agent-toolkit-skills:backend-developer` 기반으로 테스트와 함께 구현한다.
+- 구현 범위: `modules:shared-web` 신규 모듈을 추가하고, `com.yrootlab.onmaru.web.common` 아래에 schemaVersion `1.2` 오류 envelope, `X-Request-Id` filter, validation/cursor/idempotency exception mapping, HMAC cursor codec, `Idempotency-Key` UUID parser, idempotency fingerprint 생성기, `IdempotencyStorePort` + service + in-memory contract adapter를 추가했다.
+- Spring 앱 연결: `apps:spring-api`가 `:modules:shared-web`에 의존하도록 설정하고 dependency lockfile을 갱신했다.
+- 검증: TDD RED에서 cursor/idempotency 계약 타입 부재 compile failure와 추가 `IdempotencyKey`/`IdempotencyFingerprint` 타입 부재 compile failure를 확인한 뒤 구현했다. `./gradlew :modules:shared-web:test :apps:spring-api:test --tests '*CursorCodecTests' --tests '*IdempotencyServiceTests' --tests '*ApiErrorContractTests'`, `./gradlew :modules:shared-web:test :apps:spring-api:test --tests '*IdempotencyKeyTests' --tests '*IdempotencyFingerprintTests' --tests '*ApiErrorContractTests'`, `./gradlew test`, `cd ai && uv run pytest` 통과.
+- PR 작성 전 확인: #70 PR은 `develop` 대상으로 생성한다. acceptance는 cursor 만료/변조 contract와 동일 key/동일 payload replay 및 다른 payload 409 근거를 본문에 적고, merge가 #70 완료 조건이면 `Closes #70`를 사용한다.
+## Current Session Quick Handoff - 2026-09-14 Issue #72
+
+- 현재 작업 브랜치와 worktree: `SHcommit/o03-server-only-secret-loading-rotation-redactio`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/o03-server-only-secret-loading-rotation-redactio`.
+- Issue #72 `[O03] Server-only secret loading·rotation·redaction 정책 구현` 범위로 Spring API와 FastAPI AI service의 server-only secret loading 경계를 구현했다. PR merge 시 완료되는 범위이므로 본문에는 `Closes #72`를 사용한다.
+- Spring 산출물: `apps/spring-api/src/main/java/com/yrootlab/onmaru/config/secrets/*`, `logback-spring.xml`, secret config/redaction tests. 기본 source는 environment로 fail closed이며 test는 fake provider를 명시한다.
+- FastAPI 산출물: `ai/src/onmaru_ai/config/secrets.py`, logging redaction filter, `create_app` startup validation, pytest fixtures/tests. 기본 source는 environment로 fail closed이며 test는 fake provider를 명시한다.
+- 운영 문서: `docs/operations/runbooks/secrets.md`에 current/previous 환경 변수 naming, rotation drill, emergency revocation, redaction verification을 기록했다. 실제 secret 값은 기록하지 않았다.
+- CI 보강: 기존 Gradle/Pytest에 더해 FastAPI `ruff check`와 `mypy`를 `.github/workflows/ci.yml`에 추가했다.
+- 검증 통과: `./gradlew test --no-daemon`, `cd ai && uv run pytest && uv run ruff check && uv run mypy`, `git diff --check && node --test scripts/test/*.test.mjs && node scripts/verify-planning-inputs.mjs && node scripts/validate-odii-fixtures.mjs`, `bash scripts/verify-contracts`. `verify-contracts`는 로컬 macOS Python LibreSSL warning을 출력했지만 exit code 0이었다.
+- PR merge 전 review/CI 상태와 #72 acceptance criteria를 다시 확인한다. 이슈는 merge 전 수동 close하지 않고 PR auto-close로 처리한다.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #65
 
 - 현재 작업 브랜치와 worktree: `feature/65-f04-postgis-testcontainers`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/develop`.
@@ -262,3 +331,10 @@
 - Open a PR into `develop`.
 - PR body should state that this is a planning/harness PR, not a backend runtime implementation.
 - Required checks should pass before merge.
+
+## 2026-09-14 D01 Flyway Baseline Session
+
+- Issue #67 is being implemented on branch `SHcommit/d01-flyway-migration-baseline`.
+- Added Flyway baseline migration for `onmaru` and `onmaru_registry` schemas, migration version registry, and database role grants.
+- Added Testcontainers coverage for empty migrate, existing DB baseline upgrade, and runtime role DDL denial.
+- Added Node policy coverage for migration registry version uniqueness and checksum marker drift.

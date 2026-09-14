@@ -1,0 +1,22 @@
+{
+  "name": "timeline-auth-required",
+  "description": "Guests cannot read the private monthly timeline.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/me/timeline",
+    "query": {
+      "month": "2026-09"
+    }
+  },
+  "response": {
+    "status": 401,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "AUTH_REQUIRED",
+      "message": "Authentication is required to read the timeline.",
+      "requestId": "req-timeline-auth",
+      "details": {}
+    }
+  }
+}
