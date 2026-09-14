@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Add Issue #69 contract validator tests for OpenAPI lint, JSON fixture/schema mismatch, DBML compile, and generated artifact drift checks.
 - Add R1 hanok/place/saved-resource OpenAPI fixtures and CI contract validation for OpenAPI, JSON Schema, DBML, generated SQL, Spring, and FastAPI checks.
 - Capture redacted Odii API qualification fixtures and license/provenance manifest for Issue #61.
 - Add TourAPI qualification manifest, redacted provider fixtures, and CI fixture validation for Issue #66.
