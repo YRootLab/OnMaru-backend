@@ -5,6 +5,7 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":adapters:tourism-api"))
     implementation(project(":modules:shared-web"))
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")

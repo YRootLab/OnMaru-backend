@@ -12,6 +12,16 @@
 - CI 변경: `.github/workflows/ci.yml`의 FastAPI 단계가 `ruff check`, `mypy`, `pytest`를 모두 실행하도록 보강됐다.
 - 검증 진행: Spring/FastAPI RED를 먼저 확인했고, `./gradlew :apps:spring-api:test --tests '*CorrelationFilterTests' --no-daemon`, `./gradlew test --no-daemon`, `cd ai && uv run ruff check . && uv run mypy && uv run pytest` 통과.
 - PR 준비 시 #71 acceptance criteria와 연결해 본문에 `Refs #71` 또는 merge로 닫을 경우 `Closes #71`를 사용한다. Dashboard/alert 구성은 #81 범위라 이번 PR에서 닫지 않는다.
+## Current Session Quick Handoff - 2026-09-14 Issue #73
+
+- 현재 작업 브랜치와 worktree: `SHcommit/p02-tourapi-http-client-envelope-parser`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/p02-tourapi-http-client-envelope-parser`.
+- Issue #73 `[P02] TourAPI HTTP client·envelope parser 구현` 범위로 `adapters:tourism-api` 모듈을 추가했다.
+- 구현 범위: JSON/XML envelope parser, typed `TourApiSourceRecord`, 명시 오류 분류, Java `HttpClient` transport, retry/page budget, operation별 URI builder, Spring 설정 바인딩.
+- parser 계약: qualification fixture 9종을 단일 원본 `testing/fixtures/provider/tourapi`에서 읽고, HTTP 200 error envelope, 429 Retry-After, auth/permission, provider parameter, 5xx/timeout, schema drift, list/singleton/empty item, pagination drift를 테스트한다.
+- transport 계약: 5xx retry, auth non-retry, 429 Retry-After sleep, transport failure retryable error, page timeout budget 초과 방지를 mock HTTP server 테스트로 검증한다.
+- Spring API는 `onmaru.tourapi.client.*` 설정을 `TourApiClientProperties` bean으로 바인딩한다. 기본값은 connect1s/attempt5s/page12s/retry2이고 `application.yaml`에 명시했다.
+- CI는 `TourAPI adapter tests`와 `Spring API tests` step을 분리했다. 기존 Node/Python/contract 검증은 유지한다.
+- DB publish, scheduler, source validation/category mapping/quarantine은 #73 범위 밖이며 후속 #88/#89 성격이다.
 
 ## Current Session Quick Handoff - 2026-09-14 Issue #68
 
