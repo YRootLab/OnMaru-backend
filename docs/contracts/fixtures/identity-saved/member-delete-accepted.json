@@ -1,0 +1,23 @@
+{
+  "name": "member-delete-accepted",
+  "description": "Member deletion is accepted asynchronously and immediately revokes the session token.",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/v1/members/me",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    }
+  },
+  "response": {
+    "status": 202,
+    "schema": "MemberDeletingStatus",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Set-Cookie": "onmaru_session=; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "status": "DELETING"
+    }
+  }
+}

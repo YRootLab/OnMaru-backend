@@ -11,6 +11,35 @@
 - 검증: `./gradlew :apps:spring-api:test --tests com.yrootlab.onmaru.architecture.ModuleBoundaryArchUnitTests`, `./gradlew test --no-daemon --rerun-tasks`, `./gradlew check`, `git diff --check`, CI workflow의 Node/planning/Odii/contract/FastAPI 로컬 검증을 통과했다. `scripts/verify-contracts`는 exit code 0이나 로컬 Python 3.9 LibreSSL warning이 출력됐다.
 - PR 본문에는 `Closes #68`을 사용한다. merge 전 review/CI 상태와 acceptance criteria를 다시 확인한다.
 
+## Current Session Quick Handoff - 2026-09-14 Issue #132
+
+- 현재 작업 브랜치와 worktree: `SHcommit/f09-savedresource-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f09-savedresource-openapi-fixture`.
+- Issue #132 `[F09] 인증·회원·SavedResource OpenAPI·fixture 동결` 범위로 TDD 진행했다. 먼저 `scripts/test/validate-identity-saved-contract.py`를 추가하고 `identity-saved.openapi.yaml` 부재 실패를 확인한 뒤 계약과 fixture를 구현했다.
+- 산출물: `docs/contracts/openapi/identity-saved.openapi.yaml`, `docs/contracts/fixtures/identity-saved/*.json` 20개, `scripts/test/validate-identity-saved-contract.py`, `scripts/verify-contracts` 연결, `docs/contracts/README.md` 등록.
+- 계약 범위: auth/csrf, Kakao login/callback redirect, logout, members/me 조회/탈퇴, PLACE/ODII_STORY 저장/삭제, saved-resource type별 목록, monthly timeline, 401/403/404/409/error fixture.
+- CI 연결: 기존 `.github/workflows/ci.yml`의 `Contract and generated artifact validation` 단계가 `bash scripts/verify-contracts`를 실행하므로 신규 identity-saved 검증도 PR CI에서 실행된다.
+- 검증 통과: `python3 scripts/test/validate-identity-saved-contract.py`, `python3 scripts/test/validate-r1-contract.py`, `scripts/verify-contracts`, `git diff --check`. 전체 CI 동등 검증은 PR 직전 다시 실행한다.
+- PR은 `develop` 대상으로 생성한다. 이번 PR merge가 Issue #132 acceptance criteria를 충족하므로 본문에는 `Closes #132`를 사용한다.
+
+## Current Session Quick Handoff - 2026-09-14 Issue #133
+
+- 현재 작업 브랜치와 worktree: `SHcommit/m06-odii-r2-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/m06-odii-r2-openapi-fixture`.
+- Issue #133 `[M06] 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결` 작업을 진행했다.
+- 선행 조건 확인: #131, #62는 Closed이며, `gh pr list --search "133"` 기준 열린 중복 PR은 없었다.
+- TDD 기록: `python3 scripts/test/validate-r2-contract.py`를 먼저 추가했고, RED는 `docs/contracts/openapi/r2-map-audio-insights.openapi.yaml` 누락으로 실패했다.
+- 산출물: `docs/contracts/openapi/r2-map-audio-insights.openapi.yaml`, `docs/contracts/fixtures/r2/*.json` 13개, `scripts/test/validate-r2-contract.py`, `scripts/verify-contracts` R2 검증 연결, `scripts/test/requirements-contract.txt` 공통 계약 검증 의존성 파일, `docs/contracts/README.md` 링크.
+- 범위: runtime endpoint 구현은 제외하고, R2 public read endpoint·결측·언어·coverage status 계약과 fixture만 동결했다.
+- 검증 통과: `test -f scripts/test/requirements-contract.txt && ! rg -q 'requirements-r1-contract\\.txt' .github/workflows/ci.yml`, `python3 scripts/test/validate-r1-contract.py`, `python3 scripts/test/validate-r2-contract.py`, `./scripts/verify-contracts`.
+
+## Current Session Quick Handoff - 2026-09-14 Issue #61 Redaction Hardening
+
+- 현재 작업 브랜치와 worktree: `SHcommit/a01-odii-api-license-qualification`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/a01-odii-api-license-qualification`.
+- 사용자 요청: Issue #61을 `agent-toolkit-skills:backend-developer`와 TDD로 진행한다.
+- 기존 상태: PR #145 `docs(api): Odii 실제 응답 fixture 고정`은 2026-09-14에 `develop`으로 merge됐고 본문에 `Closes #61`가 있었지만, GitHub Issue #61은 아직 Open이다.
+- 이번 세션 보강: `scripts/test/odii-fixture-validation.test.mjs`에 긴 URL-encoded token query 값이 manifest URL에 남으면 실패하는 RED 테스트를 추가했고, `scripts/lib/odii-fixture-validation.mjs`가 URL query 값을 검사해 secret-like token을 차단하도록 구현했다.
+- 검증 통과: `node --test scripts/test/odii-fixture-validation.test.mjs`, `node scripts/validate-odii-fixtures.mjs`, `node --test scripts/test/*.test.mjs`, `./gradlew test`, `cd ai && uv run pytest`, `git diff --check`.
+- PR 생성 시 `Refs #61`로 연결한다. Issue #61은 PR #145 merge와 이번 redaction hardening PR merge, Acceptance Criteria 재확인 후 수동 close 후보로 둔다.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #65
 
 - 현재 작업 브랜치와 worktree: `feature/65-f04-postgis-testcontainers`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/develop`.

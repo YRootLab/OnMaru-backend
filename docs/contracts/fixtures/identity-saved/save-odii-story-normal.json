@@ -1,0 +1,26 @@
+{
+  "name": "save-odii-story-normal",
+  "description": "Saving a public Odii story returns the desired saved state.",
+  "request": {
+    "method": "PUT",
+    "path": "/api/v1/saved-resources/odii-stories/odii-story-jeonju-01",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "SavedResourceState",
+    "headers": {
+      "Cache-Control": "no-store"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "resourceType": "ODII_STORY",
+      "resourceId": "odii-story-jeonju-01",
+      "storyId": "odii-story-jeonju-01",
+      "savedByMe": true,
+      "savedAt": "2026-09-14T07:40:00Z"
+    }
+  }
+}

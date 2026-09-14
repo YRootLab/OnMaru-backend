@@ -1,64 +1,64 @@
 #!/usr/bin/env python3
-"""Validate the R1 OpenAPI contract and machine-readable fixtures."""
+"""Validate the identity and saved-resource OpenAPI contract fixtures."""
 
 from __future__ import annotations
 
 import json
-import warnings
 from pathlib import Path
 from typing import Any
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
-
-warnings.filterwarnings(
-    "ignore",
-    message="urllib3 v2 only supports OpenSSL 1.1.1+",
-    category=Warning,
-)
-
 from openapi_spec_validator import validate
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OPENAPI_PATH = ROOT / "docs/contracts/openapi/r1.openapi.yaml"
-FIXTURE_DIR = ROOT / "docs/contracts/fixtures/r1"
+OPENAPI_PATH = ROOT / "docs/contracts/openapi/identity-saved.openapi.yaml"
+FIXTURE_DIR = ROOT / "docs/contracts/fixtures/identity-saved"
 
-FORBIDDEN_PUBLIC_KEYS = {"contentId", "contentid", "pageNo", "page_no", "key", "serviceKey"}
 REQUIRED_PATHS = {
-    "/hanoks",
-    "/hanoks/monthly",
-    "/hanoks/{placeId}",
-    "/places/{placeId}",
+    "/auth/csrf",
+    "/auth/kakao/login",
+    "/auth/kakao/callback",
+    "/auth/logout",
+    "/members/me",
     "/saved-resources/places/{placeId}",
+    "/saved-resources/odii-stories/{storyId}",
     "/saved-resources",
     "/me/timeline",
 }
 REQUIRED_SCHEMAS = {
-    "HanokListResponse",
-    "HanokDetail",
-    "MonthlyHanokEditionResponse",
-    "CanonicalPlaceDetail",
-    "SavedPlaceState",
+    "CsrfTokenResponse",
+    "MemberMe",
+    "MemberDeletingStatus",
+    "SavedResourceState",
     "SavedResourcePage",
     "MemberTimeline",
     "Error",
 }
 REQUIRED_FIXTURES = {
-    "hanok-list-normal",
-    "hanok-list-empty",
-    "hanok-list-cursor",
-    "hanok-monthly-normal",
-    "hanok-detail-normal",
-    "place-detail-normal",
-    "saved-place-auth-required",
-    "saved-place-normal",
-    "saved-resources-cursor",
+    "csrf-normal",
+    "kakao-login-redirect",
+    "kakao-callback-success",
+    "logout-normal",
+    "member-me-normal",
+    "member-me-auth-required",
+    "member-delete-accepted",
+    "save-place-normal",
+    "save-place-auth-required",
+    "save-place-csrf-invalid",
+    "save-place-not-found",
+    "save-place-limit-conflict",
+    "delete-place-idempotent",
+    "save-odii-story-normal",
+    "delete-odii-story-idempotent",
+    "saved-resources-place-page",
+    "saved-resources-odii-page",
+    "saved-resources-type-required",
     "timeline-normal",
-    "timeline-unavailable",
-    "place-not-found",
-    "service-unavailable",
+    "timeline-auth-required",
 }
+FORBIDDEN_PUBLIC_KEYS = {"contentId", "contentid", "pageNo", "page_no", "key", "serviceKey"}
 
 
 def fail(message: str) -> None:
@@ -94,10 +94,6 @@ def load_openapi() -> dict[str, Any]:
     return document
 
 
-def validate_openapi_standard(openapi: dict[str, Any]) -> None:
-    validate(openapi)
-
-
 def load_fixtures() -> list[dict[str, Any]]:
     if not FIXTURE_DIR.exists():
         fail(f"missing fixture directory: {FIXTURE_DIR}")
@@ -110,25 +106,8 @@ def load_fixtures() -> list[dict[str, Any]]:
         payload["_sourcePath"] = str(path.relative_to(ROOT))
         fixtures.append(payload)
     if not fixtures:
-        fail(f"no R1 fixtures found under {FIXTURE_DIR}")
+        fail(f"no identity-saved fixtures found under {FIXTURE_DIR}")
     return fixtures
-
-
-def response_schema_names(openapi: dict[str, Any]) -> set[str]:
-    names: set[str] = set()
-    for path_item in openapi.get("paths", {}).values():
-        if not isinstance(path_item, dict):
-            continue
-        for operation in path_item.values():
-            if not isinstance(operation, dict):
-                continue
-            for response in operation.get("responses", {}).values():
-                content = response.get("content", {}) if isinstance(response, dict) else {}
-                schema = content.get("application/json", {}).get("schema", {})
-                ref = schema.get("$ref") if isinstance(schema, dict) else None
-                if isinstance(ref, str) and ref.startswith("#/components/schemas/"):
-                    names.add(ref.rsplit("/", 1)[-1])
-    return names
 
 
 def fixture_openapi_path(path: str, openapi_paths: dict[str, Any]) -> str:
@@ -152,6 +131,97 @@ def fixture_openapi_path(path: str, openapi_paths: dict[str, Any]) -> str:
     fail(f"fixture request path is not declared in OpenAPI: {path}")
 
 
+def fixture_path_values(path: str, openapi_path: str) -> dict[str, str]:
+    prefix = "/api/v1"
+    relative_path = path[len(prefix) :] or "/"
+    fixture_segments = relative_path.strip("/").split("/")
+    candidate_segments = openapi_path.strip("/").split("/")
+    values: dict[str, str] = {}
+    for candidate_segment, fixture_segment in zip(candidate_segments, fixture_segments):
+        if candidate_segment.startswith("{") and candidate_segment.endswith("}"):
+            values[candidate_segment[1:-1]] = fixture_segment
+    return values
+
+
+def dereference_parameter(openapi: dict[str, Any], parameter: dict[str, Any], source: str) -> dict[str, Any]:
+    parameter_ref = parameter.get("$ref")
+    if not isinstance(parameter_ref, str):
+        return parameter
+    if not parameter_ref.startswith("#/components/parameters/"):
+        fail(f"{source} parameter ref must point to components.parameters: {parameter_ref}")
+    parameter_name = parameter_ref.rsplit("/", 1)[-1]
+    resolved = openapi.get("components", {}).get("parameters", {}).get(parameter_name)
+    if not isinstance(resolved, dict):
+        fail(f"{source} parameter ref points to missing parameter: {parameter_ref}")
+    return resolved
+
+
+def validate_request_parameters(
+    fixture: dict[str, Any],
+    openapi: dict[str, Any],
+    operation: dict[str, Any],
+    openapi_path: str,
+    source: str,
+) -> None:
+    request = fixture["request"]
+    response = fixture["response"]
+    path = request["path"]
+    status = response["status"]
+    provided_values = {
+        "query": request.get("query", {}),
+        "header": request.get("headers", {}),
+        "path": fixture_path_values(path, openapi_path),
+    }
+    for location, values in provided_values.items():
+        if not isinstance(values, dict):
+            fail(f"{source} request {location} values must be an object")
+
+    for raw_parameter in operation.get("parameters", []):
+        if not isinstance(raw_parameter, dict):
+            fail(f"{source} operation parameter must be an object")
+        parameter = dereference_parameter(openapi, raw_parameter, source)
+        name = parameter.get("name")
+        location = parameter.get("in")
+        if not isinstance(name, str) or location not in provided_values:
+            fail(f"{source} operation parameter has invalid name or location")
+        value_present = name in provided_values[location]
+        if parameter.get("required") is True and not value_present and status < 400:
+            fail(f"{source} missing required request {location} parameter {name!r}")
+        if not value_present:
+            continue
+        schema = parameter.get("schema")
+        if not isinstance(schema, dict):
+            fail(f"{source} request parameter {name!r} has no schema")
+        parameter_schema = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            **rewrite_openapi_refs(schema),
+            "$defs": {
+                schema_name: rewrite_openapi_refs(component_schema)
+                for schema_name, component_schema in openapi.get("components", {}).get("schemas", {}).items()
+            },
+        }
+        validator = Draft202012Validator(parameter_schema, format_checker=FormatChecker())
+        errors = sorted(validator.iter_errors(provided_values[location][name]), key=lambda error: list(error.path))
+        if errors:
+            fail(
+                f"{source} request {location} parameter {name!r} does not match OpenAPI schema: "
+                f"{errors[0].message}"
+            )
+
+
+def dereference_response(openapi: dict[str, Any], response_spec: dict[str, Any], source: str) -> dict[str, Any]:
+    response_ref = response_spec.get("$ref")
+    if not isinstance(response_ref, str):
+        return response_spec
+    if not response_ref.startswith("#/components/responses/"):
+        fail(f"{source} response ref must point to components.responses: {response_ref}")
+    response_name = response_ref.rsplit("/", 1)[-1]
+    resolved = openapi.get("components", {}).get("responses", {}).get(response_name)
+    if not isinstance(resolved, dict):
+        fail(f"{source} response ref points to missing response: {response_ref}")
+    return resolved
+
+
 def operation_response_schema_name(
     fixture: dict[str, Any],
     openapi: dict[str, Any],
@@ -173,25 +243,18 @@ def operation_response_schema_name(
     operation = openapi_paths[openapi_path].get(method.lower())
     if not isinstance(operation, dict):
         fail(f"{source} method {method} is not declared for {openapi_path}")
+    validate_request_parameters(fixture, openapi, operation, openapi_path, source)
 
-    responses = operation.get("responses", {})
-    response_spec = responses.get(str(status))
+    response_spec = operation.get("responses", {}).get(str(status))
     if not isinstance(response_spec, dict):
         fail(f"{source} status {status} is not declared for {method} {openapi_path}")
-    response_ref = response_spec.get("$ref")
-    if isinstance(response_ref, str):
-        if not response_ref.startswith("#/components/responses/"):
-            fail(f"{source} response ref must point to components.responses: {response_ref}")
-        response_name = response_ref.rsplit("/", 1)[-1]
-        response_spec = openapi.get("components", {}).get("responses", {}).get(response_name)
-        if not isinstance(response_spec, dict):
-            fail(f"{source} response ref points to missing response: {response_ref}")
+    response_spec = dereference_response(openapi, response_spec, source)
 
     content = response_spec.get("content", {})
     schema = content.get("application/json", {}).get("schema", {})
     ref = schema.get("$ref") if isinstance(schema, dict) else None
     if not isinstance(ref, str):
-        if status == 204:
+        if status in {204, 302, 303}:
             return None
         fail(f"{source} response {status} for {method} {openapi_path} has no JSON schema ref")
     if not ref.startswith("#/components/schemas/"):
@@ -237,11 +300,12 @@ def validate_fixture_body_json_schema(
         fail(f"{source} does not match JSON Schema {schema_name} at {location}: {error.message}")
 
 
-def validate_openapi(openapi: dict[str, Any]) -> set[str]:
+def validate_openapi_contract(openapi: dict[str, Any]) -> None:
+    validate(openapi)
     if openapi.get("openapi") != "3.1.0":
-        fail("R1 OpenAPI must use OpenAPI 3.1.0")
+        fail("Identity Saved OpenAPI must use OpenAPI 3.1.0")
     if openapi.get("servers") != [{"url": "/api/v1"}]:
-        fail("R1 OpenAPI must use /api/v1 server")
+        fail("Identity Saved OpenAPI must use /api/v1 server")
 
     paths = openapi.get("paths")
     if not isinstance(paths, dict):
@@ -258,22 +322,16 @@ def validate_openapi(openapi: dict[str, Any]) -> set[str]:
         fail(f"missing required schemas: {sorted(missing_schemas)}")
 
     assert_no_forbidden_public_keys(openapi, str(OPENAPI_PATH.relative_to(ROOT)))
-    return set(schemas.keys()).union(response_schema_names(openapi))
 
 
-def validate_fixtures(
-    fixtures: list[dict[str, Any]],
-    known_schemas: set[str],
-    component_schemas: dict[str, Any],
-    openapi: dict[str, Any],
-    openapi_paths: dict[str, Any],
-) -> None:
+def validate_fixtures(openapi: dict[str, Any], fixtures: list[dict[str, Any]]) -> None:
     names = {fixture.get("name") for fixture in fixtures}
     missing = REQUIRED_FIXTURES.difference(names)
     if missing:
         fail(f"missing required fixture names: {sorted(missing)}")
 
-    observed_place_ids: dict[str, str] = {}
+    schemas = openapi["components"]["schemas"]
+    known_schemas = set(schemas.keys())
     for fixture in fixtures:
         source = fixture["_sourcePath"]
         assert_no_forbidden_public_keys(fixture, source)
@@ -285,55 +343,28 @@ def validate_fixtures(
         if not isinstance(response, dict):
             fail(f"{source} response must be an object")
         schema_name = response.get("schema")
-        if schema_name not in known_schemas:
+        if schema_name is not None and schema_name not in known_schemas:
             fail(f"{source} references unknown schema {schema_name!r}")
-        expected_schema_name = operation_response_schema_name(fixture, openapi, openapi_paths, source)
+        expected_schema_name = operation_response_schema_name(fixture, openapi, openapi["paths"], source)
         if expected_schema_name is not None and schema_name != expected_schema_name:
             fail(
                 f"{source} schema {schema_name!r} does not match OpenAPI response schema "
                 f"{expected_schema_name!r}"
             )
+        if expected_schema_name is None and schema_name is not None:
+            fail(f"{source} response should not declare JSON schema for redirect or empty status")
         if "body" in response:
-            if not isinstance(component_schemas.get(schema_name), dict):
-                fail(f"{source} references non-object schema {schema_name!r}")
-            validate_fixture_body_json_schema(response["body"], schema_name, component_schemas, source)
-            body = response["body"]
-            if schema_name == "HanokDetail" and isinstance(body, dict):
-                ids = {
-                    "placeId": body.get("placeId"),
-                    "mapCard.placeId": body.get("mapCard", {}).get("placeId") if isinstance(body.get("mapCard"), dict) else None,
-                    "odiiLinkedCard.placeId": body.get("odiiLinkedCard", {}).get("placeId")
-                    if isinstance(body.get("odiiLinkedCard"), dict)
-                    else body.get("placeId"),
-                }
-                if len(set(ids.values())) != 1:
-                    fail(f"{source} response body must use one canonical placeId, got {ids}")
-                observed_place_ids[fixture["name"]] = str(body["placeId"])
-            if schema_name == "CanonicalPlaceDetail" and isinstance(body, dict):
-                observed_place_ids[fixture["name"]] = str(body["placeId"])
-
-        shared = fixture.get("sharedPlaceAssertion")
-        if isinstance(shared, dict):
-            place_id = shared.get("placeId")
-            for surface in ("hanokCardPlaceId", "mapCardPlaceId", "odiiLinkedCardPlaceId"):
-                if shared.get(surface) != place_id:
-                    fail(f"{source} {surface} must equal shared placeId {place_id!r}")
-            if isinstance(place_id, str):
-                observed_place_ids[fixture["name"]] = place_id
-
-    if "hanok-detail-normal" in observed_place_ids and "place-detail-normal" in observed_place_ids:
-        if observed_place_ids["hanok-detail-normal"] != observed_place_ids["place-detail-normal"]:
-            fail("hanok and place detail fixtures must use the same canonical placeId")
+            if not isinstance(schema_name, str):
+                fail(f"{source} response body requires schema")
+            validate_fixture_body_json_schema(response["body"], schema_name, schemas, source)
 
 
 def main() -> None:
     openapi = load_openapi()
-    validate_openapi_standard(openapi)
-    known_schemas = validate_openapi(openapi)
+    validate_openapi_contract(openapi)
     fixtures = load_fixtures()
-    component_schemas = openapi["components"]["schemas"]
-    validate_fixtures(fixtures, known_schemas, component_schemas, openapi, openapi["paths"])
-    print(f"validated R1 contract: {OPENAPI_PATH.relative_to(ROOT)} and {len(fixtures)} fixtures")
+    validate_fixtures(openapi, fixtures)
+    print(f"validated identity-saved contract: {OPENAPI_PATH.relative_to(ROOT)} and {len(fixtures)} fixtures")
 
 
 if __name__ == "__main__":

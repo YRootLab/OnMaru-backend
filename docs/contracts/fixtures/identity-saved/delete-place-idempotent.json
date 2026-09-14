@@ -1,0 +1,17 @@
+{
+  "name": "delete-place-idempotent",
+  "description": "Deleting an already absent saved place still succeeds.",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/v1/saved-resources/places/p-jeonju-hanok-village",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    }
+  },
+  "response": {
+    "status": 204,
+    "headers": {
+      "Cache-Control": "no-store"
+    }
+  }
+}

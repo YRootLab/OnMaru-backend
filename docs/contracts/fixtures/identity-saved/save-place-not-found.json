@@ -1,0 +1,22 @@
+{
+  "name": "save-place-not-found",
+  "description": "Saving an unpublished or unknown canonical place returns 404.",
+  "request": {
+    "method": "PUT",
+    "path": "/api/v1/saved-resources/places/p-private-place",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    }
+  },
+  "response": {
+    "status": 404,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "NOT_FOUND",
+      "message": "The place is not available.",
+      "requestId": "req-save-place-not-found",
+      "details": {}
+    }
+  }
+}
