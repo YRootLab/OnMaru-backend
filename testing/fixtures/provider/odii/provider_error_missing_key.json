@@ -1,0 +1,36 @@
+{
+  "provider": "KTO_ODII",
+  "scenario": "provider_error_missing_key",
+  "capturedAt": "2026-09-14T08:42:50.886Z",
+  "request": {
+    "method": "GET",
+    "endpoint": "storySearchList",
+    "url": "https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&keyword=%ED%95%9C%EC%98%A5&pageNo=1&numOfRows=1",
+    "params": {
+      "langCode": "ko",
+      "keyword": "한옥",
+      "pageNo": "1",
+      "numOfRows": "1",
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json"
+    }
+  },
+  "response": {
+    "status": 401,
+    "headers": {
+      "content-type": "application/json",
+      "date": null
+    },
+    "body": {
+      "OpenAPI_ServiceResponse": {
+        "cmmMsgHeader": {
+          "errMsg": "SERVICE_KEY_IS_NULL",
+          "returnAuthMsg": "서비스 접근거부",
+          "returnReasonCode": "20"
+        }
+      }
+    }
+  },
+  "notes": "Provider error envelope when serviceKey is absent."
+}

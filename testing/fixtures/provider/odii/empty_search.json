@@ -1,0 +1,41 @@
+{
+  "provider": "KTO_ODII",
+  "scenario": "empty_search",
+  "capturedAt": "2026-09-14T08:42:50.628Z",
+  "request": {
+    "method": "GET",
+    "endpoint": "storySearchList",
+    "url": "https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&keyword=ONMARU_NO_MATCH_20260914&pageNo=1&numOfRows=3",
+    "params": {
+      "langCode": "ko",
+      "keyword": "ONMARU_NO_MATCH_20260914",
+      "pageNo": "1",
+      "numOfRows": "3",
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json",
+      "date": "Mon, 14 Sep 2026 08:42:50 GMT"
+    },
+    "body": {
+      "response": {
+        "header": {
+          "resultCode": "0000",
+          "resultMsg": "OK"
+        },
+        "body": {
+          "items": "",
+          "numOfRows": 0,
+          "pageNo": 1,
+          "totalCount": 0
+        }
+      }
+    }
+  },
+  "notes": "Empty result fixture for no-match provider response shape."
+}

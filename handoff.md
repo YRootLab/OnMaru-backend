@@ -12,19 +12,26 @@
 
 ## Current Session Quick Handoff - 2026-09-14
 
-- 현재 작업 브랜치와 worktree: `chore/66-p01-tour-api-validation`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/66-p01`.
+- 현재 작업 브랜치와 worktree: `chore/61-a01-odii-api-validation-2`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/develop-2`.
+- Issue #61 A01 Odii qualification 범위로 실제 Odii API 응답 fixture 8개를 `testing/fixtures/provider/odii`에 redacted 저장했고, `docs/reference-snapshots/odii/manifest.json`과 `README.md`에 hash, license/quota, field mapping, official transcript/empty script/audioUrl 정책을 기록했다.
+- 추가한 검증: `scripts/capture-odii-fixtures.mjs`, `scripts/validate-odii-fixtures.mjs`, `scripts/lib/odii-fixture-validation.mjs`, `scripts/test/odii-fixture-validation.test.mjs`. fixture/manifest는 `serviceKey`를 제거하고 secret-like 문자열과 hash drift를 검증한다.
+- 검증 통과: `node --test scripts/test/*.test.mjs`, `node scripts/validate-odii-fixtures.mjs`, `node scripts/verify-planning-inputs.mjs`, `git diff --check`, `./gradlew test`, `cd ai && uv run pytest`.
+- PR은 `develop` 대상으로 생성하고 merge 시 #61을 닫을 수 있으므로 본문에 `Closes #61`을 사용한다. 후속 #96 A02는 이 fixture와 README의 provider 계약을 기준으로 구현한다.
+
+- 직전 develop merge 포함 작업: `chore/66-p01-tour-api-validation`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/66-p01`.
 - Issue #66 기반 한국관광공사 국문 TourAPI qualification manifest와 redacted provider fixture 9종을 추가했다. 산출물은 `docs/reference-snapshots/tourapi/manifest.json`, `docs/reference-snapshots/tourapi/README.md`, `testing/fixtures/provider/tourapi/*.json`이다.
 - #66 fixture는 정상 목록, 좌표 기반 목록, 상세 공통 정보, 빈 목록, 마지막 page, HTTP 200 오류 envelope, 4xx 인증 오류, 5xx/GW 장애, 429 quota 초과를 포함한다. 서비스 키와 원본 query string은 저장하지 않고 `<REDACTED>`만 사용한다.
 - CI에 `node --test scripts/test/*.test.mjs` documentation fixture 검증을 추가했다. 로컬 검증은 `node --test scripts/test/*.test.mjs` 통과.
 - PR은 #66 완료로 닫아야 하므로 본문에 `Closes #66`를 사용한다.
-- 현재 작업 브랜치와 worktree: `feature/setup-issues`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issues-setup`.
-- 현재 작업 브랜치와 worktree: `feature/131-f07-design-provenance`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/131-f07`.
+
+- 직전 develop merge 포함 작업: `feature/131-f07-design-provenance`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/131-f07`.
 - Issue #131 기반으로 backend 설계 입력을 `docs/reference-snapshots/planning-inputs`에 repo-local snapshot으로 고정했다. `docs/backend_schema_design_guide.md`와 `docs/specs`는 개인 절대경로가 아니라 snapshot을 가리키는 상대 symlink다.
 - `docs/reference-snapshots/planning-inputs/manifest.json`에는 원본 repository, commit, source path, SHA-256을 기록했다. `OnMaru-docs` 원본 working tree에 로컬 변경이 있어 snapshot은 재현 가능한 HEAD blob 기준으로 생성했다.
 - `scripts/verify-planning-inputs.mjs`와 `scripts/lib/planning-inputs-verifier.mjs`를 추가했다. 검증은 manifest 누락/변조, manifest 밖 snapshot 파일, snapshot·contract fixture의 secret-like 값을 실패 처리한다.
 - CI는 `node --test scripts/test/*.test.mjs`와 `node scripts/verify-planning-inputs.mjs`를 실행한다.
 - 검증 통과: `node --test scripts/test/*.test.mjs`, `node scripts/verify-planning-inputs.mjs`, `git diff --check`, `./gradlew --no-daemon check`, `cd ai && uv sync --frozen --all-groups && uv run ruff check . && uv run mypy src tests && uv run pytest`.
 - PR은 `develop` 대상으로 생성한다. 저장소 default branch가 `main`이라 GitHub auto-close가 잡히지 않으므로 PR 본문은 `Refs #131`로 두고, `develop` merge와 Acceptance Criteria 확인 후 #131을 수동 close한다.
+- 이전 setup 작업 브랜치와 worktree: `feature/setup-issues`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issues-setup`.
 - Issue #63 기반 Java 21, Spring Boot 4.1.1, Gradle Wrapper 9.7.1 멀티프로젝트와 `apps/spring-api` 실행 골격을 구축했다. Web MVC·Actuator 및 테스트 의존성은 lock하고 로컬 Gradle 캐시에 받았다.
 - Issue #64 기반 uv 관리 Python 3.12, FastAPI, Uvicorn, pytest, HTTPX, Ruff, mypy 골격을 `ai/`에 구축했다. `uv.lock`의 33개 패키지를 `ai/.venv`와 uv 캐시에 받았다.
 - Spring context/Actuator 테스트 2개와 FastAPI health/readiness 테스트 2개가 통과한다. 실제 Spring `:apps:spring-api:bootRun`의 `/actuator/health`와 Uvicorn의 `/health`, `/ready`도 HTTP 200으로 확인했다.
