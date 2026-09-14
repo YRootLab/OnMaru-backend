@@ -1,16 +1,24 @@
 package com.yrootlab.onmaru.web.review.query;
 
+import com.yrootlab.onmaru.community.command.review.ReviewIdGenerator;
+import com.yrootlab.onmaru.community.command.review.VisitReviewCommandService;
+import com.yrootlab.onmaru.community.command.review.VisitReviewPlace;
+import com.yrootlab.onmaru.community.command.review.VisitReviewPlaceLookup;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewQueryService;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
+import com.yrootlab.onmaru.web.common.idempotency.InMemoryIdempotencyStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Configuration
 class VisitReviewQueryConfiguration {
@@ -32,6 +40,45 @@ class VisitReviewQueryConfiguration {
     @Bean
     VisitReviewQueryService visitReviewQueryService(InMemoryVisitReviewStore store, Clock clock) {
         return new VisitReviewQueryService(store, clock);
+    }
+
+    @Bean
+    VisitReviewCommandService visitReviewCommandService(
+            InMemoryVisitReviewStore store,
+            VisitReviewPlaceLookup placeLookup,
+            ReviewIdGenerator reviewIdGenerator,
+            Clock clock) {
+        return new VisitReviewCommandService(store, placeLookup, reviewIdGenerator, clock);
+    }
+
+    @Bean
+    VisitReviewPlaceLookup visitReviewPlaceLookup() {
+        return placeId -> switch (placeId) {
+            case "p-jeonju-hanok-village" -> Optional.of(new VisitReviewPlace(
+                    placeId,
+                    "전주 한옥마을",
+                    "kr-45-jeonju",
+                    35.8151,
+                    127.1530));
+            case "p-bukchon-hanok-cafe" -> Optional.of(new VisitReviewPlace(
+                    placeId,
+                    "북촌 한옥 찻집",
+                    "kr-11-jongno",
+                    37.5824,
+                    126.9836));
+            default -> Optional.empty();
+        };
+    }
+
+    @Bean
+    ReviewIdGenerator reviewIdGenerator() {
+        var sequence = new AtomicLong();
+        return () -> new UUID(0, sequence.incrementAndGet());
+    }
+
+    @Bean
+    IdempotencyService idempotencyService(Clock clock) {
+        return new IdempotencyService(new InMemoryIdempotencyStore(), clock);
     }
 
     private VisitReviewProjection review(
