@@ -32,7 +32,7 @@ Planning ──무엇을/왜/언제──> Decision ──무엇을 선택했나
 | [`ai/`](ai/README.md) | FastAPI, provider boundary, prompt/eval, RAG·corpus sync | AI source가 아니라 구현 전 설계 문서다. 향후 source root `ai/`와 혼동하지 않는다. |
 | [`operations/`](operations/README.md) | ingestion, LKG, run 복구, backup, observability, moderation | 운영 환경이 이미 구성됐다는 뜻이 아니라 공개 전 검증해야 할 절차다. |
 | [`api/`](api/) | 관광·행정 등 외부 API 조사와 원천 분석 | public API 계약이 아니다. 실제 provider response·quota·licence는 adapter 구현 중 재검증한다. |
-| [`specs/`](specs/) | FE 요구·data contract·traceability 입력 | 현재는 외부 저장소를 가리키는 symlink다. CI 재현용 snapshot/manifest 전환 전에는 로컬 입력 의존성이 남아 있다. |
+| [`specs/`](specs/) | FE 요구·data contract·traceability 입력 | 저장소 내부 [`reference-snapshots/planning-inputs`](reference-snapshots/README.md)를 가리키는 상대 symlink다. 원본 commit과 SHA-256은 manifest로 검증한다. |
 | [`toFE/`](toFE/README.md) | FE 전환 영향과 체크리스트 | field-level current contract는 `contracts/`가 우선한다. |
 | [`report/`](report/) | 날짜별 아키텍처·PRD 감사 보고서 | 검토 시점의 판단 기록이다. 최신 contract나 ADR을 대체하지 않는다. |
 
