@@ -22,7 +22,7 @@ Untriaged follow-up ideas captured during work. GitHub Issues are the source of 
   - Context: `docs/specs` and `docs/backend_schema_design_guide.md` are local symlinks. They are useful locally but not reproducible for CI or another machine unless source commit/path metadata is captured.
   - Acceptance: FE commit hash, source paths, snapshot policy, and generated contract ownership are documented.
   - Suggested labels: `needs-triage`, `type:docs`, `priority:p0`
-  - Issue: none
+  - Issue: #131
 
 - [ ] Handle the observed FE hardcoded service-key fallback.
   - Context: FE source audit found a hardcoded public-data service-key fallback. Do not reproduce the key in docs, logs, commits, or issue bodies.
@@ -51,16 +51,16 @@ Untriaged follow-up ideas captured during work. GitHub Issues are the source of 
   - Issue: none
 
 - [ ] Expand CI after backend scaffold exists.
-  - Context: The repository currently has no package manifest or backend source tree, so CI can only run repository hygiene checks.
+  - Context: Spring and FastAPI manifests now exist, while CI still runs repository hygiene only. The next CI change belongs to the published contract/build verification work.
   - Acceptance: CI runs Gradle build/test, Python test/lint if FastAPI exists, architecture tests, migration validation, and OpenAPI/schema validation.
   - Suggested labels: `needs-triage`, `type:chore`, `priority:p1`
-  - Issue: none
+  - Issue: #69
 
 - [ ] Formalize architecture rules with ArchUnit and Gradle boundaries.
   - Context: Planning requires domain code to avoid Spring/JPA/adapter dependencies, but no code-level enforcement exists yet.
   - Acceptance: Architecture tests fail on forbidden domain/application/adapter dependencies.
   - Suggested labels: `needs-triage`, `type:architecture`, `priority:p1`
-  - Issue: none
+  - Issue: #68
 
 - [ ] Convert prose FE API handoff into versioned OpenAPI and SSE schemas.
   - Context: Journey exploration API handoff is descriptive, not a validated contract.
