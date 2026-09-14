@@ -39,8 +39,8 @@
       "issueNumber": 80,
       "path": "apps/spring-api/src/main/resources/db/migration/baseline/V004__d07_sync_operations_schema.sql",
       "checksum": "d07-v004-20260915",
-      "sha256": "9c474f10ec3cf60831c831be83751c1c21224fed21d8dc477e678280aa9706be",
-      "description": "Sync operations schedules, runs, leases, checkpoints, watermarks, quarantine, and outbox schema"
+      "sha256": "d1bdb774a13c88c43154968cbff3174a6d48ad2ded85ed8a9b27b0597b8f4e61",
+      "description": "Admission counters, sync operations schedules, runs, leases, checkpoints, watermarks, quarantine, and outbox schema"
     },
     {
       "version": "005",

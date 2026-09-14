@@ -50,6 +50,15 @@ CREATE INDEX operations_sync_runs_dataset_status_idx
 CREATE INDEX operations_sync_runs_revision_id_idx
     ON onmaru.operations_sync_runs (revision_id);
 
+CREATE TABLE onmaru.operations_admission (
+    scope_key varchar PRIMARY KEY,
+    window_start timestamptz NOT NULL,
+    consumed integer NOT NULL,
+    active_count integer NOT NULL,
+    CONSTRAINT operations_admission_consumed_ck CHECK (consumed >= 0),
+    CONSTRAINT operations_admission_active_count_ck CHECK (active_count >= 0)
+);
+
 CREATE TABLE onmaru.operations_sync_checkpoints (
     run_id uuid NOT NULL REFERENCES onmaru.operations_sync_runs (id),
     partition_key varchar NOT NULL,
