@@ -1,0 +1,18 @@
+{
+  "name": "internal-ai-proposal-accepted",
+  "request": {
+    "method": "POST",
+    "path": "/internal/v1/journey/proposals"
+  },
+  "response": {
+    "status": 202,
+    "schema": "InternalJourneyProposalAccepted",
+    "body": {
+      "schemaVersion": "internal.ai.v1",
+      "status": "accepted",
+      "requestId": "req-ai-001",
+      "runId": "run-ai-001",
+      "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+    }
+  }
+}
