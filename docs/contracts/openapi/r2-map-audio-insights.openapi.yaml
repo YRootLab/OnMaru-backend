@@ -1,0 +1,667 @@
+openapi: 3.1.0
+info:
+  title: OnMaru R2 Map, Odii, and Insights API
+  version: 1.2.0-draft
+  description: >-
+    Machine-readable R2 public read contract for map place search,
+    administrative region resolution/counts, Odii stories, and tourism
+    observation heatmap surfaces. This contract is documentation only until the
+    related endpoint implementation issues are completed.
+servers:
+  - url: /api/v1
+tags:
+  - name: Map
+  - name: Region
+  - name: Odii
+  - name: Insights
+paths:
+  /map/places:
+    get:
+      tags: [Map]
+      operationId: listMapPlaces
+      summary: List public map places inside a bounded viewport or region.
+      parameters:
+        - $ref: '#/components/parameters/Language'
+        - name: regionCode
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - name: bbox
+          in: query
+          required: false
+          description: west,south,east,north in WGS84; max service area is implementation-defined.
+          schema:
+            type: string
+            pattern: '^-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?$'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Public map place page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapPlacePage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /regions/resolve:
+    get:
+      tags: [Region]
+      operationId: resolveRegion
+      summary: Resolve WGS84 coordinates into candidate administrative regions.
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+      responses:
+        '200':
+          description: Candidate administrative regions; no-store.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegionResolution'
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /visit-review-regions:
+    get:
+      tags: [Region]
+      operationId: listVisitReviewRegions
+      summary: List administrative region public visit-review counts.
+      parameters:
+        - name: parentRegionCode
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+      responses:
+        '200':
+          description: Region review counts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegionCountPage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /odii/stories:
+    get:
+      tags: [Odii]
+      operationId: listOdiiStories
+      summary: List public Odii stories with language fallback status.
+      parameters:
+        - $ref: '#/components/parameters/Language'
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
+        - name: regionCode
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Odii story page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OdiiStoryPage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /odii/stories/{storyId}:
+    get:
+      tags: [Odii]
+      operationId: getOdiiStoryDetail
+      summary: Get one public Odii story, audio URL, and transcript.
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+        - $ref: '#/components/parameters/Language'
+      responses:
+        '200':
+          description: Odii story detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OdiiStoryDetail'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /insights/observations:
+    get:
+      tags: [Insights]
+      operationId: listTourismObservations
+      summary: List public tourism visitor observations for a region and metric.
+      parameters:
+        - name: regionCode
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - name: metric
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ObservationMetric'
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Tourism observation page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObservationPage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /insights/heatmap:
+    get:
+      tags: [Insights]
+      operationId: getTourismHeatmap
+      summary: Get public tourism visitor concentration heatmap spots.
+      parameters:
+        - name: regionCode
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: metric
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ObservationMetric'
+      responses:
+        '200':
+          description: Tourism heatmap spots.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeatmapResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+    Language:
+      name: language
+      in: query
+      required: false
+      schema:
+        type: string
+        pattern: '^[a-z]{2}(-[A-Z]{2})?$'
+        default: ko-KR
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    StoryId:
+      name: storyId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^odii-story-[a-z0-9-]{3,80}$'
+  responses:
+    Error:
+      description: Error envelope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    SchemaVersion:
+      type: string
+      const: '1.2'
+    Coordinates:
+      type: object
+      additionalProperties: false
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          minimum: -180
+          maximum: 180
+    CoverageStatus:
+      type: string
+      enum: [COMPLETE, PARTIAL, MISSING, STALE]
+    LanguageStatus:
+      type: string
+      enum: [EXACT, FALLBACK, MISSING]
+    ObservationMetric:
+      type: string
+      enum: [VISITOR_COUNT, CONGESTION_SCORE, SURGE_MULTIPLIER]
+    RegionRef:
+      type: object
+      additionalProperties: false
+      required: [regionCode, name, level]
+      properties:
+        regionCode:
+          type: string
+        name:
+          type: string
+        level:
+          type: string
+          enum: [COUNTRY, PROVINCE, CITY, DISTRICT]
+        parentRegionCode:
+          type: [string, 'null']
+    MapPlaceCard:
+      type: object
+      additionalProperties: false
+      required:
+        - placeId
+        - name
+        - category
+        - region
+        - coordinates
+        - thumbnailUrl
+        - summary
+        - savedByMe
+        - dataAvailability
+      properties:
+        placeId:
+          type: string
+          pattern: '^p-[a-z0-9-]{3,80}$'
+        name:
+          type: string
+        category:
+          type: string
+        region:
+          $ref: '#/components/schemas/RegionRef'
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        thumbnailUrl:
+          type: [string, 'null']
+          format: uri
+        summary:
+          type: string
+        savedByMe:
+          type: boolean
+        linkedOdiiStoryIds:
+          type: array
+          items:
+            type: string
+            pattern: '^odii-story-[a-z0-9-]{3,80}$'
+        dataAvailability:
+          type: object
+          additionalProperties: false
+          required: [place, observation, odii]
+          properties:
+            place:
+              $ref: '#/components/schemas/CoverageStatus'
+            observation:
+              $ref: '#/components/schemas/CoverageStatus'
+            odii:
+              $ref: '#/components/schemas/CoverageStatus'
+    MapPlacePage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, coverageStatus, language, items, nextCursor, hasMore]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        coverageStatus:
+          $ref: '#/components/schemas/CoverageStatus'
+        language:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapPlaceCard'
+        nextCursor:
+          type: [string, 'null']
+        hasMore:
+          type: boolean
+    RegionResolution:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, coordinates, candidates, resolvedAt]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        candidates:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [region, confidence]
+            properties:
+              region:
+                $ref: '#/components/schemas/RegionRef'
+              confidence:
+                type: number
+                minimum: 0
+                maximum: 1
+        resolvedAt:
+          type: string
+          format: date-time
+    RegionCountPage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, regionRevision, countsAsOf, parentRegionCode, unassignedCount, items]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        regionRevision:
+          type: string
+        countsAsOf:
+          type: string
+          format: date-time
+        parentRegionCode:
+          type: [string, 'null']
+        unassignedCount:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [region, reviewCount]
+            properties:
+              region:
+                $ref: '#/components/schemas/RegionRef'
+              reviewCount:
+                type: integer
+                minimum: 0
+    OdiiStorySummary:
+      type: object
+      additionalProperties: false
+      required:
+        - storyId
+        - title
+        - audioTitle
+        - category
+        - region
+        - coordinates
+        - durationSeconds
+        - imageUrl
+        - linkedPlaceId
+        - savedByMe
+      properties:
+        storyId:
+          type: string
+          pattern: '^odii-story-[a-z0-9-]{3,80}$'
+        title:
+          type: string
+        audioTitle:
+          type: string
+        category:
+          type: string
+        region:
+          $ref: '#/components/schemas/RegionRef'
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        durationSeconds:
+          type: [integer, 'null']
+          minimum: 0
+        imageUrl:
+          type: [string, 'null']
+          format: uri
+        linkedPlaceId:
+          type: [string, 'null']
+          pattern: '^p-[a-z0-9-]{3,80}$'
+        savedByMe:
+          type: boolean
+    OdiiStoryPage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, coverageStatus, language, languageStatus, items, nextCursor, hasMore]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        coverageStatus:
+          $ref: '#/components/schemas/CoverageStatus'
+        language:
+          type: string
+        languageStatus:
+          $ref: '#/components/schemas/LanguageStatus'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OdiiStorySummary'
+        nextCursor:
+          type: [string, 'null']
+        hasMore:
+          type: boolean
+    ScriptLine:
+      type: object
+      additionalProperties: false
+      required: [index, startSecond, text]
+      properties:
+        index:
+          type: integer
+          minimum: 0
+        startSecond:
+          type: number
+          minimum: 0
+        text:
+          type: string
+    OdiiStoryDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - coverageStatus
+        - language
+        - languageStatus
+        - story
+        - audioUrl
+        - transcript
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        coverageStatus:
+          $ref: '#/components/schemas/CoverageStatus'
+        language:
+          type: string
+        languageStatus:
+          $ref: '#/components/schemas/LanguageStatus'
+        story:
+          $ref: '#/components/schemas/OdiiStorySummary'
+        audioUrl:
+          type: string
+          format: uri
+        transcript:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScriptLine'
+    Observation:
+      type: object
+      additionalProperties: false
+      required: [observationId, region, observedDate, metric, value, unit, coverageStatus]
+      properties:
+        observationId:
+          type: string
+        region:
+          $ref: '#/components/schemas/RegionRef'
+        observedDate:
+          type: string
+          format: date
+        metric:
+          $ref: '#/components/schemas/ObservationMetric'
+        value:
+          type: [number, 'null']
+        unit:
+          type: string
+        coverageStatus:
+          $ref: '#/components/schemas/CoverageStatus'
+    ObservationPage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, coverageStatus, generatedAt, items]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        coverageStatus:
+          $ref: '#/components/schemas/CoverageStatus'
+        generatedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Observation'
+    HeatSpot:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - placeId
+        - name
+        - region
+        - coordinates
+        - visitorCount
+        - congestionScore
+        - congestionLevel
+        - surgeMultiplier
+        - coverageStatus
+      properties:
+        id:
+          type: string
+        placeId:
+          type: string
+          pattern: '^p-[a-z0-9-]{3,80}$'
+        name:
+          type: string
+        region:
+          $ref: '#/components/schemas/RegionRef'
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        visitorCount:
+          type: [integer, 'null']
+          minimum: 0
+        congestionScore:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 100
+        congestionLevel:
+          type: string
+          enum: [RELAXED, MODERATE, BUSY, SURGE, UNKNOWN]
+        surgeMultiplier:
+          type: [number, 'null']
+          minimum: 0
+        coverageStatus:
+          $ref: '#/components/schemas/CoverageStatus'
+    HeatmapResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, coverageStatus, metric, observedDate, generatedAt, spots]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        coverageStatus:
+          $ref: '#/components/schemas/CoverageStatus'
+        metric:
+          $ref: '#/components/schemas/ObservationMetric'
+        observedDate:
+          type: string
+          format: date
+        generatedAt:
+          type: string
+          format: date-time
+        spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/HeatSpot'
+    Error:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, code, message, requestId, details]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        code:
+          type: string
+          enum:
+            - INVALID_REQUEST
+            - NOT_FOUND
+            - CURSOR_EXPIRED
+            - SERVICE_UNAVAILABLE
+        message:
+          type: string
+        requestId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

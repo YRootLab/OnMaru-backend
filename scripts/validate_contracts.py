@@ -102,6 +102,20 @@ def path_specificity(openapi_path: str) -> tuple[int, int]:
     return static_segments, len(segments)
 
 
+def fixture_contract_group(root: Path, fixture_path: Path) -> str | None:
+    relative = fixture_path.relative_to(root)
+    parts = relative.parts
+    if len(parts) >= 4 and parts[:3] == ("docs", "contracts", "fixtures"):
+        return parts[3]
+    return None
+
+
+def contract_matches_fixture_group(contract: dict[str, Any], group: str | None) -> bool:
+    if group is None:
+        return False
+    return contract["path"].stem.startswith(group)
+
+
 def collect_openapi_contracts(root: Path) -> list[dict[str, Any]]:
     contracts: list[dict[str, Any]] = []
     for path in iter_contract_files(root, "docs/contracts/openapi", (".json", ".yaml", ".yml")):
@@ -184,6 +198,12 @@ def response_schema_name(
         fail(f"{source} request path is not declared in OpenAPI: {path}")
     best_specificity = max(match[2] for match in matches)
     matches = [match for match in matches if match[2] == best_specificity]
+    fixture_group = fixture_contract_group(root, fixture_path)
+    grouped_matches = [
+        match for match in matches if contract_matches_fixture_group(match[0], fixture_group)
+    ]
+    if grouped_matches:
+        matches = grouped_matches
     if len(matches) > 1:
         matched_paths = [f"{match[0]['path'].relative_to(root)}:{match[1]}" for match in matches]
         fail(f"{source} request path is ambiguous across OpenAPI contracts: {matched_paths}")

@@ -272,6 +272,55 @@ def test_contract_validator_prefers_static_path_over_parameter_path(tmp_path: Pa
     validator.validate_contracts(root)
 
 
+def test_contract_validator_uses_fixture_group_to_choose_duplicate_openapi_path(
+    tmp_path: Path,
+) -> None:
+    validator = load_validator()
+    root = create_contract_tree(tmp_path)
+    legacy = minimal_openapi()
+    legacy["paths"] = {
+        "/regions": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "legacy",
+                        "content": {
+                            "application/json": {"schema": {"$ref": "#/components/schemas/Greeting"}}
+                        },
+                    }
+                }
+            }
+        }
+    }
+    r2 = minimal_openapi()
+    r2["paths"] = legacy["paths"]
+    r2["components"]["schemas"]["Greeting"] = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["message", "schemaVersion"],
+        "properties": {
+            "message": {"type": "string"},
+            "schemaVersion": {"const": "1.2"},
+        },
+    }
+    write_yaml(root / "docs/contracts/openapi/legacy.openapi.yaml", legacy)
+    write_yaml(root / "docs/contracts/openapi/r2-map.openapi.yaml", r2)
+    write_json(
+        root / "docs/contracts/fixtures/r2/region-count-normal.json",
+        {
+            "name": "region-count-normal",
+            "request": {"method": "GET", "path": "/api/v1/regions"},
+            "response": {
+                "status": 200,
+                "schema": "Greeting",
+                "body": {"schemaVersion": "1.2", "message": "r2 contract"},
+            },
+        },
+    )
+
+    validator.validate_contracts(root)
+
+
 def test_verify_contracts_rejects_stale_generated_artifact(tmp_path: Path) -> None:
     root = create_contract_tree(tmp_path)
     generated_dir = tmp_path / "generated"

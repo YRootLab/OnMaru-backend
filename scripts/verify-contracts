@@ -72,6 +72,7 @@ if [[ "$contracts_only" == "true" ]]; then
 fi
 
 python3 scripts/test/validate-r1-contract.py
+python3 scripts/test/validate-r2-contract.py
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
