@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "environment": "staging",
+  "services": [
+    {
+      "name": "spring-api",
+      "image": "ghcr.io/yrootlab/onmaru-backend/spring-api",
+      "dockerfile": "Dockerfile",
+      "port": 8080,
+      "readinessPath": "/actuator/health"
+    },
+    {
+      "name": "ai-service",
+      "image": "ghcr.io/yrootlab/onmaru-backend/ai-service",
+      "dockerfile": "ai/Dockerfile",
+      "port": 8000,
+      "readinessPath": "/ready"
+    }
+  ],
+  "deployOrder": [
+    "build-and-scan-images",
+    "migration-gate",
+    "deploy-spring-api",
+    "deploy-ai-service",
+    "staging-smoke",
+    "rollback-on-failure"
+  ],
+  "migration": {
+    "owner": "spring-api",
+    "command": "./gradlew :apps:spring-api:bootRun --args='--spring.flyway.enabled=true --spring.main.web-application-type=none'",
+    "failurePolicy": "block-deploy-and-keep-previous-release"
+  },
+  "smoke": {
+    "endpoints": [
+      "/actuator/health",
+      "/ready"
+    ],
+    "failurePolicy": "rollback-on-failure"
+  },
+  "rollback": {
+    "strategy": "previous-image-digest",
+    "evidencePath": "docs/operations/release-evidence/staging"
+  },
+  "credentials": {
+    "runtime": {
+      "secretRef": "ONMARU_STAGING_DB_RUNTIME",
+      "canDdl": false
+    },
+    "migration": {
+      "secretRef": "ONMARU_STAGING_DB_MIGRATION",
+      "canDdl": true
+    },
+    "readonly": {
+      "secretRef": "ONMARU_STAGING_DB_READONLY",
+      "canDdl": false
+    },
+    "backup": {
+      "secretRef": "ONMARU_STAGING_DB_BACKUP",
+      "canDdl": false
+    }
+  }
+}
