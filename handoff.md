@@ -1,5 +1,17 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-14 Issue #69
+
+- 현재 작업 브랜치와 worktree: `feature/69-openapi-json-schema-dbml-ci`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f05-openapi-json-schema-dbml-ci`.
+- 사용자 요청: Issue #69 OpenAPI·JSON Schema·DBML 검증 CI를 TDD로 구현하고, 작업 과정을 `troubleshooting-worklog`로 상세 기록한 뒤 PR을 올린다.
+- 구현 범위: `scripts/validate_contracts.py` 공통 검증기를 추가해 `docs/contracts/openapi` OpenAPI lint, OpenAPI component schema 기반 fixture body 검증, standalone JSON Schema check를 수행한다.
+- 기존 `scripts/verify-contracts`는 `--root`, `--contracts-only` 테스트 옵션을 지원하고, 실제 CI에서는 공통 계약 검증 뒤 R1/R2 전용 검증, DBML compile, Azimutt/Postgres generated artifact diff를 계속 수행한다.
+- TDD evidence: `scripts/test/test_contract_validation.py`를 먼저 추가했고, 초기 RED는 `scripts/validate_contracts.py` 부재와 negative fixture 미검출로 실패했다. 리뷰 후 schema name collision, OpenAPI response schema mismatch, static path 우선순위, stale generated artifact diff 경로를 추가 RED/GREEN으로 보강했다.
+- CI 변경: `.github/workflows/ci.yml`에 `Contract validator tests` 단계(`python3 -m pytest scripts/test/test_contract_validation.py`)를 추가했고, develop의 공통 `scripts/test/requirements-contract.txt`에 `pytest==8.4.2`를 유지한다.
+- 작업 로그: `troubleshooting-worklog/26.09.14 openapi-json-schema-dbml-ci.md`.
+- 로컬 검증 통과: `python3 -m pytest scripts/test/test_contract_validation.py`(7 passed), `bash scripts/verify-contracts`, `node --test scripts/test/*.test.mjs`, `node scripts/verify-planning-inputs.mjs && node scripts/validate-odii-fixtures.mjs`, `./gradlew test --no-daemon`, `cd ai && uv run pytest`, `git diff --check`.
+- PR은 `develop` 대상으로 생성한다. 이번 merge가 #69 acceptance를 완료하므로 PR 본문에 `Closes #69`를 사용한다. merge 전 GitHub Actions와 review 상태를 다시 확인한다.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #132
 
 - 현재 작업 브랜치와 worktree: `SHcommit/f09-savedresource-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f09-savedresource-openapi-fixture`.

@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Add Issue #69 contract validator tests for OpenAPI lint, JSON fixture/schema mismatch, DBML compile, and generated artifact drift checks.
 - Add identity/member/SavedResource OpenAPI fixtures and contract validation for Issue #132.
 - Add R2 map, region, Odii, and tourism insights OpenAPI fixtures with R1/R2 contract validation.
 - Add D01 Flyway baseline migration, migration registry policy checks, and PostgreSQL role separation tests for Issue #67.

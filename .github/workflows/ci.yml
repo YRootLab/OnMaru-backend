@@ -58,6 +58,9 @@ jobs:
       - name: Install public contract validation dependencies
         run: python3 -m pip install -r scripts/test/requirements-contract.txt
 
+      - name: Contract validator tests
+        run: python3 -m pytest scripts/test/test_contract_validation.py
+
       - name: Set up Node.js for DBML validation
         uses: actions/setup-node@v4
         with:
