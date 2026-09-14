@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0",
+  "issue": 137,
+  "dataset": "administrative-region-boundaries",
+  "source": {
+    "provider": "행정안전부",
+    "datasetName": "법정동 경계 데이터",
+    "datasetUrl": "https://www.data.go.kr/data/15083799/fileData.do",
+    "coordinateReferenceSystem": "EPSG:4326",
+    "observedAt": "2026-09-15T03:00:00+09:00"
+  },
+  "license": {
+    "name": "공공누리 제1유형",
+    "publicUseAllowed": true,
+    "attribution": "행정안전부 법정동 경계 데이터"
+  },
+  "revision": {
+    "id": "region-boundaries-qualified-20260915",
+    "hashAlgorithm": "SHA-256",
+    "hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "qualification": {
+    "activationBlockedWithoutManifest": true,
+    "geometryType": "MultiPolygon",
+    "requiredLevels": ["SIDO", "SIGUNGU"],
+    "quarantineReasons": [
+      "INVALID_GEOMETRY",
+      "PARENT_REGION_NOT_FOUND",
+      "MISSING_REQUIRED_FIELD",
+      "INVALID_PARENT_REGION",
+      "SOURCE_NOT_QUALIFIED"
+    ]
+  },
+  "fixtureCoverage": [
+    {
+      "id": "same-name-district",
+      "purpose": "서울 중구와 부산 중구를 parentRegionCode로 구분한다."
+    },
+    {
+      "id": "city-without-gu",
+      "purpose": "구가 없는 시군을 시도 바로 아래 SIGUNGU로 보존한다."
+    },
+    {
+      "id": "boundary-point",
+      "purpose": "경계선 위 좌표도 포함 판정한다."
+    },
+    {
+      "id": "invalid-geometry-quarantine",
+      "purpose": "닫히지 않은 ring과 한국 밖 좌표를 quarantine한다."
+    }
+  ]
+}
