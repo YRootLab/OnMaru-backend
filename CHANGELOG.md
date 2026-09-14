@@ -7,6 +7,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 - Add identity/member/SavedResource OpenAPI fixtures and contract validation for Issue #132.
 - Add R2 map, region, Odii, and tourism insights OpenAPI fixtures with R1/R2 contract validation.
 - Add shared Spring web contracts for schemaVersion 1.2 error envelopes, request IDs, signed cursors, and idempotency primitives for Issue #70.
+- Add D01 Flyway baseline migration, migration registry policy checks, and PostgreSQL role separation tests for Issue #67.
 - Add R1 hanok/place/saved-resource OpenAPI fixtures and CI contract validation for OpenAPI, JSON Schema, DBML, generated SQL, Spring, and FastAPI checks.
 - Harden Odii fixture validation to reject long URL-encoded token query values in captured manifest URLs.
 - Capture redacted Odii API qualification fixtures and license/provenance manifest for Issue #61.
