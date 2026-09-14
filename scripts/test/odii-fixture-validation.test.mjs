@@ -72,3 +72,61 @@ test('rejects fixture JSON fields that leak service keys', async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('rejects fixture hash mismatches', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'odii-fixtures-'));
+  try {
+    const fixtureDir = path.join(dir, 'fixtures');
+    await mkdir(fixtureDir, { recursive: true });
+    await writeFile(path.join(fixtureDir, 'normal.json'), '{}\n');
+    await writeFile(
+      path.join(dir, 'manifest.json'),
+      JSON.stringify({
+        requiredScenarios: ['normal'],
+        captures: [
+          {
+            scenario: 'normal',
+            fixture: 'normal.json',
+            sha256: '0000000000000000000000000000000000000000000000000000000000000000',
+          },
+        ],
+      }),
+    );
+
+    await assert.rejects(
+      () => validateOdiiFixtureSet({ rootDir: dir, manifestPath: path.join(dir, 'manifest.json'), fixtureDir }),
+      /fixture hash mismatch for normal\.json/,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('rejects manifests missing required scenarios', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'odii-fixtures-'));
+  try {
+    const fixtureDir = path.join(dir, 'fixtures');
+    await mkdir(fixtureDir, { recursive: true });
+    await writeFile(path.join(fixtureDir, 'other.json'), '{}\n');
+    await writeFile(
+      path.join(dir, 'manifest.json'),
+      JSON.stringify({
+        requiredScenarios: ['normal'],
+        captures: [
+          {
+            scenario: 'other',
+            fixture: 'other.json',
+            sha256: 'ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356',
+          },
+        ],
+      }),
+    );
+
+    await assert.rejects(
+      () => validateOdiiFixtureSet({ rootDir: dir, manifestPath: path.join(dir, 'manifest.json'), fixtureDir }),
+      /missing required Odii scenarios: normal/,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
