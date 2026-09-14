@@ -1,5 +1,16 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-14 Issue #73
+
+- 현재 작업 브랜치와 worktree: `SHcommit/p02-tourapi-http-client-envelope-parser`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/p02-tourapi-http-client-envelope-parser`.
+- Issue #73 `[P02] TourAPI HTTP client·envelope parser 구현` 범위로 `adapters:tourism-api` 모듈을 추가했다.
+- 구현 범위: JSON/XML envelope parser, typed `TourApiSourceRecord`, 명시 오류 분류, Java `HttpClient` transport, retry/page budget, operation별 URI builder, Spring 설정 바인딩.
+- parser 계약: qualification fixture 9종을 단일 원본 `testing/fixtures/provider/tourapi`에서 읽고, HTTP 200 error envelope, 429 Retry-After, auth/permission, provider parameter, 5xx/timeout, schema drift, list/singleton/empty item, pagination drift를 테스트한다.
+- transport 계약: 5xx retry, auth non-retry, 429 Retry-After sleep, transport failure retryable error, page timeout budget 초과 방지를 mock HTTP server 테스트로 검증한다.
+- Spring API는 `onmaru.tourapi.client.*` 설정을 `TourApiClientProperties` bean으로 바인딩한다. 기본값은 connect1s/attempt5s/page12s/retry2이고 `application.yaml`에 명시했다.
+- CI는 `TourAPI adapter tests`와 `Spring API tests` step을 분리했다. 기존 Node/Python/contract 검증은 유지한다.
+- DB publish, scheduler, source validation/category mapping/quarantine은 #73 범위 밖이며 후속 #88/#89 성격이다.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #68
 
 - 현재 작업 브랜치와 worktree: `SHcommit/f02-spring-port-adapter-archunit`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f02-spring-port-adapter-archunit`.
