@@ -80,3 +80,9 @@ jobs:
       - name: FastAPI service tests
         working-directory: ai
         run: uv run pytest
+
+      - name: FastAPI lint and typecheck
+        working-directory: ai
+        run: |
+          uv run ruff check
+          uv run mypy

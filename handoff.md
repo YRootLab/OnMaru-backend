@@ -48,6 +48,16 @@
 - Spring 앱 연결: `apps:spring-api`가 `:modules:shared-web`에 의존하도록 설정하고 dependency lockfile을 갱신했다.
 - 검증: TDD RED에서 cursor/idempotency 계약 타입 부재 compile failure와 추가 `IdempotencyKey`/`IdempotencyFingerprint` 타입 부재 compile failure를 확인한 뒤 구현했다. `./gradlew :modules:shared-web:test :apps:spring-api:test --tests '*CursorCodecTests' --tests '*IdempotencyServiceTests' --tests '*ApiErrorContractTests'`, `./gradlew :modules:shared-web:test :apps:spring-api:test --tests '*IdempotencyKeyTests' --tests '*IdempotencyFingerprintTests' --tests '*ApiErrorContractTests'`, `./gradlew test`, `cd ai && uv run pytest` 통과.
 - PR 작성 전 확인: #70 PR은 `develop` 대상으로 생성한다. acceptance는 cursor 만료/변조 contract와 동일 key/동일 payload replay 및 다른 payload 409 근거를 본문에 적고, merge가 #70 완료 조건이면 `Closes #70`를 사용한다.
+## Current Session Quick Handoff - 2026-09-14 Issue #72
+
+- 현재 작업 브랜치와 worktree: `SHcommit/o03-server-only-secret-loading-rotation-redactio`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/o03-server-only-secret-loading-rotation-redactio`.
+- Issue #72 `[O03] Server-only secret loading·rotation·redaction 정책 구현` 범위로 Spring API와 FastAPI AI service의 server-only secret loading 경계를 구현했다. PR merge 시 완료되는 범위이므로 본문에는 `Closes #72`를 사용한다.
+- Spring 산출물: `apps/spring-api/src/main/java/com/yrootlab/onmaru/config/secrets/*`, `logback-spring.xml`, secret config/redaction tests. 기본 source는 environment로 fail closed이며 test는 fake provider를 명시한다.
+- FastAPI 산출물: `ai/src/onmaru_ai/config/secrets.py`, logging redaction filter, `create_app` startup validation, pytest fixtures/tests. 기본 source는 environment로 fail closed이며 test는 fake provider를 명시한다.
+- 운영 문서: `docs/operations/runbooks/secrets.md`에 current/previous 환경 변수 naming, rotation drill, emergency revocation, redaction verification을 기록했다. 실제 secret 값은 기록하지 않았다.
+- CI 보강: 기존 Gradle/Pytest에 더해 FastAPI `ruff check`와 `mypy`를 `.github/workflows/ci.yml`에 추가했다.
+- 검증 통과: `./gradlew test --no-daemon`, `cd ai && uv run pytest && uv run ruff check && uv run mypy`, `git diff --check && node --test scripts/test/*.test.mjs && node scripts/verify-planning-inputs.mjs && node scripts/validate-odii-fixtures.mjs`, `bash scripts/verify-contracts`. `verify-contracts`는 로컬 macOS Python LibreSSL warning을 출력했지만 exit code 0이었다.
+- PR merge 전 review/CI 상태와 #72 acceptance criteria를 다시 확인한다. 이슈는 merge 전 수동 close하지 않고 PR auto-close로 처리한다.
 
 ## Current Session Quick Handoff - 2026-09-14 Issue #65
 
