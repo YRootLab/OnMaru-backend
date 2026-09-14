@@ -14,6 +14,15 @@
       "checksum": "d01-v001-20260914",
       "sha256": "be80e7389c52d8db92345b6e1c77ed6046944d57959059ec738367c512b5781c",
       "description": "Flyway migration namespace, baseline registry, checksum policy, and database role grants"
+    },
+    {
+      "version": "002",
+      "reservedFor": "D02",
+      "issueNumber": 75,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V002__d02_catalog_revision_schema.sql",
+      "checksum": "d02-v002-20260915",
+      "sha256": "1141a3b8cd0adf25a0afd7510c1ccacfd4a891b2c37c49513b6bfc8333aada50",
+      "description": "Catalog canonical place, source identity, dataset revision, and PostGIS projection schema"
     }
   ]
 }
