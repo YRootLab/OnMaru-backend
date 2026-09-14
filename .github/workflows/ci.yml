@@ -45,6 +45,9 @@ jobs:
       - name: Identity module tests
         run: ./gradlew :modules:identity:test --no-daemon
 
+      - name: Journey module tests
+        run: ./gradlew :modules:journey:test --no-daemon
+
       - name: Operations module tests
         run: ./gradlew :modules:operations:test --no-daemon
 

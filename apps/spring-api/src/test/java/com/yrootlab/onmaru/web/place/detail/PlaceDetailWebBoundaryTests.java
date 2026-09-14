@@ -4,12 +4,12 @@ import com.yrootlab.onmaru.OnMaruApplication;
 import com.yrootlab.onmaru.catalog.application.query.detail.CoordinatesProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.ImageProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailStore;
-import com.yrootlab.onmaru.catalog.application.query.detail.InMemorySavedPlaceStateLookup;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.RegionProjection;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +37,7 @@ class PlaceDetailWebBoundaryTests {
     private InMemoryPlaceDetailStore placeStore;
 
     @Autowired
-    private InMemorySavedPlaceStateLookup savedPlaceStateLookup;
+    private InMemorySavedPlaceStore savedPlaceStore;
 
     @Autowired
     private InMemoryIdentityStore identityStore;
@@ -51,7 +51,7 @@ class PlaceDetailWebBoundaryTests {
     @BeforeEach
     void setUp() {
         placeStore.clear();
-        savedPlaceStateLookup.clear();
+        savedPlaceStore.clear();
         identityStore.clear();
         memberId = identityStore.createMember(clock.instant());
         identityStore.saveSession(new SessionRecord(
@@ -60,7 +60,7 @@ class PlaceDetailWebBoundaryTests {
                 clock.instant(),
                 clock.instant(),
                 clock.instant().plusSeconds(3600)));
-        savedPlaceStateLookup.save(memberId, "p-jeonju-hanok-village");
+        savedPlaceStore.save(memberId, "p-jeonju-hanok-village", clock.instant(), 500);
         placeStore.add(PlaceProjection.publicPlace(
                 "p-jeonju-hanok-village",
                 "전주 한옥마을",
