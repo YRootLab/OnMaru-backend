@@ -135,6 +135,7 @@ class DatabaseMigrationContractTests {
         try (var connection = connect();
              var statement = connection.createStatement()) {
             assertOwnerXorRejectsBothInvalidShapes(statement);
+            assertOperationAdmissionRaceAllowsNoOverLimit(statement);
             assertRunAdmissionRaceAllowsOneActiveRun(statement);
             assertActorAdmissionRaceAllowsOneActiveActorRun(statement);
             assertCancelAndCompletionRaceLeavesOneTerminalState(statement);
@@ -178,6 +179,31 @@ class DatabaseMigrationContractTests {
         })
                 .isInstanceOf(SQLException.class)
                 .hasMessageContaining("discovery_explorations_owner_xor_ck");
+    }
+
+    private static void assertOperationAdmissionRaceAllowsNoOverLimit(Statement statement) throws Exception {
+        statement.execute("""
+                INSERT INTO onmaru.operations_admission (
+                    scope_key, window_start, consumed, active_count
+                ) VALUES (
+                    'review.write:member:member-1',
+                    '2026-09-15T03:00:00+09:00',
+                    0,
+                    0
+                )
+                """);
+
+        var results = runRace(
+                () -> consumeAdmission("review.write:member:member-1", 1),
+                () -> consumeAdmission("review.write:member:member-1", 1)
+        );
+
+        assertThat(results).containsExactlyInAnyOrder(RaceResult.UPDATED, RaceResult.NOOP);
+        assertThat(countRows(statement, """
+                SELECT consumed
+                FROM onmaru.operations_admission
+                WHERE scope_key = 'review.write:member:member-1'
+                """)).isEqualTo(1);
     }
 
     private static void assertRunAdmissionRaceAllowsOneActiveRun(Statement statement) throws Exception {
@@ -613,6 +639,16 @@ class DatabaseMigrationContractTests {
                 WHERE dataset = '%s'
                   AND revision_id = '%s'
                 """.formatted(nextRevisionId, dataset, expectedRevisionId));
+    }
+
+    private static RaceResult consumeAdmission(String scopeKey, int limit) throws Exception {
+        return updateRows("""
+                UPDATE onmaru.operations_admission
+                SET consumed = consumed + 1
+                WHERE scope_key = '%s'
+                  AND window_start = '2026-09-15T03:00:00+09:00'
+                  AND consumed < %d
+                """.formatted(scopeKey, limit));
     }
 
     private static RaceResult executeInsert(String sql) throws Exception {
