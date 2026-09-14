@@ -1,8 +1,75 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+repo_root="$(cd "$script_dir/.." && pwd -P)"
+contracts_only=false
+artifacts_only=false
+generated_output_dir=""
+
+usage() {
+  cat >&2 <<'USAGE'
+usage: scripts/verify-contracts [--root PATH] [--contracts-only] [--artifacts-only --generated-output-dir PATH]
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --root)
+      if [[ $# -lt 2 ]]; then
+        usage
+        exit 2
+      fi
+      repo_root="$(cd "$2" && pwd -P)"
+      shift 2
+      ;;
+    --contracts-only)
+      contracts_only=true
+      shift
+      ;;
+    --artifacts-only)
+      artifacts_only=true
+      shift
+      ;;
+    --generated-output-dir)
+      if [[ $# -lt 2 ]]; then
+        usage
+        exit 2
+      fi
+      generated_output_dir="$(cd "$2" && pwd -P)"
+      shift 2
+      ;;
+    *)
+      echo "unknown option: $1" >&2
+      usage
+      exit 2
+      ;;
+  esac
+done
+
 cd "$repo_root"
+
+compare_generated_artifacts() {
+  local actual_dir="$1"
+  diff -u docs/database/azimutt/onmaru-schema.azimutt.sql "$actual_dir/onmaru-schema.azimutt.sql"
+  diff -u docs/database/azimutt/onmaru-schema.azimutt-strict.sql "$actual_dir/onmaru-schema.azimutt-strict.sql"
+  diff -u docs/database/azimutt/onmaru-schema.postgres.sql "$actual_dir/onmaru-schema.postgres.sql"
+}
+
+if [[ "$artifacts_only" == "true" ]]; then
+  if [[ -z "$generated_output_dir" ]]; then
+    usage
+    exit 2
+  fi
+  compare_generated_artifacts "$generated_output_dir"
+  exit 0
+fi
+
+python3 "$script_dir/validate_contracts.py" --root "$repo_root"
+
+if [[ "$contracts_only" == "true" ]]; then
+  exit 0
+fi
 
 python3 scripts/test/validate-r1-contract.py
 python3 scripts/test/validate-identity-saved-contract.py
@@ -14,6 +81,4 @@ trap 'rm -rf "$tmp_dir"' EXIT
 npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres >"$tmp_dir/onmaru-dbml-verify.sql"
 AZIMUTT_OUTPUT_DIR="$tmp_dir" node scripts/azimutt-export.mjs
 
-diff -u docs/database/azimutt/onmaru-schema.azimutt.sql "$tmp_dir/onmaru-schema.azimutt.sql"
-diff -u docs/database/azimutt/onmaru-schema.azimutt-strict.sql "$tmp_dir/onmaru-schema.azimutt-strict.sql"
-diff -u docs/database/azimutt/onmaru-schema.postgres.sql "$tmp_dir/onmaru-schema.postgres.sql"
+compare_generated_artifacts "$tmp_dir"
