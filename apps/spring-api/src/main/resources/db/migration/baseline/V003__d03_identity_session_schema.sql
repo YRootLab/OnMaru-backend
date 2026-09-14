@@ -113,6 +113,8 @@ CREATE TABLE onmaru.identity_exploration_grants (
 
 CREATE INDEX identity_exploration_grants_expires_at_idx
     ON onmaru.identity_exploration_grants (expires_at);
+CREATE UNIQUE INDEX identity_exploration_grants_exploration_id_uq
+    ON onmaru.identity_exploration_grants (exploration_id);
 
 CREATE TABLE onmaru.identity_deletion_ledger (
     member_id uuid PRIMARY KEY REFERENCES onmaru.identity_members (id),

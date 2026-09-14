@@ -136,6 +136,7 @@ class DatabaseMigrationContractTests {
              var statement = connection.createStatement()) {
             assertOwnerXorRejectsBothInvalidShapes(statement);
             assertConcurrentExternalIdentityLinkCreatesNoOrphanMember(statement);
+            assertGuestGrantClaimRaceAllowsOneMember(statement);
             assertOperationAdmissionRaceAllowsNoOverLimit(statement);
             assertRunAdmissionRaceAllowsOneActiveRun(statement);
             assertActorAdmissionRaceAllowsOneActiveActorRun(statement);
@@ -232,6 +233,29 @@ class DatabaseMigrationContractTests {
                 )
                   AND member.created_at = '2026-09-15T00:00:00Z'
                 """)).isZero();
+    }
+
+    private static void assertGuestGrantClaimRaceAllowsOneMember(Statement statement) throws Exception {
+        var firstMember = UUID.randomUUID();
+        var secondMember = UUID.randomUUID();
+        var guestId = UUID.randomUUID();
+        var explorationId = UUID.randomUUID();
+        insertMember(statement, firstMember);
+        insertMember(statement, secondMember);
+        insertGuest(statement, guestId, "grant-race-token");
+        insertGuestExploration(statement, explorationId, guestId);
+
+        var results = runRace(
+                () -> insertExplorationGrant(firstMember, explorationId),
+                () -> insertExplorationGrant(secondMember, explorationId)
+        );
+
+        assertThat(results).containsExactlyInAnyOrder(RaceResult.SUCCESS, RaceResult.CONFLICT);
+        assertThat(countRows(statement, """
+                SELECT COUNT(*)
+                FROM onmaru.identity_exploration_grants
+                WHERE exploration_id = '%s'
+                """.formatted(explorationId))).isEqualTo(1);
     }
 
     private static void assertRunAdmissionRaceAllowsOneActiveRun(Statement statement) throws Exception {
@@ -673,6 +697,16 @@ class DatabaseMigrationContractTests {
                 """.formatted(savedResourceId, memberId, resourceType, resourceId));
     }
 
+    private static RaceResult insertExplorationGrant(UUID memberId, UUID explorationId) throws Exception {
+        return executeInsert("""
+                INSERT INTO onmaru.identity_exploration_grants (
+                    member_id, exploration_id, expires_at
+                ) VALUES (
+                    '%s', '%s', CURRENT_TIMESTAMP + interval '10 minutes'
+                )
+                """.formatted(memberId, explorationId));
+    }
+
     private static RaceResult insertLike(UUID reviewId, UUID memberId) throws Exception {
         return executeInsert("""
                 INSERT INTO onmaru.community_review_likes (review_id, member_id, created_at)
@@ -743,7 +777,7 @@ class DatabaseMigrationContractTests {
     }
 
     private static void insertGuest(Statement statement, UUID guestId, String tokenSeed) throws Exception {
-        var tokenHash = ("0".repeat(64) + Integer.toHexString(tokenSeed.hashCode()).replace("-", ""))
+        var tokenHash = (Integer.toHexString(tokenSeed.hashCode()).replace("-", "") + "0".repeat(64))
                 .substring(0, 64);
         statement.execute("""
                 INSERT INTO onmaru.identity_guests (id, token_hash, expires_at)
@@ -761,6 +795,19 @@ class DatabaseMigrationContractTests {
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
                 """.formatted(explorationId, memberId));
+    }
+
+    private static void insertGuestExploration(Statement statement, UUID explorationId, UUID guestId)
+            throws Exception {
+        statement.execute("""
+                INSERT INTO onmaru.discovery_explorations (
+                    id, owner_guest_id, state_version, pinned_refs, excluded_refs,
+                    created_at, updated_at
+                ) VALUES (
+                    '%s', '%s', 0, '[]'::jsonb, '[]'::jsonb,
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+                """.formatted(explorationId, guestId));
     }
 
     private static void insertPlace(Statement statement, UUID placeId) throws Exception {
