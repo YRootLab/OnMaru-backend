@@ -9,6 +9,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -141,6 +142,40 @@ class IdentityMigrationTests {
     }
 
     @Test
+    void preventsGuestExplorationGrantReplayAcrossMembers() throws Exception {
+        resetAndMigrate();
+        var firstMember = UUID.randomUUID();
+        var secondMember = UUID.randomUUID();
+        var guestId = UUID.randomUUID();
+        var explorationId = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            insertMember(statement, firstMember);
+            insertMember(statement, secondMember);
+            insertGuest(statement, guestId);
+            insertGuestExploration(statement, explorationId, guestId);
+            statement.execute("""
+                    INSERT INTO onmaru.identity_exploration_grants (
+                        member_id, exploration_id, expires_at
+                    ) VALUES (
+                        '%s', '%s', CURRENT_TIMESTAMP + interval '10 minutes'
+                    )
+                    """.formatted(firstMember, explorationId));
+
+            assertThatThrownBy(() -> statement.execute("""
+                    INSERT INTO onmaru.identity_exploration_grants (
+                        member_id, exploration_id, expires_at
+                    ) VALUES (
+                        '%s', '%s', CURRENT_TIMESTAMP + interval '10 minutes'
+                    )
+                    """.formatted(secondMember, explorationId)))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("identity_exploration_grants_exploration_id_uq");
+        }
+    }
+
+    @Test
     void storesOnlyTokenHashesAndRejectsRawTokenLookingValues() throws Exception {
         resetAndMigrate();
         var member = UUID.randomUUID();
@@ -166,6 +201,33 @@ class IdentityMigrationTests {
                 INSERT INTO onmaru.identity_members (id, status, created_at)
                 VALUES ('%s', 'ACTIVE', '2026-09-15T00:00:00Z')
                 """.formatted(memberId));
+    }
+
+    private static void insertGuest(java.sql.Statement statement, UUID guestId) throws Exception {
+        statement.execute("""
+                INSERT INTO onmaru.identity_guests (id, token_hash, expires_at)
+                VALUES (
+                    '%s',
+                    'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+                    CURRENT_TIMESTAMP + interval '1 hour'
+                )
+                """.formatted(guestId));
+    }
+
+    private static void insertGuestExploration(
+            java.sql.Statement statement,
+            UUID explorationId,
+            UUID guestId
+    ) throws Exception {
+        statement.execute("""
+                INSERT INTO onmaru.discovery_explorations (
+                    id, owner_guest_id, state_version, pinned_refs, excluded_refs,
+                    created_at, updated_at
+                ) VALUES (
+                    '%s', '%s', 0, '[]'::jsonb, '[]'::jsonb,
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+                """.formatted(explorationId, guestId));
     }
 
     private static void resetAndMigrate() throws Exception {
