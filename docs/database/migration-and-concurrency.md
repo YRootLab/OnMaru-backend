@@ -39,3 +39,8 @@ Admission and run insertion happen in one short transaction. The lock order is a
 | moderation vs public read | HIDDEN/REMOVED transition and list query | public query never returns non-PUBLISHED text |
 
 Every test asserts database rows, public response/error code, and admission counter consistency after commit. Tests use real PostgreSQL locking and partial indexes, not H2 or mocked repositories. Load/restore evidence is a later staging gate, not fabricated by this unit/integration matrix.
+
+## D08 verification owner
+
+- `DatabaseMigrationContractTests` is the executable D08 gate for empty database migration, V007-to-latest upgrade, forward-only migration policy, and the required PostgreSQL concurrency matrix.
+- DB-only scenarios assert committed rows, SQLSTATE-based conflict surfaces, and compare-and-set update counts. HTTP/public response mapping remains an application-layer contract to bind when the APIs are implemented.
