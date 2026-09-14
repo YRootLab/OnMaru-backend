@@ -2,6 +2,14 @@ spring:
   application:
     name: onmaru-spring-api
 
+onmaru:
+  tourapi:
+    client:
+      connect-timeout: 1s
+      attempt-timeout: 5s
+      page-timeout: 12s
+      retry-count: 2
+
 management:
   endpoints:
     web:
