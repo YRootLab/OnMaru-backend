@@ -23,7 +23,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = {OnMaruApplication.class, ApiErrorContractTests.ContractTestConfig.class})
+@SpringBootTest(
+        classes = {OnMaruApplication.class, ApiErrorContractTests.ContractTestConfig.class},
+        properties = "onmaru.secrets.source=fake")
 @AutoConfigureMockMvc
 class ApiErrorContractTests {
 

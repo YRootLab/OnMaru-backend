@@ -1,7 +1,18 @@
 from fastapi import FastAPI
 
+from onmaru_ai.config.secrets import (
+    SecretProvider,
+    SecretRedactor,
+    install_logging_redaction,
+    provider_from_environment,
+    validate_required_secrets,
+)
 
-def create_app() -> FastAPI:
+
+def create_app(secret_provider: SecretProvider | None = None) -> FastAPI:
+    secrets = validate_required_secrets(secret_provider or provider_from_environment())
+    install_logging_redaction(SecretRedactor(secrets))
+
     app = FastAPI(title="OnMaru AI")
 
     @app.get("/health")

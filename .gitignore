@@ -17,6 +17,10 @@ Icon?
 *.pfx
 secrets/
 credentials/
+!apps/spring-api/src/main/java/com/yrootlab/onmaru/config/secrets/
+!apps/spring-api/src/main/java/com/yrootlab/onmaru/config/secrets/**
+!apps/spring-api/src/test/java/com/yrootlab/onmaru/config/secrets/
+!apps/spring-api/src/test/java/com/yrootlab/onmaru/config/secrets/**
 
 # Logs
 logs/
