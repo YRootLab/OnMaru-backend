@@ -1,5 +1,18 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-14 Issue #71
+
+- 현재 작업 브랜치와 worktree: `SHcommit/o01-spring-fastapi-opentelemetry`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/o01-spring-fastapi-opentelemetry`.
+- 사용자 요청: Issue #71 `[O01] Spring·FastAPI 구조화 로그와 OpenTelemetry 계측 구현`을 `$agent-toolkit-skills:backend-developer` 기반으로 개발하고, 가능하면 TDD와 CI 보강을 함께 적용한다.
+- 이슈 상태 확인: blocked-by #63, #64는 Closed이고, #71 관련 열린 PR은 검색되지 않았다. 구현 시작 상태는 `Ready`.
+- 구현 범위: Spring API와 FastAPI AI 서비스 HTTP boundary에서 `X-Request-Id`, `X-Run-Id`, `X-Revision`, W3C `traceparent`를 추출해 `request.id`, `trace.id`, `run.id`, `revision`으로 상관 분석할 수 있게 했다.
+- Redaction 정책: query, location, cookie, token, evidence body는 telemetry/log attribute에 추가하지 않고, HTTP method/route/status 같은 low-cardinality label만 남긴다.
+- Spring 변경: `apps/spring-api/src/main/java/com/yrootlab/onmaru/observability`에 correlation filter, telemetry event/sink, key-value logging sink를 추가했다. Micrometer OTel bridge, OTLP exporter/registry dependency와 lockfile을 갱신했다.
+- FastAPI 변경: `ai/src/onmaru_ai/observability`에 correlation middleware, in-memory test sink, OpenTelemetry span sink, 환경변수 기반 OTLP sink factory를 추가했다. OpenTelemetry SDK/OTLP HTTP exporter dependency와 `uv.lock`을 갱신했다.
+- CI 변경: `.github/workflows/ci.yml`의 FastAPI 단계가 `ruff check`, `mypy`, `pytest`를 모두 실행하도록 보강됐다.
+- 검증 진행: Spring/FastAPI RED를 먼저 확인했고, `./gradlew :apps:spring-api:test --tests '*CorrelationFilterTests' --no-daemon`, `./gradlew test --no-daemon`, `cd ai && uv run ruff check . && uv run mypy && uv run pytest` 통과.
+- PR 준비 시 #71 acceptance criteria와 연결해 본문에 `Refs #71` 또는 merge로 닫을 경우 `Closes #71`를 사용한다. Dashboard/alert 구성은 #81 범위라 이번 PR에서 닫지 않는다.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #65
 
 - 현재 작업 브랜치와 worktree: `feature/65-f04-postgis-testcontainers`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/develop`.

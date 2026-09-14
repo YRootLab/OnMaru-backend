@@ -1,0 +1,74 @@
+package com.yrootlab.onmaru.observability;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class CorrelationFilterTests {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private InMemoryTelemetrySink telemetrySink;
+
+    @BeforeEach
+    void clearTelemetry() {
+        telemetrySink.clear();
+    }
+
+    @Test
+    void correlatesRequestRunRevisionAndTraceWithoutSensitiveAttributes() throws Exception {
+        mockMvc.perform(get("/actuator/health")
+                        .header("X-Request-Id", "req-123")
+                        .header("X-Run-Id", "run-456")
+                        .header("X-Revision", "rev-789")
+                        .header("traceparent",
+                                "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+                        .header("Cookie", "session=secret")
+                        .header("Authorization", "Bearer secret-token")
+                        .queryParam("query", "secret")
+                        .queryParam("location", "secret"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Request-Id", "req-123"))
+                .andExpect(header().string("X-Run-Id", "run-456"))
+                .andExpect(header().string("X-Revision", "rev-789"));
+
+        TelemetryEvent event = telemetrySink.events().getFirst();
+        assertThat(event.name()).isEqualTo("http.server.request");
+        assertThat(event.attributes())
+                .containsEntry("request.id", "req-123")
+                .containsEntry("trace.id", "4bf92f3577b34da6a3ce929d0e0e4736")
+                .containsEntry("run.id", "run-456")
+                .containsEntry("revision", "rev-789")
+                .containsEntry("http.request.method", "GET")
+                .containsEntry("http.response.status_code", "200");
+        assertThat(event.attributes().keySet())
+                .doesNotContain("query", "location", "cookie", "token", "evidence.body");
+        assertThat(event.attributes().values())
+                .doesNotContain("secret", "secret-token", "session=secret");
+    }
+
+    @TestConfiguration
+    static class TelemetryTestConfig {
+
+        @Bean
+        @Primary
+        InMemoryTelemetrySink inMemoryTelemetrySink() {
+            return new InMemoryTelemetrySink();
+        }
+    }
+}
