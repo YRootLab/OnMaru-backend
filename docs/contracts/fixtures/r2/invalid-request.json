@@ -1,0 +1,24 @@
+{
+  "name": "invalid-request",
+  "description": "Invalid map viewport input returns the shared public error envelope.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/places",
+    "query": {
+      "bbox": "invalid"
+    }
+  },
+  "response": {
+    "status": 400,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "INVALID_REQUEST",
+      "message": "The requested map bounds are invalid.",
+      "requestId": "req-r2-invalid-request",
+      "details": {
+        "field": "bbox"
+      }
+    }
+  }
+}

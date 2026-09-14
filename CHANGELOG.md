@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Add R2 map, region, Odii, and tourism insights OpenAPI fixtures with R1/R2 contract validation.
 - Add R1 hanok/place/saved-resource OpenAPI fixtures and CI contract validation for OpenAPI, JSON Schema, DBML, generated SQL, Spring, and FastAPI checks.
 - Harden Odii fixture validation to reject long URL-encoded token query values in captured manifest URLs.
 - Capture redacted Odii API qualification fixtures and license/provenance manifest for Issue #61.
