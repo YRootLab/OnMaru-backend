@@ -11,6 +11,7 @@ DBML is the logical source of schema intent. Flyway migration SQL is the executa
 - D09 owns `V005__d09_insights_observations_schema.sql`, visitor observations, tourism targets, target-place links, and concentration observations with provenance, unit, range, and catalog FK constraints.
 - D04 owns `V006__d04_journey_discovery_schema.sql`, exploration ownership, async runs, proposals, turns, saved journey snapshots, saved resource rows, and the late identity-to-exploration FKs.
 - D05 owns `V007__d05_community_review_schema.sql`, VisitReview rows, member likes, open reports, moderation audit actions, and report self-action guards.
+- D06 owns `V008__d06_odii_audio_schema.sql`, Odii spot/story language identities, versioned audio content, subtitle lines, tombstone status, and verified place links.
 - Environment-specific login roles and passwords are provisioned outside application migration SQL, then granted membership in `onmaru_migration`, `onmaru_runtime`, `onmaru_readonly`, or `onmaru_backup`.
 - Flyway uses `baselineOnMigrate=true` with `baselineVersion=0` so an existing pre-Flyway database can still apply `V001`.
 - Every migration has a stable `-- onmaru-checksum:` marker and one registry entry. CI runs `scripts/test/migration-policy.test.mjs` to reject duplicate versions and marker drift.
