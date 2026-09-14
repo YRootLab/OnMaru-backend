@@ -280,3 +280,10 @@
 - Open a PR into `develop`.
 - PR body should state that this is a planning/harness PR, not a backend runtime implementation.
 - Required checks should pass before merge.
+
+## 2026-09-14 D01 Flyway Baseline Session
+
+- Issue #67 is being implemented on branch `SHcommit/d01-flyway-migration-baseline`.
+- Added Flyway baseline migration for `onmaru` and `onmaru_registry` schemas, migration version registry, and database role grants.
+- Added Testcontainers coverage for empty migrate, existing DB baseline upgrade, and runtime role DDL denial.
+- Added Node policy coverage for migration registry version uniqueness and checksum marker drift.

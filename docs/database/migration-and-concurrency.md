@@ -1,9 +1,13 @@
 # PostgreSQL migration and concurrency proof plan
 
-DBML is the logical source of schema intent. Flyway migration SQL is the executable source once the Spring application is scaffolded. PostgreSQL, not an application validator, enforces cross-request invariants. Runtime roles have no DDL privilege; only the migration role can apply schema changes.
+DBML is the logical source of schema intent. Flyway migration SQL is the executable source now that the Spring application is scaffolded. PostgreSQL, not an application validator, enforces cross-request invariants. Runtime roles have no DDL privilege; only the migration role can apply schema changes.
 
 ## Migration rules
 
+- D01 owns `V001__d01_flyway_migration_baseline.sql`, the `onmaru` and `onmaru_registry` namespaces, NOLOGIN group roles, grants, and `db/migration/registry/migrations.json`.
+- Environment-specific login roles and passwords are provisioned outside application migration SQL, then granted membership in `onmaru_migration`, `onmaru_runtime`, `onmaru_readonly`, or `onmaru_backup`.
+- Flyway uses `baselineOnMigrate=true` with `baselineVersion=0` so an existing pre-Flyway database can still apply `V001`.
+- Every migration has a stable `-- onmaru-checksum:` marker and one registry entry. CI runs `scripts/test/migration-policy.test.mjs` to reject duplicate versions and marker drift.
 - Use forward-only, reviewed Flyway migrations with `expand -> deploy compatible app -> backfill/verify -> contract` sequencing. Destructive automatic down migrations are prohibited.
 - Create `CHECK` constraints for exploration owner XOR and run status/stage/outcome/deadline compatibility. Create partial unique indexes for one active run per exploration and actor key. Create the report uniqueness constraint in DDL.
 - Use `NOT VALID` plus later validation only where production-sized existing data requires it; a new schema applies constraints immediately. Every constraint name is stable and mapped to an application error code only after integrity is checked.
