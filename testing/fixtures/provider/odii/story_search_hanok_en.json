@@ -1,0 +1,95 @@
+{
+  "provider": "KTO_ODII",
+  "scenario": "story_search_hanok_en",
+  "capturedAt": "2026-09-14T08:42:50.462Z",
+  "request": {
+    "method": "GET",
+    "endpoint": "storySearchList",
+    "url": "https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=en&keyword=hanok&pageNo=1&numOfRows=3",
+    "params": {
+      "langCode": "en",
+      "keyword": "hanok",
+      "pageNo": "1",
+      "numOfRows": "3",
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json",
+      "date": "Mon, 14 Sep 2026 08:42:50 GMT"
+    },
+    "body": {
+      "response": {
+        "header": {
+          "resultCode": "0000",
+          "resultMsg": "OK"
+        },
+        "body": {
+          "items": {
+            "item": [
+              {
+                "tid": "89",
+                "tlid": "301",
+                "stid": "562",
+                "stlid": "2187",
+                "title": "Overview of Namsangol Hanok Village",
+                "mapX": "126.9936798",
+                "mapY": "37.559163",
+                "audioTitle": "Overview of Namsangol Hanok Village",
+                "script": "Discovering Joseon Lifestyle at a Traditional Korean Village  Namsangol Hanok Village was developed by relocating five traditional Korean houses from the Joseon Dynasty to the northern foot of Namsan Mountain over a period of four years starting in 1933. These houses were gathered from different parts of the city and brought to this location.  In addition to the houses, the village features traditional gardens and the Seoul Millennium Time Capsule Square. Five pavilions have been constructed in the traditional garden to recreate the appearance of a traditional garden where visitors can enjoy the surroundings. These pavilions include Cheongnyujeong Pavilion, Gwaneojeong Pavilion, Cheonuagk Pavilion, Mangbungnu Pavilion and Pigeumjeon Pavilion. The Seoul Millennium Time Capsule Square is built in the shape of a meteorite crater, symbolizing perpetuality. The Seoul Namsan Gukakdang, a traditional music hall, was also built to provide a venue for visitors to listen to traditional music.  Namsangol Hanok Village was previously known as “Cheonghakdong,” where “Cheonghak” literally means “a blue-green crane,” signifying the beautiful green nature that surrounds the village. During the Joseon era, scholars and aristocrats walked around the pavilions and houses while enjoying the beauty of nature. Although its appearance has changed over time, the harmony between Namsan Mountain and Hanok Village remains attractive.  At the hanok village, you can experience the lifestyle of Joseon era by exploring the houses, furniture, and everyday objects that reflected the resident’s social class at that time. Various traditional experience programs are available, such as entering traditional Korean houses or taking pictures in hanbok, the traditional Korean clothing. Behind Cheonuagk Pavilion, a stage hosts various performances, including traditional music, traditional dance, and traditional martial arts shows, allowing visitors to get up close to Korean traditional culture. The Traditional Crafts Center showcases a variety of products crafted using traditional Korean techniques.",
+                "playTime": "96",
+                "audioUrl": "https://sfj608538-sfj608538.ktcdn.co.kr/file/audio/56/17613.mp3",
+                "langCode": "en",
+                "imageUrl": "",
+                "createdtime": "20150702093645",
+                "modifiedtime": "20250609074606"
+              },
+              {
+                "tid": "89",
+                "tlid": "301",
+                "stid": "564",
+                "stlid": "2189",
+                "title": "Traditional Korean Houses (Namsangol Hanok Village)",
+                "mapX": "126.994267",
+                "mapY": "37.559266",
+                "audioTitle": "Traditional Korean Houses (Namsangol Hanok Village)",
+                "script": "Walking around a beautiful traditional Korean village  Namsangol Hanok Village is home to five traditional Korean houses. They are the Carpenter Yi Seung-eop’s House, General Kim Choon-yeong’s House, Min Family’s House, Yun Take-yeong’s Jaesil, and Yun Family’s House. These houses exhibit different building structures that vary based on their utility and the social status of their owners.  Towards the end of the 19th Century, Korean society underwent significant changes due to corruption, Western cultural influences, and the rise of modern philosophy. This upheaval led to the disappearance of traditional cultural boundaries and class distinctions. It became common to find items and features in commoners' houses that were originally associated with noble houses. For example, adobe bricks or railing on the maru, which is equivalent to today’s living room, are originally the features of noblemen’s houses could then be seen in commoners’ houses at that time. However, distinct features such as the raised gate, low chimney, or separate ritual room were still characteristic in a nobleman’s house.  These traditional Korean houses at Namsangol Hanok Village offer various seasonal programs that allow you to experience traditional Korean culture firsthand. You can enter the house, try on traditional Korean clothing known as hanbok, and take pictures. You can also try traditional teas and desserts. On specific days, you may have the opportunity to witness an authentic traditional Korean wedding ceremony.",
+                "playTime": "99",
+                "audioUrl": "https://sfj608538-sfj608538.ktcdn.co.kr/file/audio/56/17614.mp3",
+                "langCode": "en",
+                "imageUrl": "",
+                "createdtime": "20150702093742",
+                "modifiedtime": "20231228160159"
+              },
+              {
+                "tid": "146",
+                "tlid": "413",
+                "stid": "732",
+                "stlid": "1521",
+                "title": "Hanok Living Experience Center",
+                "mapX": "127.1529478",
+                "mapY": "35.81763234",
+                "audioTitle": "Hanok Living Experience Center",
+                "script": "Hanok Living Experience Center  [Narration] The Hanok Living Experience Center located next to Sori Cultural Center is a Korean traditional house that resembles the houses of the noble families of the Joseon Dynasty. The Hanok Living Experience Centre is equipped with a main building, detached house, servants’ quarters and courtyard. Visitors can experience the traditional style houses by staying overnight. Passing through the gate under the signboard ‘Sehwamun’, you will face the main building and L-shaped detached house.   Let us introduce the characteristics of the Hanok and the Maru, Korean-style floor, while you look around the houses. Unlike neat lawns in front of western houses, there is no grass growing in the front yards of Korean traditional houses. The bare earth helps to keep the space cool in summer time. A simple but effective scientific principle is hidden in the design: Hanok traditional houses have a real garden in the back yard, but the front yard is only earth. This design allows the hot air in the front yard to rise and the cooled air from the back yard flows in to fill the empty space. The cool air from the back yard then circulates throughout the house all day, and blows a cool breeze over the maru.   With the aforementioned design, Hanok traditional houses must be cool in summer, but then cold in winter? Fortunately not! Hanoks were originally designed to be cool in summer and warm in winter. Korean houses employ a traditional heating system named ‘Ondol’, to keep them warm in the winter. Ondol is under-floor heating which uses direct heat transfer from wood smoke from a stove to the underside of a thick floor. The raised floor has underlying horizontal smoke tubes, and a vertical chimney on the opposite exterior distributes the smoke. Once the floor is heated by this method, it retains warmth for a long time and Koreans could stay warm at home in freezing winter. As we have seen, the wisdom of Korean ancestors is evident in the design of Hanok traditional houses.  ",
+                "playTime": "156",
+                "audioUrl": "",
+                "langCode": "en",
+                "imageUrl": "",
+                "createdtime": "20150626140955",
+                "modifiedtime": "20161123135836"
+              }
+            ]
+          },
+          "numOfRows": 3,
+          "pageNo": 1,
+          "totalCount": 16
+        }
+      }
+    }
+  },
+  "notes": "English keyword search fixture to pin provider language parameter behavior."
+}

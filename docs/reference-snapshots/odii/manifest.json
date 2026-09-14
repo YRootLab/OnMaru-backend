@@ -1,0 +1,93 @@
+{
+  "provider": "KTO_ODII",
+  "capturedAt": "2026-09-14T08:42:50.888Z",
+  "source": {
+    "name": "한국관광공사_관광지 오디오 가이드정보_GW",
+    "officialUrl": "https://www.data.go.kr/data/15101971/openapi.do",
+    "baseUrl": "https://apis.data.go.kr/B551011/Odii"
+  },
+  "requiredScenarios": [
+    "story_based_first_page",
+    "story_based_second_page",
+    "story_location_based",
+    "story_search_hanok",
+    "story_search_hanok_en",
+    "empty_search",
+    "empty_script_story",
+    "provider_error_missing_key"
+  ],
+  "captures": [
+    {
+      "scenario": "story_based_first_page",
+      "fixture": "story_based_first_page.json",
+      "sha256": "74716a5c033734c01849f247825433f178ac7f3e597abc8b34d55c61ea57dd04",
+      "endpoint": "storyBasedList",
+      "redactedUrl": "https://apis.data.go.kr/B551011/Odii/storyBasedList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&tid=30&tlid=102&pageNo=1&numOfRows=3",
+      "capturedAt": "2026-09-14T08:42:49.872Z",
+      "description": "Known spot story list first page with official Korean scripts and audio URLs."
+    },
+    {
+      "scenario": "story_based_second_page",
+      "fixture": "story_based_second_page.json",
+      "sha256": "2bd249ce881c7c15ed6d45f154a8d1e97b4bc775735a0274ba75bf8ed590c655",
+      "endpoint": "storyBasedList",
+      "redactedUrl": "https://apis.data.go.kr/B551011/Odii/storyBasedList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&tid=30&tlid=102&pageNo=2&numOfRows=3",
+      "capturedAt": "2026-09-14T08:42:49.997Z",
+      "description": "Same spot second page to pin provider pagination fields."
+    },
+    {
+      "scenario": "story_location_based",
+      "fixture": "story_location_based.json",
+      "sha256": "e9b0404d90622d4b7f867e135a12b9e1e7c18d903c35171d4b9332101d0040a7",
+      "endpoint": "storyLocationBasedList",
+      "redactedUrl": "https://apis.data.go.kr/B551011/Odii/storyLocationBasedList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&mapX=127.120688&mapY=37.515577&radius=1000&pageNo=1&numOfRows=3",
+      "capturedAt": "2026-09-14T08:42:50.162Z",
+      "description": "Location-based story lookup around Hanseong Baekje Museum."
+    },
+    {
+      "scenario": "story_search_hanok",
+      "fixture": "story_search_hanok.json",
+      "sha256": "a21d3e58953835fd535c869f68a8e1836def5685e450db024d81317933dde72f",
+      "endpoint": "storySearchList",
+      "redactedUrl": "https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&keyword=%ED%95%9C%EC%98%A5&pageNo=1&numOfRows=3",
+      "capturedAt": "2026-09-14T08:42:50.303Z",
+      "description": "Keyword search fixture for OnMaru hanok-related discovery."
+    },
+    {
+      "scenario": "story_search_hanok_en",
+      "fixture": "story_search_hanok_en.json",
+      "sha256": "90a71732c42906d2a3e8d4da7da5adc637be19df4dcb6ebf267392088fc0a9ea",
+      "endpoint": "storySearchList",
+      "redactedUrl": "https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=en&keyword=hanok&pageNo=1&numOfRows=3",
+      "capturedAt": "2026-09-14T08:42:50.462Z",
+      "description": "English keyword search fixture to pin provider language parameter behavior."
+    },
+    {
+      "scenario": "empty_search",
+      "fixture": "empty_search.json",
+      "sha256": "f4dcaa6c2a978b11a9f092aa01c97474b556acd38e7c4ff8dc674c0f388be4d6",
+      "endpoint": "storySearchList",
+      "redactedUrl": "https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&keyword=ONMARU_NO_MATCH_20260914&pageNo=1&numOfRows=3",
+      "capturedAt": "2026-09-14T08:42:50.628Z",
+      "description": "Empty result fixture for no-match provider response shape."
+    },
+    {
+      "scenario": "empty_script_story",
+      "fixture": "empty_script_story.json",
+      "sha256": "bc20a774c704179970c4c69131f46071f5da0af9309eccd3c7dcbaf3c48caff1",
+      "endpoint": "storySearchList",
+      "redactedUrl": "https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&keyword=%EC%A0%9C%EC%A3%BC&pageNo=3&numOfRows=20",
+      "capturedAt": "2026-09-14T08:42:50.839Z",
+      "description": "Search page containing story stid=6566/stlid=18602 with empty script and empty audioUrl."
+    },
+    {
+      "scenario": "provider_error_missing_key",
+      "fixture": "provider_error_missing_key.json",
+      "sha256": "703bbed3f8165a09a07d79b8bf745a7773ffb2d1dbc4cc79484864e9c6763f4d",
+      "endpoint": "storySearchList",
+      "redactedUrl": "https://apis.data.go.kr/B551011/Odii/storySearchList?MobileOS=ETC&MobileApp=OnMaru&_type=json&langCode=ko&keyword=%ED%95%9C%EC%98%A5&pageNo=1&numOfRows=1",
+      "capturedAt": "2026-09-14T08:42:50.886Z",
+      "description": "Provider error envelope when serviceKey is absent."
+    }
+  ]
+}

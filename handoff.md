@@ -2,6 +2,12 @@
 
 ## Current Session Quick Handoff - 2026-09-14
 
+- 현재 작업 브랜치와 worktree: `chore/61-a01-odii-api-validation-2`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/develop-2`.
+- Issue #61 A01 Odii qualification 범위로 실제 Odii API 응답 fixture 8개를 `testing/fixtures/provider/odii`에 redacted 저장했고, `docs/reference-snapshots/odii/manifest.json`과 `README.md`에 hash, license/quota, field mapping, official transcript/empty script/audioUrl 정책을 기록했다.
+- 추가한 검증: `scripts/capture-odii-fixtures.mjs`, `scripts/validate-odii-fixtures.mjs`, `scripts/lib/odii-fixture-validation.mjs`, `scripts/test/odii-fixture-validation.test.mjs`. fixture/manifest는 `serviceKey`를 제거하고 secret-like 문자열과 hash drift를 검증한다.
+- 검증 통과: `node --test scripts/test/publish-backend-issues.test.mjs scripts/test/odii-fixture-validation.test.mjs`, `node scripts/validate-odii-fixtures.mjs`, `git diff --check`, `./gradlew test`, `cd ai && uv run pytest`.
+- PR은 `develop` 대상으로 생성하고 merge 시 #61을 닫을 수 있으므로 본문에 `Closes #61`을 사용한다. 후속 #96 A02는 이 fixture와 README의 provider 계약을 기준으로 구현한다.
+
 - 현재 작업 브랜치와 worktree: `feature/setup-issues`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issues-setup`.
 - Issue #63 기반 Java 21, Spring Boot 4.1.1, Gradle Wrapper 9.7.1 멀티프로젝트와 `apps/spring-api` 실행 골격을 구축했다. Web MVC·Actuator 및 테스트 의존성은 lock하고 로컬 Gradle 캐시에 받았다.
 - Issue #64 기반 uv 관리 Python 3.12, FastAPI, Uvicorn, pytest, HTTPX, Ruff, mypy 골격을 `ai/`에 구축했다. `uv.lock`의 33개 패키지를 `ai/.venv`와 uv 캐시에 받았다.
