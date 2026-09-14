@@ -1,0 +1,80 @@
+{
+  "caseId": "detail-common",
+  "provider": "kto-tourapi-korean",
+  "operation": "detailCommon2",
+  "redacted": {
+    "serviceKey": true,
+    "requestUrl": true,
+    "traceHeaders": true
+  },
+  "request": {
+    "serviceKey": "<REDACTED>",
+    "params": {
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json",
+      "contentId": "126508",
+      "contentTypeId": "12",
+      "defaultYN": "Y",
+      "firstImageYN": "Y",
+      "areacodeYN": "Y",
+      "catcodeYN": "Y",
+      "addrinfoYN": "Y",
+      "mapinfoYN": "Y",
+      "overviewYN": "Y"
+    }
+  },
+  "observed": {
+    "httpStatus": 200,
+    "contentType": "application/json",
+    "capturedAt": "2026-09-14T15:35:00+09:00"
+  },
+  "body": {
+    "response": {
+      "header": {
+        "resultCode": "0000",
+        "resultMsg": "OK"
+      },
+      "body": {
+        "items": {
+          "item": [
+            {
+              "contentid": "126508",
+              "contenttypeid": "12",
+              "title": "경복궁",
+              "homepage": "",
+              "tel": "",
+              "telname": "",
+              "firstimage": "",
+              "firstimage2": "",
+              "cpyrhtDivCd": "Type1",
+              "areacode": "1",
+              "sigungucode": "23",
+              "cat1": "A02",
+              "cat2": "A0201",
+              "cat3": "A02010100",
+              "addr1": "서울특별시 종로구 사직로 161",
+              "addr2": "",
+              "zipcode": "03045",
+              "mapx": "126.976993",
+              "mapy": "37.578822",
+              "mlevel": "6",
+              "overview": "조선 왕조의 법궁으로 사용된 궁궐이다.",
+              "createdtime": "20031107090000",
+              "modifiedtime": "20240201120000"
+            }
+          ]
+        },
+        "numOfRows": 1,
+        "pageNo": 1,
+        "totalCount": 1
+      }
+    }
+  },
+  "expected": {
+    "classification": "success-detail-common",
+    "retryable": false,
+    "itemShape": "array",
+    "publicFields": ["contentid", "title", "addr1", "mapx", "mapy", "overview", "cpyrhtDivCd"]
+  }
+}

@@ -12,6 +12,12 @@
 
 ## Current Session Quick Handoff - 2026-09-14
 
+- 현재 작업 브랜치와 worktree: `chore/66-p01-tour-api-validation`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/66-p01`.
+- Issue #66 기반 한국관광공사 국문 TourAPI qualification manifest와 redacted provider fixture 9종을 추가했다. 산출물은 `docs/reference-snapshots/tourapi/manifest.json`, `docs/reference-snapshots/tourapi/README.md`, `testing/fixtures/provider/tourapi/*.json`이다.
+- #66 fixture는 정상 목록, 좌표 기반 목록, 상세 공통 정보, 빈 목록, 마지막 page, HTTP 200 오류 envelope, 4xx 인증 오류, 5xx/GW 장애, 429 quota 초과를 포함한다. 서비스 키와 원본 query string은 저장하지 않고 `<REDACTED>`만 사용한다.
+- CI에 `node --test scripts/test/*.test.mjs` documentation fixture 검증을 추가했다. 로컬 검증은 `node --test scripts/test/*.test.mjs` 통과.
+- PR은 #66 완료로 닫아야 하므로 본문에 `Closes #66`를 사용한다.
+- 현재 작업 브랜치와 worktree: `feature/setup-issues`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issues-setup`.
 - 현재 작업 브랜치와 worktree: `feature/131-f07-design-provenance`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/131-f07`.
 - Issue #131 기반으로 backend 설계 입력을 `docs/reference-snapshots/planning-inputs`에 repo-local snapshot으로 고정했다. `docs/backend_schema_design_guide.md`와 `docs/specs`는 개인 절대경로가 아니라 snapshot을 가리키는 상대 symlink다.
 - `docs/reference-snapshots/planning-inputs/manifest.json`에는 원본 repository, commit, source path, SHA-256을 기록했다. `OnMaru-docs` 원본 working tree에 로컬 변경이 있어 snapshot은 재현 가능한 HEAD blob 기준으로 생성했다.
