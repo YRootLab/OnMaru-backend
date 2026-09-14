@@ -10,6 +10,7 @@ rootProject.name = "onmaru-backend"
 include("apps:spring-api")
 include("adapters:tourism-api")
 include("modules:catalog")
+include("modules:community")
 include("modules:identity")
 include("modules:journey")
 include("modules:operations")
