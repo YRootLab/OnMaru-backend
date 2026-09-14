@@ -50,6 +50,15 @@
       "checksum": "d09-v005-20260915",
       "sha256": "c38153d46e62fd61196dfd9de734431d1129261a16d082bf57572799a128277f",
       "description": "Insights visitor observations, tourism targets, target-place links, and concentration observations schema"
+    },
+    {
+      "version": "006",
+      "reservedFor": "D04",
+      "issueNumber": 77,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V006__d04_journey_discovery_schema.sql",
+      "checksum": "d04-v006-20260915",
+      "sha256": "ae1918023160dc08bcfebef0b0788712a4176f154b0598eeb9b6bd607fc5d0f3",
+      "description": "Discovery exploration, run, proposal, turn, saved journey, and saved resource schema"
     }
   ]
 }
