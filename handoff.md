@@ -10,6 +10,16 @@
 - 검증 통과: `python3 scripts/test/validate-identity-saved-contract.py`, `python3 scripts/test/validate-r1-contract.py`, `scripts/verify-contracts`, `git diff --check`. 전체 CI 동등 검증은 PR 직전 다시 실행한다.
 - PR은 `develop` 대상으로 생성한다. 이번 PR merge가 Issue #132 acceptance criteria를 충족하므로 본문에는 `Closes #132`를 사용한다.
 
+## Current Session Quick Handoff - 2026-09-14 Issue #133
+
+- 현재 작업 브랜치와 worktree: `SHcommit/m06-odii-r2-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/m06-odii-r2-openapi-fixture`.
+- Issue #133 `[M06] 지도·Odii·관광 관측 R2 OpenAPI·fixture 동결` 작업을 진행했다.
+- 선행 조건 확인: #131, #62는 Closed이며, `gh pr list --search "133"` 기준 열린 중복 PR은 없었다.
+- TDD 기록: `python3 scripts/test/validate-r2-contract.py`를 먼저 추가했고, RED는 `docs/contracts/openapi/r2-map-audio-insights.openapi.yaml` 누락으로 실패했다.
+- 산출물: `docs/contracts/openapi/r2-map-audio-insights.openapi.yaml`, `docs/contracts/fixtures/r2/*.json` 13개, `scripts/test/validate-r2-contract.py`, `scripts/verify-contracts` R2 검증 연결, `scripts/test/requirements-contract.txt` 공통 계약 검증 의존성 파일, `docs/contracts/README.md` 링크.
+- 범위: runtime endpoint 구현은 제외하고, R2 public read endpoint·결측·언어·coverage status 계약과 fixture만 동결했다.
+- 검증 통과: `test -f scripts/test/requirements-contract.txt && ! rg -q 'requirements-r1-contract\\.txt' .github/workflows/ci.yml`, `python3 scripts/test/validate-r1-contract.py`, `python3 scripts/test/validate-r2-contract.py`, `./scripts/verify-contracts`.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #61 Redaction Hardening
 
 - 현재 작업 브랜치와 worktree: `SHcommit/a01-odii-api-license-qualification`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/a01-odii-api-license-qualification`.

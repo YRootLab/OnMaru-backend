@@ -6,6 +6,7 @@ cd "$repo_root"
 
 python3 scripts/test/validate-r1-contract.py
 python3 scripts/test/validate-identity-saved-contract.py
+python3 scripts/test/validate-r2-contract.py
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
