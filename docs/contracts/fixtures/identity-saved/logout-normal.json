@@ -1,0 +1,19 @@
+{
+  "name": "logout-normal",
+  "description": "Logout destroys the current session and returns no body.",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    },
+    "body": {}
+  },
+  "response": {
+    "status": 204,
+    "headers": {
+      "Cache-Control": "no-store",
+      "Set-Cookie": "onmaru_session=; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+    }
+  }
+}

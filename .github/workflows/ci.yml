@@ -48,14 +48,14 @@ jobs:
       - name: Odii fixture manifest validation
         run: node scripts/validate-odii-fixtures.mjs
 
-      - name: Set up Python for R1/R2 contract validation
+      - name: Set up Python for public contract validation
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: scripts/test/requirements-contract.txt
 
-      - name: Install R1/R2 contract validation dependencies
+      - name: Install public contract validation dependencies
         run: python3 -m pip install -r scripts/test/requirements-contract.txt
 
       - name: Contract validator tests
@@ -66,7 +66,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: R1/R2 contract and generated artifact validation
+      - name: Public contract and generated artifact validation
         run: bash scripts/verify-contracts
 
       - name: Set up uv

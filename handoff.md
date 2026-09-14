@@ -12,6 +12,16 @@
 - 로컬 검증 통과: `python3 -m pytest scripts/test/test_contract_validation.py`(7 passed), `bash scripts/verify-contracts`, `node --test scripts/test/*.test.mjs`, `node scripts/verify-planning-inputs.mjs && node scripts/validate-odii-fixtures.mjs`, `./gradlew test --no-daemon`, `cd ai && uv run pytest`, `git diff --check`.
 - PR은 `develop` 대상으로 생성한다. 이번 merge가 #69 acceptance를 완료하므로 PR 본문에 `Closes #69`를 사용한다. merge 전 GitHub Actions와 review 상태를 다시 확인한다.
 
+## Current Session Quick Handoff - 2026-09-14 Issue #132
+
+- 현재 작업 브랜치와 worktree: `SHcommit/f09-savedresource-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f09-savedresource-openapi-fixture`.
+- Issue #132 `[F09] 인증·회원·SavedResource OpenAPI·fixture 동결` 범위로 TDD 진행했다. 먼저 `scripts/test/validate-identity-saved-contract.py`를 추가하고 `identity-saved.openapi.yaml` 부재 실패를 확인한 뒤 계약과 fixture를 구현했다.
+- 산출물: `docs/contracts/openapi/identity-saved.openapi.yaml`, `docs/contracts/fixtures/identity-saved/*.json` 20개, `scripts/test/validate-identity-saved-contract.py`, `scripts/verify-contracts` 연결, `docs/contracts/README.md` 등록.
+- 계약 범위: auth/csrf, Kakao login/callback redirect, logout, members/me 조회/탈퇴, PLACE/ODII_STORY 저장/삭제, saved-resource type별 목록, monthly timeline, 401/403/404/409/error fixture.
+- CI 연결: 기존 `.github/workflows/ci.yml`의 `Contract and generated artifact validation` 단계가 `bash scripts/verify-contracts`를 실행하므로 신규 identity-saved 검증도 PR CI에서 실행된다.
+- 검증 통과: `python3 scripts/test/validate-identity-saved-contract.py`, `python3 scripts/test/validate-r1-contract.py`, `scripts/verify-contracts`, `git diff --check`. 전체 CI 동등 검증은 PR 직전 다시 실행한다.
+- PR은 `develop` 대상으로 생성한다. 이번 PR merge가 Issue #132 acceptance criteria를 충족하므로 본문에는 `Closes #132`를 사용한다.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #133
 
 - 현재 작업 브랜치와 worktree: `SHcommit/m06-odii-r2-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/m06-odii-r2-openapi-fixture`.

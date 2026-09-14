@@ -96,3 +96,7 @@ Desktop.ini
 *.tar
 *.tar.gz
 *.tgz
+
+# Merge conflict temporary artifacts
+*.orig
+*.rej
