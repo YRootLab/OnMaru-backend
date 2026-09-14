@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Add ArchUnit module boundary checks for Spring core framework isolation, consumer-owned ports, app bridge API boundaries, and module cycle fixtures for Issue #68.
 - Add R1 hanok/place/saved-resource OpenAPI fixtures and CI contract validation for OpenAPI, JSON Schema, DBML, generated SQL, Spring, and FastAPI checks.
 - Capture redacted Odii API qualification fixtures and license/provenance manifest for Issue #61.
 - Add TourAPI qualification manifest, redacted provider fixtures, and CI fixture validation for Issue #66.
