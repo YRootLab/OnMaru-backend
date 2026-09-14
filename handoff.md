@@ -10,6 +10,15 @@
 - 범위: runtime endpoint 구현은 제외하고, R2 public read endpoint·결측·언어·coverage status 계약과 fixture만 동결했다.
 - 검증 통과: `test -f scripts/test/requirements-contract.txt && ! rg -q 'requirements-r1-contract\\.txt' .github/workflows/ci.yml`, `python3 scripts/test/validate-r1-contract.py`, `python3 scripts/test/validate-r2-contract.py`, `./scripts/verify-contracts`.
 
+## Current Session Quick Handoff - 2026-09-14 Issue #61 Redaction Hardening
+
+- 현재 작업 브랜치와 worktree: `SHcommit/a01-odii-api-license-qualification`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/a01-odii-api-license-qualification`.
+- 사용자 요청: Issue #61을 `agent-toolkit-skills:backend-developer`와 TDD로 진행한다.
+- 기존 상태: PR #145 `docs(api): Odii 실제 응답 fixture 고정`은 2026-09-14에 `develop`으로 merge됐고 본문에 `Closes #61`가 있었지만, GitHub Issue #61은 아직 Open이다.
+- 이번 세션 보강: `scripts/test/odii-fixture-validation.test.mjs`에 긴 URL-encoded token query 값이 manifest URL에 남으면 실패하는 RED 테스트를 추가했고, `scripts/lib/odii-fixture-validation.mjs`가 URL query 값을 검사해 secret-like token을 차단하도록 구현했다.
+- 검증 통과: `node --test scripts/test/odii-fixture-validation.test.mjs`, `node scripts/validate-odii-fixtures.mjs`, `node --test scripts/test/*.test.mjs`, `./gradlew test`, `cd ai && uv run pytest`, `git diff --check`.
+- PR 생성 시 `Refs #61`로 연결한다. Issue #61은 PR #145 merge와 이번 redaction hardening PR merge, Acceptance Criteria 재확인 후 수동 close 후보로 둔다.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #65
 
 - 현재 작업 브랜치와 worktree: `feature/65-f04-postgis-testcontainers`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/develop`.
