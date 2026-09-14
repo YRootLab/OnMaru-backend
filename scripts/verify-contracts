@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$repo_root"
 
 python3 scripts/test/validate-r1-contract.py
+python3 scripts/test/validate-identity-saved-contract.py
 python3 scripts/test/validate-r2-contract.py
 
 tmp_dir="$(mktemp -d)"

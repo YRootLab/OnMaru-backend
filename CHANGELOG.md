@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Add identity/member/SavedResource OpenAPI fixtures and contract validation for Issue #132.
 - Add R2 map, region, Odii, and tourism insights OpenAPI fixtures with R1/R2 contract validation.
 - Add R1 hanok/place/saved-resource OpenAPI fixtures and CI contract validation for OpenAPI, JSON Schema, DBML, generated SQL, Spring, and FastAPI checks.
 - Harden Odii fixture validation to reject long URL-encoded token query values in captured manifest URLs.

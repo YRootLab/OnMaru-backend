@@ -1,0 +1,19 @@
+{
+  "name": "member-me-auth-required",
+  "description": "Guests cannot read member identity.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/members/me"
+  },
+  "response": {
+    "status": 401,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "AUTH_REQUIRED",
+      "message": "Authentication is required.",
+      "requestId": "req-identity-member-auth",
+      "details": {}
+    }
+  }
+}
