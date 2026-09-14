@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, statSync } from 'node:fs';
 import { relative, resolve, sep } from 'node:path';
 
 const manifestPath = 'docs/reference-snapshots/planning-inputs/manifest.json';
@@ -13,6 +13,21 @@ const requiredEntryFields = [
 const scanRoots = [
   'docs/reference-snapshots/planning-inputs',
   'docs/contracts/fixtures',
+];
+const expectedReferenceLinks = [
+  {
+    path: 'docs/backend_schema_design_guide.md',
+    target: 'reference-snapshots/planning-inputs/backend_schema_design_guide.md',
+  },
+  {
+    path: 'docs/specs',
+    target: 'reference-snapshots/planning-inputs/specs',
+  },
+];
+const requiredPlanningInputs = [
+  'docs/reference-snapshots/planning-inputs/backend_schema_design_guide.md',
+  'docs/reference-snapshots/planning-inputs/specs/backend-requirements/persistence-entity-model.md',
+  'docs/reference-snapshots/planning-inputs/specs/traceability/fe-be-traceability-matrix.md',
 ];
 const secretPatterns = [
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\b["'\s:=]+["']?[^"'\s,}]{8,}/i,
@@ -85,9 +100,35 @@ function validateSecretScan(root) {
   return errors;
 }
 
+function validateReferenceLinks(root) {
+  const errors = [];
+  for (const link of expectedReferenceLinks) {
+    const absolutePath = resolve(root, link.path);
+    let stats;
+    try {
+      stats = lstatSync(absolutePath);
+    } catch {
+      errors.push(`${link.path} is missing`);
+      continue;
+    }
+    if (!stats.isSymbolicLink()) {
+      errors.push(`${link.path} must be a symlink`);
+      continue;
+    }
+    const actual = readlinkSync(absolutePath);
+    if (actual !== link.target) {
+      errors.push(`${link.path} must point to ${link.target}, got ${actual}`);
+    }
+  }
+  return errors;
+}
+
 function validateManifestCoverage(root, entries) {
   const errors = [];
   const listed = new Set(entries.map((entry) => entry.snapshot_path).filter(Boolean));
+  for (const requiredPath of requiredPlanningInputs) {
+    if (!listed.has(requiredPath)) errors.push(`required planning input is missing from manifest: ${requiredPath}`);
+  }
   for (const file of walkFiles(root, 'docs/reference-snapshots/planning-inputs')) {
     if (file.endsWith('/manifest.json')) continue;
     if (!listed.has(file)) errors.push(`${file} is not listed in manifest`);
@@ -119,6 +160,7 @@ export function verifyPlanningInputs(root = process.cwd()) {
     errors.push(...validateManifestCoverage(root, manifest.entries));
   }
 
+  errors.push(...validateReferenceLinks(root));
   errors.push(...validateSecretScan(root));
   return { ok: errors.length === 0, errors };
 }
