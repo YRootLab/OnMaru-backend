@@ -1,5 +1,15 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-14 Issue #65
+
+- 현재 작업 브랜치와 worktree: `feature/65-f04-postgis-testcontainers`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/develop`.
+- 사용자 요청: `Refs: #65` 구현을 진행하고, PR merge 시 해당 Issue를 완료 처리해 닫는다. PR 본문에는 acceptance 충족 근거와 `Closes #65`를 반영한다.
+- 구현 범위: Spring 테스트용 Testcontainers core + PostgreSQL JDBC 의존성을 추가하고, `postgis/postgis:17-3.5-alpine` 컨테이너 smoke test로 `PostGIS_Version()`과 반복 reset 후 clean DB 보장을 검증한다.
+- 로컬 인프라: `infra/local/postgres/compose.yaml`에 PostGIS 포함 PostgreSQL과 `pg_isready` + `pg_extension` readiness healthcheck를 추가했다. 기본 포트는 5432이며 `ONMARU_POSTGRES_PORT`로 변경 가능하다.
+- 테스트 reset helper: `PostgresTestDatabase.reset(Connection)`은 `public` schema를 drop/create하고 `postgis` extension을 다시 보장한다.
+- 검증: `./gradlew :apps:spring-api:test`, `docker compose -f infra/local/postgres/compose.yaml config --quiet`, `ONMARU_POSTGRES_PORT=55432 docker compose -p onmaru_issue65 -f infra/local/postgres/compose.yaml up -d --wait`, `git diff --check`, CI filesystem baseline, `uv run pytest` from `ai/`, `node --test scripts/test/*.test.mjs` 통과. 검증용 compose 리소스는 `down -v`로 제거했다.
+- 후속 연결: CI 확장은 기존 Issue #69 범위로 유지한다. #65 PR merge 전 review/CI 상태와 acceptance criteria를 다시 확인한다.
+
 ## Current Session Quick Handoff - 2026-09-14
 
 - 현재 작업 브랜치와 worktree: `feature/131-f07-design-provenance`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/131-f07`.
