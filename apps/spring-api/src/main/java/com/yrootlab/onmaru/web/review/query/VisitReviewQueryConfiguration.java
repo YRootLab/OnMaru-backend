@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.community.command.review.ReviewIdGenerator;
 import com.yrootlab.onmaru.community.command.review.VisitReviewCommandService;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlace;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlaceLookup;
+import com.yrootlab.onmaru.community.like.VisitReviewLikeService;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewQueryService;
@@ -40,6 +41,11 @@ class VisitReviewQueryConfiguration {
     @Bean
     VisitReviewQueryService visitReviewQueryService(InMemoryVisitReviewStore store, Clock clock) {
         return new VisitReviewQueryService(store, clock);
+    }
+
+    @Bean
+    VisitReviewLikeService visitReviewLikeService(InMemoryVisitReviewStore store) {
+        return new VisitReviewLikeService(store);
     }
 
     @Bean
