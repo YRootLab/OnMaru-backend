@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "title": "OnMaru MVP Operations",
+  "tags": ["onmaru", "mvp", "operations"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "HTTP request/error/latency",
+      "kind": "timeseries",
+      "signals": ["http.server.request.duration", "http.server.request.errors"],
+      "labels": ["deployment.environment", "service.name", "errorCode"]
+    },
+    {
+      "title": "JVM and readiness",
+      "kind": "stat",
+      "signals": ["jvm.memory.used", "process.cpu.time", "application.ready"]
+    },
+    {
+      "title": "DB pool wait",
+      "kind": "timeseries",
+      "signals": ["hikaricp.connections.acquire"]
+    },
+    {
+      "title": "AI run stage and terminal",
+      "kind": "state-timeline",
+      "signals": ["onmaru.ai.run.stage", "onmaru.ai.run.terminal"],
+      "labels": ["deployment.environment", "service.name", "outcome"]
+    },
+    {
+      "title": "AI provider latency and failure",
+      "kind": "timeseries",
+      "signals": ["onmaru.ai.provider.duration", "onmaru.ai.provider.failures"],
+      "labels": ["deployment.environment", "service.name", "provider", "errorCode"]
+    },
+    {
+      "title": "SSE reset and reconnect",
+      "kind": "timeseries",
+      "signals": ["onmaru.sse.reset.count", "onmaru.sse.reconnect.count"],
+      "labels": ["deployment.environment", "service.name", "outcome"]
+    },
+    {
+      "title": "Sync age and failure",
+      "kind": "timeseries",
+      "signals": ["onmaru.sync.age.seconds", "onmaru.sync.failures"],
+      "labels": ["deployment.environment", "dataset", "errorCode"]
+    },
+    {
+      "title": "Published revision freshness",
+      "kind": "stat",
+      "signals": ["onmaru.dataset.published_revision_age.seconds"],
+      "labels": ["deployment.environment", "dataset"]
+    },
+    {
+      "title": "Corpus manifest ACK lag",
+      "kind": "timeseries",
+      "signals": ["onmaru.corpus.manifest_ack_lag.seconds"],
+      "labels": ["deployment.environment", "corpus"]
+    },
+    {
+      "title": "Moderation report open age",
+      "kind": "timeseries",
+      "signals": ["onmaru.moderation.report_open_age.seconds"],
+      "labels": ["deployment.environment", "reason", "severity"]
+    },
+    {
+      "title": "Backup age",
+      "kind": "stat",
+      "signals": ["onmaru.backup.age.seconds"],
+      "labels": ["deployment.environment", "database"]
+    }
+  ]
+}

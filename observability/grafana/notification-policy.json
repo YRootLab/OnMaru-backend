@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "resolveMessagesEnabled": true,
+  "contactPoints": {
+    "discord": {
+      "type": "discord",
+      "secretRef": "GRAFANA_CONTACT_DISCORD_WEBHOOK"
+    },
+    "email": {
+      "type": "email",
+      "secretRef": "GRAFANA_CONTACT_EMAIL_TO"
+    }
+  },
+  "routes": {
+    "warning": {
+      "match": {
+        "severity": "warning"
+      },
+      "contactPoints": ["discord"]
+    },
+    "critical": {
+      "match": {
+        "severity": "critical"
+      },
+      "contactPoints": ["discord", "email"]
+    }
+  }
+}
