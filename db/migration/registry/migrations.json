@@ -23,6 +23,15 @@
       "checksum": "d02-v002-20260915",
       "sha256": "1141a3b8cd0adf25a0afd7510c1ccacfd4a891b2c37c49513b6bfc8333aada50",
       "description": "Catalog canonical place, source identity, dataset revision, and PostGIS projection schema"
+    },
+    {
+      "version": "003",
+      "reservedFor": "D03",
+      "issueNumber": 76,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V003__d03_identity_session_schema.sql",
+      "checksum": "d03-v003-20260915",
+      "sha256": "3796a30cbbb6c32fa2ee7825707598d3467eecf5d7f5233301a23f7c03d71679",
+      "description": "Member, OAuth identity, opaque session, guest grant, and deletion ledger schema"
     }
   ]
 }
