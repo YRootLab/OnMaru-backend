@@ -9,6 +9,7 @@
 - 온라인 전체 검증과 같은 장비의 `./gradlew --offline` 및 `UV_OFFLINE=1` 검증이 모두 통과했다. 다른 장비에는 캐시가 자동으로 이동하지 않는다.
 - IntelliJ 실행법은 `apps/spring-api/README.md`, VS Code 실행법은 `ai/README.md`, 전체 최초 설치·오프라인 명령은 루트 `README.md`에 있다.
 - DB, Flyway, Security, TourAPI adapter, Gemini/RAG 라이브러리는 후속 Issue 소유이므로 이번 scaffold에 미리 추가하지 않았다.
+- 사용자 승인으로 Java 기본 package와 Gradle group을 `com.yrootlab.onmaru`로 확정했다. 실행 코드·테스트·기획 graph/draft와 GitHub Issue 본문 52개의 예상 경로를 동기화했고, 재실행 dry-run에서 body/parent/blocked-by 차이 0을 확인했다.
 - 이 절은 아래의 과거 “runtime scaffold 없음” 기록보다 최신 상태다. #63·#64는 branch merge와 acceptance criteria 확인 후에만 닫는다.
 
 ## Next Session Quick Handoff - 2026-09-12

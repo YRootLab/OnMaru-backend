@@ -27,9 +27,9 @@
 - `gradle/wrapper/*`, `gradlew`, `gradlew.bat`: 전역 Gradle 없는 재현 가능한 실행 진입점.
 - `settings-gradle.lockfile`, `apps/spring-api/gradle.lockfile`: 해석된 plugin과 애플리케이션 의존성 버전 고정.
 - `apps/spring-api/build.gradle.kts`: Spring Web, Actuator, test starter 의존성.
-- `apps/spring-api/src/main/java/kr/onmaru/OnMaruApplication.java`: Spring 실행 진입점.
-- `apps/spring-api/src/test/java/kr/onmaru/OnMaruApplicationTests.java`: context smoke test.
-- `apps/spring-api/src/test/java/kr/onmaru/HealthEndpointTests.java`: 실제 Actuator health HTTP 계약 테스트.
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/OnMaruApplication.java`: Spring 실행 진입점.
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/OnMaruApplicationTests.java`: context smoke test.
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/HealthEndpointTests.java`: 실제 Actuator health HTTP 계약 테스트.
 - `ai/pyproject.toml`: Python version, runtime/dev dependency와 lint/type/test 설정.
 - `ai/.python-version`, `ai/uv.lock`: Python minor 선택과 완전한 dependency lock.
 - `ai/src/onmaru_ai/main.py`: app factory와 health/readiness endpoint.
@@ -62,9 +62,9 @@ curl -fsSLG https://start.spring.io/starter.zip \
   --data-urlencode language=java \
   --data-urlencode bootVersion=4.1.1 \
   --data-urlencode javaVersion=21 \
-  --data-urlencode groupId=kr.onmaru \
+  --data-urlencode groupId=com.yrootlab.onmaru \
   --data-urlencode artifactId=spring-api \
-  --data-urlencode packageName=kr.onmaru \
+  --data-urlencode packageName=com.yrootlab.onmaru \
   --data-urlencode dependencies=web,actuator \
   --output /tmp/onmaru-spring-api.zip
 ```
@@ -90,16 +90,16 @@ git commit -m "build: initialize Gradle multi-project"
 
 **Files:**
 - Create: `apps/spring-api/build.gradle.kts`
-- Create: `apps/spring-api/src/test/java/kr/onmaru/OnMaruApplicationTests.java`
-- Create: `apps/spring-api/src/test/java/kr/onmaru/HealthEndpointTests.java`
-- Create: `apps/spring-api/src/main/java/kr/onmaru/OnMaruApplication.java`
+- Create: `apps/spring-api/src/test/java/com/yrootlab/onmaru/OnMaruApplicationTests.java`
+- Create: `apps/spring-api/src/test/java/com/yrootlab/onmaru/HealthEndpointTests.java`
+- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/OnMaruApplication.java`
 - Create: `apps/spring-api/src/main/resources/application.yaml`
 - Create: `settings-gradle.lockfile`
 - Create: `apps/spring-api/gradle.lockfile`
 
 **Interfaces:**
 - Consumes: Task 1의 `:apps:spring-api` project path.
-- Produces: `kr.onmaru.OnMaruApplication`과 `GET /actuator/health`의 HTTP 200/`UP` 계약.
+- Produces: `com.yrootlab.onmaru.OnMaruApplication`과 `GET /actuator/health`의 HTTP 200/`UP` 계약.
 
 - [x] **Step 1: 실패하는 Spring 테스트를 작성한다**
 
@@ -135,7 +135,7 @@ Expected: FAIL because a `@SpringBootConfiguration`/`OnMaruApplication` cannot b
 - [x] **Step 3: 최소 Spring 애플리케이션을 구현한다**
 
 ```java
-package kr.onmaru;
+package com.yrootlab.onmaru;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

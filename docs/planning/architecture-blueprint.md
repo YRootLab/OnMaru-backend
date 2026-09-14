@@ -130,7 +130,7 @@ Input facade는 조회 전용 concrete class여도 된다. 외부 I/O port는 �
 ## 8. Package Structure
 
 ```text
-apps/spring-api/src/main/java/kr/onmaru/
+apps/spring-api/src/main/java/com/yrootlab/onmaru/
   boot/OnMaruApplication.java
   configuration/CatalogConfiguration.java
   web/catalog/HanokController.java
@@ -141,7 +141,7 @@ apps/spring-api/src/main/java/kr/onmaru/
   integration/docent/AudioStoryContextBridge.java
   security/
   scheduling/
-modules/community/src/main/java/kr/onmaru/community/
+modules/community/src/main/java/com/yrootlab/onmaru/community/
   api/PublishWarmth.java
   api/PublishWarmthRequest.java
   api/WarmthView.java
@@ -150,12 +150,12 @@ modules/community/src/main/java/kr/onmaru/community/
   application/port/PlaceLookupPort.java
   domain/Warmth.java
   domain/ReviewText.java
-adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/
+adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/
   community/WarmthJpaAdapter.java
   community/WarmthJpaEntity.java
   community/SpringDataWarmthRepository.java
   catalog/
-adapters/ai-fastapi/src/main/java/kr/onmaru/aifastapi/
+adapters/ai-fastapi/src/main/java/com/yrootlab/onmaru/aifastapi/
   FastApiDocentAdapter.java
   transport/
 apps/ai-api/

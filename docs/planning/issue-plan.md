@@ -278,7 +278,7 @@ Java 21/Boot 4.1은 검증 시작점이며 라이브러리 호환 후 고정한�
 
 ### Related Code / Modules
 
-settings.gradle.kts, build.gradle.kts, gradle, build-logic, apps/spring-api/build.gradle.kts, apps/spring-api/src/main/java/kr/onmaru/boot, apps/spring-api/src/test/java/kr/onmaru/architecture, modules/catalog/build.gradle.kts, adapters/persistence-jpa/build.gradle.kts, adapters/tourism-api/build.gradle.kts, .github/workflows/ci.yml
+settings.gradle.kts, build.gradle.kts, gradle, build-logic, apps/spring-api/build.gradle.kts, apps/spring-api/src/main/java/com/yrootlab/onmaru/boot, apps/spring-api/src/test/java/com/yrootlab/onmaru/architecture, modules/catalog/build.gradle.kts, adapters/persistence-jpa/build.gradle.kts, adapters/tourism-api/build.gradle.kts, .github/workflows/ci.yml
 
 ### Dependencies (blocked-by)
 
@@ -307,8 +307,8 @@ flowchart LR
 - `gradle`
 - `build-logic`
 - `apps/spring-api/build.gradle.kts`
-- `apps/spring-api/src/main/java/kr/onmaru/boot`
-- `apps/spring-api/src/test/java/kr/onmaru/architecture`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/boot`
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/architecture`
 - `modules/catalog/build.gradle.kts`
 - `adapters/persistence-jpa/build.gradle.kts`
 - `adapters/tourism-api/build.gradle.kts`
@@ -352,7 +352,7 @@ database-designer schema analyzer와 실제 DB DDL을 함께 검증한다. 각 c
 
 ### Related Code / Modules
 
-modules/catalog/src/main/java/kr/onmaru/catalog/domain, modules/catalog/src/main/java/kr/onmaru/catalog/application/port, adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/catalog, adapters/persistence-jpa/src/main/resources/db/migration/catalog, adapters/persistence-jpa/src/test/java/kr/onmaru/persistence/catalog, docs/database
+modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/domain, modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/port, adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/catalog, adapters/persistence-jpa/src/main/resources/db/migration/catalog, adapters/persistence-jpa/src/test/java/com/yrootlab/onmaru/persistence/catalog, docs/database
 
 ### Dependencies (blocked-by)
 
@@ -384,13 +384,13 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/domain`
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/port`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/catalog`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/domain`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/port`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/catalog`
 - `adapters/persistence-jpa/src/main/resources/db/migration/catalog`
-- `adapters/persistence-jpa/src/test/java/kr/onmaru/persistence/catalog`
+- `adapters/persistence-jpa/src/test/java/com/yrootlab/onmaru/persistence/catalog`
 - `docs/database`
-- `modules/catalog/src/main/java/kr/onmaru/catalog/api`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/api`
 
 ### Parallel Safety / Conflict Notes
 
@@ -430,7 +430,7 @@ Odii/DataLab 수집, AI 생성
 
 ### Related Code / Modules
 
-adapters/tourism-api/src/main/java/kr/onmaru/tourism/catalog, modules/catalog/src/main/java/kr/onmaru/catalog/application/sync, apps/spring-api/src/main/java/kr/onmaru/scheduling/catalog, adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/sync, adapters/persistence-jpa/src/main/resources/db/migration/operations, adapters/tourism-api/src/test/java/kr/onmaru/tourism/catalog
+adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/catalog, modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/sync, apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/catalog, adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/sync, adapters/persistence-jpa/src/main/resources/db/migration/operations, adapters/tourism-api/src/test/java/com/yrootlab/onmaru/tourism/catalog
 
 ### Dependencies (blocked-by)
 
@@ -456,12 +456,12 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `adapters/tourism-api/src/main/java/kr/onmaru/tourism/catalog`
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/sync`
-- `apps/spring-api/src/main/java/kr/onmaru/scheduling/catalog`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/sync`
+- `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/catalog`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/sync`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/catalog`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/sync`
 - `adapters/persistence-jpa/src/main/resources/db/migration/operations`
-- `adapters/tourism-api/src/test/java/kr/onmaru/tourism/catalog`
+- `adapters/tourism-api/src/test/java/com/yrootlab/onmaru/tourism/catalog`
 
 ### Parallel Safety / Conflict Notes
 
@@ -501,7 +501,7 @@ known-null 정보를 사실처럼 채우지 않는다. 내부 ID와 sourceUpdate
 
 ### Related Code / Modules
 
-modules/catalog/src/main/java/kr/onmaru/catalog/api, modules/catalog/src/main/java/kr/onmaru/catalog/application/query, apps/spring-api/src/main/java/kr/onmaru/web/catalog, apps/spring-api/src/main/java/kr/onmaru/configuration/catalog, apps/spring-api/src/test/java/kr/onmaru/catalog, adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/catalog, adapters/persistence-jpa/src/main/resources/db/migration/catalog
+modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/api, modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/query, apps/spring-api/src/main/java/com/yrootlab/onmaru/web/catalog, apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/catalog, apps/spring-api/src/test/java/com/yrootlab/onmaru/catalog, adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/catalog, adapters/persistence-jpa/src/main/resources/db/migration/catalog
 
 ### Dependencies (blocked-by)
 
@@ -529,12 +529,12 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/api`
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/query`
-- `apps/spring-api/src/main/java/kr/onmaru/web/catalog`
-- `apps/spring-api/src/main/java/kr/onmaru/configuration/catalog`
-- `apps/spring-api/src/test/java/kr/onmaru/catalog`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/catalog`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/api`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/query`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/catalog`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/catalog`
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/catalog`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/catalog`
 - `adapters/persistence-jpa/src/main/resources/db/migration/catalog`
 
 ### Parallel Safety / Conflict Notes
@@ -575,7 +575,7 @@ mine은 서버 actor에서 계산. place는 consumer port와 app bridge로 확�
 
 ### Related Code / Modules
 
-modules/community, apps/spring-api/src/main/java/kr/onmaru/web/community, apps/spring-api/src/main/java/kr/onmaru/security, apps/spring-api/src/main/java/kr/onmaru/transaction/community, apps/spring-api/src/main/java/kr/onmaru/integration/community, apps/spring-api/src/main/java/kr/onmaru/configuration/community, adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/community, adapters/persistence-jpa/src/main/resources/db/migration/community, apps/spring-api/src/test/java/kr/onmaru/community
+modules/community, apps/spring-api/src/main/java/com/yrootlab/onmaru/web/community, apps/spring-api/src/main/java/com/yrootlab/onmaru/security, apps/spring-api/src/main/java/com/yrootlab/onmaru/transaction/community, apps/spring-api/src/main/java/com/yrootlab/onmaru/integration/community, apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/community, adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/community, adapters/persistence-jpa/src/main/resources/db/migration/community, apps/spring-api/src/test/java/com/yrootlab/onmaru/community
 
 ### Dependencies (blocked-by)
 
@@ -602,14 +602,14 @@ flowchart LR
 ### Expected Touch Points
 
 - `modules/community`
-- `apps/spring-api/src/main/java/kr/onmaru/web/community`
-- `apps/spring-api/src/main/java/kr/onmaru/security`
-- `apps/spring-api/src/main/java/kr/onmaru/transaction/community`
-- `apps/spring-api/src/main/java/kr/onmaru/integration/community`
-- `apps/spring-api/src/main/java/kr/onmaru/configuration/community`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/community`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/community`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/security`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/transaction/community`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/integration/community`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/community`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/community`
 - `adapters/persistence-jpa/src/main/resources/db/migration/community`
-- `apps/spring-api/src/test/java/kr/onmaru/community`
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/community`
 - `settings.gradle.kts`
 - `apps/spring-api/build.gradle.kts`
 
@@ -651,7 +651,7 @@ H3 사용자 체크인, 실시간 인원 추정, 근거 없는 혼잡 점수
 
 ### Related Code / Modules
 
-modules/insights, modules/catalog/src/main/java/kr/onmaru/catalog/application/query, modules/catalog/src/main/java/kr/onmaru/catalog/api, adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/catalog, apps/spring-api/src/main/java/kr/onmaru/web/map, apps/spring-api/src/main/java/kr/onmaru/configuration/insights, apps/spring-api/src/main/java/kr/onmaru/scheduling/insights, adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/insights, adapters/persistence-jpa/src/main/resources/db/migration/insights, adapters/tourism-api/src/main/java/kr/onmaru/tourism/insights, apps/spring-api/src/test/java/kr/onmaru/insights
+modules/insights, modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/query, modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/api, adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/catalog, apps/spring-api/src/main/java/com/yrootlab/onmaru/web/map, apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/insights, apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/insights, adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/insights, adapters/persistence-jpa/src/main/resources/db/migration/insights, adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/insights, apps/spring-api/src/test/java/com/yrootlab/onmaru/insights
 
 ### Dependencies (blocked-by)
 
@@ -678,16 +678,16 @@ flowchart LR
 ### Expected Touch Points
 
 - `modules/insights`
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/query`
-- `modules/catalog/src/main/java/kr/onmaru/catalog/api`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/catalog`
-- `apps/spring-api/src/main/java/kr/onmaru/web/map`
-- `apps/spring-api/src/main/java/kr/onmaru/configuration/insights`
-- `apps/spring-api/src/main/java/kr/onmaru/scheduling/insights`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/insights`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/query`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/api`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/catalog`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/map`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/insights`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/insights`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/insights`
 - `adapters/persistence-jpa/src/main/resources/db/migration/insights`
-- `adapters/tourism-api/src/main/java/kr/onmaru/tourism/insights`
-- `apps/spring-api/src/test/java/kr/onmaru/insights`
+- `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/insights`
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/insights`
 - `settings.gradle.kts`
 - `apps/spring-api/build.gradle.kts`
 
@@ -729,7 +729,7 @@ audio는 place가 없어도 제공한다. 삭제 tombstone, 대본 revision, out
 
 ### Related Code / Modules
 
-modules/audio, adapters/tourism-api/src/main/java/kr/onmaru/tourism/audio, adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/audio, adapters/persistence-jpa/src/main/resources/db/migration/audio, apps/spring-api/src/main/java/kr/onmaru/web/audio, apps/spring-api/src/main/java/kr/onmaru/configuration/audio, apps/spring-api/src/main/java/kr/onmaru/scheduling/audio, apps/spring-api/src/test/java/kr/onmaru/audio
+modules/audio, adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/audio, adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/audio, adapters/persistence-jpa/src/main/resources/db/migration/audio, apps/spring-api/src/main/java/com/yrootlab/onmaru/web/audio, apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/audio, apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/audio, apps/spring-api/src/test/java/com/yrootlab/onmaru/audio
 
 ### Dependencies (blocked-by)
 
@@ -758,13 +758,13 @@ flowchart LR
 ### Expected Touch Points
 
 - `modules/audio`
-- `adapters/tourism-api/src/main/java/kr/onmaru/tourism/audio`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/audio`
+- `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/audio`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/audio`
 - `adapters/persistence-jpa/src/main/resources/db/migration/audio`
-- `apps/spring-api/src/main/java/kr/onmaru/web/audio`
-- `apps/spring-api/src/main/java/kr/onmaru/configuration/audio`
-- `apps/spring-api/src/main/java/kr/onmaru/scheduling/audio`
-- `apps/spring-api/src/test/java/kr/onmaru/audio`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/audio`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/audio`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/audio`
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/audio`
 - `settings.gradle.kts`
 - `apps/spring-api/build.gradle.kts`
 
@@ -806,7 +806,7 @@ outbox dispatch는 Spring audio scheduling의 별도 docsync package. FastAPI에
 
 ### Related Code / Modules
 
-apps/ai-api/pyproject.toml, apps/ai-api/src/onmaru_ai/main.py, apps/ai-api/src/onmaru_ai/api/documents, apps/ai-api/src/onmaru_ai/application/indexing, apps/ai-api/src/onmaru_ai/retrieval, apps/ai-api/src/onmaru_ai/providers/embedding, apps/ai-api/src/onmaru_ai/persistence, apps/ai-api/migrations, apps/ai-api/tests/indexing, apps/ai-api/evaluation, apps/spring-api/src/main/java/kr/onmaru/scheduling/docsync
+apps/ai-api/pyproject.toml, apps/ai-api/src/onmaru_ai/main.py, apps/ai-api/src/onmaru_ai/api/documents, apps/ai-api/src/onmaru_ai/application/indexing, apps/ai-api/src/onmaru_ai/retrieval, apps/ai-api/src/onmaru_ai/providers/embedding, apps/ai-api/src/onmaru_ai/persistence, apps/ai-api/migrations, apps/ai-api/tests/indexing, apps/ai-api/evaluation, apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/docsync
 
 ### Dependencies (blocked-by)
 
@@ -842,7 +842,7 @@ flowchart LR
 - `apps/ai-api/migrations`
 - `apps/ai-api/tests/indexing`
 - `apps/ai-api/evaluation`
-- `apps/spring-api/src/main/java/kr/onmaru/scheduling/docsync`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/docsync`
 
 ### Parallel Safety / Conflict Notes
 
@@ -882,7 +882,7 @@ Spring이 current revision과 actor quota를 결정. SSE 첫 event 후 오류는
 
 ### Related Code / Modules
 
-modules/docent, adapters/ai-fastapi, apps/spring-api/src/main/java/kr/onmaru/web/docent, apps/spring-api/src/main/java/kr/onmaru/integration/docent, apps/spring-api/src/main/java/kr/onmaru/configuration/docent, adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/docent, adapters/persistence-jpa/src/main/resources/db/migration/docent, apps/ai-api/src/onmaru_ai/api/answers, apps/ai-api/src/onmaru_ai/application/answering, apps/ai-api/src/onmaru_ai/providers/llm, apps/ai-api/tests/answering, apps/spring-api/src/test/java/kr/onmaru/docent
+modules/docent, adapters/ai-fastapi, apps/spring-api/src/main/java/com/yrootlab/onmaru/web/docent, apps/spring-api/src/main/java/com/yrootlab/onmaru/integration/docent, apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/docent, adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/docent, adapters/persistence-jpa/src/main/resources/db/migration/docent, apps/ai-api/src/onmaru_ai/api/answers, apps/ai-api/src/onmaru_ai/application/answering, apps/ai-api/src/onmaru_ai/providers/llm, apps/ai-api/tests/answering, apps/spring-api/src/test/java/com/yrootlab/onmaru/docent
 
 ### Dependencies (blocked-by)
 
@@ -910,16 +910,16 @@ flowchart LR
 
 - `modules/docent`
 - `adapters/ai-fastapi`
-- `apps/spring-api/src/main/java/kr/onmaru/web/docent`
-- `apps/spring-api/src/main/java/kr/onmaru/integration/docent`
-- `apps/spring-api/src/main/java/kr/onmaru/configuration/docent`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/docent`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/docent`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/integration/docent`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/configuration/docent`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/docent`
 - `adapters/persistence-jpa/src/main/resources/db/migration/docent`
 - `apps/ai-api/src/onmaru_ai/api/answers`
 - `apps/ai-api/src/onmaru_ai/application/answering`
 - `apps/ai-api/src/onmaru_ai/providers/llm`
 - `apps/ai-api/tests/answering`
-- `apps/spring-api/src/test/java/kr/onmaru/docent`
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/docent`
 - `settings.gradle.kts`
 - `apps/spring-api/build.gradle.kts`
 

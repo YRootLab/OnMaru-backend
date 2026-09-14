@@ -1,6 +1,10 @@
 # Spring modular monolith의 모듈 경계
 
-상태: 개선 설계안. 기존 Blueprint의 구조 원칙을 최신 여정 MVP에 적용한다. 현재 애플리케이션 코드는 없으므로 ‘헥사고날/DDD 구현 완료’가 아니다.
+상태: 개선 설계안. 기존 Blueprint의 구조 원칙을 최신 여정 MVP에 적용한다. Spring 실행 골격만 존재하며 기능 모듈과 경계 검증은 아직 없으므로 ‘헥사고날/DDD 구현 완료’가 아니다.
+
+## Java namespace와 source root
+
+Java 기본 package와 Gradle group은 `com.yrootlab.onmaru`다. 각 Gradle 모듈의 `src/main/java`와 `src/test/java`가 source root이며, package는 그 아래의 `com/yrootlab/onmaru`부터 시작한다. 예를 들어 catalog core는 `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog`, Spring 실행 진입점은 `apps/spring-api/src/main/java/com/yrootlab/onmaru`에 둔다. `apps`, `modules`, `src/main/java`는 Java package 이름에 포함하지 않는다.
 
 ## 런타임 경로
 

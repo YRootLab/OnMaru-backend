@@ -6,7 +6,7 @@ plugins {
 }
 
 allprojects {
-    group = "kr.onmaru"
+    group = "com.yrootlab.onmaru"
     version = "0.0.1-SNAPSHOT"
 
     repositories {

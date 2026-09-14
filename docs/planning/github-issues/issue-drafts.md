@@ -686,7 +686,7 @@ package 규칙, 금지 import/cycle fixture, composition bridge
 
 ### Related Code / Modules
 
-apps/spring-api/src/test/java/kr/onmaru/architecture, build-logic/
+apps/spring-api/src/test/java/com/yrootlab/onmaru/architecture, build-logic/
 
 ### Dependencies (blocked-by)
 
@@ -707,7 +707,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/test/java/kr/onmaru/architecture`
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/architecture`
 - `build-logic/architecture`
 
 ### Parallel Safety / Conflict Notes
@@ -1009,7 +1009,7 @@ error envelope, requestId, validation, cursor codec, Idempotency-Key storage por
 
 ### Related Code / Modules
 
-apps/spring-api/src/main/java/kr/onmaru/web/common, modules/shared-web
+apps/spring-api/src/main/java/com/yrootlab/onmaru/web/common, modules/shared-web
 
 ### Dependencies (blocked-by)
 
@@ -1065,7 +1065,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/web/common`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/common`
 - `modules/shared-web`
 
 ### Parallel Safety / Conflict Notes
@@ -1236,8 +1236,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/operations/src/main/java/kr/onmaru/operations/admission`
-- `apps/spring-api/src/main/java/kr/onmaru/web/admission`
+- `modules/operations/src/main/java/com/yrootlab/onmaru/operations/admission`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/admission`
 
 ### Parallel Safety / Conflict Notes
 
@@ -1523,7 +1523,7 @@ flowchart LR
 ### Expected Touch Points
 
 - `db/migration/catalog`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/catalog`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/catalog`
 
 ### Parallel Safety / Conflict Notes
 
@@ -1605,7 +1605,7 @@ flowchart LR
 ### Expected Touch Points
 
 - `db/migration/identity`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/identity`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/identity`
 
 ### Parallel Safety / Conflict Notes
 
@@ -1696,7 +1696,7 @@ flowchart LR
 ### Expected Touch Points
 
 - `db/migration/journey`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/journey`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/journey`
 
 ### Parallel Safety / Conflict Notes
 
@@ -1778,7 +1778,7 @@ flowchart LR
 ### Expected Touch Points
 
 - `db/migration/community`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/community`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/community`
 
 ### Parallel Safety / Conflict Notes
 
@@ -1857,7 +1857,7 @@ flowchart LR
 ### Expected Touch Points
 
 - `db/migration/audio`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/audio`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/audio`
 
 ### Parallel Safety / Conflict Notes
 
@@ -1951,7 +1951,7 @@ flowchart LR
 ### Expected Touch Points
 
 - `db/migration/operations`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/operations`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/operations`
 
 ### Parallel Safety / Conflict Notes
 
@@ -2132,7 +2132,7 @@ flowchart LR
 ### Expected Touch Points
 
 - `db/migration/insights`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/insights`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/insights`
 
 ### Parallel Safety / Conflict Notes
 
@@ -2258,7 +2258,7 @@ connect1s/attempt5s/page12s/retry2 기본을 configuration으로 둔다.
 
 ### Related Code / Modules
 
-adapters/tourism-api/src/main/java/kr/onmaru/tourism/catalog
+adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/catalog
 
 ### Dependencies (blocked-by)
 
@@ -2287,7 +2287,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `adapters/tourism-api/src/main/java/kr/onmaru/tourism/catalog/client`
+- `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/catalog/client`
 
 ### Parallel Safety / Conflict Notes
 
@@ -2371,8 +2371,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/sync`
-- `apps/spring-api/src/main/java/kr/onmaru/scheduling/catalog`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/sync`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/catalog`
 
 ### Parallel Safety / Conflict Notes
 
@@ -2453,8 +2453,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/qualification`
-- `adapters/tourism-api/src/main/java/kr/onmaru/tourism/catalog/mapping`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/qualification`
+- `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/catalog/mapping`
 
 ### Parallel Safety / Conflict Notes
 
@@ -2556,8 +2556,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/publication`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/publication`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/publication`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/publication`
 
 ### Parallel Safety / Conflict Notes
 
@@ -2644,7 +2644,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `adapters/tourism-api/src/main/java/kr/onmaru/tourism/insights`
+- `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/insights`
 - `modules/insights`
 
 ### Parallel Safety / Conflict Notes
@@ -2730,8 +2730,8 @@ flowchart LR
 ### Expected Touch Points
 
 - `docs/reference-snapshots/region-boundaries`
-- `modules/catalog/src/main/java/kr/onmaru/catalog/regionboundary`
-- `apps/spring-api/src/main/java/kr/onmaru/scheduling/regionboundary`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/regionboundary`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/regionboundary`
 
 ### Parallel Safety / Conflict Notes
 
@@ -2898,8 +2898,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/query/hanok`
-- `apps/spring-api/src/main/java/kr/onmaru/web/hanok/list`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/query/hanok`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/hanok/list`
 
 ### Parallel Safety / Conflict Notes
 
@@ -2992,8 +2992,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/query/detail`
-- `apps/spring-api/src/main/java/kr/onmaru/web/place/detail`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/query/detail`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/place/detail`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3074,8 +3074,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/editorial`
-- `apps/spring-api/src/main/java/kr/onmaru/web/editorial`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/editorial`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/editorial`
 - `db/migration/catalog_editorial`
 
 ### Parallel Safety / Conflict Notes
@@ -3155,8 +3155,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/catalog/src/main/java/kr/onmaru/catalog/application/query/spatial`
-- `apps/spring-api/src/main/java/kr/onmaru/web/map/place`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/query/spatial`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/map/place`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3208,7 +3208,7 @@ OpenAPI generated diff를 CI에 연결한다.
 
 ### Related Code / Modules
 
-apps/spring-api/src/test/java/kr/onmaru/r1, docs/contracts/openapi/r1.openapi.yaml
+apps/spring-api/src/test/java/com/yrootlab/onmaru/r1, docs/contracts/openapi/r1.openapi.yaml
 
 ### Dependencies (blocked-by)
 
@@ -3246,7 +3246,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/test/java/kr/onmaru/r1`
+- `apps/spring-api/src/test/java/com/yrootlab/onmaru/r1`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3349,8 +3349,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/identity/src/main/java/kr/onmaru/identity/oauth`
-- `apps/spring-api/src/main/java/kr/onmaru/security/oauth/kakao`
+- `modules/identity/src/main/java/com/yrootlab/onmaru/identity/oauth`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/security/oauth/kakao`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3428,8 +3428,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/identity/src/main/java/kr/onmaru/identity/guest`
-- `modules/journey/src/main/java/kr/onmaru/journey/ownership`
+- `modules/identity/src/main/java/com/yrootlab/onmaru/identity/guest`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/ownership`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3531,7 +3531,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/security/web`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/security/web`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3615,8 +3615,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/identity/src/main/java/kr/onmaru/identity/lifecycle`
-- `apps/spring-api/src/main/java/kr/onmaru/web/member`
+- `modules/identity/src/main/java/com/yrootlab/onmaru/identity/lifecycle`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/member`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3709,8 +3709,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/saved/place`
-- `apps/spring-api/src/main/java/kr/onmaru/web/saved/place`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/saved/place`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/saved/place`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3800,8 +3800,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/saved/odii`
-- `apps/spring-api/src/main/java/kr/onmaru/web/saved/list`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/saved/odii`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/saved/list`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3888,8 +3888,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/timeline`
-- `apps/spring-api/src/main/java/kr/onmaru/web/me/timeline`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/timeline`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/me/timeline`
 
 ### Parallel Safety / Conflict Notes
 
@@ -3982,8 +3982,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/community/src/main/java/kr/onmaru/community/region`
-- `apps/spring-api/src/main/java/kr/onmaru/web/map/region`
+- `modules/community/src/main/java/com/yrootlab/onmaru/community/region`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/map/region`
 
 ### Parallel Safety / Conflict Notes
 
@@ -4067,8 +4067,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/community/src/main/java/kr/onmaru/community/query`
-- `apps/spring-api/src/main/java/kr/onmaru/web/review/query`
+- `modules/community/src/main/java/com/yrootlab/onmaru/community/query`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/review/query`
 
 ### Parallel Safety / Conflict Notes
 
@@ -4155,8 +4155,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/community/src/main/java/kr/onmaru/community/command/review`
-- `apps/spring-api/src/main/java/kr/onmaru/web/review/command`
+- `modules/community/src/main/java/com/yrootlab/onmaru/community/command/review`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/review/command`
 
 ### Parallel Safety / Conflict Notes
 
@@ -4231,8 +4231,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/community/src/main/java/kr/onmaru/community/like`
-- `apps/spring-api/src/main/java/kr/onmaru/web/review/like`
+- `modules/community/src/main/java/com/yrootlab/onmaru/community/like`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/review/like`
 
 ### Parallel Safety / Conflict Notes
 
@@ -4313,8 +4313,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/community/src/main/java/kr/onmaru/community/moderation`
-- `apps/spring-api/src/main/java/kr/onmaru/operations/moderation`
+- `modules/community/src/main/java/com/yrootlab/onmaru/community/moderation`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/operations/moderation`
 
 ### Parallel Safety / Conflict Notes
 
@@ -4483,8 +4483,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/insights/src/main/java/kr/onmaru/insights/query`
-- `apps/spring-api/src/main/java/kr/onmaru/web/insights`
+- `modules/insights/src/main/java/com/yrootlab/onmaru/insights/query`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/insights`
 
 ### Parallel Safety / Conflict Notes
 
@@ -4562,7 +4562,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/operations/moderation/queue`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/operations/moderation/queue`
 - `docs/operations/runbooks/moderation.md`
 - `testing/e2e/moderation`
 
@@ -4831,8 +4831,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `adapters/tourism-api/src/main/java/kr/onmaru/tourism/audio`
-- `modules/audio/src/main/java/kr/onmaru/audio/sync`
+- `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/audio`
+- `modules/audio/src/main/java/com/yrootlab/onmaru/audio/sync`
 
 ### Parallel Safety / Conflict Notes
 
@@ -4919,8 +4919,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/audio/src/main/java/kr/onmaru/audio/query`
-- `apps/spring-api/src/main/java/kr/onmaru/web/audio`
+- `modules/audio/src/main/java/com/yrootlab/onmaru/audio/query`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/audio`
 
 ### Parallel Safety / Conflict Notes
 
@@ -4998,8 +4998,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/audio/src/main/java/kr/onmaru/audio/placelink`
-- `apps/spring-api/src/main/java/kr/onmaru/operations/audiolink`
+- `modules/audio/src/main/java/com/yrootlab/onmaru/audio/placelink`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/operations/audiolink`
 
 ### Parallel Safety / Conflict Notes
 
@@ -5091,7 +5091,7 @@ flowchart LR
 
 - `docs/contracts/openapi/internal-ai.yaml`
 - `ai/src/onmaru_ai/security`
-- `apps/spring-api/src/main/java/kr/onmaru/integration/ai/security`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/integration/ai/security`
 
 ### Parallel Safety / Conflict Notes
 
@@ -5573,7 +5573,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/internal/corpus`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/internal/corpus`
 - `ai/src/onmaru_ai/corpus/sync`
 
 ### Parallel Safety / Conflict Notes
@@ -5819,8 +5819,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/exploration`
-- `apps/spring-api/src/main/java/kr/onmaru/web/exploration`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/exploration`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/exploration`
 
 ### Parallel Safety / Conflict Notes
 
@@ -5904,8 +5904,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/run`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/journey/run`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/run`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/journey/run`
 
 ### Parallel Safety / Conflict Notes
 
@@ -5989,7 +5989,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/journeyworker`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/journeyworker`
 - `adapters/ai-fastapi`
 
 ### Parallel Safety / Conflict Notes
@@ -6068,8 +6068,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/snapshot`
-- `apps/spring-api/src/main/java/kr/onmaru/web/exploration/snapshot`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/snapshot`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/exploration/snapshot`
 
 ### Parallel Safety / Conflict Notes
 
@@ -6150,8 +6150,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/web/exploration/sse`
-- `modules/journey/src/main/java/kr/onmaru/journey/events`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/exploration/sse`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/events`
 
 ### Parallel Safety / Conflict Notes
 
@@ -6235,8 +6235,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/actions`
-- `apps/spring-api/src/main/java/kr/onmaru/web/exploration/actions`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/actions`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/exploration/actions`
 
 ### Parallel Safety / Conflict Notes
 
@@ -6317,8 +6317,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/cancellation`
-- `apps/spring-api/src/main/java/kr/onmaru/scheduling/run`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/cancellation`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/run`
 
 ### Parallel Safety / Conflict Notes
 
@@ -6405,8 +6405,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/savedjourney`
-- `apps/spring-api/src/main/java/kr/onmaru/web/savedjourney`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/savedjourney`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/savedjourney`
 
 ### Parallel Safety / Conflict Notes
 
@@ -6484,8 +6484,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `modules/journey/src/main/java/kr/onmaru/journey/quota`
-- `adapters/persistence-jpa/src/main/java/kr/onmaru/persistence/journey/quota`
+- `modules/journey/src/main/java/com/yrootlab/onmaru/journey/quota`
+- `adapters/persistence-jpa/src/main/java/com/yrootlab/onmaru/persistence/journey/quota`
 
 ### Parallel Safety / Conflict Notes
 
@@ -6750,7 +6750,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/observability`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/observability`
 - `ai/src/onmaru_ai/observability`
 
 ### Parallel Safety / Conflict Notes
@@ -6919,7 +6919,7 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/config/secrets`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/config/secrets`
 - `ai/src/onmaru_ai/config/secrets`
 - `docs/operations/runbooks/secrets.md`
 
@@ -7336,8 +7336,8 @@ flowchart LR
 
 ### Expected Touch Points
 
-- `apps/spring-api/src/main/java/kr/onmaru/scheduling/retention`
-- `modules/operations/src/main/java/kr/onmaru/operations/retention`
+- `apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/retention`
+- `modules/operations/src/main/java/com/yrootlab/onmaru/operations/retention`
 
 ### Parallel Safety / Conflict Notes
 
