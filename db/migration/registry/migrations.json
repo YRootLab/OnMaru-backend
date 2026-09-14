@@ -41,6 +41,15 @@
       "checksum": "d07-v004-20260915",
       "sha256": "9c474f10ec3cf60831c831be83751c1c21224fed21d8dc477e678280aa9706be",
       "description": "Sync operations schedules, runs, leases, checkpoints, watermarks, quarantine, and outbox schema"
+    },
+    {
+      "version": "005",
+      "reservedFor": "D09",
+      "issueNumber": 135,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V005__d09_insights_observations_schema.sql",
+      "checksum": "d09-v005-20260915",
+      "sha256": "c38153d46e62fd61196dfd9de734431d1129261a16d082bf57572799a128277f",
+      "description": "Insights visitor observations, tourism targets, target-place links, and concentration observations schema"
     }
   ]
 }
