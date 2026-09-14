@@ -1,0 +1,16 @@
+{
+  "name": "internal-ai-missing-scope",
+  "request": {
+    "method": "POST",
+    "path": "/internal/v1/journey/proposals"
+  },
+  "response": {
+    "status": 403,
+    "schema": "InternalError",
+    "body": {
+      "schemaVersion": "internal.ai.v1",
+      "code": "INTERNAL_AUTH_FORBIDDEN_SCOPE",
+      "message": "INTERNAL_AUTH_FORBIDDEN_SCOPE"
+    }
+  }
+}
