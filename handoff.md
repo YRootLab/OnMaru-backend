@@ -1,5 +1,15 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-14 Issue #68
+
+- 현재 작업 브랜치와 worktree: `SHcommit/f02-spring-port-adapter-archunit`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f02-spring-port-adapter-archunit`.
+- 사용자 요청: Issue #68 기반으로 Spring 모듈 port/adapter 경계와 ArchUnit 규칙을 TDD로 구현하고, PR merge 시 #68을 닫는다.
+- 구현 범위: `apps/spring-api` JUnit test suite에 ArchUnit 1.5.0을 추가하고, core의 Spring/JPA/Reactor import 금지, production module cycle 금지, 문서화된 module 방향, consumer-owned port, app bridge API-only 규칙을 검증한다.
+- fixture: framework import 위반, 정상 consumer-owned port + app bridge, direct cross-module core import 위반, module cycle 위반, bridge internal import 위반 fixture를 추가했다.
+- CI 연결: `.github/workflows/ci.yml`의 기존 `./gradlew test --no-daemon` step에서 ArchUnit 테스트가 자동 실행되므로 별도 workflow step은 추가하지 않았다.
+- 작업 로그: `troubleshooting-worklog/26.09.14 spring-archunit-module-boundary.md`.
+- 검증: `./gradlew :apps:spring-api:test --tests com.yrootlab.onmaru.architecture.ModuleBoundaryArchUnitTests`, `./gradlew test --no-daemon --rerun-tasks`, `./gradlew check`, `git diff --check`, CI workflow의 Node/planning/Odii/contract/FastAPI 로컬 검증을 통과했다. `scripts/verify-contracts`는 exit code 0이나 로컬 Python 3.9 LibreSSL warning이 출력됐다.
+- PR 본문에는 `Closes #68`을 사용한다. merge 전 review/CI 상태와 acceptance criteria를 다시 확인한다.
 ## Current Session Quick Handoff - 2026-09-14 Issue #69
 
 - 현재 작업 브랜치와 worktree: `feature/69-openapi-json-schema-dbml-ci`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/f05-openapi-json-schema-dbml-ci`.
