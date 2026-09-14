@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Add R1 hanok/place/saved-resource OpenAPI fixtures and CI contract validation for OpenAPI, JSON Schema, DBML, generated SQL, Spring, and FastAPI checks.
 - Capture redacted Odii API qualification fixtures and license/provenance manifest for Issue #61.
 - Add TourAPI qualification manifest, redacted provider fixtures, and CI fixture validation for Issue #66.
 - Add reproducible backend planning-input snapshots with provenance manifest, hash verification, and secret scanning in CI.

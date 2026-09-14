@@ -1,0 +1,23 @@
+{
+  "name": "hanok-list-empty",
+  "description": "A supported filter with no public results returns an empty page, not an error.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/hanoks",
+    "query": {
+      "regionCode": "kr-45-muju",
+      "category": "HANOK_EXPERIENCE",
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "HanokListResponse",
+    "body": {
+      "schemaVersion": "1.2",
+      "items": [],
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}

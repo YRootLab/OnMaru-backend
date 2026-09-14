@@ -1,0 +1,23 @@
+{
+  "name": "saved-place-normal",
+  "description": "Saving a canonical public tourism place returns the current saved state.",
+  "request": {
+    "method": "PUT",
+    "path": "/api/v1/saved-resources/places/p-jeonju-hanok-village",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "SavedPlaceState",
+    "body": {
+      "schemaVersion": "1.2",
+      "resourceType": "PLACE",
+      "resourceId": "p-jeonju-hanok-village",
+      "placeId": "p-jeonju-hanok-village",
+      "savedByMe": true,
+      "savedAt": "2026-09-14T08:10:00Z"
+    }
+  }
+}

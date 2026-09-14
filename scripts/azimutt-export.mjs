@@ -5,7 +5,9 @@ import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const repoRoot = resolve(import.meta.dirname, '..');
-const outputDir = resolve(repoRoot, 'docs/database/azimutt');
+const outputDir = process.env.AZIMUTT_OUTPUT_DIR
+  ? resolve(process.env.AZIMUTT_OUTPUT_DIR)
+  : resolve(repoRoot, 'docs/database/azimutt');
 const dbmlEntry = resolve(repoRoot, 'docs/database/schema.dbml');
 
 function toAzimuttSql(postgresSql) {

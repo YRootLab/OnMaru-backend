@@ -1,0 +1,41 @@
+{
+  "name": "place-detail-normal",
+  "description": "Canonical place detail reuses the same placeId as hanok and map surfaces.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/places/p-jeonju-hanok-village"
+  },
+  "response": {
+    "status": 200,
+    "schema": "CanonicalPlaceDetail",
+    "body": {
+      "schemaVersion": "1.2",
+      "placeId": "p-jeonju-hanok-village",
+      "name": "전주 한옥마을",
+      "category": "한옥",
+      "region": {
+        "regionCode": "kr-45-jeonju",
+        "name": "전북 전주시"
+      },
+      "address": "전북 전주시 완산구 기린대로 99",
+      "coordinates": {
+        "lat": 35.8151,
+        "lng": 127.153
+      },
+      "images": [
+        {
+          "url": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+          "alt": "전주 한옥마을 골목"
+        }
+      ],
+      "description": "한옥, 지도, Odii 연결 화면이 같은 canonical 장소로 읽는 공개 관광 장소입니다.",
+      "savedByMe": true
+    }
+  },
+  "sharedPlaceAssertion": {
+    "placeId": "p-jeonju-hanok-village",
+    "hanokCardPlaceId": "p-jeonju-hanok-village",
+    "mapCardPlaceId": "p-jeonju-hanok-village",
+    "odiiLinkedCardPlaceId": "p-jeonju-hanok-village"
+  }
+}

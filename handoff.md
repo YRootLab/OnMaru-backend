@@ -10,6 +10,19 @@
 - 검증: `./gradlew :apps:spring-api:test`, `docker compose -f infra/local/postgres/compose.yaml config --quiet`, `ONMARU_POSTGRES_PORT=55432 docker compose -p onmaru_issue65 -f infra/local/postgres/compose.yaml up -d --wait`, `git diff --check`, CI filesystem baseline, `uv run pytest` from `ai/`, `node --test scripts/test/*.test.mjs` 통과. 검증용 compose 리소스는 `down -v`로 제거했다.
 - 후속 연결: CI 확장은 기존 Issue #69 범위로 유지한다. #65 PR merge 전 review/CI 상태와 acceptance criteria를 다시 확인한다.
 
+## Current Session Quick Handoff - 2026-09-14 Issue #62
+
+- 현재 작업 브랜치와 worktree: `feature/62-c01-place-openapi-fixture`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/62-c01`.
+- Issue #62 `[C01] R1 한옥·장소·찜 OpenAPI와 fixture 동결` 작업을 진행했다. PR에서 실제 완료할 범위이므로 본문에는 `Closes #62`를 사용한다.
+- 산출물: `docs/contracts/openapi/r1.openapi.yaml`, `docs/contracts/fixtures/r1/*.json` 13개, `scripts/test/validate-r1-contract.py`, `scripts/test/requirements-r1-contract.txt`, `.github/workflows/ci.yml`의 R1 contract validation 및 FastAPI service tests 단계.
+- 추가 CI 보강: `.github/workflows/ci.yml`에 JDK 21 Gradle cache 기반 `./gradlew test --no-daemon`을 추가했다. `scripts/verify-contracts`는 R1 OpenAPI/fixture 검증, DBML compile, Azimutt/Postgres 생성물 stale 검증을 수행한다.
+- 최신 `origin/develop` merge 후 Node script tests, planning input snapshot validation, Odii fixture manifest validation과도 CI workflow를 병합했다.
+- `scripts/azimutt-export.mjs`는 `AZIMUTT_OUTPUT_DIR` 환경 변수를 지원해 CI/로컬 검증에서 임시 디렉터리에 생성물을 만들 수 있다. 이 덕분에 uncommitted working tree에서도 generated artifact diff를 검증할 수 있다.
+- #69는 blocked-by인 #63/#64가 GitHub 상 Open 상태라 이번 PR에서 자동 종료하지 말고 `Refs #69`로 연결하는 편이 안전하다.
+- #62 범위에 맞춰 endpoint code는 추가하지 않았다. public schema와 fixture에는 `contentId`, `pageNo`, provider `key`, `serviceKey`를 노출하지 않는다.
+- 한옥 상세, 지도 카드, Odii 연결 장소 카드는 fixture에서 같은 canonical `placeId`(`p-jeonju-hanok-village`)를 공유하도록 검증한다.
+- 로컬 검증 `bash scripts/verify-contracts`, `./gradlew test`, `cd ai && uv run pytest`, `git diff --check` 통과. 최종 merge 전 PR CI와 review 상태를 다시 확인한다.
+
 ## Current Session Quick Handoff - 2026-09-14
 
 - 현재 작업 브랜치와 worktree: `chore/61-a01-odii-api-validation-2`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/develop-2`.
