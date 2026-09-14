@@ -8,7 +8,7 @@
 - `scripts/verify-planning-inputs.mjs`와 `scripts/lib/planning-inputs-verifier.mjs`를 추가했다. 검증은 manifest 누락/변조, manifest 밖 snapshot 파일, snapshot·contract fixture의 secret-like 값을 실패 처리한다.
 - CI는 `node --test scripts/test/*.test.mjs`와 `node scripts/verify-planning-inputs.mjs`를 실행한다.
 - 검증 통과: `node --test scripts/test/*.test.mjs`, `node scripts/verify-planning-inputs.mjs`, `git diff --check`, `./gradlew --no-daemon check`, `cd ai && uv sync --frozen --all-groups && uv run ruff check . && uv run mypy src tests && uv run pytest`.
-- PR은 `develop` 대상으로 생성하며, merge되면 #131 Acceptance Criteria를 충족하므로 `Closes #131`을 사용한다.
+- PR은 `develop` 대상으로 생성한다. 저장소 default branch가 `main`이라 GitHub auto-close가 잡히지 않으므로 PR 본문은 `Refs #131`로 두고, `develop` merge와 Acceptance Criteria 확인 후 #131을 수동 close한다.
 - Issue #63 기반 Java 21, Spring Boot 4.1.1, Gradle Wrapper 9.7.1 멀티프로젝트와 `apps/spring-api` 실행 골격을 구축했다. Web MVC·Actuator 및 테스트 의존성은 lock하고 로컬 Gradle 캐시에 받았다.
 - Issue #64 기반 uv 관리 Python 3.12, FastAPI, Uvicorn, pytest, HTTPX, Ruff, mypy 골격을 `ai/`에 구축했다. `uv.lock`의 33개 패키지를 `ai/.venv`와 uv 캐시에 받았다.
 - Spring context/Actuator 테스트 2개와 FastAPI health/readiness 테스트 2개가 통과한다. 실제 Spring `:apps:spring-api:bootRun`의 `/actuator/health`와 Uvicorn의 `/health`, `/ready`도 HTTP 200으로 확인했다.
