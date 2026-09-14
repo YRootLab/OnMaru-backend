@@ -1,0 +1,39 @@
+{
+  "caseId": "http-5xx",
+  "provider": "kto-tourapi-korean",
+  "operation": "areaBasedList2",
+  "redacted": {
+    "serviceKey": true,
+    "requestUrl": true,
+    "traceHeaders": true
+  },
+  "request": {
+    "serviceKey": "<REDACTED>",
+    "params": {
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json",
+      "numOfRows": 10,
+      "pageNo": 1
+    }
+  },
+  "observed": {
+    "httpStatus": 503,
+    "contentType": "application/json",
+    "capturedAt": "2026-09-14T15:35:00+09:00"
+  },
+  "body": {
+    "OpenAPI_ServiceResponse": {
+      "cmmMsgHeader": {
+        "errMsg": "SERVICETIMEOUT_ERROR",
+        "returnAuthMsg": "기관 API 또는 GW 연계 서비스 응답 대기시간 초과",
+        "returnReasonCode": "05"
+      }
+    }
+  },
+  "expected": {
+    "classification": "upstream-timeout-or-gateway-error",
+    "retryable": true,
+    "adapterAction": "retry-with-budget-then-keep-last-known-good"
+  }
+}

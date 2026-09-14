@@ -1,0 +1,96 @@
+{
+  "caseId": "location-list",
+  "provider": "kto-tourapi-korean",
+  "operation": "locationBasedList2",
+  "redacted": {
+    "serviceKey": true,
+    "requestUrl": true,
+    "traceHeaders": true
+  },
+  "request": {
+    "serviceKey": "<REDACTED>",
+    "params": {
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json",
+      "numOfRows": 2,
+      "pageNo": 1,
+      "mapX": "126.976993",
+      "mapY": "37.578822",
+      "radius": 1000,
+      "arrange": "E"
+    }
+  },
+  "observed": {
+    "httpStatus": 200,
+    "contentType": "application/json",
+    "capturedAt": "2026-09-14T15:35:00+09:00"
+  },
+  "body": {
+    "response": {
+      "header": {
+        "resultCode": "0000",
+        "resultMsg": "OK"
+      },
+      "body": {
+        "items": {
+          "item": [
+            {
+              "contentid": "126508",
+              "contenttypeid": "12",
+              "title": "경복궁",
+              "addr1": "서울특별시 종로구 사직로 161",
+              "addr2": "",
+              "areacode": "1",
+              "sigungucode": "23",
+              "cat1": "A02",
+              "cat2": "A0201",
+              "cat3": "A02010100",
+              "createdtime": "20031107090000",
+              "modifiedtime": "20240201120000",
+              "firstimage": "",
+              "firstimage2": "",
+              "cpyrhtDivCd": "Type1",
+              "mapx": "126.976993",
+              "mapy": "37.578822",
+              "mlevel": "6",
+              "dist": "0",
+              "tel": ""
+            },
+            {
+              "contentid": "126535",
+              "contenttypeid": "12",
+              "title": "창덕궁과 후원",
+              "addr1": "서울특별시 종로구 율곡로 99",
+              "addr2": "",
+              "areacode": "1",
+              "sigungucode": "23",
+              "cat1": "A02",
+              "cat2": "A0201",
+              "cat3": "A02010100",
+              "createdtime": "20031107090000",
+              "modifiedtime": "20240115120000",
+              "firstimage": "",
+              "firstimage2": "",
+              "cpyrhtDivCd": "Type3",
+              "mapx": "126.991105",
+              "mapy": "37.579617",
+              "mlevel": "6",
+              "dist": "1200",
+              "tel": ""
+            }
+          ]
+        },
+        "numOfRows": 2,
+        "pageNo": 1,
+        "totalCount": 2
+      }
+    }
+  },
+  "expected": {
+    "classification": "success-location-list",
+    "retryable": false,
+    "itemShape": "array",
+    "distanceField": "dist"
+  }
+}
