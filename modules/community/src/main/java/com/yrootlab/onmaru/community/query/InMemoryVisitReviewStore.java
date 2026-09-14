@@ -25,6 +25,11 @@ public final class InMemoryVisitReviewStore implements VisitReviewStore {
         reviews.removeIf(review -> review.id().equals(reviewId));
     }
 
+    public void replace(VisitReviewProjection review) {
+        remove(review.id());
+        add(review);
+    }
+
     public void clear() {
         reviews.clear();
         unavailable = false;
