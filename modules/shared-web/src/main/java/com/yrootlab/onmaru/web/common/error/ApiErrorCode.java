@@ -6,6 +6,8 @@ public enum ApiErrorCode {
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Request validation failed"),
     CURSOR_INVALID(HttpStatus.BAD_REQUEST, "Cursor is invalid"),
     CURSOR_EXPIRED(HttpStatus.GONE, "Cursor is expired"),
+    CSRF_INVALID(HttpStatus.FORBIDDEN, "CSRF token is missing or invalid"),
+    NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found"),
     IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "Idempotency key conflicts with a previous request"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected server error");
 
