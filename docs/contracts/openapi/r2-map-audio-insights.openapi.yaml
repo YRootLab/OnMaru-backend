@@ -551,7 +551,7 @@ components:
     Observation:
       type: object
       additionalProperties: false
-      required: [observationId, region, observedDate, metric, value, unit, coverageStatus]
+      required: [observationId, region, observedDate, metric, value, unit, spatialLevel, coverageStatus]
       properties:
         observationId:
           type: string
@@ -566,6 +566,9 @@ components:
           type: [number, 'null']
         unit:
           type: string
+        spatialLevel:
+          type: string
+          enum: [SIDO, SIGUNGU, TARGET, UNKNOWN]
         coverageStatus:
           $ref: '#/components/schemas/CoverageStatus'
     ObservationPage:
