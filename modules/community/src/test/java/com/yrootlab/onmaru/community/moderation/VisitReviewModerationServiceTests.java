@@ -3,7 +3,9 @@ package com.yrootlab.onmaru.community.moderation;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -12,7 +14,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -152,7 +153,8 @@ class VisitReviewModerationServiceTests {
         assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.PUBLISHED);
     }
 
-    @Test
+    @RepeatedTest(20)
+    @Timeout(10)
     void reportAndDispositionUseSharedAtomicBoundary() throws Exception {
         var reviewStore = new InMemoryVisitReviewStore();
         reviewStore.add(review(VisitReviewStatus.PUBLISHED));
@@ -169,32 +171,36 @@ class VisitReviewModerationServiceTests {
                 await(releaseLock);
                 return null;
             }));
-            assertThat(lockHeld.await(1, TimeUnit.SECONDS)).isTrue();
-            var report = executor.submit(() -> {
-                reportAttempted.countDown();
-                return service.report(REPORTER_ID, REVIEW_ID,
-                        new CreateReviewReportCommand(ReviewReportReason.SPAM, "synthetic spam"));
-            });
-            var disposition = executor.submit(() -> {
-                moderationAttempted.countDown();
-                return service.moderate(
-                        REVIEW_ID,
-                        "operator-1",
-                        VisitReviewStatus.REMOVED,
-                        ModerationReason.SPAM_CONFIRMED);
-            });
-            assertThat(reportAttempted.await(1, TimeUnit.SECONDS)).isTrue();
-            assertThat(moderationAttempted.await(1, TimeUnit.SECONDS)).isTrue();
-            assertThat(report).isNotDone();
-            assertThat(disposition).isNotDone();
-
-            releaseLock.countDown();
-            lockOwner.get(1, TimeUnit.SECONDS);
-            disposition.get(1, TimeUnit.SECONDS);
             try {
-                report.get(1, TimeUnit.SECONDS);
-            } catch (java.util.concurrent.ExecutionException ignored) {
-                // The report is rejected when the disposition acquires the coordinator first.
+                await(lockHeld);
+                var report = executor.submit(() -> {
+                    reportAttempted.countDown();
+                    return service.report(REPORTER_ID, REVIEW_ID,
+                            new CreateReviewReportCommand(ReviewReportReason.SPAM, "synthetic spam"));
+                });
+                var disposition = executor.submit(() -> {
+                    moderationAttempted.countDown();
+                    return service.moderate(
+                            REVIEW_ID,
+                            "operator-1",
+                            VisitReviewStatus.REMOVED,
+                            ModerationReason.SPAM_CONFIRMED);
+                });
+                await(reportAttempted);
+                await(moderationAttempted);
+                assertThat(report).isNotDone();
+                assertThat(disposition).isNotDone();
+
+                releaseLock.countDown();
+                lockOwner.get();
+                disposition.get();
+                try {
+                    report.get();
+                } catch (java.util.concurrent.ExecutionException ignored) {
+                    // The report is rejected when the disposition acquires the coordinator first.
+                }
+            } finally {
+                releaseLock.countDown();
             }
         }
 
@@ -204,9 +210,7 @@ class VisitReviewModerationServiceTests {
 
     private void await(CountDownLatch latch) {
         try {
-            if (!latch.await(1, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("timed out waiting for test coordinator");
-            }
+            latch.await();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("test coordinator interrupted", exception);

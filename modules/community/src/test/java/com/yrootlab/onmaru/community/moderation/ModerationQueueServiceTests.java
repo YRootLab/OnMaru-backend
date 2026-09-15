@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -14,7 +15,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -140,6 +140,7 @@ class ModerationQueueServiceTests {
     }
 
     @Test
+    @Timeout(10)
     void queueSnapshotUsesReportStoreAtomicBoundary() throws Exception {
         var reviewStore = new InMemoryVisitReviewStore();
         reviewStore.add(review(STANDARD_REVIEW_ID, VisitReviewStatus.PUBLISHED, "synthetic spam"));
@@ -160,25 +161,27 @@ class ModerationQueueServiceTests {
                 await(releaseLock);
                 return null;
             }));
-            assertThat(lockHeld.await(1, TimeUnit.SECONDS)).isTrue();
-            var snapshot = executor.submit(() -> {
-                snapshotAttempted.countDown();
-                return service.snapshot(100);
-            });
-            assertThat(snapshotAttempted.await(1, TimeUnit.SECONDS)).isTrue();
-            assertThat(snapshot).isNotDone();
+            try {
+                await(lockHeld);
+                var snapshot = executor.submit(() -> {
+                    snapshotAttempted.countDown();
+                    return service.snapshot(100);
+                });
+                await(snapshotAttempted);
+                assertThat(snapshot).isNotDone();
 
-            releaseLock.countDown();
-            lockOwner.get(1, TimeUnit.SECONDS);
-            assertThat(snapshot.get(1, TimeUnit.SECONDS).items()).hasSize(1);
+                releaseLock.countDown();
+                lockOwner.get();
+                assertThat(snapshot.get().items()).hasSize(1);
+            } finally {
+                releaseLock.countDown();
+            }
         }
     }
 
     private void await(CountDownLatch latch) {
         try {
-            if (!latch.await(1, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("timed out waiting for test coordinator");
-            }
+            latch.await();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("test coordinator interrupted", exception);
