@@ -1,5 +1,17 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-15 Issue #96
+
+- 현재 작업 브랜치와 worktree: `feature/96-odii-revision-publish`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/a02-odii-revision-publish`.
+- 관련 Issue: #96 `[A02] Odii 수집·revision·tombstone publish 구현`; blocked-by #61/#79/#80/#88/#95는 모두 Closed이고 열린 중복 PR은 없다.
+- 구현 범위: Odii success/error/empty/singleton envelope parser, timeout/retry/page budget HTTP client, URI/service-key redaction, 언어별 spot/story identity와 transcript provenance mapping, 신규 `modules:audio` revision stage와 원자 publication, 2회 연속 성공 누락 tombstone.
+- 원자성 보강: source 마지막 페이지 실패와 stale lease/base writer는 active revision·watermark·누락 카운터를 바꾸지 않는다. spot/story와 누락 카운터는 publish 성공 경계에서 함께 교체된다.
+- Spring/CI 연결: `onmaru.odii.client.*` 설정 binding과 `Audio module tests` CI step을 추가했다.
+- 작업 로그: `troubleshooting-worklog/26.09.15 odii-revision-publish.md`.
+- DB publication 검증: `AudioMigrationTests.publishesSpotStoryPointerAndWatermarkInOneDatabaseTransaction`가 rollback 시 기존 LKG/watermark 유지와 commit 시 spot/story revision·pointer·watermark 동시 전환을 검증한다.
+- 최종 검증: `./gradlew test --no-daemon`, `cd ai && uv run ruff check . && uv run mypy && uv run pytest`, `node --test scripts/test/*.test.mjs`, planning/Odii fixture validation, `bash scripts/verify-contracts`, `git diff --check` 통과.
+- 다음 단계: `Closes #96` PR을 `develop` 대상으로 생성하고 CI/review 상태를 확인한다.
+
 ## Current Session Quick Handoff - 2026-09-15 Issue #192
 
 - 현재 작업 브랜치: `feature/192-git-flow-harness-branch-parser`.

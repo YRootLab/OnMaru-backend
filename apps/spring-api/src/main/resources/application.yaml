@@ -20,6 +20,12 @@ onmaru:
       attempt-timeout: 5s
       page-timeout: 12s
       retry-count: 2
+  odii:
+    client:
+      connect-timeout: 1s
+      attempt-timeout: 5s
+      page-timeout: 12s
+      retry-count: 2
 
 management:
   otlp:

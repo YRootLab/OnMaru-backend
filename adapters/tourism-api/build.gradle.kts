@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}"))
+    implementation(project(":modules:audio"))
     implementation(project(":modules:catalog"))
     implementation(project(":modules:insights"))
     api("com.fasterxml.jackson.core:jackson-databind")
