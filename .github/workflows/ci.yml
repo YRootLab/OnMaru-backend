@@ -29,6 +29,10 @@ jobs:
           test -L docs/backend_schema_design_guide.md
           test -L docs/specs
 
+      - name: Work branch issue parser
+        if: github.event_name == 'pull_request'
+        run: node scripts/print-branch-issue.mjs "${{ github.head_ref }}"
+
       - name: Set up JDK 21 for backend
         uses: actions/setup-java@v4
         with:

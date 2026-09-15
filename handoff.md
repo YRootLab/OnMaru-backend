@@ -1,5 +1,15 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-15 Issue #192
+
+- 현재 작업 브랜치: `feature/192-git-flow-harness-branch-parser`.
+- 사용자 요청: `$agent-toolkit-skills:git-flow-release-automation`, `$agent-toolkit-skills:git-flow-strategy`, `$agent-toolkit-skills:project-initial-harness` 관점으로 AGENTS.md와 Git Flow 운영 흐름을 개선하고, 브랜치 파서를 커밋·푸시·머지한다.
+- 관련 Issue: #192 `[OPS] Git Flow 운영 문서와 브랜치 이슈 파서 보강`.
+- 구현 범위: `AGENTS.md`에 Issue-first, branch parser, Release Please/Git Flow, project harness lifecycle 규칙을 보강하고, `scripts/lib/branch-issue-parser.mjs`, `scripts/print-branch-issue.mjs`, `scripts/test/branch-issue-parser.test.mjs`를 추가한다.
+- CI 연결: `.github/workflows/ci.yml`의 pull_request에서 `node scripts/print-branch-issue.mjs "${{ github.head_ref }}"`를 실행해 `feature/*`, `fix/*`, `docs/*`, `hotfix/*` 브랜치의 Issue 번호 누락을 차단한다.
+- 검증 진행: RED는 `ERR_MODULE_NOT_FOUND`로 확인했고, GREEN은 `node --test scripts/test/branch-issue-parser.test.mjs`, `node scripts/print-branch-issue.mjs`, `node --test scripts/test/*.test.mjs`, `bash scripts/verify-contracts`, workflow YAML parse, `git diff --check`로 확인했다.
+- PR 본문에는 `Closes #192`를 사용한다. merge 후 develop 대상 auto-close가 실패하면 #192를 수동 close하고 merge commit과 검증 근거를 comment에 남긴다.
+
 ## Current Session Quick Handoff - 2026-09-14 Issue #71
 
 - 현재 작업 브랜치와 worktree: `SHcommit/o01-spring-fastapi-opentelemetry`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/o01-spring-fastapi-opentelemetry`.
