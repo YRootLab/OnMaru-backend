@@ -293,7 +293,7 @@ Run: `node --test scripts/test/*.test.mjs && bash scripts/verify-contracts && gi
 
 Expected: every command exits 0. The local Python 3.9 LibreSSL warning from contract validation is allowed when validation still exits 0.
 
-- [ ] **Step 5: Reconcile and prepare PR**
+- [x] **Step 5: Reconcile and prepare PR**
 
 Run: `node scripts/print-branch-issue.mjs`
 
