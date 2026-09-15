@@ -14,10 +14,20 @@
       "sourceExplorationId": null,
       "sourceVersion": 1,
       "savedAt": "2026-09-15T12:05:00Z",
-      "candidateCount": 0,
+      "candidateCount": 1,
       "snapshot": {
         "schemaVersion": "1.2",
-        "board": null,
+        "board": {
+          "title": "전주 한옥 산책",
+          "querySummary": "전주에서 한옥 문화를 천천히 둘러보는 여정",
+          "querySummarySource": "CURATED_LABELS",
+          "regionRef": {"type": "REGION", "id": "region-jeonju"},
+          "candidates": [{"placeRef": {"type": "PLACE", "id": "place-jeonju-001"}, "reason": "검수된 한옥 문화 근거가 있습니다.", "evidenceRefs": ["evidence-provider-001"], "relationRefs": [], "constraintChecks": []}],
+          "legs": [],
+          "resources": [{"ref": {"type": "PLACE", "id": "place-jeonju-001"}, "title": "전주 한옥마을", "category": "한옥", "regionRef": {"type": "REGION", "id": "region-jeonju"}, "summary": "전주의 한옥 문화 장소", "image": null, "location": null, "sourceRefs": ["odii-story-001"], "unavailableFields": ["image", "location"]}],
+          "relations": [],
+          "evidence": [{"id": "evidence-provider-001", "kind": "PROVIDER_FIELD", "sourceName": "한국관광공사", "sourceUrl": null, "sourceRevision": "dataset-20260915", "summary": "공개 장소와 지역 연결", "asOf": "2026-09-15T00:00:00Z"}]
+        },
         "pinnedRefs": [],
         "excludedRefs": [],
         "execution": {

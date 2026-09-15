@@ -30,6 +30,7 @@ REQUIRED_PATHS = {
 REQUIRED_SCHEMAS = {
     "ActionCommandRequest",
     "ExplorationSnapshot",
+    "SavedJourneyBoard",
     "SavedJourney",
     "SavedJourneyPage",
     "ResumeSavedJourneyResponse",
@@ -37,16 +38,24 @@ REQUIRED_SCHEMAS = {
 }
 REQUIRED_FIXTURES = {
     "exploration-snapshot-normal",
+    "exploration-snapshot-other-actor",
     "action-pin-normal",
+    "action-idempotency-replay",
     "action-version-conflict",
     "action-idempotency-conflict",
     "action-pinned-ref-conflict",
     "action-proposal-expired",
+    "action-csrf-invalid",
+    "action-idempotency-invalid",
     "saved-journey-create-normal",
+    "saved-journey-create-replay",
     "saved-journey-active-run",
     "saved-journey-page-normal",
     "saved-journey-detail-expired-source",
+    "saved-journey-detail-other-actor",
     "saved-journey-delete-normal",
+    "saved-journey-delete-other-actor",
+    "saved-journey-delete-replay",
     "saved-journey-resume-unavailable",
 }
 
@@ -73,7 +82,10 @@ def rewrite_refs(value: Any) -> Any:
 
 
 def response_schema(operation: dict[str, Any], status: int) -> str | None:
-    response = operation.get("responses", {}).get(str(status), {})
+    responses = operation.get("responses", {})
+    if str(status) not in responses:
+        fail(f"response status {status} is not declared by the operation")
+    response = responses[str(status)]
     ref = response.get("$ref")
     if ref:
         return "Error" if ref == "#/components/responses/Error" else None
@@ -101,6 +113,7 @@ def validate_request(
     operation: dict[str, Any],
     definitions: dict[str, Any],
     parameter_definitions: dict[str, Any],
+    response: dict[str, Any],
     source: str,
 ) -> None:
     request = fixture["request"]
@@ -125,7 +138,21 @@ def validate_request(
         name = parameter.get("name")
         values = locations.get(location, {})
         if parameter.get("required") and name not in values:
-            fail(f"{source}: missing required {location} parameter {name}")
+            error_code = response.get("body", {}).get("code")
+            expected_missing_csrf = (
+                location == "header"
+                and name == "X-CSRF-TOKEN"
+                and response.get("status") == 403
+                and error_code == "CSRF_INVALID"
+            )
+            expected_missing_idempotency = (
+                location == "header"
+                and name == "Idempotency-Key"
+                and response.get("status") == 400
+                and error_code == "VALIDATION_ERROR"
+            )
+            if not expected_missing_csrf and not expected_missing_idempotency:
+                fail(f"{source}: missing required {location} parameter {name}")
         if name in values:
             validate_value(
                 values[name],
@@ -148,7 +175,12 @@ def validate_request(
     body = request.get("body", {})
     headers = request.get("headers", {})
     command_id = body.get("commandId") if isinstance(body, dict) else None
-    if command_id is not None and headers.get("Idempotency-Key") != command_id:
+    missing_key_fixture = (
+        "Idempotency-Key" not in headers
+        and response.get("status") == 400
+        and response.get("body", {}).get("code") == "VALIDATION_ERROR"
+    )
+    if command_id is not None and not missing_key_fixture and headers.get("Idempotency-Key") != command_id:
         fail(f"{source}: commandId must equal Idempotency-Key")
 
 
@@ -209,13 +241,18 @@ def main() -> None:
             operation,
             definitions,
             parameter_definitions,
+            response,
             fixture_path.name,
         )
         expected = response_schema(operation, response["status"])
         if expected != response.get("schema"):
             fail(f"{fixture_path.name}: expected response schema {expected}, got {response.get('schema')}")
         if "body" not in response:
+            if expected is not None:
+                fail(f"{fixture_path.name}: response body is required for schema {expected}")
             continue
+        if expected is None:
+            fail(f"{fixture_path.name}: response body is not declared by the operation")
         validate_value(
             response["body"],
             {"$ref": f"#/components/schemas/{expected}"},
@@ -227,6 +264,16 @@ def main() -> None:
     pin = fixtures_by_name["action-pin-normal"]
     if pin["response"]["body"]["stateVersion"] != pin["request"]["body"]["baseVersion"] + 1:
         fail("action-pin-normal must demonstrate a stateVersion increment")
+    replay = fixtures_by_name["action-idempotency-replay"]
+    if replay["request"] != pin["request"] or replay["response"] != pin["response"]:
+        fail("action-idempotency-replay must return the original response for the same request")
+    conflict = fixtures_by_name["action-idempotency-conflict"]
+    if (
+        conflict["request"]["headers"]["Idempotency-Key"]
+        != pin["request"]["headers"]["Idempotency-Key"]
+        or conflict["request"]["body"] == pin["request"]["body"]
+    ):
+        fail("action-idempotency-conflict must reuse the key with a different payload")
     for name, code in (
         ("action-version-conflict", "VERSION_CONFLICT"),
         ("action-idempotency-conflict", "IDEMPOTENCY_CONFLICT"),
@@ -258,6 +305,38 @@ def main() -> None:
     expired_source = fixtures_by_name["saved-journey-detail-expired-source"]["response"]["body"]
     if expired_source["sourceExplorationId"] is not None:
         fail("saved-journey-detail-expired-source must allow an expired source exploration")
+    csrf = fixtures_by_name["action-csrf-invalid"]
+    if (
+        "X-CSRF-TOKEN" in csrf["request"].get("headers", {})
+        or csrf["response"]["status"] != 403
+        or csrf["response"]["body"]["code"] != "CSRF_INVALID"
+    ):
+        fail("action-csrf-invalid must demonstrate a missing CSRF token as 403 CSRF_INVALID")
+    invalid_key = fixtures_by_name["action-idempotency-invalid"]
+    if (
+        "Idempotency-Key" in invalid_key["request"].get("headers", {})
+        or invalid_key["response"]["status"] != 400
+        or invalid_key["response"]["body"]["code"] != "VALIDATION_ERROR"
+    ):
+        fail("action-idempotency-invalid must reject a missing Idempotency-Key")
+    other_actor = fixtures_by_name["saved-journey-detail-other-actor"]["response"]
+    if other_actor["status"] != 404 or other_actor["body"]["code"] != "NOT_FOUND":
+        fail("saved-journey-detail-other-actor must conceal ownership as 404 NOT_FOUND")
+    delete = fixtures_by_name["saved-journey-delete-normal"]
+    delete_replay = fixtures_by_name["saved-journey-delete-replay"]
+    if delete_replay["request"] != delete["request"] or delete_replay["response"] != delete["response"]:
+        fail("saved-journey-delete-replay must preserve the idempotent delete response")
+    delete_other_actor = fixtures_by_name["saved-journey-delete-other-actor"]["response"]
+    if delete_other_actor["status"] != 404 or delete_other_actor["body"]["code"] != "NOT_FOUND":
+        fail("saved-journey-delete-other-actor must conceal ownership as 404 NOT_FOUND")
+    create = fixtures_by_name["saved-journey-create-normal"]
+    create_replay = fixtures_by_name["saved-journey-create-replay"]
+    if (
+        create_replay["request"] != create["request"]
+        or create_replay["response"]["status"] != 200
+        or create_replay["response"]["body"] != create["response"]["body"]
+    ):
+        fail("saved-journey-create-replay must return the original saved journey with 200")
 
     unsafe_methods = {"post", "put", "patch", "delete"}
     for path, path_item in paths.items():
@@ -275,6 +354,10 @@ def main() -> None:
                 fail(f"{method.upper()} {path} must require X-CSRF-TOKEN")
             if "403" not in operation.get("responses", {}):
                 fail(f"{method.upper()} {path} must declare a 403 response")
+            if "400" not in operation.get("responses", {}):
+                fail(f"{method.upper()} {path} must declare a 400 validation response")
+            if operation.get("requestBody") and "413" not in operation.get("responses", {}):
+                fail(f"{method.upper()} {path} must declare a 413 payload response")
 
     for path_item in paths.values():
         for operation in path_item.values():
@@ -287,6 +370,19 @@ def main() -> None:
                 cache_control = headers.get("Cache-Control", {})
                 if cache_control.get("$ref") != "#/components/headers/NoStore":
                     fail(f"{operation.get('operationId')} {status} must declare Cache-Control: no-store")
+
+    error_response = openapi["components"]["responses"]["Error"]
+    if error_response.get("headers", {}).get("Cache-Control", {}).get("$ref") != "#/components/headers/NoStore":
+        fail("all shared error responses must declare Cache-Control: no-store")
+    for path, path_item in paths.items():
+        for method, operation in path_item.items():
+            if not isinstance(operation, dict):
+                continue
+            for status, response in operation.get("responses", {}).items():
+                if str(status).startswith("2"):
+                    continue
+                if response.get("$ref") != "#/components/responses/Error":
+                    fail(f"{method.upper()} {path} {status} must use the no-store Error response")
 
     list_responses = paths["/saved-journeys"]["get"]["responses"]
     if "410" not in list_responses:

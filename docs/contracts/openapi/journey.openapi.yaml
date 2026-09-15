@@ -21,7 +21,9 @@ paths:
             schema: { $ref: '#/components/schemas/CreateExplorationRequest' }
       responses:
         '202': { description: Run accepted, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { application/json: { schema: { $ref: '#/components/schemas/RunAccepted' } } } }
+        '400': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
         '422': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /explorations/{explorationId}:
@@ -49,8 +51,10 @@ paths:
             schema: { $ref: '#/components/schemas/CreateTurnRequest' }
       responses:
         '202': { description: Run accepted, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { application/json: { schema: { $ref: '#/components/schemas/RunAccepted' } } } }
+        '400': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
         '422': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /explorations/{explorationId}/actions:
@@ -70,10 +74,12 @@ paths:
             schema: { $ref: '#/components/schemas/ActionCommandRequest' }
       responses:
         '200': { description: Authoritative snapshot after the command, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { application/json: { schema: { $ref: '#/components/schemas/ExplorationSnapshot' } } } }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
   /explorations/{explorationId}/runs/{runId}:
     get:
       operationId: getRun
@@ -115,8 +121,10 @@ paths:
         content: { application/json: { schema: { type: object, additionalProperties: false } } }
       responses:
         '200': { description: Current terminal or cancelled snapshot, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { application/json: { schema: { $ref: '#/components/schemas/RunSnapshot' } } } }
+        '400': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
   /saved-journeys:
     post:
       operationId: createSavedJourney
@@ -131,10 +139,13 @@ paths:
       responses:
         '200': { description: Existing save for the same exploration version, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SavedJourney' } } } }
         '201': { description: Saved journey created, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SavedJourney' } } } }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
     get:
       operationId: listSavedJourneys
       parameters:
@@ -167,6 +178,7 @@ paths:
         - $ref: '#/components/parameters/CsrfToken'
       responses:
         '204': { description: 'Deleted or already deleted by the owning member', headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } } }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
@@ -184,9 +196,11 @@ paths:
             schema: { type: object, additionalProperties: false }
       responses:
         '201': { description: New exploration created from currently available resources, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { application/json: { schema: { $ref: '#/components/schemas/ResumeSavedJourneyResponse' } } } }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
 components:
   parameters:
     ExplorationId: { name: explorationId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -233,7 +247,15 @@ components:
           oneOf:
             - $ref: '#/components/schemas/ResourceAction'
             - $ref: '#/components/schemas/ProposalAction'
-          discriminator: { propertyName: type }
+          discriminator:
+            propertyName: type
+            mapping:
+              PIN: '#/components/schemas/ResourceAction'
+              UNPIN: '#/components/schemas/ResourceAction'
+              EXCLUDE: '#/components/schemas/ResourceAction'
+              UNEXCLUDE: '#/components/schemas/ResourceAction'
+              APPLY_PROPOSAL: '#/components/schemas/ProposalAction'
+              DISMISS_PROPOSAL: '#/components/schemas/ProposalAction'
     ResourceAction:
       type: object
       additionalProperties: false
@@ -493,7 +515,7 @@ components:
         sourceExplorationId: { type: [string, 'null'], format: uuid }
         sourceVersion: { type: integer, minimum: 0 }
         savedAt: { type: string, format: date-time }
-        candidateCount: { type: integer, minimum: 0, maximum: 3 }
+        candidateCount: { type: integer, minimum: 1, maximum: 3 }
     SavedJourney:
       type: object
       additionalProperties: false
@@ -504,7 +526,7 @@ components:
         sourceExplorationId: { type: [string, 'null'], format: uuid }
         sourceVersion: { type: integer, minimum: 0 }
         savedAt: { type: string, format: date-time }
-        candidateCount: { type: integer, minimum: 0, maximum: 3 }
+        candidateCount: { type: integer, minimum: 1, maximum: 3 }
         snapshot: { $ref: '#/components/schemas/SavedJourneySnapshot' }
     SavedJourneySnapshot:
       description: Immutable sanitized snapshot without run, proposal, history, raw turn, or actor data.
@@ -513,11 +535,32 @@ components:
       required: [schemaVersion, board, pinnedRefs, excludedRefs, execution, updatedAt]
       properties:
         schemaVersion: { type: string, const: '1.2' }
-        board: { anyOf: [ { $ref: '#/components/schemas/JourneyBoard' }, { type: 'null' } ] }
+        board: { $ref: '#/components/schemas/SavedJourneyBoard' }
         pinnedRefs: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
         excludedRefs: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
         execution: { $ref: '#/components/schemas/JourneyExecution' }
         updatedAt: { type: string, format: date-time }
+    SavedJourneyBoard:
+      description: Committed board whose querySummary was rebuilt only from curated region and topic labels.
+      type: object
+      additionalProperties: false
+      required: [title, querySummary, querySummarySource, regionRef, candidates, legs, resources, relations, evidence]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        querySummary: { type: string, minLength: 1, maxLength: 500 }
+        querySummarySource: { type: string, const: CURATED_LABELS }
+        regionRef: { $ref: '#/components/schemas/RegionRef' }
+        candidates: { type: array, minItems: 1, maxItems: 3, items: { $ref: '#/components/schemas/JourneyCandidate' } }
+        legs: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/JourneyLeg' } }
+        resources:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/PlaceResource'
+              - $ref: '#/components/schemas/RegionResource'
+              - $ref: '#/components/schemas/TopicResource'
+        relations: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/Relation' } }
+        evidence: { type: array, items: { $ref: '#/components/schemas/Evidence' } }
     SavedJourneyPage:
       type: object
       additionalProperties: false
