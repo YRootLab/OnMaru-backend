@@ -1,0 +1,57 @@
+{
+  "name": "same revision and input are stable across source order",
+  "request": {
+    "datasetRevision": "catalog-rev-7",
+    "regionCode": "KR-45-JEONJU",
+    "queryText": "전주 한옥 시장 산책",
+    "queryTokens": ["한옥", "시장", "산책"],
+    "topics": ["HANOK", "MARKET", "WALK"],
+    "excludedRefs": [],
+    "pinnedRefs": []
+  },
+  "candidates": [
+    {
+      "ref": "hanok-a",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "고택 후보",
+      "category": "HANOK",
+      "summary": "한옥 산책",
+      "topics": ["HANOK", "WALK"],
+      "curatedRelations": ["WALK"],
+      "evidence": [{"sourceId": "source-hanok-a", "text": "검수 근거 A"}]
+    },
+    {
+      "ref": "market-b",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "시장 후보",
+      "category": "MARKET",
+      "summary": "전통 시장 먹거리",
+      "topics": ["MARKET"],
+      "curatedRelations": ["FOOD"],
+      "evidence": [{"sourceId": "source-market-b", "text": "검수 근거 B"}]
+    },
+    {
+      "ref": "walk-c",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "도보 후보",
+      "category": "WALK",
+      "summary": "조용한 산책",
+      "topics": ["WALK"],
+      "curatedRelations": ["WALK"],
+      "evidence": [{"sourceId": "source-walk-c", "text": "검수 근거 C"}]
+    }
+  ],
+  "inputOrders": [
+    ["hanok-a", "market-b", "walk-c"],
+    ["walk-c", "market-b", "hanok-a"]
+  ],
+  "expected": {
+    "rankedRefs": ["hanok-a", "market-b", "walk-c"],
+    "proposalRefs": ["hanok-a", "market-b", "walk-c"],
+    "boardRefs": ["hanok-a", "market-b", "walk-c"],
+    "excludedReasons": []
+  }
+}

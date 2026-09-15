@@ -1,0 +1,103 @@
+{
+  "name": "hard filters exclude non-allowlisted candidates before scoring",
+  "request": {
+    "datasetRevision": "catalog-rev-7",
+    "regionCode": "KR-45-JEONJU",
+    "queryText": "전주 한옥",
+    "queryTokens": ["한옥"],
+    "topics": ["HANOK"],
+    "excludedRefs": ["excluded"],
+    "pinnedRefs": []
+  },
+  "candidates": [
+    {
+      "ref": "eligible",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "검수 후보",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-eligible", "text": "공개 근거"}]
+    },
+    {
+      "ref": "wrong-revision",
+      "revisionId": "catalog-rev-6",
+      "regionCode": "KR-45-JEONJU",
+      "name": "이전 후보",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-old", "text": "이전 근거"}]
+    },
+    {
+      "ref": "wrong-region",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-11",
+      "name": "타지역 후보",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-region", "text": "타지역 근거"}]
+    },
+    {
+      "ref": "excluded",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "제외 후보",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-excluded", "text": "제외 근거"}]
+    },
+    {
+      "ref": "private",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "비공개 후보",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-private", "text": "비공개 근거"}],
+      "public": false
+    },
+    {
+      "ref": "deleted",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "삭제 후보",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-deleted", "text": "삭제 근거"}],
+      "status": "TOMBSTONE"
+    },
+    {
+      "ref": "missing-evidence",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "근거 없는 후보",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": []
+    }
+  ],
+  "inputOrders": [
+    ["eligible", "wrong-revision", "wrong-region", "excluded", "private", "deleted", "missing-evidence"],
+    ["missing-evidence", "deleted", "private", "excluded", "wrong-region", "wrong-revision", "eligible"]
+  ],
+  "expected": {
+    "rankedRefs": ["eligible"],
+    "proposalRefs": ["eligible"],
+    "boardRefs": ["eligible"],
+    "excludedReasons": [
+      ["deleted", "TOMBSTONE"],
+      ["excluded", "EXCLUDED"],
+      ["missing-evidence", "MISSING_EVIDENCE"],
+      ["private", "NOT_PUBLIC"],
+      ["wrong-region", "REGION_MISMATCH"],
+      ["wrong-revision", "REVISION_MISMATCH"]
+    ]
+  }
+}

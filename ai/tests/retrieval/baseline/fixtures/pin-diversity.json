@@ -1,0 +1,74 @@
+{
+  "name": "pin is preserved while diversity separates repeated topics",
+  "request": {
+    "datasetRevision": "catalog-rev-7",
+    "regionCode": "KR-45-JEONJU",
+    "queryText": "전주 한옥 시장",
+    "queryTokens": ["한옥", "시장"],
+    "topics": ["HANOK", "MARKET"],
+    "excludedRefs": [],
+    "pinnedRefs": ["pin-z"]
+  },
+  "candidates": [
+    {
+      "ref": "hanok-a",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "후보 A",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-a", "text": "한옥 근거 A"}]
+    },
+    {
+      "ref": "hanok-b",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "후보 B",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-b", "text": "한옥 근거 B"}]
+    },
+    {
+      "ref": "hanok-c",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "후보 C",
+      "category": "HANOK",
+      "summary": "한옥 소개",
+      "topics": ["HANOK"],
+      "evidence": [{"sourceId": "source-c", "text": "한옥 근거 C"}]
+    },
+    {
+      "ref": "market-a",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "후보 D",
+      "category": "MARKET",
+      "summary": "시장 소개",
+      "topics": ["MARKET"],
+      "evidence": [{"sourceId": "source-market", "text": "시장 근거"}]
+    },
+    {
+      "ref": "pin-z",
+      "revisionId": "catalog-rev-7",
+      "regionCode": "KR-45-JEONJU",
+      "name": "고정 후보",
+      "category": "ODII",
+      "summary": "검수된 이야기",
+      "topics": ["ODII"],
+      "evidence": [{"sourceId": "source-pin", "text": "고정 근거"}]
+    }
+  ],
+  "inputOrders": [
+    ["hanok-a", "hanok-b", "hanok-c", "market-a", "pin-z"],
+    ["pin-z", "market-a", "hanok-c", "hanok-b", "hanok-a"]
+  ],
+  "expected": {
+    "rankedRefs": ["hanok-a", "hanok-b", "hanok-c", "market-a", "pin-z"],
+    "proposalRefs": ["pin-z", "hanok-a", "market-a", "hanok-b", "hanok-c"],
+    "boardRefs": ["pin-z", "hanok-a", "market-a"],
+    "excludedReasons": []
+  }
+}
