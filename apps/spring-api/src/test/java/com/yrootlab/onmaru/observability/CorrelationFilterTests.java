@@ -48,9 +48,9 @@ class CorrelationFilterTests {
         var requestId = result.getResponse().getHeader("X-Request-Id");
         var runId = result.getResponse().getHeader("X-Run-Id");
         var revision = result.getResponse().getHeader("X-Revision");
-        assertThat(requestId).startsWith("req-").doesNotContain("123");
-        assertThat(runId).startsWith("run-").doesNotContain("456");
-        assertThat(revision).startsWith("rev-").doesNotContain("789");
+        assertThat(requestId).matches("req-[0-9a-f]{32}").isNotEqualTo("req-123");
+        assertThat(runId).matches("run-[0-9a-f]{32}").isNotEqualTo("run-456");
+        assertThat(revision).matches("rev-[0-9a-f]{32}").isNotEqualTo("rev-789");
 
         TelemetryEvent event = telemetrySink.events().getFirst();
         assertThat(event.name()).isEqualTo("http.server.request");
@@ -62,7 +62,7 @@ class CorrelationFilterTests {
                 .containsEntry("http.response.status_code", "200");
         assertThat(event.attributes().get("trace.id"))
                 .hasSize(32)
-                .doesNotContain("4bf92f3577b34da6a3ce929d0e0e4736");
+                .isNotEqualTo("4bf92f3577b34da6a3ce929d0e0e4736");
         assertThat(event.attributes().keySet())
                 .doesNotContain("query", "location", "cookie", "token", "evidence.body");
         assertThat(event.attributes().values())
