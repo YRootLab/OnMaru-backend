@@ -50,6 +50,7 @@ REQUIRED_FIXTURES = {
     "action-other-actor",
     "saved-journey-create-normal",
     "saved-journey-create-replay",
+    "saved-journey-create-other-actor",
     "saved-journey-active-run",
     "saved-journey-page-normal",
     "saved-journey-detail-expired-source",
@@ -329,6 +330,7 @@ def main() -> None:
     for name in (
         "exploration-snapshot-other-actor",
         "action-other-actor",
+        "saved-journey-create-other-actor",
         "saved-journey-detail-other-actor",
         "saved-journey-delete-other-actor",
         "saved-journey-resume-other-actor",
@@ -356,6 +358,19 @@ def main() -> None:
         or create_replay["response"]["body"] != create["response"]["body"]
     ):
         fail("saved-journey-create-replay must return the original saved journey with 200")
+    page = fixtures_by_name["saved-journey-page-normal"]
+    page_given = page.get("given", {})
+    request_actor = page_given.get("requestActorId")
+    owned_ids = {
+        record["savedJourneyId"]
+        for record in page_given.get("records", [])
+        if record.get("ownerActorId") == request_actor
+    }
+    returned_ids = {
+        item["savedJourneyId"] for item in page["response"]["body"]["items"]
+    }
+    if not request_actor or returned_ids != owned_ids:
+        fail("saved-journey-page-normal must return only the current actor's records")
 
     unsafe_methods = {"post", "put", "patch", "delete"}
     for path, path_item in paths.items():

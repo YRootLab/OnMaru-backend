@@ -128,6 +128,7 @@ paths:
   /saved-journeys:
     post:
       operationId: createSavedJourney
+      description: Save a committed exploration owned by the current member; conceal another actor's exploration as 404.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/CsrfToken'
@@ -148,6 +149,7 @@ paths:
         '422': { $ref: '#/components/responses/Error' }
     get:
       operationId: listSavedJourneys
+      description: List only saved journeys owned by the current member.
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
