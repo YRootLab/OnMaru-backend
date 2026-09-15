@@ -73,6 +73,7 @@ fi
 
 python3 scripts/test/validate-r1-contract.py
 python3 scripts/test/validate-identity-saved-contract.py
+python3 scripts/test/validate-journey-contract.py
 python3 scripts/test/validate-r2-contract.py
 
 tmp_dir="$(mktemp -d)"

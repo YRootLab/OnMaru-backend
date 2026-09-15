@@ -1,0 +1,15 @@
+{
+  "name": "action-pinned-ref-conflict",
+  "description": "pin 상태인 장소는 UNPIN 전 EXCLUDE할 수 없다.",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/explorations/11111111-1111-4111-8111-111111111111/actions",
+    "headers": {"Idempotency-Key": "81111111-1111-4111-8111-111111111111"},
+    "body": {"commandId": "81111111-1111-4111-8111-111111111111", "baseVersion": 1, "action": {"type": "EXCLUDE", "resourceRef": {"type": "PLACE", "id": "place-jeonju-001"}}}
+  },
+  "response": {
+    "status": 409,
+    "schema": "Error",
+    "body": {"schemaVersion": "1.2", "code": "PINNED_REF", "message": "고정된 장소는 제외할 수 없습니다.", "requestId": "req-pinned-ref", "details": {"placeId": "place-jeonju-001"}}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "action-version-conflict",
+  "description": "stale baseVersion command는 VERSION_CONFLICT로 거절한다.",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/explorations/11111111-1111-4111-8111-111111111111/actions",
+    "headers": {"Idempotency-Key": "31111111-1111-4111-8111-111111111111"},
+    "body": {"commandId": "31111111-1111-4111-8111-111111111111", "baseVersion": 0, "action": {"type": "UNPIN", "resourceRef": {"type": "PLACE", "id": "place-jeonju-001"}}}
+  },
+  "response": {
+    "status": 409,
+    "schema": "Error",
+    "body": {"schemaVersion": "1.2", "code": "VERSION_CONFLICT", "message": "상태가 변경되었습니다.", "requestId": "req-version-conflict", "details": {"expectedVersion": 1}}
+  }
+}

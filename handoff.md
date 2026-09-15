@@ -1,5 +1,15 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-15 Issue #134
+
+- 현재 작업 브랜치와 worktree: `docs/134-journey-actions-saved-contract`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j11-journey-contracts`.
+- 관련 Issue: #134 `[J11] Journey actions·SavedJourney OpenAPI·fixture 완성`; blocked-by #131/#132는 Closed이며 열린 중복 PR은 없다.
+- 구현 범위: PIN·UNPIN·EXCLUDE·UNEXCLUDE·proposal action, 엄격한 ExplorationSnapshot, SavedJourney 생성·목록·상세·재개·삭제의 OpenAPI 3.1 계약과 fixture 10개를 추가했다.
+- 검증 경계: request/response JSON Schema, `commandId=Idempotency-Key`, stateVersion 증가, VERSION_CONFLICT·IDEMPOTENCY_CONFLICT 409, resume unavailableRefs를 전용 validator에서 검사한다.
+- CI 연결: `scripts/verify-contracts`가 `validate-journey-contract.py`를 실행한다.
+- 사용자 요청: GitHub Issue 우선순위와 dependency graph를 따라 다음 10건을 병렬 구현하고 CI·review 후 `develop`에 merge한다.
+- 다음 단계: 전체 저장소 검증 후 PR을 생성하고, #134 merge 뒤 #101 구현을 시작한다.
+
 ## Current Session Quick Handoff - 2026-09-15 Issue #96
 
 - 현재 작업 브랜치와 worktree: `feature/96-odii-revision-publish`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/a02-odii-revision-publish`.

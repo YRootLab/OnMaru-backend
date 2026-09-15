@@ -46,6 +46,25 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '422': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /explorations/{explorationId}/actions:
+    post:
+      operationId: applyExplorationAction
+      description: >-
+        Applies a state-versioned command. Reusing commandId with the same payload returns
+        the original response; reuse with a different payload returns IDEMPOTENCY_CONFLICT.
+      parameters:
+        - $ref: '#/components/parameters/ExplorationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActionCommandRequest' }
+      responses:
+        '200': { description: Authoritative snapshot after the command, content: { application/json: { schema: { $ref: '#/components/schemas/ExplorationSnapshot' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
   /explorations/{explorationId}/runs/{runId}:
     get:
       operationId: getRun
@@ -84,11 +103,70 @@ paths:
       responses:
         '200': { description: Current terminal or cancelled snapshot, content: { application/json: { schema: { $ref: '#/components/schemas/RunSnapshot' } } } }
         '409': { $ref: '#/components/responses/Error' }
+  /saved-journeys:
+    post:
+      operationId: createSavedJourney
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSavedJourneyRequest' }
+      responses:
+        '200': { description: Existing save for the same exploration version, content: { application/json: { schema: { $ref: '#/components/schemas/SavedJourney' } } } }
+        '201': { description: Saved journey created, content: { application/json: { schema: { $ref: '#/components/schemas/SavedJourney' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+    get:
+      operationId: listSavedJourneys
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200': { description: Saved journeys ordered by savedAt DESC and id DESC, content: { application/json: { schema: { $ref: '#/components/schemas/SavedJourneyPage' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '400': { $ref: '#/components/responses/Error' }
+  /saved-journeys/{savedJourneyId}:
+    get:
+      operationId: getSavedJourney
+      parameters: [ { $ref: '#/components/parameters/SavedJourneyId' } ]
+      responses:
+        '200': { description: Read-only saved journey snapshot, content: { application/json: { schema: { $ref: '#/components/schemas/SavedJourney' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: deleteSavedJourney
+      parameters:
+        - $ref: '#/components/parameters/SavedJourneyId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204': { description: 'Deleted, already deleted, or hidden from this member' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /saved-journeys/{savedJourneyId}/resume:
+    post:
+      operationId: resumeSavedJourney
+      parameters:
+        - $ref: '#/components/parameters/SavedJourneyId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '201': { description: New exploration created from currently available resources, content: { application/json: { schema: { $ref: '#/components/schemas/ResumeSavedJourneyResponse' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
 components:
   parameters:
     ExplorationId: { name: explorationId, in: path, required: true, schema: { type: string, format: uuid } }
     RunId: { name: runId, in: path, required: true, schema: { type: string, format: uuid } }
+    SavedJourneyId: { name: savedJourneyId, in: path, required: true, schema: { type: string, format: uuid } }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+    Limit: { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+    Cursor: { name: cursor, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 2048 } }
   responses:
     Error:
       description: Error envelope
@@ -111,6 +189,40 @@ components:
         baseVersion: { type: integer, minimum: 0 }
         query: { type: string, minLength: 1, maxLength: 1000 }
         clarificationAnswer: { type: [object, 'null'] }
+    ActionCommandRequest:
+      type: object
+      additionalProperties: false
+      required: [commandId, baseVersion, action]
+      properties:
+        commandId: { type: string, format: uuid }
+        baseVersion: { type: integer, minimum: 0 }
+        action:
+          oneOf:
+            - $ref: '#/components/schemas/ResourceAction'
+            - $ref: '#/components/schemas/ProposalAction'
+          discriminator: { propertyName: type }
+    ResourceAction:
+      type: object
+      additionalProperties: false
+      required: [type, resourceRef]
+      properties:
+        type: { type: string, enum: [PIN, UNPIN, EXCLUDE, UNEXCLUDE] }
+        resourceRef: { $ref: '#/components/schemas/PlaceRef' }
+    ProposalAction:
+      type: object
+      additionalProperties: false
+      required: [type, proposalId]
+      properties:
+        type: { type: string, enum: [APPLY_PROPOSAL, DISMISS_PROPOSAL] }
+        proposalId: { type: string, format: uuid }
+    CreateSavedJourneyRequest:
+      type: object
+      additionalProperties: false
+      required: [explorationId, baseVersion, title]
+      properties:
+        explorationId: { type: string, format: uuid }
+        baseVersion: { type: integer, minimum: 0 }
+        title: { type: string, minLength: 1, maxLength: 80 }
     RunAccepted:
       type: object
       additionalProperties: false
@@ -141,22 +253,252 @@ components:
         startedAt: { type: [string, 'null'], format: date-time }
         deadlineAt: { type: string, format: date-time }
         error: { type: [object, 'null'] }
+    PlaceRef:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: { type: string, const: PLACE }
+        id: { type: string, minLength: 1, maxLength: 128 }
+    RegionRef:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: { type: string, const: REGION }
+        id: { type: string, minLength: 1, maxLength: 128 }
+    TopicRef:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: { type: string, const: TOPIC }
+        id: { type: string, minLength: 1, maxLength: 128 }
+    ResourceRef:
+      oneOf:
+        - $ref: '#/components/schemas/PlaceRef'
+        - $ref: '#/components/schemas/RegionRef'
+        - $ref: '#/components/schemas/TopicRef'
+      discriminator: { propertyName: type }
+    GeoPoint:
+      type: object
+      additionalProperties: false
+      required: [latitude, longitude, accuracy]
+      properties:
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        accuracy: { type: string, enum: [EXACT, APPROXIMATE] }
+    ImageAsset:
+      type: object
+      additionalProperties: false
+      required: [url, alt, sourceName]
+      properties:
+        url: { type: string, format: uri }
+        alt: { type: string, maxLength: 200 }
+        sourceName: { type: string, minLength: 1, maxLength: 100 }
+    PlaceResource:
+      type: object
+      additionalProperties: false
+      required: [ref, title, category, regionRef, summary, image, location, sourceRefs, unavailableFields]
+      properties:
+        ref: { $ref: '#/components/schemas/PlaceRef' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        category: { type: string, minLength: 1, maxLength: 100 }
+        regionRef: { $ref: '#/components/schemas/RegionRef' }
+        summary: { type: [string, 'null'], maxLength: 1000 }
+        image: { anyOf: [ { $ref: '#/components/schemas/ImageAsset' }, { type: 'null' } ] }
+        location: { anyOf: [ { $ref: '#/components/schemas/GeoPoint' }, { type: 'null' } ] }
+        sourceRefs: { type: array, items: { type: string }, uniqueItems: true }
+        unavailableFields: { type: array, items: { type: string }, uniqueItems: true }
+    RegionResource:
+      type: object
+      additionalProperties: false
+      required: [ref, title]
+      properties:
+        ref: { $ref: '#/components/schemas/RegionRef' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+    TopicResource:
+      type: object
+      additionalProperties: false
+      required: [ref, title, description]
+      properties:
+        ref: { $ref: '#/components/schemas/TopicRef' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 1000 }
+    Evidence:
+      type: object
+      additionalProperties: false
+      required: [id, kind, sourceName, sourceUrl, sourceRevision, summary, asOf]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 128 }
+        kind: { type: string, enum: [PROVIDER_FIELD, EDITORIAL_NOTE, SPATIAL_CALCULATION] }
+        sourceName: { type: string, minLength: 1, maxLength: 100 }
+        sourceUrl: { type: [string, 'null'], format: uri }
+        sourceRevision: { type: [string, 'null'] }
+        summary: { type: string, minLength: 1, maxLength: 1000 }
+        asOf: { type: [string, 'null'], format: date-time }
+    Relation:
+      type: object
+      additionalProperties: false
+      required: [id, sourceRef, targetRef, type, label, evidenceRefs]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 128 }
+        sourceRef: { $ref: '#/components/schemas/ResourceRef' }
+        targetRef: { $ref: '#/components/schemas/ResourceRef' }
+        type: { type: string, enum: [LOCATED_IN, NEARBY, SHARES_VERIFIED_TOPIC, EDITORIAL_PAIRING] }
+        label: { type: string, minLength: 1, maxLength: 200 }
+        evidenceRefs: { type: array, items: { type: string }, uniqueItems: true }
+    ConstraintCheck:
+      type: object
+      additionalProperties: false
+      required: [key, status, label, evidenceRefs]
+      properties:
+        key: { type: string, enum: [REGION, TOPIC, PACE, TIME_BUDGET] }
+        status: { type: string, enum: [SATISFIED, VIOLATED, UNKNOWN] }
+        label: { type: string, minLength: 1, maxLength: 200 }
+        evidenceRefs: { type: array, items: { type: string }, uniqueItems: true }
+    JourneyCandidate:
+      type: object
+      additionalProperties: false
+      required: [placeRef, reason, evidenceRefs, relationRefs, constraintChecks]
+      properties:
+        placeRef: { $ref: '#/components/schemas/PlaceRef' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        evidenceRefs: { type: array, items: { type: string }, uniqueItems: true }
+        relationRefs: { type: array, items: { type: string }, uniqueItems: true }
+        constraintChecks: { type: array, items: { $ref: '#/components/schemas/ConstraintCheck' } }
+    JourneyLeg:
+      type: object
+      additionalProperties: false
+      required: [fromRef, toRef, order, distanceMeters, distanceKind, distanceBand]
+      properties:
+        fromRef: { $ref: '#/components/schemas/PlaceRef' }
+        toRef: { $ref: '#/components/schemas/PlaceRef' }
+        order: { type: integer, minimum: 0 }
+        distanceMeters: { type: [integer, 'null'], minimum: 0 }
+        distanceKind: { type: string, enum: [STRAIGHT_LINE, UNKNOWN] }
+        distanceBand: { type: string, enum: [NEAR, MEDIUM, FAR, UNKNOWN] }
+    JourneyBoard:
+      type: object
+      additionalProperties: false
+      required: [title, querySummary, regionRef, candidates, legs, resources, relations, evidence]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        querySummary: { type: string, minLength: 1, maxLength: 500 }
+        regionRef: { $ref: '#/components/schemas/RegionRef' }
+        candidates: { type: array, minItems: 1, maxItems: 3, items: { $ref: '#/components/schemas/JourneyCandidate' } }
+        legs: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/JourneyLeg' } }
+        resources:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/PlaceResource'
+              - $ref: '#/components/schemas/RegionResource'
+              - $ref: '#/components/schemas/TopicResource'
+        relations: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/Relation' } }
+        evidence: { type: array, items: { $ref: '#/components/schemas/Evidence' } }
+    JourneyProposal:
+      type: object
+      additionalProperties: false
+      required: [id, baseVersion, expiresAt, status, keptRefs, addedRefs, removedRefs, orderedRefs, board, unknowns]
+      properties:
+        id: { type: string, format: uuid }
+        baseVersion: { type: integer, minimum: 0 }
+        expiresAt: { type: string, format: date-time }
+        status: { type: string, enum: [PENDING, INVALIDATED] }
+        keptRefs: { type: array, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+        addedRefs: { type: array, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+        removedRefs: { type: array, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+        orderedRefs: { type: array, minItems: 1, maxItems: 3, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+        board: { $ref: '#/components/schemas/JourneyBoard' }
+        unknowns: { type: array, items: { type: string } }
+    JourneyHistoryItem:
+      type: object
+      additionalProperties: false
+      required: [id, type, createdAt, query, runId, stateVersion, proposalId, affectedRefs]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [QUERY_SUBMITTED, BOARD_COMMITTED, PIN_CHANGED, PROPOSAL_READY, PROPOSAL_APPLIED, PROPOSAL_DISMISSED, RUN_FAILED] }
+        createdAt: { type: string, format: date-time }
+        query: { type: [string, 'null'] }
+        runId: { type: [string, 'null'], format: uuid }
+        stateVersion: { type: integer, minimum: 0 }
+        proposalId: { type: [string, 'null'], format: uuid }
+        affectedRefs: { type: array, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+    JourneyExecution:
+      type: object
+      additionalProperties: false
+      required: [dataMode, engine, rankingVersion, datasetRevision]
+      properties:
+        dataMode: { type: string, minLength: 1 }
+        engine: { type: string, enum: [BASELINE, LLM] }
+        rankingVersion: { type: string, minLength: 1 }
+        datasetRevision: { type: string, minLength: 1 }
     ExplorationSnapshot:
       type: object
-      additionalProperties: true
-      required: [schemaVersion, explorationId, stateVersion, latestRun]
+      additionalProperties: false
+      required: [schemaVersion, explorationId, stateVersion, board, pinnedRefs, excludedRefs, execution, latestRun, pendingProposal, recentHistory, updatedAt]
       properties:
         schemaVersion: { type: string, const: '1.2' }
         explorationId: { type: string, format: uuid }
         stateVersion: { type: integer, minimum: 0 }
+        board: { anyOf: [ { $ref: '#/components/schemas/JourneyBoard' }, { type: 'null' } ] }
+        pinnedRefs: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+        excludedRefs: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+        execution: { $ref: '#/components/schemas/JourneyExecution' }
         latestRun: { anyOf: [ { $ref: '#/components/schemas/RunSnapshot' }, { type: 'null' } ] }
+        pendingProposal: { anyOf: [ { $ref: '#/components/schemas/JourneyProposal' }, { type: 'null' } ] }
+        recentHistory: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/JourneyHistoryItem' } }
+        updatedAt: { type: string, format: date-time }
+    SavedJourneySummary:
+      type: object
+      additionalProperties: false
+      required: [savedJourneyId, title, sourceExplorationId, sourceVersion, savedAt, candidateCount]
+      properties:
+        savedJourneyId: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 80 }
+        sourceExplorationId: { type: string, format: uuid }
+        sourceVersion: { type: integer, minimum: 0 }
+        savedAt: { type: string, format: date-time }
+        candidateCount: { type: integer, minimum: 0, maximum: 3 }
+    SavedJourney:
+      type: object
+      additionalProperties: false
+      required: [savedJourneyId, title, sourceExplorationId, sourceVersion, savedAt, candidateCount, snapshot]
+      properties:
+        savedJourneyId: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 80 }
+        sourceExplorationId: { type: string, format: uuid }
+        sourceVersion: { type: integer, minimum: 0 }
+        savedAt: { type: string, format: date-time }
+        candidateCount: { type: integer, minimum: 0, maximum: 3 }
+        snapshot: { $ref: '#/components/schemas/ExplorationSnapshot' }
+    SavedJourneyPage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, items, nextCursor, hasMore]
+      properties:
+        schemaVersion: { type: string, const: '1.2' }
+        items: { type: array, items: { $ref: '#/components/schemas/SavedJourneySummary' } }
+        nextCursor: { type: [string, 'null'] }
+        hasMore: { type: boolean }
+    ResumeSavedJourneyResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, exploration, unavailableRefs]
+      properties:
+        schemaVersion: { type: string, const: '1.2' }
+        exploration: { $ref: '#/components/schemas/ExplorationSnapshot' }
+        unavailableRefs: { type: array, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
     Error:
       type: object
       additionalProperties: false
       required: [schemaVersion, code, message, requestId, details]
       properties:
         schemaVersion: { type: string, const: '1.2' }
-        code: { type: string }
+        code:
+          type: string
+          enum: [AUTH_REQUIRED, NOT_FOUND, VALIDATION_ERROR, RATE_LIMITED, PAYLOAD_TOO_LARGE, JOURNEY_SCOPE_UNSUPPORTED, SAFETY_BLOCKED, SERVICE_UNAVAILABLE, VERSION_CONFLICT, ACTIVE_RUN, PINNED_REF, IDEMPOTENCY_CONFLICT, PROPOSAL_EXPIRED, CURSOR_INVALID, CURSOR_EXPIRED]
         message: { type: string }
         requestId: { type: string }
         details: { type: object }
