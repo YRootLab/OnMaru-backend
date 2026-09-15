@@ -24,9 +24,9 @@ model name, 내부 alias, output token 상한, input/output 단가는 compositio
 | transport 또는 absolute timeout | `AI_TIMEOUT` 또는 `AI_SERVICE_UNAVAILABLE` |
 | HTTP 5xx, 401, 403 | `AI_SERVICE_UNAVAILABLE` |
 | non-200, 빈 candidate, invalid JSON | `AI_INVALID_RESPONSE` |
-| caller cancellation | `CANCELLED` |
+| cancellation event | `CANCELLED` |
 
-timeout과 cancellation은 in-flight transport task를 취소한다. adapter는 자동 retry나 두 번째 model call을 만들지 않는다.
+timeout과 cancellation은 in-flight transport task를 취소한다. 상위 task의 `CancelledError`는 cleanup 뒤 그대로 전파하고, 명시적 cancellation event만 typed `CANCELLED`로 반환한다. adapter는 자동 retry나 두 번째 model call을 만들지 않는다. JSON 파싱에 실패해도 provider가 반환한 usage는 비용 계측에 보존한다.
 
 ## 검증
 

@@ -58,11 +58,13 @@ class GeminiAdapter:
         if timeout_seconds <= 0:
             raise ValueError("Gemini timeout must be positive")
         request = self._request(prompt, response_schema, timeout_seconds)
+        usage: GeminiUsage | None = None
         try:
             response = await self._send(request, timeout_seconds, cancellation_event)
-            result = self._parse(response)
+            usage = self._usage_from_response(response)
+            result = self._parse(response, usage)
         except GeminiProviderError as error:
-            self._record(prompt, outcome=error.code.value)
+            self._record(prompt, outcome=error.code.value, usage=usage)
             raise
         except TimeoutError as error:
             failure = GeminiProviderError(GeminiFailureCode.AI_TIMEOUT)
@@ -150,11 +152,11 @@ class GeminiAdapter:
                         await transport_task
                     raise GeminiProviderError(GeminiFailureCode.CANCELLED)
                 return await transport_task
-        except asyncio.CancelledError as error:
+        except asyncio.CancelledError:
             transport_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await transport_task
-            raise GeminiProviderError(GeminiFailureCode.CANCELLED) from error
+            raise
         except TimeoutError:
             transport_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -166,7 +168,9 @@ class GeminiAdapter:
                 with contextlib.suppress(asyncio.CancelledError):
                     await cancellation_task
 
-    def _parse(self, response: GeminiTransportResponse) -> GeminiResult:
+    def _parse(
+        self, response: GeminiTransportResponse, usage: GeminiUsage | None
+    ) -> GeminiResult:
         if response.status_code == 429:
             raise GeminiProviderError(GeminiFailureCode.AI_QUOTA_EXCEEDED)
         if response.status_code in {408, 504}:
@@ -184,11 +188,18 @@ class GeminiAdapter:
         if not isinstance(proposal, dict):
             raise GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE)
 
-        usage = self._usage(response.body.get("usageMetadata"))
+        usage = usage or self._usage(None)
         model_version = response.body.get("modelVersion", self._config.model_name)
         if not isinstance(model_version, str):
             model_version = self._config.model_name
         return GeminiResult(proposal=proposal, usage=usage, model_version=model_version)
+
+    def _usage_from_response(self, response: GeminiTransportResponse) -> GeminiUsage | None:
+        if not isinstance(response.body, dict) or not isinstance(
+            response.body.get("usageMetadata"), dict
+        ):
+            return None
+        return self._usage(response.body["usageMetadata"])
 
     def _usage(self, raw_usage: Any) -> GeminiUsage:
         usage = raw_usage if isinstance(raw_usage, dict) else {}

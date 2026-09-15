@@ -247,8 +247,8 @@ def test_cancellation_stops_in_flight_transport() -> None:
     assert transport_cancelled
 
 
-def test_parent_task_cancellation_stops_in_flight_transport() -> None:
-    async def scenario() -> tuple[GeminiFailureCode, bool]:
+def test_parent_task_cancellation_stops_transport_and_preserves_cancelled_error() -> None:
+    async def scenario() -> tuple[bool, bool]:
         transport = BlockingTransport()
         adapter = GeminiAdapter(
             config(), transport, api_key="secret", telemetry_sink=InMemoryTelemetrySink()
@@ -258,11 +258,37 @@ def test_parent_task_cancellation_stops_in_flight_transport() -> None:
         )
         await transport.started.wait()
         task.cancel()
-        with pytest.raises(GeminiProviderError) as captured:
+        with pytest.raises(asyncio.CancelledError):
             await task
-        return captured.value.code, transport.cancelled
+        return task.cancelled(), transport.cancelled
 
-    code, transport_cancelled = asyncio.run(scenario())
+    task_cancelled, transport_cancelled = asyncio.run(scenario())
 
-    assert code is GeminiFailureCode.CANCELLED
+    assert task_cancelled
     assert transport_cancelled
+
+
+def test_invalid_json_still_records_billed_usage() -> None:
+    transport = FakeTransport(
+        GeminiTransportResponse(
+            status_code=200,
+            body={
+                "candidates": [{"content": {"parts": [{"text": "not-json"}]}}],
+                "usageMetadata": {
+                    "promptTokenCount": 120,
+                    "candidatesTokenCount": 30,
+                    "thoughtsTokenCount": 10,
+                    "totalTokenCount": 160,
+                },
+            },
+        )
+    )
+    sink = InMemoryTelemetrySink()
+    adapter = GeminiAdapter(config(), transport, api_key="secret", telemetry_sink=sink)
+
+    with pytest.raises(GeminiProviderError) as captured:
+        run_generate(adapter)
+
+    assert captured.value.code is GeminiFailureCode.AI_INVALID_RESPONSE
+    assert sink.events[0].attributes["ai.usage.total_tokens"] == "160"
+    assert sink.events[0].attributes["ai.usage.estimated_cost_micros"] == "28"
