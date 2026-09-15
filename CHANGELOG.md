@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #104의 Odii–canonical place 후보 검수 상태, 단일 승인 projection, 공개 장소 hydration을 추가한다.
 - Issue #96의 Odii provider client/parser, 다국어 audio revision mapping, 원자 LKG 게시와 tombstone 검증을 추가한다.
 - Issue #97의 revision-pinned deterministic baseline ranking, hard filter, pin·diversity와 held-out fixture 검증을 추가했다.
 - Add Git Flow branch issue parser, AGENTS release/harness policy updates, and branch-number tests for Issue #192.

@@ -1,5 +1,17 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-15 Issue #104
+
+- 현재 작업 브랜치와 worktree: `feature/104-odii-place-link`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-104-odii-place-link`.
+- 관련 Issue: #104 `[A04] Odii–canonical place 검수 연결과 projection 구현`; blocked-by #96/#99는 Closed이고 담당자·열린 중복 PR은 없다.
+- 구현 범위: `modules/audio/.../placelink`의 후보·PENDING/APPROVED/REJECTED 검수 상태, 한 spot의 단일 승인 projection, `CanonicalPlaceLinkLookup` port 기반 현재 공개 장소 hydration.
+- 안전 경계: 이름 또는 이름+거리 후보도 자동 공개하지 않는다. 명시 승인 시 다른 후보를 거절하고, 승인 시점과 조회 시점에 catalog 공개 projection을 재검증한다.
+- 병렬 #103 보호: 기존 `audio.sync`, `modules/audio/build.gradle.kts`, R2 OpenAPI, migration을 수정하지 않는다. 공개 audio query가 소비할 경계는 `ApprovedAudioPlaceLinkQuery`로 분리했다.
+- TDD: domain test와 catalog adapter test를 먼저 추가해 missing production type RED를 확인한 뒤 최소 구현으로 GREEN을 확인했다.
+- 최종 검증: 최신 `origin/develop` merge 후 Gradle 41 tasks, FastAPI Ruff/mypy와 pytest 53개, Node 35개, planning/Odii fixture, contract validator 8개와 전체 contract/generated artifact, branch parser `104`가 통과했다.
+- 작업 로그: `troubleshooting-worklog/26.09.15 odii-place-link.md`.
+- 자체 review에서 Critical/Important 발견 사항은 없었고 Spring 전체 context 기동도 통과했다. 다음 단계는 PR review와 CI 확인이다.
+
 ## Current Session Quick Handoff - 2026-09-15 Issue #96
 
 - 현재 작업 브랜치와 worktree: `feature/96-odii-revision-publish`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/a02-odii-revision-publish`.
