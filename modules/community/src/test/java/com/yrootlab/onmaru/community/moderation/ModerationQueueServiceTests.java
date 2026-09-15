@@ -8,8 +8,13 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -90,6 +95,40 @@ class ModerationQueueServiceTests {
     }
 
     @Test
+    void queuesSystemPiiHideWithoutUserReport() {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(HIGH_RISK_REVIEW_ID, VisitReviewStatus.PUBLISHED, "synthetic hidden"));
+        var reportStore = new InMemoryReviewReportStore();
+        var actionIds = new ArrayDeque<>(List.of(
+                UUID.fromString("00000000-0000-0000-0000-000000001399"),
+                UUID.fromString("00000000-0000-0000-0000-000000001390")));
+        var moderationService = new VisitReviewModerationService(
+                reviewStore,
+                reportStore,
+                UUID::randomUUID,
+                actionIds::removeFirst,
+                CLOCK);
+        moderationService.hideHighRiskPii(HIGH_RISK_REVIEW_ID, "pii-detector-v1");
+        var queueService = new ModerationQueueService(reviewStore, reportStore, CLOCK);
+
+        ModerationQueueItem item = queueService.snapshot(100).items().getFirst();
+
+        assertThat(item.reviewId()).isEqualTo(HIGH_RISK_REVIEW_ID);
+        assertThat(item.priority()).isEqualTo(ModerationQueuePriority.HIGH_RISK);
+        assertThat(item.reports()).isEmpty();
+        assertThat(item.oldestOpenReportAt()).isEqualTo(NOW);
+        assertThat(item.slaTargetAt()).isEqualTo(NOW.plusSeconds(86_400));
+
+        moderationService.moderate(
+                HIGH_RISK_REVIEW_ID,
+                "operator-1",
+                VisitReviewStatus.HIDDEN,
+                ModerationReason.PII_HIGH_RISK);
+
+        assertThat(queueService.snapshot(100).items()).isEmpty();
+    }
+
+    @Test
     void rejectsUnboundedQueueLimits() {
         var service = new ModerationQueueService(
                 new InMemoryVisitReviewStore(),
@@ -98,6 +137,52 @@ class ModerationQueueServiceTests {
 
         assertThatThrownBy(() -> service.snapshot(0)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.snapshot(101)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void queueSnapshotUsesReportStoreAtomicBoundary() throws Exception {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(STANDARD_REVIEW_ID, VisitReviewStatus.PUBLISHED, "synthetic spam"));
+        var reportStore = new InMemoryReviewReportStore();
+        reportStore.saveOrFindOpen(report(
+                STANDARD_REVIEW_ID,
+                ReviewReportReason.SPAM,
+                null,
+                Instant.parse("2026-09-15T02:30:00Z")));
+        var service = new ModerationQueueService(reviewStore, reportStore, CLOCK);
+        var lockHeld = new CountDownLatch(1);
+        var releaseLock = new CountDownLatch(1);
+        var snapshotAttempted = new CountDownLatch(1);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var lockOwner = executor.submit(() -> reportStore.executeAtomically(() -> {
+                lockHeld.countDown();
+                await(releaseLock);
+                return null;
+            }));
+            assertThat(lockHeld.await(1, TimeUnit.SECONDS)).isTrue();
+            var snapshot = executor.submit(() -> {
+                snapshotAttempted.countDown();
+                return service.snapshot(100);
+            });
+            assertThat(snapshotAttempted.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(snapshot).isNotDone();
+
+            releaseLock.countDown();
+            lockOwner.get(1, TimeUnit.SECONDS);
+            assertThat(snapshot.get(1, TimeUnit.SECONDS).items()).hasSize(1);
+        }
+    }
+
+    private void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(1, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("timed out waiting for test coordinator");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("test coordinator interrupted", exception);
+        }
     }
 
     private ReviewReport report(UUID reviewId, ReviewReportReason reason, String detail, Instant createdAt) {

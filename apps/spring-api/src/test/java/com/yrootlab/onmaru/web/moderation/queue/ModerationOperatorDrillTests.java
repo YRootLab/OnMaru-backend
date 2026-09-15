@@ -22,8 +22,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,14 +32,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -138,6 +140,17 @@ class ModerationOperatorDrillTests {
                 .andExpect(status().isOk());
         assertPublicReviewsExclude(remove.text());
 
+        List<DrillCase> standardDismissals = fixture.cases().stream()
+                .filter(drillCase -> !Set.of("RESTORE", "REMOVE").contains(drillCase.action()))
+                .toList();
+        for (DrillCase standard : standardDismissals) {
+            moderate(standard, "PUBLISHED", "FALSE_POSITIVE", CURRENT_TOKEN)
+                    .andExpect(status().isOk());
+            assertPublicReviewsInclude(standard.text());
+        }
+
+        assertThat(reportStore.reports()).hasSize(fixture.cases().size());
+        assertThat(reportStore.openReports()).isEmpty();
         assertThat(reportStore.reports())
                 .filteredOn(report -> report.reviewId().equals(pii.reviewId()))
                 .allMatch(report -> report.status() == ReviewReportStatus.DISMISSED);
@@ -149,7 +162,10 @@ class ModerationOperatorDrillTests {
                 .containsExactly(
                         List.of(ModerationActorType.SYSTEM, ModerationReason.PII_HIGH_RISK),
                         List.of(ModerationActorType.OPERATOR, ModerationReason.FALSE_POSITIVE),
-                        List.of(ModerationActorType.OPERATOR, ModerationReason.ABUSE_CONFIRMED));
+                        List.of(ModerationActorType.OPERATOR, ModerationReason.ABUSE_CONFIRMED),
+                        List.of(ModerationActorType.OPERATOR, ModerationReason.FALSE_POSITIVE),
+                        List.of(ModerationActorType.OPERATOR, ModerationReason.FALSE_POSITIVE),
+                        List.of(ModerationActorType.OPERATOR, ModerationReason.FALSE_POSITIVE));
 
         assertTelemetryContainsNoSensitiveValues();
     }
@@ -163,7 +179,10 @@ class ModerationOperatorDrillTests {
                         new jakarta.servlet.http.Cookie("__Host-onmaru-session", drillCase.session()),
                         new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", CSRF))
                 .header("X-CSRF-TOKEN", CSRF)
-                .header("Idempotency-Key", key));
+                .header("Idempotency-Key", key)
+                .header("X-Request-Id", drillCase.session())
+                .header("X-Run-Id", drillCase.detail())
+                .header("X-Revision", drillCase.text()));
     }
 
     private org.springframework.test.web.servlet.ResultActions moderate(
@@ -184,12 +203,24 @@ class ModerationOperatorDrillTests {
     private void assertPublicReviewsExclude(String text) throws Exception {
         mockMvc.perform(get("/api/v1/visit-reviews").queryParam("scope", "ALL").queryParam("limit", "50"))
                 .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.items[?(@.text == '%s')]".formatted(text)).isEmpty());
+        mockMvc.perform(get("/api/v1/places/p-jeonju-hanok-village/visit-reviews")
+                        .queryParam("limit", "50"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.items[?(@.text == '%s')]".formatted(text)).isEmpty());
     }
 
     private void assertPublicReviewsInclude(String text) throws Exception {
         mockMvc.perform(get("/api/v1/visit-reviews").queryParam("scope", "ALL").queryParam("limit", "50"))
                 .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.items[?(@.text == '%s')]".formatted(text)).isNotEmpty());
+        mockMvc.perform(get("/api/v1/places/p-jeonju-hanok-village/visit-reviews")
+                        .queryParam("limit", "50"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.items[?(@.text == '%s')]".formatted(text)).isNotEmpty());
     }
 

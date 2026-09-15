@@ -7,8 +7,11 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -33,6 +36,10 @@ public final class ModerationQueueService {
     }
 
     public ModerationQueueSnapshot snapshot(int limit) {
+        return reportStore.executeAtomically(() -> snapshotAtomically(limit));
+    }
+
+    private ModerationQueueSnapshot snapshotAtomically(int limit) {
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new IllegalArgumentException("limit must be between 1 and 100");
         }
@@ -41,13 +48,16 @@ public final class ModerationQueueService {
                 .collect(Collectors.toMap(VisitReviewProjection::id, Function.identity()));
         Map<UUID, List<ModerationAction>> actions = reportStore.auditLog().stream()
                 .collect(Collectors.groupingBy(ModerationAction::reviewId));
-        List<ModerationQueueItem> projected = reportStore.openReports().stream()
-                .collect(Collectors.groupingBy(ReviewReport::reviewId))
-                .entrySet().stream()
-                .map(entry -> project(
-                        reviews.get(entry.getKey()),
-                        entry.getValue(),
-                        actions.getOrDefault(entry.getKey(), List.of()),
+        Map<UUID, List<ReviewReport>> reports = reportStore.openReports().stream()
+                .collect(Collectors.groupingBy(ReviewReport::reviewId));
+        Set<UUID> queuedReviewIds = new HashSet<>(reports.keySet());
+        actions.forEach((reviewId, reviewActions) -> pendingPiiAction(reviewActions)
+                .ifPresent(ignored -> queuedReviewIds.add(reviewId)));
+        List<ModerationQueueItem> projected = queuedReviewIds.stream()
+                .map(reviewId -> project(
+                        reviews.get(reviewId),
+                        reports.getOrDefault(reviewId, List.of()),
+                        actions.getOrDefault(reviewId, List.of()),
                         now))
                 .sorted(queueOrder())
                 .toList();
@@ -70,11 +80,12 @@ public final class ModerationQueueService {
                 .sorted(Comparator.comparing(ReviewReport::createdAt).thenComparing(ReviewReport::reportId))
                 .toList();
         List<ModerationAction> orderedActions = actions.stream()
-                .sorted(Comparator.comparing(ModerationAction::createdAt).thenComparing(ModerationAction::actionId))
+                .sorted(Comparator.comparing(ModerationAction::createdAt))
                 .toList();
-        Instant oldest = orderedReports.getFirst().createdAt();
+        Optional<ModerationAction> pendingPii = pendingPiiAction(orderedActions);
+        Instant oldest = oldestQueueSignal(orderedReports, pendingPii);
         long ageSeconds = Math.max(0L, Duration.between(oldest, now).toSeconds());
-        ModerationQueuePriority priority = priority(orderedReports, orderedActions);
+        ModerationQueuePriority priority = priority(orderedReports, pendingPii);
         Instant target = oldest.plus(priority == ModerationQueuePriority.HIGH_RISK ? HIGH_RISK_SLA : STANDARD_SLA);
         return new ModerationQueueItem(
                 review.id(),
@@ -91,15 +102,34 @@ public final class ModerationQueueService {
                 !target.isAfter(now));
     }
 
-    private ModerationQueuePriority priority(List<ReviewReport> reports, List<ModerationAction> actions) {
+    private Instant oldestQueueSignal(
+            List<ReviewReport> reports,
+            Optional<ModerationAction> pendingPii) {
+        return reports.stream()
+                .map(ReviewReport::createdAt)
+                .min(Instant::compareTo)
+                .map(reportAt -> pendingPii
+                        .map(action -> action.createdAt().isBefore(reportAt) ? action.createdAt() : reportAt)
+                        .orElse(reportAt))
+                .orElseGet(() -> pendingPii.orElseThrow().createdAt());
+    }
+
+    private ModerationQueuePriority priority(
+            List<ReviewReport> reports,
+            Optional<ModerationAction> pendingPii) {
         boolean personalDataReport = reports.stream()
                 .anyMatch(report -> report.reason() == ReviewReportReason.PERSONAL_DATA);
-        boolean systemPiiHide = actions.stream()
-                .anyMatch(action -> action.actorType() == ModerationActorType.SYSTEM
-                        && action.reason() == ModerationReason.PII_HIGH_RISK);
-        return personalDataReport || systemPiiHide
+        return personalDataReport || pendingPii.isPresent()
                 ? ModerationQueuePriority.HIGH_RISK
                 : ModerationQueuePriority.STANDARD;
+    }
+
+    private Optional<ModerationAction> pendingPiiAction(List<ModerationAction> actions) {
+        return actions.isEmpty()
+                ? Optional.empty()
+                : Optional.of(actions.getLast())
+                .filter(action -> action.actorType() == ModerationActorType.SYSTEM)
+                .filter(action -> action.reason() == ModerationReason.PII_HIGH_RISK);
     }
 
     private Comparator<ModerationQueueItem> queueOrder() {

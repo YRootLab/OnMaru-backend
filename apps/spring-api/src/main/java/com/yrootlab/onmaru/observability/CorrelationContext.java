@@ -12,6 +12,10 @@ record CorrelationContext(String requestId, String traceId, String runId, String
 
     private static final Pattern TRACEPARENT_PATTERN = Pattern.compile(
             "^[\\da-f]{2}-([\\da-f]{32})-[\\da-f]{16}-[\\da-f]{2}$");
+    private static final Pattern RUN_ID_PATTERN = Pattern.compile(
+            "^run-[A-Za-z0-9][A-Za-z0-9._-]{0,59}$");
+    private static final Pattern REVISION_PATTERN = Pattern.compile(
+            "^rev-[A-Za-z0-9][A-Za-z0-9._-]{0,59}$");
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final HexFormat HEX = HexFormat.of();
 
@@ -21,8 +25,8 @@ record CorrelationContext(String requestId, String traceId, String runId, String
                 firstHeader(request, "traceparent")
                         .flatMap(CorrelationContext::traceIdFromTraceparent)
                         .orElseGet(() -> randomHex(16)),
-                firstHeader(request, "X-Run-Id").orElse("unknown"),
-                firstHeader(request, "X-Revision").orElse("unknown"));
+                safeHeader(request, "X-Run-Id", RUN_ID_PATTERN).orElse("unknown"),
+                safeHeader(request, "X-Revision", REVISION_PATTERN).orElse("unknown"));
     }
 
     private static Optional<String> requestIdFrom(HttpServletRequest request) {
@@ -35,6 +39,10 @@ record CorrelationContext(String requestId, String traceId, String runId, String
 
     private static Optional<String> firstHeader(HttpServletRequest request, String name) {
         return Optional.ofNullable(request.getHeader(name)).filter(value -> !value.isBlank());
+    }
+
+    private static Optional<String> safeHeader(HttpServletRequest request, String name, Pattern pattern) {
+        return firstHeader(request, name).filter(value -> pattern.matcher(value).matches());
     }
 
     private static Optional<String> traceIdFromTraceparent(String traceparent) {

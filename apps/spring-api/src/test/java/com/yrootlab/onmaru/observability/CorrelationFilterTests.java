@@ -74,6 +74,26 @@ class CorrelationFilterTests {
                 .containsEntry("request.id", requestId);
     }
 
+    @Test
+    void replacesSensitiveValuesInjectedThroughCorrelationHeaders() throws Exception {
+        var reporterId = "8ce13b1d-01bb-42ea-8457-5e0df299a5de";
+        var reportDetail = "연락처로 의심되는 문자열";
+        var operatorToken = "fake-moderation-operator-token-current";
+
+        var result = mockMvc.perform(get("/actuator/health")
+                        .header("X-Request-Id", reporterId)
+                        .header("X-Run-Id", reportDetail)
+                        .header("X-Revision", operatorToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(result.getResponse().getHeader("X-Request-Id")).isNotEqualTo(reporterId);
+        assertThat(result.getResponse().getHeader("X-Run-Id")).isEqualTo("unknown");
+        assertThat(result.getResponse().getHeader("X-Revision")).isEqualTo("unknown");
+        assertThat(telemetrySink.events().getFirst().attributes().values())
+                .doesNotContain(reporterId, reportDetail, operatorToken);
+    }
+
     @TestConfiguration
     static class TelemetryTestConfig {
 

@@ -10,6 +10,9 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -124,6 +127,90 @@ class VisitReviewModerationServiceTests {
         assertThat(service.openReports()).isEmpty();
         assertThat(reportStore.reports()).extracting(ReviewReport::status)
                 .containsOnly(ReviewReportStatus.RESOLVED);
+    }
+
+    @Test
+    void operatorDismissesPublishedStandardReportWithoutChangingPublicStatus() {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(VisitReviewStatus.PUBLISHED));
+        var reportStore = new InMemoryReviewReportStore();
+        var service = service(reviewStore, reportStore);
+        service.report(REPORTER_ID, REVIEW_ID,
+                new CreateReviewReportCommand(ReviewReportReason.SPAM, "synthetic spam"));
+
+        ModerationAction action = service.moderate(
+                REVIEW_ID,
+                "operator-1",
+                VisitReviewStatus.PUBLISHED,
+                ModerationReason.FALSE_POSITIVE);
+
+        assertThat(action.previousStatus()).isEqualTo(VisitReviewStatus.PUBLISHED);
+        assertThat(action.nextStatus()).isEqualTo(VisitReviewStatus.PUBLISHED);
+        assertThat(action.reason()).isEqualTo(ModerationReason.FALSE_POSITIVE);
+        assertThat(reportStore.reports()).extracting(ReviewReport::status)
+                .containsOnly(ReviewReportStatus.DISMISSED);
+        assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.PUBLISHED);
+    }
+
+    @Test
+    void reportAndDispositionUseSharedAtomicBoundary() throws Exception {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(VisitReviewStatus.PUBLISHED));
+        var reportStore = new InMemoryReviewReportStore();
+        var service = service(reviewStore, reportStore);
+        var lockHeld = new CountDownLatch(1);
+        var releaseLock = new CountDownLatch(1);
+        var reportAttempted = new CountDownLatch(1);
+        var moderationAttempted = new CountDownLatch(1);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var lockOwner = executor.submit(() -> reportStore.executeAtomically(() -> {
+                lockHeld.countDown();
+                await(releaseLock);
+                return null;
+            }));
+            assertThat(lockHeld.await(1, TimeUnit.SECONDS)).isTrue();
+            var report = executor.submit(() -> {
+                reportAttempted.countDown();
+                return service.report(REPORTER_ID, REVIEW_ID,
+                        new CreateReviewReportCommand(ReviewReportReason.SPAM, "synthetic spam"));
+            });
+            var disposition = executor.submit(() -> {
+                moderationAttempted.countDown();
+                return service.moderate(
+                        REVIEW_ID,
+                        "operator-1",
+                        VisitReviewStatus.REMOVED,
+                        ModerationReason.SPAM_CONFIRMED);
+            });
+            assertThat(reportAttempted.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(moderationAttempted.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(report).isNotDone();
+            assertThat(disposition).isNotDone();
+
+            releaseLock.countDown();
+            lockOwner.get(1, TimeUnit.SECONDS);
+            disposition.get(1, TimeUnit.SECONDS);
+            try {
+                report.get(1, TimeUnit.SECONDS);
+            } catch (java.util.concurrent.ExecutionException ignored) {
+                // The report is rejected when the disposition acquires the coordinator first.
+            }
+        }
+
+        assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.REMOVED);
+        assertThat(reportStore.openReports()).isEmpty();
+    }
+
+    private void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(1, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("timed out waiting for test coordinator");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("test coordinator interrupted", exception);
+        }
     }
 
     private VisitReviewModerationService service(InMemoryVisitReviewStore store) {
