@@ -21,8 +21,7 @@
         "schemaVersion": "1.2",
         "board": {
           "title": "전주 한옥 산책",
-          "querySummary": "전주에서 한옥 문화를 천천히 둘러보는 여정",
-          "querySummarySource": "CURATED_LABELS",
+          "summaryRefs": [{"type": "REGION", "id": "region-jeonju"}],
           "regionRef": {"type": "REGION", "id": "region-jeonju"},
           "candidates": [{"placeRef": {"type": "PLACE", "id": "place-jeonju-001"}, "reason": "검수된 한옥 문화 근거가 있습니다.", "evidenceRefs": ["evidence-provider-001"], "relationRefs": [], "constraintChecks": []}],
           "legs": [],

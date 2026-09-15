@@ -47,6 +47,7 @@ REQUIRED_FIXTURES = {
     "action-proposal-expired",
     "action-csrf-invalid",
     "action-idempotency-invalid",
+    "action-other-actor",
     "saved-journey-create-normal",
     "saved-journey-create-replay",
     "saved-journey-active-run",
@@ -57,6 +58,7 @@ REQUIRED_FIXTURES = {
     "saved-journey-delete-other-actor",
     "saved-journey-delete-replay",
     "saved-journey-resume-unavailable",
+    "saved-journey-resume-other-actor",
 }
 
 
@@ -271,6 +273,8 @@ def main() -> None:
     if (
         conflict["request"]["headers"]["Idempotency-Key"]
         != pin["request"]["headers"]["Idempotency-Key"]
+        or conflict["request"]["method"] != pin["request"]["method"]
+        or conflict["request"]["path"] != pin["request"]["path"]
         or conflict["request"]["body"] == pin["request"]["body"]
     ):
         fail("action-idempotency-conflict must reuse the key with a different payload")
@@ -302,6 +306,9 @@ def main() -> None:
         leaked = forbidden_snapshot_fields.intersection(saved["snapshot"])
         if leaked:
             fail(f"{name} leaks ephemeral fields into the saved snapshot: {sorted(leaked)}")
+        board = saved["snapshot"]["board"]
+        if "querySummary" in board or not board.get("summaryRefs"):
+            fail(f"{name} must store canonical summaryRefs instead of a free-text querySummary")
     expired_source = fixtures_by_name["saved-journey-detail-expired-source"]["response"]["body"]
     if expired_source["sourceExplorationId"] is not None:
         fail("saved-journey-detail-expired-source must allow an expired source exploration")
@@ -319,16 +326,28 @@ def main() -> None:
         or invalid_key["response"]["body"]["code"] != "VALIDATION_ERROR"
     ):
         fail("action-idempotency-invalid must reject a missing Idempotency-Key")
-    other_actor = fixtures_by_name["saved-journey-detail-other-actor"]["response"]
-    if other_actor["status"] != 404 or other_actor["body"]["code"] != "NOT_FOUND":
-        fail("saved-journey-detail-other-actor must conceal ownership as 404 NOT_FOUND")
+    for name in (
+        "exploration-snapshot-other-actor",
+        "action-other-actor",
+        "saved-journey-detail-other-actor",
+        "saved-journey-delete-other-actor",
+        "saved-journey-resume-other-actor",
+    ):
+        fixture = fixtures_by_name[name]
+        given = fixture.get("given", {})
+        other_actor = fixture["response"]
+        if (
+            not given.get("ownerActorId")
+            or not given.get("requestActorId")
+            or given["ownerActorId"] == given["requestActorId"]
+            or other_actor["status"] != 404
+            or other_actor["body"]["code"] != "NOT_FOUND"
+        ):
+            fail(f"{name} must conceal a different owner's resource as 404 NOT_FOUND")
     delete = fixtures_by_name["saved-journey-delete-normal"]
     delete_replay = fixtures_by_name["saved-journey-delete-replay"]
     if delete_replay["request"] != delete["request"] or delete_replay["response"] != delete["response"]:
         fail("saved-journey-delete-replay must preserve the idempotent delete response")
-    delete_other_actor = fixtures_by_name["saved-journey-delete-other-actor"]["response"]
-    if delete_other_actor["status"] != 404 or delete_other_actor["body"]["code"] != "NOT_FOUND":
-        fail("saved-journey-delete-other-actor must conceal ownership as 404 NOT_FOUND")
     create = fixtures_by_name["saved-journey-create-normal"]
     create_replay = fixtures_by_name["saved-journey-create-replay"]
     if (
@@ -374,6 +393,9 @@ def main() -> None:
     error_response = openapi["components"]["responses"]["Error"]
     if error_response.get("headers", {}).get("Cache-Control", {}).get("$ref") != "#/components/headers/NoStore":
         fail("all shared error responses must declare Cache-Control: no-store")
+    no_store = openapi["components"]["headers"]["NoStore"].get("schema", {})
+    if no_store.get("type") != "string" or no_store.get("const") != "no-store":
+        fail("NoStore header must resolve to the literal no-store value")
     for path, path_item in paths.items():
         for method, operation in path_item.items():
             if not isinstance(operation, dict):

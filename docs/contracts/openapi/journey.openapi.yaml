@@ -541,14 +541,20 @@ components:
         execution: { $ref: '#/components/schemas/JourneyExecution' }
         updatedAt: { type: string, format: date-time }
     SavedJourneyBoard:
-      description: Committed board whose querySummary was rebuilt only from curated region and topic labels.
+      description: Committed board that stores only canonical region/topic refs instead of a free-text query summary.
       type: object
       additionalProperties: false
-      required: [title, querySummary, querySummarySource, regionRef, candidates, legs, resources, relations, evidence]
+      required: [title, summaryRefs, regionRef, candidates, legs, resources, relations, evidence]
       properties:
         title: { type: string, minLength: 1, maxLength: 100 }
-        querySummary: { type: string, minLength: 1, maxLength: 500 }
-        querySummarySource: { type: string, const: CURATED_LABELS }
+        summaryRefs:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/RegionRef'
+              - $ref: '#/components/schemas/TopicRef'
         regionRef: { $ref: '#/components/schemas/RegionRef' }
         candidates: { type: array, minItems: 1, maxItems: 3, items: { $ref: '#/components/schemas/JourneyCandidate' } }
         legs: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/JourneyLeg' } }
