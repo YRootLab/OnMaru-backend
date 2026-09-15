@@ -1,5 +1,18 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-15 Issue #97
+
+- 현재 작업 브랜치와 worktree: `feature/97-deterministic-baseline-ranking`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/ai03-deterministic-baseline`.
+- 관련 Issue: #97 `[AI03] 검증 데이터 deterministic baseline 검색·ranking 구현`; blocked-by #64/#95/#74는 모두 Closed이고 담당자·열린 중복 PR은 없다.
+- 선택 이유: 미merge 상태인 #96을 필요로 하는 P1 이슈는 `Waiting`이고, #97은 Wave 5의 독립 `Ready` 작업이다.
+- 구현 범위: revision/region/public/tombstone/exclude/evidence hard filter, `0.45L + 0.25T + 0.20E + 0.10D`, exact-name 우선, canonical dedup, rank30→proposal12→board3, pin 보존과 category/topic diversity를 순수 Python 모듈로 구현했다.
+- 재현성: score와 canonical ref로 tie-break하고 synthetic held-out fixture 3종을 정방향·역방향으로 실행한다. 결과는 dataset/ranking/dictionary version과 제외 사유를 함께 보존한다.
+- focused 검증: `cd ai && uv run pytest tests/retrieval/baseline -q` 32개, 해당 경로 Ruff와 mypy strict 통과.
+- 최종 검증: Gradle 37 tasks, FastAPI Ruff/mypy와 pytest 53개, Node 35개, planning snapshot, Odii fixture 8개, public contract/generated artifact, branch parser `97`, `git diff --check` 통과.
+- 작업 로그: `troubleshooting-worklog/26.09.15 deterministic-baseline-ranking.md`.
+- 수동 review: exact-name diversity 역전, 음수·NaN·Infinity 거리 입력을 RED로 재현해 수정했으며 남은 Critical/Important finding은 없다.
+- 다음 단계: `Closes #97` PR을 `develop` 대상으로 생성하고 CI/review를 확인한다.
+
 ## Current Session Quick Handoff - 2026-09-15 Issue #192
 
 - 현재 작업 브랜치: `feature/192-git-flow-harness-branch-parser`.
