@@ -1,4 +1,4 @@
-package com.yrootlab.onmaru.operations.moderation.queue;
+package com.yrootlab.onmaru.web.moderation.queue;
 
 public final class OperatorAuthenticationRequiredException extends RuntimeException {
 }

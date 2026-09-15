@@ -9,7 +9,7 @@ import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
 import com.yrootlab.onmaru.community.moderation.VisitReviewReportNotFoundException;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
-import com.yrootlab.onmaru.operations.moderation.queue.OperatorAuthenticator;
+import com.yrootlab.onmaru.web.moderation.queue.OperatorAuthenticator;
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;

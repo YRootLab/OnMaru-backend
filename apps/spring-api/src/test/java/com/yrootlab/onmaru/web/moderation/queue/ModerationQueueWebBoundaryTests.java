@@ -1,4 +1,4 @@
-package com.yrootlab.onmaru.operations.moderation.queue;
+package com.yrootlab.onmaru.web.moderation.queue;
 
 import com.yrootlab.onmaru.OnMaruApplication;
 import com.yrootlab.onmaru.community.moderation.CreateReviewReportCommand;
