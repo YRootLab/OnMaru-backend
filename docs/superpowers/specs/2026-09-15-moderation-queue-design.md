@@ -31,6 +31,8 @@ The community module derives the queue from open reports, current review project
 
 High-risk items have a 24-hour target and standard items a 72-hour target. Items are ordered by high-risk priority, then oldest open report time, then review ID. The endpoint returns a bounded first 100 items plus generated-at and aggregate oldest-age fields. It always uses `Cache-Control: no-store`.
 
+A system PII hide is queued even when no member report exists. In that case the system audit timestamp is the queue age and SLA origin. The latest operator action resolves that system-only work item. Report creation, system/operator disposition, and queue snapshots share one coordinator boundary in the in-memory runtime so a report cannot be inserted after a completed hide or removal.
+
 Reporter member IDs are never part of queue response records. Public report receipts, review DTOs, and HTTP telemetry likewise contain no reporter identity, report detail, review text, operator token, or private note.
 
 ## Moderation State Flow
@@ -43,13 +45,15 @@ All dispositions reuse `VisitReviewModerationService`:
 4. Restoring a false positive uses `PUBLISHED / FALSE_POSITIVE` and dismisses open reports.
 5. Confirming a violation uses `HIDDEN` or `REMOVED` and resolves open reports.
 
+`PUBLISHED / FALSE_POSITIVE` may be a same-status disposition for a standard report that never left the public state. An operator may likewise confirm an already `HIDDEN` system PII item without changing its status; both cases still append an audit action and close the queue work.
+
 Public list and place queries continue filtering on the current status for every response, so no `HIDDEN` or `REMOVED` text can be returned from a stale application cache.
 
 ## Synthetic Drill
 
 The Spring integration drill uses only synthetic IDs and text. It performs all five report reasons, repeats one reporter/review pair to prove deduplication, triggers a system PII hide, checks immediate public exclusion, restores that review as a false positive, removes a second confirmed violation, verifies the system/operator audit sequence, and verifies public endpoints never return hidden or removed text.
 
-The drill also exercises missing, invalid, current, and previous operator credentials. An observability assertion verifies HTTP telemetry contains route/status correlation fields only and none of the synthetic reporter IDs, review text, report details, actor reference, or bearer token.
+The drill also exercises missing, invalid, current, and previous operator credentials. An observability assertion verifies HTTP telemetry contains route/status correlation fields only and none of the synthetic reporter IDs, review text, report details, actor reference, or bearer token. Incoming correlation values must use bounded `req-*`, `run-*`, or `rev-*` forms; invalid values are replaced before telemetry recording.
 
 ## Documentation
 
