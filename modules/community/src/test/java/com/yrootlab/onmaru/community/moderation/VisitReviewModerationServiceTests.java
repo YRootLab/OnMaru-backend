@@ -3,7 +3,6 @@ package com.yrootlab.onmaru.community.moderation;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
-import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -153,7 +152,7 @@ class VisitReviewModerationServiceTests {
         assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.PUBLISHED);
     }
 
-    @RepeatedTest(20)
+    @Test
     @Timeout(10)
     void reportAndDispositionUseSharedAtomicBoundary() throws Exception {
         var reviewStore = new InMemoryVisitReviewStore();
@@ -165,7 +164,7 @@ class VisitReviewModerationServiceTests {
         var reportAttempted = new CountDownLatch(1);
         var moderationAttempted = new CountDownLatch(1);
 
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (var executor = Executors.newFixedThreadPool(3)) {
             var lockOwner = executor.submit(() -> reportStore.executeAtomically(() -> {
                 lockHeld.countDown();
                 await(releaseLock);

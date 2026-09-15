@@ -155,7 +155,7 @@ class ModerationQueueServiceTests {
         var releaseLock = new CountDownLatch(1);
         var snapshotAttempted = new CountDownLatch(1);
 
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (var executor = Executors.newFixedThreadPool(2)) {
             var lockOwner = executor.submit(() -> reportStore.executeAtomically(() -> {
                 lockHeld.countDown();
                 await(releaseLock);
