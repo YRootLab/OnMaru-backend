@@ -202,6 +202,125 @@ class AudioMigrationTests {
         }
     }
 
+    @Test
+    void publishesSpotStoryPointerAndWatermarkInOneDatabaseTransaction() throws Exception {
+        resetAndMigrate();
+        var baseRevision = UUID.randomUUID();
+        var stagedRevision = UUID.randomUUID();
+        var spotId = UUID.randomUUID();
+        var storyId = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            insertRevision(statement, baseRevision, "odii-audio");
+            statement.execute("""
+                    UPDATE onmaru.catalog_dataset_revisions
+                    SET status = 'PUBLISHED', published_at = CURRENT_TIMESTAMP
+                    WHERE id = '%s'
+                    """.formatted(baseRevision));
+            insertRevision(statement, stagedRevision, "odii-audio");
+            statement.execute("""
+                    UPDATE onmaru.catalog_dataset_revisions
+                    SET status = 'READY'
+                    WHERE id = '%s'
+                    """.formatted(stagedRevision));
+            insertSpot(statement, spotId, "KTO_ODII", "89", "300", "ko");
+            insertStory(statement, storyId, spotId, "KTO_ODII", "562", "1204", "ko");
+            insertSpotVersion(statement, stagedRevision, spotId, "남산골 한옥마을", "ACTIVE");
+            insertStoryVersion(statement, stagedRevision, storyId, spotId, "한옥마을 개요", "ACTIVE", 105);
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_active_datasets (dataset, revision_id, activated_at)
+                    VALUES ('odii-audio', '%s', CURRENT_TIMESTAMP)
+                    """.formatted(baseRevision));
+            statement.execute("""
+                    INSERT INTO onmaru.operations_sync_leases (dataset, owner_token, generation, lease_until)
+                    VALUES ('odii-audio', 'worker-a', 1, CURRENT_TIMESTAMP + INTERVAL '5 minutes')
+                    """);
+            statement.execute("""
+                    INSERT INTO onmaru.operations_sync_watermarks (
+                        dataset, source_modified_at, external_id, last_full_success_at,
+                        last_success_at, revision_id
+                    ) VALUES (
+                        'odii-audio', '2025-06-08T07:46:06Z', '1200', CURRENT_TIMESTAMP,
+                        CURRENT_TIMESTAMP, '%s'
+                    )
+                    """.formatted(baseRevision));
+
+            connection.setAutoCommit(false);
+            assertThat(activateAudioRevision(statement, baseRevision, stagedRevision)).isEqualTo(1);
+            updateAudioWatermark(statement, stagedRevision);
+            connection.rollback();
+
+            assertThat(singleUuid(statement, """
+                    SELECT revision_id FROM onmaru.catalog_active_datasets WHERE dataset = 'odii-audio'
+                    """)).isEqualTo(baseRevision);
+            assertThat(singleUuid(statement, """
+                    SELECT revision_id FROM onmaru.operations_sync_watermarks WHERE dataset = 'odii-audio'
+                    """)).isEqualTo(baseRevision);
+
+            assertThat(activateAudioRevision(statement, baseRevision, stagedRevision)).isEqualTo(1);
+            updateAudioWatermark(statement, stagedRevision);
+            statement.execute("""
+                    UPDATE onmaru.catalog_dataset_revisions
+                    SET status = 'PUBLISHED', published_at = CURRENT_TIMESTAMP
+                    WHERE id = '%s'
+                    """.formatted(stagedRevision));
+            connection.commit();
+
+            assertThat(singleUuid(statement, """
+                    SELECT revision_id FROM onmaru.catalog_active_datasets WHERE dataset = 'odii-audio'
+                    """)).isEqualTo(stagedRevision);
+            assertThat(singleUuid(statement, """
+                    SELECT revision_id FROM onmaru.operations_sync_watermarks WHERE dataset = 'odii-audio'
+                    """)).isEqualTo(stagedRevision);
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*)
+                    FROM onmaru.audio_spot_versions spot
+                    JOIN onmaru.audio_story_versions story
+                      ON story.revision_id = spot.revision_id
+                     AND story.spot_id = spot.spot_id
+                    WHERE spot.revision_id = '%s'
+                    """.formatted(stagedRevision))).isEqualTo(1);
+        }
+    }
+
+    private static int activateAudioRevision(Statement statement, UUID baseRevision, UUID stagedRevision)
+            throws Exception {
+        return statement.executeUpdate("""
+                UPDATE onmaru.catalog_active_datasets active
+                SET revision_id = '%s', activated_at = CURRENT_TIMESTAMP
+                WHERE active.dataset = 'odii-audio'
+                  AND active.revision_id = '%s'
+                  AND EXISTS (
+                    SELECT 1
+                    FROM onmaru.operations_sync_leases lease
+                    WHERE lease.dataset = active.dataset
+                      AND lease.owner_token = 'worker-a'
+                      AND lease.generation = 1
+                      AND lease.lease_until > CURRENT_TIMESTAMP
+                  )
+                """.formatted(stagedRevision, baseRevision));
+    }
+
+    private static void updateAudioWatermark(Statement statement, UUID revisionId) throws Exception {
+        statement.execute("""
+                UPDATE onmaru.operations_sync_watermarks
+                SET source_modified_at = '2025-06-09T07:46:06Z',
+                    external_id = '1204',
+                    last_full_success_at = CURRENT_TIMESTAMP,
+                    last_success_at = CURRENT_TIMESTAMP,
+                    revision_id = '%s'
+                WHERE dataset = 'odii-audio'
+                """.formatted(revisionId));
+    }
+
+    private static UUID singleUuid(Statement statement, String sql) throws Exception {
+        try (var resultSet = statement.executeQuery(sql)) {
+            assertThat(resultSet.next()).isTrue();
+            return resultSet.getObject(1, UUID.class);
+        }
+    }
+
     private static void insertRevision(Statement statement, UUID revisionId, String dataset) throws Exception {
         statement.execute("""
                 INSERT INTO onmaru.catalog_dataset_revisions (

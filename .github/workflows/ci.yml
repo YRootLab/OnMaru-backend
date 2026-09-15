@@ -49,6 +49,9 @@ jobs:
       - name: Catalog module tests
         run: ./gradlew :modules:catalog:test --no-daemon
 
+      - name: Audio module tests
+        run: ./gradlew :modules:audio:test --no-daemon
+
       - name: Community module tests
         run: ./gradlew :modules:community:test --no-daemon
 

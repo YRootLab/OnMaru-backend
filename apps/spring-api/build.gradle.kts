@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":adapters:tourism-api"))
+    implementation(project(":modules:audio"))
     implementation(project(":modules:catalog"))
     implementation(project(":modules:community"))
     implementation(project(":modules:identity"))
