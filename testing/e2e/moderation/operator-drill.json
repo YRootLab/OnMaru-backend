@@ -1,0 +1,44 @@
+{
+  "cases": [
+    {
+      "reviewId": "00000000-0000-0000-0000-000000139001",
+      "session": "synthetic-reporter-spam",
+      "reason": "SPAM",
+      "detail": "동일 홍보 문구 반복",
+      "text": "운영 drill 스팸 후기",
+      "action": "DUPLICATE"
+    },
+    {
+      "reviewId": "00000000-0000-0000-0000-000000139002",
+      "session": "synthetic-reporter-abuse",
+      "reason": "ABUSE",
+      "detail": "모욕적 표현 포함",
+      "text": "운영 drill 삭제 대상 후기",
+      "action": "REMOVE"
+    },
+    {
+      "reviewId": "00000000-0000-0000-0000-000000139003",
+      "session": "synthetic-reporter-pii",
+      "reason": "PERSONAL_DATA",
+      "detail": "연락처로 의심되는 문자열",
+      "text": "운영 drill PII 오탐 후기",
+      "action": "RESTORE"
+    },
+    {
+      "reviewId": "00000000-0000-0000-0000-000000139004",
+      "session": "synthetic-reporter-copyright",
+      "reason": "COPYRIGHT",
+      "detail": "저작물 무단 전재 의심",
+      "text": "운영 drill 저작권 후기",
+      "action": "HOLD"
+    },
+    {
+      "reviewId": "00000000-0000-0000-0000-000000139005",
+      "session": "synthetic-reporter-other",
+      "reason": "OTHER",
+      "detail": "기타 운영 확인 필요",
+      "text": "운영 drill 기타 후기",
+      "action": "HOLD"
+    }
+  ]
+}

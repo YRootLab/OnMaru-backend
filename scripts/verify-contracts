@@ -78,7 +78,7 @@ python3 scripts/test/validate-r2-contract.py
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres >"$tmp_dir/onmaru-dbml-verify.sql"
+"$script_dir/dbml2sql" docs/database/schema.dbml --postgres >"$tmp_dir/onmaru-dbml-verify.sql"
 AZIMUTT_OUTPUT_DIR="$tmp_dir" node scripts/azimutt-export.mjs
 
 compare_generated_artifacts "$tmp_dir"

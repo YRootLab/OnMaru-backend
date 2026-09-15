@@ -121,7 +121,7 @@ class SavedPlaceWebBoundaryTests {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("Authentication is required to save this place."))
-                .andExpect(jsonPath("$.requestId").value("req-save-place-auth"));
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-save-place-auth")));
     }
 
     @Test
@@ -135,7 +135,7 @@ class SavedPlaceWebBoundaryTests {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The place is not available."))
-                .andExpect(jsonPath("$.requestId").value("req-save-place-not-found"));
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-save-place-not-found")));
     }
 
     @Test

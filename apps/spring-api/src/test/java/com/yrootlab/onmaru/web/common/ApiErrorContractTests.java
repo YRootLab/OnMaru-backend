@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.web.common;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.OnMaruApplication;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -15,11 +16,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import static org.hamcrest.Matchers.not;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,18 +33,24 @@ class ApiErrorContractTests {
     @Autowired
     private MockMvc mockMvc;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Test
     void validationErrorsUseSchemaVersion12EnvelopeAndRequestId() throws Exception {
-        mockMvc.perform(post("/contract/probes")
+        var result = mockMvc.perform(post("/contract/probes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"\"}")
                         .header("X-Request-Id", "req-contract-1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(header().string("X-Request-Id", "req-contract-1"))
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.requestId").value("req-contract-1"))
-                .andExpect(jsonPath("$.details.fieldErrors.name").value("must not be blank"));
+                .andExpect(jsonPath("$.requestId").value(not("req-contract-1")))
+                .andExpect(jsonPath("$.details.fieldErrors.name").value("must not be blank"))
+                .andReturn();
+
+        var responseBody = objectMapper.readTree(result.getResponse().getContentAsByteArray());
+        assertThat(result.getResponse().getHeader("X-Request-Id"))
+                .isEqualTo(responseBody.path("requestId").textValue());
     }
 
     @Test

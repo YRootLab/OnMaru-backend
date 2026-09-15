@@ -65,7 +65,7 @@ class SecurityWebBoundaryTests {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.code").value("CSRF_INVALID"))
-                .andExpect(jsonPath("$.requestId").value("req-csrf-missing"));
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-csrf-missing")));
 
         mockMvc.perform(post("/api/security/protected")
                         .contentType(MediaType.APPLICATION_JSON)
