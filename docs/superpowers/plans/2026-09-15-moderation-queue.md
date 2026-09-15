@@ -4,7 +4,7 @@
 
 **Goal:** 보호된 운영 queue와 synthetic moderation drill을 구현해 Issue #139의 authorization, privacy, SLA, disposition, audit, public exclusion 기준을 검증한다.
 
-**Architecture:** `modules/community`가 open report와 review/audit state를 queue projection으로 계산하고 기존 M05 command가 system/operator transition을 수행한다. Spring 내부 operations boundary는 SecretProvider의 rotation token과 actor header를 함께 인증하며, 공개 query는 기존 `PUBLISHED` filter를 그대로 신뢰하되 E2E drill로 hide/restore/remove 직후 재검증한다.
+**Architecture:** `modules/community`가 open report와 review/audit state를 queue projection으로 계산하고 기존 M05 command가 system/operator transition을 수행한다. Spring의 `web.moderation.queue` adapter는 SecretProvider의 rotation token과 actor header를 함께 인증하며, 공개 query는 기존 `PUBLISHED` filter를 그대로 신뢰하되 E2E drill로 hide/restore/remove 직후 재검증한다.
 
 **Tech Stack:** Java 21, Spring Boot 3, JUnit 5, AssertJ, MockMvc, Gradle, repository-local JSON fixture
 
@@ -99,13 +99,13 @@ git commit -m "feat(moderation): 운영 queue와 disposition 추가"
 ### Task 2: Operator Authentication And Protected HTTP Boundary
 
 **Files:**
-- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/operations/moderation/queue/OperatorAuthenticator.java`
-- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/operations/moderation/queue/OperatorPrincipal.java`
-- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/operations/moderation/queue/OperatorAuthenticationRequiredException.java`
-- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/operations/moderation/queue/OperatorForbiddenException.java`
-- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/operations/moderation/queue/ModerationQueueController.java`
-- Create: `apps/spring-api/src/test/java/com/yrootlab/onmaru/operations/moderation/queue/OperatorAuthenticatorTests.java`
-- Create: `apps/spring-api/src/test/java/com/yrootlab/onmaru/operations/moderation/queue/ModerationQueueWebBoundaryTests.java`
+- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/moderation/queue/OperatorAuthenticator.java`
+- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/moderation/queue/OperatorPrincipal.java`
+- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/moderation/queue/OperatorAuthenticationRequiredException.java`
+- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/moderation/queue/OperatorForbiddenException.java`
+- Create: `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/moderation/queue/ModerationQueueController.java`
+- Create: `apps/spring-api/src/test/java/com/yrootlab/onmaru/web/moderation/queue/OperatorAuthenticatorTests.java`
+- Create: `apps/spring-api/src/test/java/com/yrootlab/onmaru/web/moderation/queue/ModerationQueueWebBoundaryTests.java`
 - Modify: `apps/spring-api/src/main/java/com/yrootlab/onmaru/config/secrets/SecretBundle.java`
 - Modify: `apps/spring-api/src/main/java/com/yrootlab/onmaru/config/secrets/OnMaruSecretProperties.java`
 - Modify: `apps/spring-api/src/test/java/com/yrootlab/onmaru/config/secrets/SecretConfigurationTests.java`
@@ -180,7 +180,7 @@ git commit -m "feat(moderation): operator queue 접근을 보호"
 
 **Files:**
 - Create: `testing/e2e/moderation/operator-drill.json`
-- Create: `apps/spring-api/src/test/java/com/yrootlab/onmaru/operations/moderation/queue/ModerationOperatorDrillTests.java`
+- Create: `apps/spring-api/src/test/java/com/yrootlab/onmaru/web/moderation/queue/ModerationOperatorDrillTests.java`
 
 **Interfaces:**
 - Consumes: public report endpoint, protected queue, system PII hide command, protected operator disposition, public review query, audit log, in-memory telemetry sink.
