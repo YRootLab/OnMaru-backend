@@ -45,6 +45,8 @@ REQUIRED_FIXTURES = {
     "saved-journey-create-normal",
     "saved-journey-active-run",
     "saved-journey-page-normal",
+    "saved-journey-detail-expired-source",
+    "saved-journey-delete-normal",
     "saved-journey-resume-unavailable",
 }
 
@@ -93,9 +95,45 @@ def validate_value(value: Any, schema: dict[str, Any], definitions: dict[str, An
 
 
 def validate_request(
-    fixture: dict[str, Any], operation: dict[str, Any], definitions: dict[str, Any], source: str
+    fixture: dict[str, Any],
+    contract_path: str,
+    path_item: dict[str, Any],
+    operation: dict[str, Any],
+    definitions: dict[str, Any],
+    parameter_definitions: dict[str, Any],
+    source: str,
 ) -> None:
     request = fixture["request"]
+    actual_segments = request["path"][len("/api/v1") :].strip("/").split("/")
+    template_segments = contract_path.strip("/").split("/")
+    path_values = {
+        template[1:-1]: actual
+        for template, actual in zip(template_segments, actual_segments)
+        if template.startswith("{") and template.endswith("}")
+    }
+    locations = {
+        "path": path_values,
+        "header": request.get("headers", {}),
+        "query": request.get("query", {}),
+    }
+    for raw_parameter in [*path_item.get("parameters", []), *operation.get("parameters", [])]:
+        parameter = raw_parameter
+        ref = raw_parameter.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/components/parameters/"):
+            parameter = parameter_definitions[ref.rsplit("/", 1)[-1]]
+        location = parameter.get("in")
+        name = parameter.get("name")
+        values = locations.get(location, {})
+        if parameter.get("required") and name not in values:
+            fail(f"{source}: missing required {location} parameter {name}")
+        if name in values:
+            validate_value(
+                values[name],
+                parameter.get("schema", {}),
+                definitions,
+                f"{source} {location} parameter {name}",
+            )
+
     body_schema = (
         operation.get("requestBody", {})
         .get("content", {})
@@ -156,6 +194,7 @@ def main() -> None:
         fail(f"missing Journey fixtures: {sorted(missing_fixtures)}")
 
     definitions = {name: rewrite_refs(schema) for name, schema in schemas.items()}
+    parameter_definitions = openapi.get("components", {}).get("parameters", {})
     for fixture_path, fixture in fixtures:
         request = fixture["request"]
         response = fixture["response"]
@@ -163,7 +202,15 @@ def main() -> None:
         operation = paths[contract_path].get(request["method"].lower())
         if not isinstance(operation, dict):
             fail(f"{fixture_path.name}: undeclared method {request['method']}")
-        validate_request(fixture, operation, definitions, fixture_path.name)
+        validate_request(
+            fixture,
+            contract_path,
+            paths[contract_path],
+            operation,
+            definitions,
+            parameter_definitions,
+            fixture_path.name,
+        )
         expected = response_schema(operation, response["status"])
         if expected != response.get("schema"):
             fail(f"{fixture_path.name}: expected response schema {expected}, got {response.get('schema')}")
@@ -193,6 +240,60 @@ def main() -> None:
     unavailable = fixtures_by_name["saved-journey-resume-unavailable"]["response"]["body"]["unavailableRefs"]
     if not unavailable:
         fail("saved-journey-resume-unavailable must include unavailableRefs")
+    resumed = fixtures_by_name["saved-journey-resume-unavailable"]["response"]["body"]["exploration"]
+    if resumed["board"] is not None or resumed["stateVersion"] != 0:
+        fail("an all-unavailable resume must return an empty version-zero exploration")
+
+    forbidden_snapshot_fields = {
+        "explorationId",
+        "latestRun",
+        "pendingProposal",
+        "recentHistory",
+    }
+    for name in ("saved-journey-create-normal", "saved-journey-detail-expired-source"):
+        saved = fixtures_by_name[name]["response"]["body"]
+        leaked = forbidden_snapshot_fields.intersection(saved["snapshot"])
+        if leaked:
+            fail(f"{name} leaks ephemeral fields into the saved snapshot: {sorted(leaked)}")
+    expired_source = fixtures_by_name["saved-journey-detail-expired-source"]["response"]["body"]
+    if expired_source["sourceExplorationId"] is not None:
+        fail("saved-journey-detail-expired-source must allow an expired source exploration")
+
+    unsafe_methods = {"post", "put", "patch", "delete"}
+    for path, path_item in paths.items():
+        for method, operation in path_item.items():
+            if method not in unsafe_methods or not isinstance(operation, dict):
+                continue
+            refs = {
+                parameter.get("$ref")
+                for parameter in operation.get("parameters", [])
+                if isinstance(parameter, dict)
+            }
+            if "#/components/parameters/IdempotencyKey" not in refs:
+                fail(f"{method.upper()} {path} must require Idempotency-Key")
+            if "#/components/parameters/CsrfToken" not in refs:
+                fail(f"{method.upper()} {path} must require X-CSRF-TOKEN")
+            if "403" not in operation.get("responses", {}):
+                fail(f"{method.upper()} {path} must declare a 403 response")
+
+    for path_item in paths.values():
+        for operation in path_item.values():
+            if not isinstance(operation, dict):
+                continue
+            for status, response in operation.get("responses", {}).items():
+                if not str(status).startswith("2"):
+                    continue
+                headers = response.get("headers", {})
+                cache_control = headers.get("Cache-Control", {})
+                if cache_control.get("$ref") != "#/components/headers/NoStore":
+                    fail(f"{operation.get('operationId')} {status} must declare Cache-Control: no-store")
+
+    list_responses = paths["/saved-journeys"]["get"]["responses"]
+    if "410" not in list_responses:
+        fail("saved journey pagination must declare cursor expiry as 410")
+    error_codes = schemas["Error"]["properties"]["code"]["enum"]
+    if "SAVE_LIMIT" not in error_codes:
+        fail("Error.code must include SAVE_LIMIT")
 
     print(f"validated Journey contract and {len(fixtures)} fixtures")
 
