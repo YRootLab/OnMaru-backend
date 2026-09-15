@@ -39,4 +39,19 @@ class SecretConfigurationTests {
                     assertThat(bundle.matches("other-value")).isFalse();
                 });
     }
+
+    @Test
+    void missingModerationOperatorTokenFailsClosed() {
+        contextRunner
+                .withPropertyValues(
+                        "onmaru.secrets.source=environment",
+                        "onmaru.secrets.required-names=moderation.operator-token")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void moderationOperatorTokenIsRequiredByDefault() {
+        assertThat(new OnMaruSecretProperties().getRequiredNames())
+                .contains("moderation.operator-token");
+    }
 }

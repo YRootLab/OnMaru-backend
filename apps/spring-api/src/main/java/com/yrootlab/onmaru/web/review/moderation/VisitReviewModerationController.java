@@ -9,6 +9,7 @@ import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
 import com.yrootlab.onmaru.community.moderation.VisitReviewReportNotFoundException;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
+import com.yrootlab.onmaru.operations.moderation.queue.OperatorAuthenticator;
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
@@ -39,14 +40,17 @@ public final class VisitReviewModerationController {
     private final VisitReviewModerationService moderationService;
     private final MemberLifecycleService memberLifecycleService;
     private final IdempotencyService idempotencyService;
+    private final OperatorAuthenticator operatorAuthenticator;
 
     VisitReviewModerationController(
             VisitReviewModerationService moderationService,
             MemberLifecycleService memberLifecycleService,
-            IdempotencyService idempotencyService) {
+            IdempotencyService idempotencyService,
+            OperatorAuthenticator operatorAuthenticator) {
         this.moderationService = moderationService;
         this.memberLifecycleService = memberLifecycleService;
         this.idempotencyService = idempotencyService;
+        this.operatorAuthenticator = operatorAuthenticator;
     }
 
     @PostMapping("/api/v1/visit-reviews/{reviewId}/reports")
@@ -65,17 +69,16 @@ public final class VisitReviewModerationController {
     ResponseEntity<?> moderate(
             @PathVariable UUID reviewId,
             @RequestBody ModerationRequest body,
+            @RequestHeader(name = "Authorization", required = false) String authorization,
             @RequestHeader(name = "X-OnMaru-Operator", required = false) String operator,
             HttpServletRequest request) {
-        if (operator == null || operator.isBlank()) {
-            return authRequired(request);
-        }
+        String actorRef = operatorAuthenticator.authenticate(authorization, operator).actorRef();
         try {
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.noStore())
                     .body(moderationService.moderate(
                             reviewId,
-                            operator.trim(),
+                            actorRef,
                             VisitReviewStatus.valueOf(body.nextStatus()),
                             ModerationReason.valueOf(body.reason())));
         } catch (IllegalArgumentException | ReviewReportInvalidException exception) {
