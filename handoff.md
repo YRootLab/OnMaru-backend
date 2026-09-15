@@ -11,7 +11,8 @@
 - 최종 검증: Gradle 37 tasks, FastAPI Ruff/mypy와 pytest 53개, Node 35개, planning snapshot, Odii fixture 8개, public contract/generated artifact, branch parser `97`, `git diff --check` 통과.
 - 작업 로그: `troubleshooting-worklog/26.09.15 deterministic-baseline-ranking.md`.
 - 수동 review: exact-name diversity 역전, 음수·NaN·Infinity 거리 입력을 RED로 재현해 수정했으며 남은 Critical/Important finding은 없다.
-- 다음 단계: `Closes #97` PR을 `develop` 대상으로 생성하고 CI/review를 확인한다.
+- PR: #195 `feat(ai): deterministic baseline ranking 구현`을 `develop` 대상으로 생성했으며 본문에 `Closes #97`과 검증 근거를 기록했다.
+- 다음 단계: PR #195의 필수 `verify` CI와 review 상태를 확인한다. merge 후 #97 상태를 조회하고, `develop` 대상 auto-close가 적용되지 않으면 정책에 따라 검증 근거를 남기고 수동 close 여부를 조정한다.
 
 ## Current Session Quick Handoff - 2026-09-15 Issue #192
 

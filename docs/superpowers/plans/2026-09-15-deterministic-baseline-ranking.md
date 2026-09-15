@@ -180,6 +180,6 @@ Run: `node scripts/print-branch-issue.mjs && git diff --check`
 
 Expected: every command exits 0 and the branch parser prints `97`.
 
-- [ ] **Step 5: Review and prepare PR**
+- [x] **Step 5: Review and prepare PR**
 
 Review Issue #97 acceptance criteria, `git diff`, input-order determinism, allowlist/filter invariants, and test gaps. Commit using Conventional Commits, push `feature/97-deterministic-baseline-ranking`, and create a Korean PR into `develop` with `Closes #97` and verification evidence. Do not close #97 before merge.
