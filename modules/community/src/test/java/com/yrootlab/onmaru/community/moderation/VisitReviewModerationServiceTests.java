@@ -76,10 +76,66 @@ class VisitReviewModerationServiceTests {
         assertThat(store.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.HIDDEN);
     }
 
+    @Test
+    void systemPiiHideKeepsReportOpenAndOperatorFalsePositiveRestoreDismissesIt() {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(VisitReviewStatus.PUBLISHED));
+        var reportStore = new InMemoryReviewReportStore();
+        var service = service(reviewStore, reportStore);
+        service.report(REPORTER_ID, REVIEW_ID,
+                new CreateReviewReportCommand(ReviewReportReason.PERSONAL_DATA, "synthetic phone"));
+
+        ModerationAction systemAction = service.hideHighRiskPii(REVIEW_ID, "pii-detector-v1");
+
+        assertThat(systemAction.actorType()).isEqualTo(ModerationActorType.SYSTEM);
+        assertThat(systemAction.reason()).isEqualTo(ModerationReason.PII_HIGH_RISK);
+        assertThat(service.openReports()).hasSize(1);
+        assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.HIDDEN);
+
+        ModerationAction operatorAction = service.moderate(
+                REVIEW_ID,
+                "operator-1",
+                VisitReviewStatus.PUBLISHED,
+                ModerationReason.FALSE_POSITIVE);
+
+        assertThat(operatorAction.actorType()).isEqualTo(ModerationActorType.OPERATOR);
+        assertThat(service.openReports()).isEmpty();
+        assertThat(service.auditLog()).containsExactly(systemAction, operatorAction);
+        assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.PUBLISHED);
+    }
+
+    @Test
+    void operatorRemovalResolvesEveryOpenReportForReview() {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(VisitReviewStatus.PUBLISHED));
+        var reportStore = new InMemoryReviewReportStore();
+        var service = service(reviewStore, reportStore);
+        service.report(REPORTER_ID, REVIEW_ID,
+                new CreateReviewReportCommand(ReviewReportReason.ABUSE, "synthetic abuse"));
+        service.report(UUID.fromString("00000000-0000-0000-0000-000000000777"), REVIEW_ID,
+                new CreateReviewReportCommand(ReviewReportReason.SPAM, "synthetic spam"));
+
+        service.moderate(
+                REVIEW_ID,
+                "operator-1",
+                VisitReviewStatus.REMOVED,
+                ModerationReason.ABUSE_CONFIRMED);
+
+        assertThat(service.openReports()).isEmpty();
+        assertThat(reportStore.reports()).extracting(ReviewReport::status)
+                .containsOnly(ReviewReportStatus.RESOLVED);
+    }
+
     private VisitReviewModerationService service(InMemoryVisitReviewStore store) {
+        return service(store, new InMemoryReviewReportStore());
+    }
+
+    private VisitReviewModerationService service(
+            InMemoryVisitReviewStore store,
+            InMemoryReviewReportStore reportStore) {
         return new VisitReviewModerationService(
                 store,
-                new InMemoryReviewReportStore(),
+                reportStore,
                 () -> UUID.fromString("00000000-0000-0000-0000-000000000900"),
                 () -> UUID.fromString("00000000-0000-0000-0000-000000000901"),
                 CLOCK);

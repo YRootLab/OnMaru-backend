@@ -25,6 +25,29 @@ public final class InMemoryReviewReportStore {
                 .toList();
     }
 
+    public List<ReviewReport> reports() {
+        return List.copyOf(reports);
+    }
+
+    public synchronized void closeOpenReports(UUID reviewId, ReviewReportStatus status) {
+        if (status == ReviewReportStatus.OPEN) {
+            throw new IllegalArgumentException("closed report status is required");
+        }
+        for (int index = 0; index < reports.size(); index++) {
+            ReviewReport current = reports.get(index);
+            if (current.reviewId().equals(reviewId) && current.status() == ReviewReportStatus.OPEN) {
+                reports.set(index, new ReviewReport(
+                        current.reportId(),
+                        current.reviewId(),
+                        current.reporterMemberId(),
+                        current.reason(),
+                        current.detail(),
+                        status,
+                        current.createdAt()));
+            }
+        }
+    }
+
     public void addAudit(ModerationAction action) {
         auditLog.add(action);
     }

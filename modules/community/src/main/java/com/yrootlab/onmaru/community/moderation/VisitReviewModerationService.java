@@ -54,6 +54,35 @@ public final class VisitReviewModerationService {
             String actorRef,
             VisitReviewStatus nextStatus,
             ModerationReason reason) {
+        ModerationAction action = transition(
+                reviewId,
+                ModerationActorType.OPERATOR,
+                actorRef,
+                nextStatus,
+                reason);
+        reportStore.closeOpenReports(
+                reviewId,
+                nextStatus == VisitReviewStatus.PUBLISHED
+                        ? ReviewReportStatus.DISMISSED
+                        : ReviewReportStatus.RESOLVED);
+        return action;
+    }
+
+    public ModerationAction hideHighRiskPii(UUID reviewId, String detectorRef) {
+        return transition(
+                reviewId,
+                ModerationActorType.SYSTEM,
+                detectorRef,
+                VisitReviewStatus.HIDDEN,
+                ModerationReason.PII_HIGH_RISK);
+    }
+
+    private ModerationAction transition(
+            UUID reviewId,
+            ModerationActorType actorType,
+            String actorRef,
+            VisitReviewStatus nextStatus,
+            ModerationReason reason) {
         if (actorRef == null || actorRef.isBlank() || nextStatus == null || reason == null) {
             throw new ModerationTransitionInvalidException();
         }
@@ -79,7 +108,7 @@ public final class VisitReviewModerationService {
         var action = new ModerationAction(
                 actionIdGenerator.generate(),
                 reviewId,
-                ModerationActorType.OPERATOR,
+                actorType,
                 actorRef,
                 previousStatus.get(),
                 updated.status(),
