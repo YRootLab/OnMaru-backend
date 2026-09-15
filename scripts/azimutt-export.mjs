@@ -9,6 +9,7 @@ const outputDir = process.env.AZIMUTT_OUTPUT_DIR
   ? resolve(process.env.AZIMUTT_OUTPUT_DIR)
   : resolve(repoRoot, 'docs/database/azimutt');
 const dbmlEntry = resolve(repoRoot, 'docs/database/schema.dbml');
+const dbml2sql = resolve(repoRoot, 'scripts/dbml2sql');
 
 function toAzimuttSql(postgresSql) {
   return postgresSql
@@ -54,7 +55,7 @@ function toAzimuttStrictSql(postgresSql) {
   return sql.trim();
 }
 
-const postgresSql = execFileSync('npx', ['-y', '-p', '@dbml/cli', 'dbml2sql', dbmlEntry, '--postgres'], {
+const postgresSql = execFileSync(dbml2sql, [dbmlEntry, '--postgres'], {
   encoding: 'utf8',
   maxBuffer: 1024 * 1024 * 20,
 });
