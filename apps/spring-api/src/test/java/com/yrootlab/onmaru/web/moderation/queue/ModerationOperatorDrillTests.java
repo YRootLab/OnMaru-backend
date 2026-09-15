@@ -180,9 +180,9 @@ class ModerationOperatorDrillTests {
                         new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", CSRF))
                 .header("X-CSRF-TOKEN", CSRF)
                 .header("Idempotency-Key", key)
-                .header("X-Request-Id", drillCase.session())
-                .header("X-Run-Id", drillCase.detail())
-                .header("X-Revision", drillCase.text()));
+                .header("X-Request-Id", "req-" + drillCase.session())
+                .header("X-Run-Id", "run-" + drillCase.session())
+                .header("X-Revision", "rev-" + CURRENT_TOKEN));
     }
 
     private org.springframework.test.web.servlet.ResultActions moderate(

@@ -124,7 +124,7 @@ class VisitReviewQueryWebBoundaryTests {
                         .header("X-Request-Id", "req-review-invalid"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.requestId").value("req-review-invalid"))
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-review-invalid")))
                 .andExpect(jsonPath("$.details.field").value("scope"));
 
         mockMvc.perform(get("/api/v1/visit-reviews")
@@ -133,7 +133,7 @@ class VisitReviewQueryWebBoundaryTests {
                         .header("X-Request-Id", "req-review-cursor-invalid"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("CURSOR_INVALID"))
-                .andExpect(jsonPath("$.requestId").value("req-review-cursor-invalid"));
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-review-cursor-invalid")));
     }
 
     private void seedReviews() {

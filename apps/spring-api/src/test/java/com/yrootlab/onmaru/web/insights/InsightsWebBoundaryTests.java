@@ -70,7 +70,7 @@ class InsightsWebBoundaryTests {
                         .header("X-Request-Id", "req-insights-date"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.requestId").value("req-insights-date"))
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-insights-date")))
                 .andExpect(jsonPath("$.details.field").value("date"));
     }
 }

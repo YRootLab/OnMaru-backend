@@ -5,17 +5,14 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import jakarta.servlet.http.HttpServletRequest;
+import com.yrootlab.onmaru.web.common.error.ExternalCorrelationId;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import jakarta.servlet.http.HttpServletRequest;
 
 record CorrelationContext(String requestId, String traceId, String runId, String revision) {
 
     private static final Pattern TRACEPARENT_PATTERN = Pattern.compile(
             "^[\\da-f]{2}-([\\da-f]{32})-[\\da-f]{16}-[\\da-f]{2}$");
-    private static final Pattern RUN_ID_PATTERN = Pattern.compile(
-            "^run-[A-Za-z0-9][A-Za-z0-9._-]{0,59}$");
-    private static final Pattern REVISION_PATTERN = Pattern.compile(
-            "^rev-[A-Za-z0-9][A-Za-z0-9._-]{0,59}$");
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final HexFormat HEX = HexFormat.of();
 
@@ -24,9 +21,10 @@ record CorrelationContext(String requestId, String traceId, String runId, String
                 requestIdFrom(request).orElseGet(CorrelationContext::randomUuid),
                 firstHeader(request, "traceparent")
                         .flatMap(CorrelationContext::traceIdFromTraceparent)
+                        .map(traceId -> ExternalCorrelationId.opaqueHex("trace", traceId))
                         .orElseGet(() -> randomHex(16)),
-                safeHeader(request, "X-Run-Id", RUN_ID_PATTERN).orElse("unknown"),
-                safeHeader(request, "X-Revision", REVISION_PATTERN).orElse("unknown"));
+                opaqueHeader(request, "X-Run-Id", "run").orElse("unknown"),
+                opaqueHeader(request, "X-Revision", "rev").orElse("unknown"));
     }
 
     private static Optional<String> requestIdFrom(HttpServletRequest request) {
@@ -41,8 +39,8 @@ record CorrelationContext(String requestId, String traceId, String runId, String
         return Optional.ofNullable(request.getHeader(name)).filter(value -> !value.isBlank());
     }
 
-    private static Optional<String> safeHeader(HttpServletRequest request, String name, Pattern pattern) {
-        return firstHeader(request, name).filter(value -> pattern.matcher(value).matches());
+    private static Optional<String> opaqueHeader(HttpServletRequest request, String name, String namespace) {
+        return firstHeader(request, name).map(value -> ExternalCorrelationId.opaque(namespace, value));
     }
 
     private static Optional<String> traceIdFromTraceparent(String traceparent) {

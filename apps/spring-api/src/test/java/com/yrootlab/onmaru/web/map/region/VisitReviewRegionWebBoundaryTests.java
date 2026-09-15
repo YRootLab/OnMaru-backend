@@ -90,7 +90,7 @@ class VisitReviewRegionWebBoundaryTests {
                         .header("X-Request-Id", "req-region-invalid"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.requestId").value("req-region-invalid"))
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-region-invalid")))
                 .andExpect(jsonPath("$.details.field").value("lat"));
     }
 

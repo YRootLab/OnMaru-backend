@@ -110,14 +110,14 @@ class HanokListWebBoundaryTests {
                         .header("X-Request-Id", "req-cursor-invalid"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("CURSOR_INVALID"))
-                .andExpect(jsonPath("$.requestId").value("req-cursor-invalid"));
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-cursor-invalid")));
 
         mockMvc.perform(get("/api/v1/hanoks")
                         .param("cursor", "r1.hanoks.cursor.2026-01-01T00:00:00Z.p-old")
                         .header("X-Request-Id", "req-cursor-expired"))
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.code").value("CURSOR_EXPIRED"))
-                .andExpect(jsonPath("$.requestId").value("req-cursor-expired"));
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-cursor-expired")));
     }
 
     @Test

@@ -126,7 +126,7 @@ class MapPlaceWebBoundaryTests {
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andExpect(jsonPath("$.message").value("The requested map bounds are invalid."))
-                .andExpect(jsonPath("$.requestId").value("req-r2-invalid-request"))
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-r2-invalid-request")))
                 .andExpect(jsonPath("$.details.field").value("bbox"));
     }
 

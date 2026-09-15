@@ -53,7 +53,7 @@ Public list and place queries continue filtering on the current status for every
 
 The Spring integration drill uses only synthetic IDs and text. It performs all five report reasons, repeats one reporter/review pair to prove deduplication, triggers a system PII hide, checks immediate public exclusion, restores that review as a false positive, removes a second confirmed violation, verifies the system/operator audit sequence, and verifies public endpoints never return hidden or removed text.
 
-The drill also exercises missing, invalid, current, and previous operator credentials. An observability assertion verifies HTTP telemetry contains route/status correlation fields only and none of the synthetic reporter IDs, review text, report details, actor reference, or bearer token. Incoming correlation values must use bounded `req-*`, `run-*`, or `rev-*` forms; invalid values are replaced before telemetry recording.
+The drill also exercises missing, invalid, current, and previous operator credentials. An observability assertion verifies HTTP telemetry contains route/status correlation fields only and none of the synthetic reporter IDs, review text, report details, actor reference, or bearer token. Public ingress never trusts caller-provided request, run, revision, or trace correlation values directly. It replaces them with namespace-scoped, process-keyed HMAC identifiers before any response, MDC, or telemetry recording, preventing a valid-looking correlation header from becoming a private-data exfiltration channel.
 
 ## Documentation
 
