@@ -63,7 +63,7 @@ record ExplorationResponse(
                     run.status().name(),
                     run.engine(),
                     null,
-                    null,
+                    run.stage(),
                     run.outcome() == null ? null : run.outcome().name(),
                     ClarificationResponse.from(run.clarification()),
                     0,

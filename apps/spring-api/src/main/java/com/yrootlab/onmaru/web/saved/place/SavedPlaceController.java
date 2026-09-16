@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.web.saved.place;
 
+import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailUnavailableException;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.journey.saved.place.SavedPlaceLimitExceededException;
 import com.yrootlab.onmaru.journey.saved.place.SavedPlaceNotFoundException;
@@ -66,6 +67,8 @@ public final class SavedPlaceController {
             return notFound(request);
         } catch (SavedPlaceLimitExceededException exception) {
             return saveLimit(request, exception.limit());
+        } catch (PlaceDetailUnavailableException exception) {
+            return serviceUnavailable(request);
         }
     }
 
@@ -100,6 +103,17 @@ public final class SavedPlaceController {
                         "Saved resource limit exceeded.",
                         requestId(request),
                         Map.of("limit", limit)));
+    }
+
+    private ResponseEntity<ApiErrorResponse> serviceUnavailable(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .cacheControl(CacheControl.noStore())
+                .body(new ApiErrorResponse(
+                        "1.2",
+                        "SERVICE_UNAVAILABLE",
+                        "Current place data is unavailable.",
+                        requestId(request),
+                        Map.of("retryAfterMs", 30000)));
     }
 
     private String requestId(HttpServletRequest request) {

@@ -119,6 +119,70 @@ class ExplorationServiceTests {
     }
 
     @Test
+    void activeRunBlocksNewTurnForSameExploration() {
+        var owner = ExplorationActor.guest("guest-owner");
+        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", "kr-45-jeonju"));
+
+        assertThatThrownBy(() -> service.createTurn(
+                owner,
+                created.explorationId(),
+                new CreateExplorationTurnCommand(UUID.randomUUID(), 0, "서울로 바꿀게요", "kr-11-seoul", null)))
+                .isInstanceOf(ExplorationActiveRunException.class);
+
+        assertThat(store.turnCount(created.explorationId())).isEqualTo(1);
+        assertThat(dispatcher.dispatchCount).isEqualTo(1);
+    }
+
+    @Test
+    void claimRunMovesQueuedRunToRunningAndTerminalCasKeepsFirstTerminal() {
+        var owner = ExplorationActor.guest("guest-owner");
+        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", "kr-45-jeonju"));
+
+        var running = service.claimRun(created.explorationId(), created.run().id(), "INTERPRETING");
+        var cancelled = service.cancelRun(created.explorationId(), created.run().id());
+        var completedAfterCancel = service.completeRun(
+                created.explorationId(),
+                created.run().id(),
+                ExplorationRunOutcome.INITIAL_BOARD);
+
+        assertThat(running.status()).isEqualTo(ExplorationRunStatus.RUNNING);
+        assertThat(running.stage()).isEqualTo("INTERPRETING");
+        assertThat(cancelled.status()).isEqualTo(ExplorationRunStatus.CANCELLED);
+        assertThat(completedAfterCancel.status()).isEqualTo(ExplorationRunStatus.CANCELLED);
+        assertThat(completedAfterCancel.outcome()).isNull();
+        assertThat(service.get(owner, created.explorationId()).run().status())
+                .isEqualTo(ExplorationRunStatus.CANCELLED);
+    }
+
+    @Test
+    void terminalCasKeepsCompletedRunWhenCancelArrivesSecond() {
+        var owner = ExplorationActor.guest("guest-owner");
+        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", "kr-45-jeonju"));
+        service.claimRun(created.explorationId(), created.run().id(), "INTERPRETING");
+
+        var completed = service.completeRun(created.explorationId(), created.run().id(), ExplorationRunOutcome.INITIAL_BOARD);
+        var cancelledAfterComplete = service.cancelRun(created.explorationId(), created.run().id());
+
+        assertThat(completed.status()).isEqualTo(ExplorationRunStatus.COMPLETED);
+        assertThat(completed.outcome()).isEqualTo(ExplorationRunOutcome.INITIAL_BOARD);
+        assertThat(cancelledAfterComplete.status()).isEqualTo(ExplorationRunStatus.COMPLETED);
+        assertThat(cancelledAfterComplete.outcome()).isEqualTo(ExplorationRunOutcome.INITIAL_BOARD);
+    }
+
+    @Test
+    void claimRunRejectsUnknownStageBeforePersistence() {
+        var owner = ExplorationActor.guest("guest-owner");
+        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", "kr-45-jeonju"));
+
+        assertThatThrownBy(() -> service.claimRun(created.explorationId(), created.run().id(), "SUMMONING"))
+                .isInstanceOf(ExplorationInputInvalidException.class)
+                .hasMessageContaining("stage");
+
+        assertThat(service.get(owner, created.explorationId()).run().status())
+                .isEqualTo(ExplorationRunStatus.QUEUED);
+    }
+
+    @Test
     void invalidTurnDoesNotPersistRawInput() {
         var owner = ExplorationActor.guest("guest-owner");
         var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", null));

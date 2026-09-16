@@ -46,6 +46,53 @@ public final class InMemoryExplorationStore implements ExplorationStore {
         explorations.put(state.id(), state);
     }
 
+    @Override
+    public synchronized ExplorationRun claimRun(UUID explorationId, UUID runId, Instant startedAt, String stage) {
+        var state = requireState(explorationId);
+        var run = requireLatestRun(state, runId);
+        if (run.status() != ExplorationRunStatus.QUEUED) {
+            return run;
+        }
+        var claimed = new ExplorationRun(
+                run.id(),
+                ExplorationRunStatus.RUNNING,
+                run.engine(),
+                stage,
+                null,
+                null,
+                run.createdAt(),
+                startedAt,
+                run.deadlineAt());
+        updateLatestRun(state, claimed, startedAt);
+        return claimed;
+    }
+
+    @Override
+    public synchronized ExplorationRun finishRun(
+            UUID explorationId,
+            UUID runId,
+            ExplorationRunStatus terminalStatus,
+            ExplorationRunOutcome outcome,
+            Instant finishedAt) {
+        var state = requireState(explorationId);
+        var run = requireLatestRun(state, runId);
+        if (run.isTerminal()) {
+            return run;
+        }
+        var finished = new ExplorationRun(
+                run.id(),
+                terminalStatus,
+                run.engine(),
+                null,
+                outcome,
+                null,
+                run.createdAt(),
+                run.startedAt(),
+                run.deadlineAt());
+        updateLatestRun(state, finished, finishedAt);
+        return finished;
+    }
+
     public synchronized int explorationCount() {
         return explorations.size();
     }
@@ -65,5 +112,31 @@ public final class InMemoryExplorationStore implements ExplorationStore {
     public synchronized void clear() {
         explorations.clear();
         turns.clear();
+    }
+
+    private ExplorationState requireState(UUID explorationId) {
+        var state = explorations.get(explorationId);
+        if (state == null) {
+            throw new ExplorationNotFoundException();
+        }
+        return state;
+    }
+
+    private ExplorationRun requireLatestRun(ExplorationState state, UUID runId) {
+        var run = state.latestRun();
+        if (run == null || !run.id().equals(runId)) {
+            throw new ExplorationNotFoundException();
+        }
+        return run;
+    }
+
+    private void updateLatestRun(ExplorationState state, ExplorationRun run, Instant updatedAt) {
+        explorations.put(state.id(), new ExplorationState(
+                state.id(),
+                state.owner(),
+                state.stateVersion(),
+                state.regionCode(),
+                run,
+                updatedAt));
     }
 }
