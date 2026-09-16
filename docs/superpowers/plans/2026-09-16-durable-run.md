@@ -62,4 +62,4 @@
 
 - [x] focused/full Java와 repository gate를 실행한다.
 - [x] 독립 self-review로 AC와 transaction rollback 경계를 확인한다.
-- [ ] commit/push 후 `develop` PR에 `Closes #109`를 기록한다.
+- [x] commit/push 후 `develop` PR에 `Closes #109`를 기록한다.

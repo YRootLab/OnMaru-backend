@@ -9,7 +9,8 @@
 - idempotency: actor/operation/key와 request hash별 immutable receipt를 저장한다. 같은 payload는 원래 result를 replay하고 다른 payload는 conflict로 rollback한다.
 - migration: V009가 `discovery_run_commands`와 canonical status/outcome/stage 제약을 추가한다. V006의 FAILED/CANCELLED legacy outcome은 `error_code`로 무손실 이관한다.
 - 동시성 검증: 실제 PostgreSQL에서 동일 command race 효과 1회, exploration/actor active run 하나, cancel/complete terminal 하나, stale generation/stage conflict와 새 adapter instance snapshot 복구를 확인했다.
-- 현재 검증: focused Journey/JDBC/web/migration/Testcontainers 통과. 전체 Java 검증 중 `apps:spring-api:test` result binary `NoSuchFileException`이 한 번 발생했으나 XML assertion failure는 없었고, `./gradlew :apps:spring-api:cleanTest :apps:spring-api:test --no-daemon` 재실행으로 Spring API 전체가 통과했다. Node 37 tests, planning/Odii, contract/generated artifact, Python contract 9 passed, AI pytest 180 passed/1 skipped, Ruff/mypy, offline AI eval 5 gates, branch parser `109`, `git diff --check` 통과. commit/push와 PR 생성이 남았다.
+- 현재 검증: focused Journey/JDBC/web/migration/Testcontainers 통과. 전체 Java 검증 중 `apps:spring-api:test` result binary `NoSuchFileException`이 한 번 발생했으나 XML assertion failure는 없었고, `./gradlew :apps:spring-api:cleanTest :apps:spring-api:test --no-daemon` 재실행으로 Spring API 전체가 통과했다. Node 37 tests, planning/Odii, contract/generated artifact, Python contract 9 passed, AI pytest 180 passed/1 skipped, Ruff/mypy, offline AI eval 5 gates, branch parser `109`, `git diff --check` 통과.
+- PR: #211 `feat(journey): durable run 상태 머신과 command idempotency 구현` (`develop` 대상, `Closes #109`). CI와 approval 전에는 merge하지 않는다.
 
 ## Current Session Quick Handoff - 2026-09-16 Issue #101
 
