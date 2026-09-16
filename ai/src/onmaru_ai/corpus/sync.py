@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Protocol
 
+from .index import CorpusChunk, CorpusIndexService
+
 
 def _sha256(value: object) -> str:
     encoded = json.dumps(
@@ -186,6 +188,7 @@ class InMemoryCorpusStore:
     def __init__(self) -> None:
         self._manifests: dict[str, CorpusManifest] = {}
         self._documents: dict[str, dict[str, CorpusDocument]] = {}
+        self._chunks: dict[str, tuple[CorpusChunk, ...]] = {}
         self.active_revision_id: str | None = None
 
     @property
@@ -200,10 +203,24 @@ class InMemoryCorpusStore:
             return set()
         return set(self._documents[self.active_revision_id])
 
+    @property
+    def active_chunks(self) -> tuple[CorpusChunk, ...]:
+        if self.active_revision_id is None:
+            return ()
+        return self._chunks.get(self.active_revision_id, ())
+
     def document_count(self, revision_id: str) -> int:
         return len(self._documents.get(revision_id, {}))
 
-    def commit(self, manifest: CorpusManifest, documents: tuple[CorpusDocument, ...]) -> int:
+    def chunk_count(self, revision_id: str) -> int:
+        return len(self._chunks.get(revision_id, ()))
+
+    def commit(
+        self,
+        manifest: CorpusManifest,
+        documents: tuple[CorpusDocument, ...],
+        chunks: tuple[CorpusChunk, ...] = (),
+    ) -> int:
         existing = self._manifests.get(manifest.revision_id)
         if existing is not None:
             if existing.manifest_hash != manifest.manifest_hash:
@@ -211,9 +228,14 @@ class InMemoryCorpusStore:
             self.active_revision_id = manifest.revision_id
             return 0
 
+        active = self.active_manifest
+        if active is not None and manifest.published_at <= active.published_at:
+            raise ValueError("CORPUS_OUT_OF_ORDER")
+
         # Build the entire immutable revision before changing the active pointer.
         revision_documents = {item.document_id: item for item in documents}
         self._documents[manifest.revision_id] = revision_documents
+        self._chunks[manifest.revision_id] = chunks
         self._manifests[manifest.revision_id] = manifest
         self.active_revision_id = manifest.revision_id
         return len(revision_documents)
@@ -226,11 +248,13 @@ class CorpusSyncService:
         store: InMemoryCorpusStore,
         *,
         embedding_profile: str,
+        index: CorpusIndexService | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._client = client
         self._store = store
         self._embedding_profile = embedding_profile
+        self._index = index
         self._clock = clock or (lambda: datetime.now(UTC))
 
     async def pull(self, revision_id: str) -> CorpusSyncResult:
@@ -299,8 +323,21 @@ class CorpusSyncService:
                 self._tombstone_count(manifest),
             )
 
+        chunks: tuple[CorpusChunk, ...] = ()
+        if self._index is not None:
+            try:
+                chunks = self._index.build(fetched)
+            except Exception:
+                return await self._reject(
+                    revision_id,
+                    manifest.manifest_hash,
+                    "CORPUS_EMBEDDING_FAILED",
+                    len(manifest.documents),
+                    self._tombstone_count(manifest),
+                )
+
         try:
-            inserted_count = self._store.commit(manifest, tuple(fetched))
+            inserted_count = self._store.commit(manifest, tuple(fetched), chunks)
         except ValueError as exception:
             return await self._reject(
                 revision_id,
