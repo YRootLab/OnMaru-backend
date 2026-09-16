@@ -162,6 +162,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OdiiStoryDetail'
+        '400':
+          $ref: '#/components/responses/Error'
         '404':
           $ref: '#/components/responses/Error'
         '503':
@@ -306,6 +308,9 @@ components:
     LanguageStatus:
       type: string
       enum: [EXACT, FALLBACK, MISSING]
+    TranscriptStatus:
+      type: string
+      enum: [OFFICIAL, ESTIMATED, MISSING]
     ObservationMetric:
       type: string
       enum: [VISITOR_COUNT, CONGESTION_SCORE, SURGE_MULTIPLIER]
@@ -529,6 +534,7 @@ components:
         - languageStatus
         - story
         - audioUrl
+        - transcriptStatus
         - transcript
       properties:
         schemaVersion:
@@ -544,6 +550,8 @@ components:
         audioUrl:
           type: string
           format: uri
+        transcriptStatus:
+          $ref: '#/components/schemas/TranscriptStatus'
         transcript:
           type: array
           items:
@@ -661,6 +669,7 @@ components:
           enum:
             - INVALID_REQUEST
             - NOT_FOUND
+            - CURSOR_INVALID
             - CURSOR_EXPIRED
             - SERVICE_UNAVAILABLE
         message:

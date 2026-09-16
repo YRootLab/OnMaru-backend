@@ -14,6 +14,9 @@ spring:
     password: ${ONMARU_DB_MIGRATION_PASSWORD:}
 
 onmaru:
+  audio:
+    dataset: ${ONMARU_AUDIO_DATASET:odii-audio}
+    public-hosts: ${ONMARU_AUDIO_PUBLIC_HOSTS:}
   tourapi:
     client:
       connect-timeout: 1s
