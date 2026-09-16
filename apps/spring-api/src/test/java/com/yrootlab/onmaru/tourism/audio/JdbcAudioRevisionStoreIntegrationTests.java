@@ -30,6 +30,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;
@@ -41,6 +42,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.math.BigDecimal;
 import java.util.concurrent.CountDownLatch;
@@ -180,7 +182,9 @@ class JdbcAudioRevisionStoreIntegrationTests {
     void productionProfileSelectsJdbcRevisionStoreAndNeverCreatesInMemoryStore() throws Exception {
         try (var context = new AnnotationConfigApplicationContext()) {
             context.getEnvironment().setActiveProfiles("production");
-            context.getEnvironment().getSystemProperties().put("onmaru.audio.dataset", "odii-profile-test");
+            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
+                    "odii-profile-test",
+                    Map.of("onmaru.audio.dataset", "odii-profile-test")));
             context.registerBean(DataSource.class, JdbcAudioRevisionStoreIntegrationTests::dataSource);
             context.registerBean(ObjectMapper.class, () -> new ObjectMapper());
             context.registerBean(Clock.class, Clock::systemUTC);

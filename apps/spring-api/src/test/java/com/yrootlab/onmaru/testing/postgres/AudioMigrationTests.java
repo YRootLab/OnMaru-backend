@@ -420,10 +420,10 @@ class AudioMigrationTests {
         statement.execute("""
                 INSERT INTO onmaru.audio_story_versions (
                     revision_id, story_id, spot_id, title, script, audio_url,
-                    image_url, duration_seconds, status, hash
+                    image_url, duration_seconds, status, hash, transcript_provenance
                 ) VALUES (
                     '%s', '%s', '%s', '%s', 'script', 'https://example.com/audio.mp3',
-                    'https://example.com/image.jpg', %s, '%s', 'story-hash'
+                    'https://example.com/image.jpg', %s, '%s', 'story-hash', 'OFFICIAL'
                 )
                 """.formatted(revisionId, storyId, spotId, title, durationValue, status));
     }

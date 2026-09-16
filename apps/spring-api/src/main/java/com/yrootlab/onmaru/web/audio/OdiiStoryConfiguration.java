@@ -7,8 +7,10 @@ import com.yrootlab.onmaru.audio.query.OdiiPublicAudioUrlPolicy;
 import com.yrootlab.onmaru.audio.query.OdiiProjectionMetadataResolver;
 import com.yrootlab.onmaru.audio.query.OdiiSavedStateLookup;
 import com.yrootlab.onmaru.audio.query.OdiiStoryCursorCodec;
+import com.yrootlab.onmaru.audio.query.OdiiStoryQueryObserver;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryStore;
+import com.yrootlab.onmaru.audio.query.ObservedOdiiStoryQueryStore;
 import com.yrootlab.onmaru.audio.query.UnavailableOdiiStoryQueryStore;
 import com.yrootlab.onmaru.audio.sync.AudioRevisionSnapshot;
 import com.yrootlab.onmaru.audio.sync.AudioRevisionStore;
@@ -16,7 +18,6 @@ import com.yrootlab.onmaru.audio.sync.InMemoryAudioRevisionStore;
 import com.yrootlab.onmaru.catalog.application.publication.SourceWatermark;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.catalog.application.regionboundary.RegionBoundaryStore;
-import com.yrootlab.onmaru.observability.TelemetrySink;
 import com.yrootlab.onmaru.web.common.cursor.CursorCodec;
 import com.yrootlab.onmaru.web.common.cursor.CursorSigningKey;
 import org.springframework.beans.factory.ObjectProvider;
@@ -71,14 +72,14 @@ public class OdiiStoryConfiguration {
             AudioRevisionStore revisionStore,
             OdiiStorySettings settings,
             OdiiProjectionMetadataResolver metadataResolver,
-            ObjectProvider<TelemetrySink> telemetrySinks) {
+            ObjectProvider<OdiiStoryQueryObserver> queryObservers) {
         var store = new ActiveRevisionOdiiStoryQueryStore(
                 revisionStore,
                 settings.dataset(),
                 metadataResolver);
-        return telemetrySinks.getIfAvailable() == null
-                ? store
-                : new TelemetryOdiiStoryQueryStore(store, telemetrySinks.getObject());
+        return new ObservedOdiiStoryQueryStore(
+                store,
+                queryObservers.getIfAvailable(() -> OdiiStoryQueryObserver.NOOP));
     }
 
     @Bean
