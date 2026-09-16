@@ -57,7 +57,7 @@ def install_internal_auth(app: FastAPI, secret_provider: SecretProvider) -> None
     async def create_journey_proposal(
         request: Request,
         authorization: str = Header(default=""),
-    ) -> dict[str, str] | JSONResponse:
+    ) -> dict[str, object] | JSONResponse:
         try:
             validate_internal_token(authorization, secret_provider)
         except HTTPException as exception:

@@ -21,6 +21,7 @@ import com.yrootlab.onmaru.journey.worker.JourneyWorkerService;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerTelemetry;
 import com.yrootlab.onmaru.persistence.journey.run.JdbcJourneyRunStore;
 import com.yrootlab.onmaru.persistence.journey.worker.JdbcJourneyResultStore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -50,11 +51,13 @@ class JourneyWorkerConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(DataSource.class)
     JourneyResultStore journeyResultStore(DataSource dataSource) {
         return new JdbcJourneyResultStore(dataSource);
     }
 
     @Bean
+    @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean
     JourneyRunStore journeyRunStore(DataSource dataSource) {
         return new JdbcJourneyRunStore(dataSource);
@@ -71,6 +74,7 @@ class JourneyWorkerConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(DataSource.class)
     AiProposalClient aiProposalClient(
             ObjectMapper objectMapper,
             AiIntegrationProperties properties,
@@ -86,6 +90,7 @@ class JourneyWorkerConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(DataSource.class)
     JourneyWorkerService journeyWorkerService(
             JourneyRunStore runStore,
             JourneyCandidateProvider candidateProvider,
@@ -103,6 +108,7 @@ class JourneyWorkerConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(DataSource.class)
     JourneyWorkerRunner journeyWorkerRunner(
             JourneyWorkerQueue queue,
             JourneyWorkerService service) {

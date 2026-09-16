@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class JourneyWorkerConfigurationTests {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withUserConfiguration(JourneyWorkerConfiguration.class, TestDependencies.class)
+            .withUserConfiguration(TestDependencies.class, JourneyWorkerConfiguration.class)
             .withPropertyValues(
                     "onmaru.ai.base-url=http://localhost:18080",
                     "onmaru.ai.timeout=PT1S");
@@ -43,6 +43,25 @@ class JourneyWorkerConfigurationTests {
             assertThat(context).hasSingleBean(JourneyRunStore.class);
             assertThat(context).hasSingleBean(JourneyResultStore.class);
         });
+    }
+
+    @Test
+    void backsOffDatabaseBoundWorkerBeansWhenNoDataSourceExists() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(NoDataSourceDependencies.class, JourneyWorkerConfiguration.class)
+                .withPropertyValues(
+                        "onmaru.ai.base-url=http://localhost:18080",
+                        "onmaru.ai.timeout=PT1S")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(JourneyWorkerQueue.class);
+                    assertThat(context).hasSingleBean(InMemoryJourneyCandidateProvider.class);
+                    assertThat(context).hasSingleBean(BaselinePlanner.class);
+                    assertThat(context).doesNotHaveBean(JourneyRunStore.class);
+                    assertThat(context).doesNotHaveBean(JourneyResultStore.class);
+                    assertThat(context).doesNotHaveBean(JourneyWorkerService.class);
+                    assertThat(context).doesNotHaveBean(JourneyWorkerRunner.class);
+                });
     }
 
     static class TestDependencies {
@@ -113,6 +132,29 @@ class JourneyWorkerConfigurationTests {
                     return false;
                 }
             };
+        }
+    }
+
+    static class NoDataSourceDependencies {
+
+        @org.springframework.context.annotation.Bean
+        SecretProvider secretProvider() {
+            return new FakeSecretProvider();
+        }
+
+        @org.springframework.context.annotation.Bean
+        Clock clock() {
+            return Clock.systemUTC();
+        }
+
+        @org.springframework.context.annotation.Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+
+        @org.springframework.context.annotation.Bean
+        JourneyWorkerTelemetry telemetry() {
+            return ignored -> { };
         }
     }
 }
