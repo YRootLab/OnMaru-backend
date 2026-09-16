@@ -9,6 +9,7 @@ servers:
   - url: /internal/v1
 tags:
   - name: JourneyProposal
+  - name: CorpusSync
 paths:
   /journey/proposals:
     post:
@@ -40,6 +41,73 @@ paths:
         '403':
           $ref: '#/components/responses/InternalAuthError'
         '422':
+          $ref: '#/components/responses/InternalAuthError'
+  /corpus/revisions/{revisionId}/manifest:
+    get:
+      tags: [CorpusSync]
+      operationId: getInternalCorpusManifest
+      summary: Return the revision-pinned corpus manifest exported by Spring.
+      security:
+        - InternalServiceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RevisionId'
+      responses:
+        '200':
+          description: Stable manifest of corpus documents and tombstones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCorpusManifest'
+        '401':
+          $ref: '#/components/responses/InternalAuthError'
+        '403':
+          $ref: '#/components/responses/InternalAuthError'
+  /corpus/revisions/{revisionId}/documents/{documentId}:
+    get:
+      tags: [CorpusSync]
+      operationId: getInternalCorpusDocument
+      summary: Return one manifest-listed corpus document.
+      security:
+        - InternalServiceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RevisionId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Corpus document whose hash must match the manifest entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCorpusDocument'
+        '401':
+          $ref: '#/components/responses/InternalAuthError'
+        '403':
+          $ref: '#/components/responses/InternalAuthError'
+        '404':
+          description: Revision or document is no longer active for export.
+  /corpus/revisions/{revisionId}/ack:
+    post:
+      tags: [CorpusSync]
+      operationId: acknowledgeInternalCorpusSync
+      summary: Record FastAPI corpus sync terminal status for idempotency and observability.
+      security:
+        - InternalServiceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RevisionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalCorpusSyncAck'
+      responses:
+        '202':
+          description: ACK accepted.
+        '409':
+          description: ACK revision or manifest hash does not match a published corpus manifest.
+        '401':
+          $ref: '#/components/responses/InternalAuthError'
+        '403':
           $ref: '#/components/responses/InternalAuthError'
 components:
   securitySchemes:
@@ -83,6 +151,22 @@ components:
       schema:
         type: string
         pattern: '^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'
+    RevisionId:
+      name: revisionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 256
   responses:
     InternalAuthError:
       description: Internal service authentication failure.
@@ -171,3 +255,168 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+    InternalCorpusManifest:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - revisionId
+        - publishedAt
+        - manifestHash
+        - documents
+      properties:
+        contractVersion:
+          type: string
+          const: '1.0'
+        revisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        publishedAt:
+          type: string
+          format: date-time
+        manifestHash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalCorpusManifestEntry'
+    InternalCorpusManifestEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - documentId
+        - kind
+        - state
+      properties:
+        documentId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        kind:
+          type: string
+          enum: [PLACE]
+        documentHash:
+          type:
+            - string
+            - 'null'
+          pattern: '^sha256:[0-9a-f]{64}$'
+        state:
+          type: string
+          enum: [UPSERT, TOMBSTONE]
+        contentUrl:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+          maxLength: 512
+    InternalCorpusDocument:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - revisionId
+        - documentId
+        - kind
+        - sourceId
+        - sourceRevision
+        - provenanceId
+        - category
+        - region
+        - publicationEligible
+        - text
+        - documentHash
+      properties:
+        contractVersion:
+          type: string
+          const: '1.0'
+        revisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        documentId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        kind:
+          type: string
+          enum: [PLACE]
+        sourceId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        sourceRevision:
+          type: string
+          minLength: 1
+          maxLength: 128
+        provenanceId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        category:
+          type: string
+          minLength: 1
+          maxLength: 64
+        region:
+          type: string
+          minLength: 1
+          maxLength: 64
+        publicationEligible:
+          type: boolean
+        text:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        documentHash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+    InternalCorpusSyncAck:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - revisionId
+        - manifestHash
+        - status
+        - documentCount
+        - tombstoneCount
+        - embeddingProfile
+        - completedAt
+      properties:
+        contractVersion:
+          type: string
+          const: '1.0'
+        revisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        manifestHash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        status:
+          type: string
+          enum: [ACTIVE, REJECTED]
+        documentCount:
+          type: integer
+          minimum: 0
+        tombstoneCount:
+          type: integer
+          minimum: 0
+        embeddingProfile:
+          type: string
+          minLength: 1
+          maxLength: 128
+        completedAt:
+          type: string
+          format: date-time
+        errorCode:
+          type: string
+          enum:
+            - CORPUS_MANIFEST_FETCH_FAILED
+            - CORPUS_MANIFEST_INVALID
+            - CORPUS_MANIFEST_HASH_MISMATCH
+            - CORPUS_REVISION_CONFLICT
+            - CORPUS_OUT_OF_ORDER
+            - CORPUS_DOCUMENT_HASH_MISMATCH
+            - CORPUS_PARTIAL_FETCH

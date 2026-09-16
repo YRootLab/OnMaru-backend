@@ -30,6 +30,7 @@ Ref: community_review_likes.member_id > identity_members.id
 Ref: community_review_reports.reporter_member_id > identity_members.id
 
 Ref: audio_place_odii_links.place_id > catalog_place_identity.id
+Ref: audio_revision_stages.revision_id > catalog_dataset_revisions.id
 
 Ref: insights_visitor_observations.revision_id > catalog_dataset_revisions.id
 Ref: insights_visitor_observations.region_id > catalog_regions.id
