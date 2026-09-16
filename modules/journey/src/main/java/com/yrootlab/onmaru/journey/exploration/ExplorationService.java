@@ -56,6 +56,15 @@ public final class ExplorationService {
         return ownedState(actor, explorationId).snapshot();
     }
 
+    public ExplorationRun getRun(ExplorationActor actor, UUID explorationId, UUID runId) {
+        var state = ownedState(actor, explorationId);
+        var run = state.latestRun();
+        if (run == null || !run.id().equals(runId)) {
+            throw new ExplorationNotFoundException();
+        }
+        return run;
+    }
+
     public ExplorationSnapshot createTurn(
             ExplorationActor actor,
             UUID explorationId,

@@ -1,5 +1,15 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #115
+
+- 현재 작업 브랜치와 worktree: `feature/115-exploration-run-snapshot-dto`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j04-exploration-run-snapshot-dto`.
+- 관련 Issue: #115 `[J04] Exploration·run snapshot DTO와 복구 조회 구현`; blocked-by #109/#99는 모두 Closed이고 시작 시 열린 중복 PR은 없었다.
+- 구현 범위: `/api/v1/explorations/{explorationId}/runs/{runId}` GET을 추가해 current actor 권한을 재검증한 뒤 latest run snapshot을 `Cache-Control: no-store`로 반환한다. 다른 actor 또는 현재 latest run과 다른 runId는 `NOT_FOUND` 404로 숨긴다.
+- 추가 구현: `INITIAL_BOARD`로 완료된 전주 exploration은 current public catalog에서 deterministic board를 복구한다. canonical place가 hidden/deleted/ambiguous/source unavailable이면 board를 null로 유지하고 `unavailableRefs`에 PLACE ref만 노출한다.
+- 관측성: run snapshot route는 기존 `CorrelationFilter` telemetry에 `http.route`, status code, request id가 기록되는 것을 boundary test로 고정했다.
+- 계약: Journey OpenAPI `RunSnapshot`에 status/outcome/stage/clarification 조합 oneOf invariant와 `RunClarification` 필수 필드 schema를 추가했다. `ExplorationSnapshot`에는 `unavailableRefs`를 required 필드로 추가하고 queued run 조회, other actor 404, unavailable ref fixture를 필수 journey fixture에 포함했다.
+- 검증: TDD RED에서 신규 Spring boundary 테스트가 endpoint/hydration/unavailable 미구현으로 실패함을 확인한 뒤 구현했다. 독립 리뷰 지적으로 `COMPLETED`의 non-null stage와 빈 clarification이 schema를 통과하는 구멍을 막고 negative invariant sample을 validator에 추가했다. 이후 `python3 scripts/test/validate-journey-contract.py`, `bash scripts/verify-contracts`, `./gradlew :modules:journey:test :apps:spring-api:test`, `git diff --check`, branch parser `115`가 통과했다. 로컬 Python 3.9 계약 검증은 urllib3 LibreSSL 경고를 출력하지만 exit code 0으로 완료됐다.
+
 ## Current Session Quick Handoff - 2026-09-16 Issue #109
 
 - 현재 작업 브랜치와 worktree: `feature/109-durable-run`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-109-durable-run`.

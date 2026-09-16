@@ -39,6 +39,9 @@ REQUIRED_SCHEMAS = {
 REQUIRED_FIXTURES = {
     "exploration-snapshot-normal",
     "exploration-snapshot-other-actor",
+    "exploration-snapshot-unavailable-ref",
+    "run-snapshot-queued",
+    "run-snapshot-other-actor",
     "action-pin-normal",
     "action-idempotency-replay",
     "action-version-conflict",
@@ -107,6 +110,54 @@ def validate_value(value: Any, schema: dict[str, Any], definitions: dict[str, An
     errors = sorted(validator.iter_errors(value), key=lambda error: list(error.path))
     if errors:
         fail(f"{source}: {errors[0].message}")
+
+
+def validate_run_snapshot_invariants(definitions: dict[str, Any]) -> None:
+    schema = {"$ref": "#/components/schemas/RunSnapshot"}
+    base = {
+        "schemaVersion": "1.2",
+        "runId": "7a111111-1111-4111-8111-111111111111",
+        "engine": "LLM",
+        "degradedReason": None,
+        "retryAfterMs": 0,
+        "createdAt": "2026-09-16T00:00:00Z",
+        "deadlineAt": "2026-09-16T00:00:30Z",
+        "error": None,
+    }
+    valid_snapshots = [
+        {**base, "status": "QUEUED", "stage": None, "outcome": None, "clarification": None, "startedAt": None},
+        {**base, "status": "RUNNING", "stage": "INTERPRETING", "outcome": None, "clarification": None, "startedAt": "2026-09-16T00:00:01Z"},
+        {**base, "status": "COMPLETED", "stage": None, "outcome": "INITIAL_BOARD", "clarification": None, "startedAt": "2026-09-16T00:00:01Z"},
+        {
+            **base,
+            "status": "COMPLETED",
+            "stage": None,
+            "outcome": "CLARIFICATION_REQUIRED",
+            "clarification": {
+                "id": "region",
+                "reason": "REGION_MISSING",
+                "question": "어느 지역을 둘러보고 싶으신가요?",
+                "choices": [],
+                "allowFreeText": True,
+            },
+            "startedAt": "2026-09-16T00:00:00Z",
+        },
+        {**base, "status": "FAILED", "stage": None, "outcome": None, "clarification": None, "startedAt": "2026-09-16T00:00:01Z", "error": {"code": "AI_TIMEOUT"}},
+        {**base, "status": "CANCELLED", "stage": None, "outcome": None, "clarification": None, "startedAt": "2026-09-16T00:00:01Z"},
+    ]
+    for index, snapshot in enumerate(valid_snapshots):
+        validate_value(snapshot, schema, definitions, f"RunSnapshot invariant valid sample {index}")
+
+    invalid_snapshots = [
+        {**valid_snapshots[2], "stage": "INTERPRETING"},
+        {**valid_snapshots[3], "clarification": {}},
+    ]
+    for index, snapshot in enumerate(invalid_snapshots):
+        try:
+            validate_value(snapshot, schema, definitions, f"RunSnapshot invariant invalid sample {index}")
+        except AssertionError:
+            continue
+        fail(f"RunSnapshot invariant invalid sample {index} unexpectedly passed")
 
 
 def validate_request(
@@ -229,6 +280,7 @@ def main() -> None:
         fail(f"missing Journey fixtures: {sorted(missing_fixtures)}")
 
     definitions = {name: rewrite_refs(schema) for name, schema in schemas.items()}
+    validate_run_snapshot_invariants(definitions)
     parameter_definitions = openapi.get("components", {}).get("parameters", {})
     for fixture_path, fixture in fixtures:
         request = fixture["request"]
@@ -295,6 +347,9 @@ def main() -> None:
     resumed = fixtures_by_name["saved-journey-resume-unavailable"]["response"]["body"]["exploration"]
     if resumed["board"] is not None or resumed["stateVersion"] != 0:
         fail("an all-unavailable resume must return an empty version-zero exploration")
+    unavailable_snapshot = fixtures_by_name["exploration-snapshot-unavailable-ref"]["response"]["body"]
+    if unavailable_snapshot["board"] is not None or not unavailable_snapshot["unavailableRefs"]:
+        fail("exploration-snapshot-unavailable-ref must conceal the board and expose unavailableRefs")
 
     forbidden_snapshot_fields = {
         "explorationId",
@@ -329,6 +384,7 @@ def main() -> None:
         fail("action-idempotency-invalid must reject a missing Idempotency-Key")
     for name in (
         "exploration-snapshot-other-actor",
+        "run-snapshot-other-actor",
         "action-other-actor",
         "saved-journey-create-other-actor",
         "saved-journey-detail-other-actor",
