@@ -153,6 +153,8 @@ def test_human_claim_support_is_distinct_from_evidence_id_precision() -> None:
         "   ",
         "https://example.invalid/path",
         "custom+scheme:value",
+        "안내tel:+821012345678",
+        "이동javascript:alert(1)",
         "//192.0.2.1/path",
         "예시.한국/경로",
         "**강조**",

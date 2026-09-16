@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 _UNSAFE_PROPOSAL_TEXT = re.compile(
-    r"\b[a-z][a-z0-9+.-]*:|//|www\.|"
+    r"(?a:\b[a-z][a-z0-9+.-]*:)|//|www\.|"
     r"(?:[^\W_][\w-]*\.)+[^\W_][\w-]*(?:[/:?#]|\b)|"
     r"(?:\d{1,3}\.){3}\d{1,3}(?:[/:?#]|\b)|"
     r"[\[\]<>`#*_]|~~|"

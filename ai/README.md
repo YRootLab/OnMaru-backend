@@ -20,6 +20,8 @@ uv run pytest
 
 저장소 루트에서 고정 held-out fixture의 품질·근거·안전·지연·비용 gate를 실행한다.
 외부 모델이나 네트워크를 호출하지 않는다.
+launcher는 프로젝트 지원 범위 밖의 Python(`3.11` 이하 또는 `3.13` 이상)에서 실행되면
+`uv`가 선택한 Python 3.12 환경으로 다시 실행한다.
 
 ```bash
 uv run --project ai python scripts/run-ai-evals \
