@@ -9,6 +9,8 @@
 - backup encryption key와 deletion ledger encryption key는 secret manager에서 별도로 mount한다.
 - restore owner는 일회성 target에만 사용하고 application runtime이나 source database에는 연결하지 않는다.
 - 자동화는 `ONMARU_RESTORE_CONFIRM=isolated-target`과 source/target fingerprint 불일치를 모두 확인한다.
+- backup dump와 critical row count는 하나의 exported MVCC snapshot을 공유한다.
+- checksum sidecar는 digest뿐 아니라 정확한 artifact basename까지 일치해야 한다.
 
 `infra/backup/policy.json`이 schedule, retention, credential, RPO/RTO의 machine-readable source다. runner image는 PostgreSQL 17 client, GnuPG, jq를 고정한다. 통합 drill의 PostGIS database image는 현재 amd64만 제공되므로 ARM 개발 환경에서는 기본 `linux/amd64` emulation을 사용하며, 필요하면 `ONMARU_POSTGIS_PLATFORM`으로 명시한다.
 
@@ -33,7 +35,7 @@ docker run --rm \
   onmaru-backup:local create-backup
 ```
 
-성공 시 storage에는 `onmaru-*.tar.gpg`와 동일 이름의 `.sha256`만 남아야 한다. 평문 `pg_dump`, metadata, row count 파일이 있으면 실패로 보고 storage를 격리한다. 7일을 지난 OnMaru artifact는 새 backup 성공 뒤 정리된다.
+성공 시 storage에는 `onmaru-*.tar.gpg`와 동일 이름의 `.sha256`만 남아야 한다. 평문 `pg_dump`, metadata, row count 파일이 있으면 실패로 보고 storage를 격리한다. dump와 critical count는 backup runner가 유지하는 read-only exported snapshot에서 함께 읽으므로 운영 write가 계속되어도 서로 다른 시점의 count를 비교하지 않는다. 7일을 지난 OnMaru artifact는 새 backup 성공 뒤 정리된다.
 
 ## Deletion Ledger Input
 
@@ -42,7 +44,7 @@ docker run --rm \
 ## Isolated Restore
 
 1. public write와 background writer를 중지한다.
-2. source와 다른 host 또는 cluster에 새 빈 database를 만든다.
+2. source와 다른 host 또는 cluster에 새 빈 database를 만든다. system·extension-owned object 외 사용자 relation이 하나라도 있으면 restore runner가 거부한다.
 3. 최신 encrypted backup, checksum, backup key, encrypted deletion ledger, ledger key를 read-only로 mount한다.
 4. 아래 명령으로 schema/data restore, deletion ledger replay, integrity query를 실행한다.
 5. evidence가 `PASS`이고 RPO/RTO와 모든 integrity count가 기준 안인지 확인한다.
@@ -76,7 +78,7 @@ docker run --rm \
 infra/backup/test/run-restore-drill
 ```
 
-GitHub `PostgreSQL Restore Drill` workflow는 관련 파일이 바뀐 PR과 수동 실행에서 이 명령을 수행하고 sanitized evidence JSON을 7일 artifact로 보존한다. synthetic key와 member는 일회성 container와 temporary directory 안에서만 사용한다.
+GitHub `PostgreSQL Restore Drill` workflow는 관련 파일이 바뀐 PR과 수동 실행에서 이 명령을 수행하고 sanitized evidence JSON을 7일 artifact로 보존한다. drill은 정상 복원 전에 다른 artifact명을 적은 checksum sidecar와 `public` 사용자 table이 있는 target이 각각 거부되는지도 확인한다. synthetic key와 member는 일회성 container와 temporary directory 안에서만 사용한다.
 
 ## PITR Gate
 
