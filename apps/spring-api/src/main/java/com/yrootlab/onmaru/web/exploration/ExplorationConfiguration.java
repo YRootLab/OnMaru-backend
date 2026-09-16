@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.journey.exploration.ExplorationService;
 import com.yrootlab.onmaru.journey.exploration.ExplorationActorType;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationRunDispatcher;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationStore;
+import com.yrootlab.onmaru.journey.actions.JourneyActionService;
 import com.yrootlab.onmaru.identity.guest.GuestGrantService;
 import com.yrootlab.onmaru.identity.guest.MemberExplorationAccess;
 import org.springframework.context.annotation.Bean;
@@ -30,12 +31,18 @@ class ExplorationConfiguration {
     }
 
     @Bean
+    JourneyActionService journeyActionService(Clock clock) {
+        return new JourneyActionService(clock, ignored -> true);
+    }
+
+    @Bean
     ExplorationService explorationService(
             InMemoryExplorationStore store,
             InMemoryExplorationRunDispatcher dispatcher,
             Clock clock,
             GuestGrantService guestGrantService,
-            InMemoryJourneyRunEventStream eventStream) {
+            InMemoryJourneyRunEventStream eventStream,
+            JourneyActionService actionService) {
         return new ExplorationService(store, dispatcher, clock, (actor, state) -> {
             if (state.owner().equals(actor)) {
                 return true;
@@ -46,6 +53,6 @@ class ExplorationConfiguration {
             return guestGrantService.canAccess(new MemberExplorationAccess(
                     java.util.UUID.fromString(actor.subject()),
                     state.id()));
-        }, eventStream);
+        }, eventStream, actionService);
     }
 }

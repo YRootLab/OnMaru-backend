@@ -891,6 +891,56 @@ class ExplorationWebBoundaryTests {
         });
     }
 
+    @Test
+    void actionCommandsExposeVersionAndPinnedReferenceConflicts() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var tree = objectMapper.readTree(created);
+        var explorationId = UUID.fromString(tree.path("explorationId").asText());
+        var runId = UUID.fromString(tree.path("runId").asText());
+        explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
+
+        var pin = Map.of(
+                "commandId", UUID.randomUUID().toString(),
+                "baseVersion", 0,
+                "action", Map.of("type", "PIN", "resourceRef", Map.of("type", "PLACE", "id", "p1")));
+        mockMvc.perform(post("/api/v1/explorations/{id}/actions", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(pin))
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stateVersion").value(1))
+                .andExpect(jsonPath("$.pinnedRefs[0].id").value("p1"));
+
+        var exclude = Map.of(
+                "commandId", UUID.randomUUID().toString(),
+                "baseVersion", 1,
+                "action", Map.of("type", "EXCLUDE", "resourceRef", Map.of("type", "PLACE", "id", "p1")));
+        mockMvc.perform(post("/api/v1/explorations/{id}/actions", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(exclude))
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PINNED_REF"));
+
+        var staleUnpin = Map.of(
+                "commandId", UUID.randomUUID().toString(),
+                "baseVersion", 0,
+                "action", Map.of("type", "UNPIN", "resourceRef", Map.of("type", "PLACE", "id", "p1")));
+        mockMvc.perform(post("/api/v1/explorations/{id}/actions", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(staleUnpin))
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VERSION_CONFLICT"))
+                .andExpect(jsonPath("$.details.currentVersion").value(1));
+    }
+
     private byte[] createGuestExploration(String guestToken, String regionCode) throws Exception {
         var body = new java.util.LinkedHashMap<String, Object>();
         body.put("query", "한옥 여행을 하고 싶어요");
