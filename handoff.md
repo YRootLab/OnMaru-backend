@@ -11,6 +11,16 @@
 - 측정 결과: CI와 같은 외부 evidence mount에서 encrypted backup부터 restore·ledger replay·integrity suite까지 PASS, RPO 1초, checksum·복호화를 포함한 RTO 1초, deletion re-exposure 0, migration version `008`.
 - PR: #202 `feat(ops): PostgreSQL 복원 drill 자동화`를 `develop` 대상으로 생성했고 본문에 `Closes #94`와 검증 근거를 기록했다. 최신 `origin/develop`을 병합해 #134와의 `CHANGELOG.md`/`handoff.md` 충돌 후보를 해소했다.
 - 다음 단계: 갱신 commit push 후 PR #202의 `verify`/`restore-drill` CI, mergeability, review gate를 확인한다. 병합 뒤 #94 상태를 조회하고 `develop` 대상 auto-close가 적용되지 않으면 검증 근거를 comment로 남긴 뒤 수동 close한다.
+## Current Session Quick Handoff - 2026-09-16 Issue #105
+
+- 현재 작업 브랜치와 worktree: `feature/105-ai-proposal-validator`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-105-proposal-validator`.
+- 관련 Issue: #105 `[AI05] AI proposal schema·evidence allowlist validator 구현`; blocked-by #97/#91은 Closed이고 담당자·열린 중복 PR은 없다.
+- 구현 범위: outcome별 closed Pydantic schema, `$ref` 없는 Gemini response JSON Schema, candidate 최대12·board 최대3·evidence 최대3 제한, pin/exclude/candidate/evidence ownership과 revision 검증을 추가했다.
+- 실패 계약: duplicate/unknown/missing/over-limit/unsafe text를 typed `ProposalRejectionCode`로 분류하고 provider payload를 exception에 넣지 않는다. orchestration에는 `AI_INVALID_RESPONSE`만 노출해 자동 repair 없이 baseline으로 전환한다.
+- 보안 보강: extra field, tool call, 일반 URI scheme, protocol-relative·IP·IDN URL, HTML, Markdown 구조 문자·목록·Setext 구문, control character와 provider가 만든 region ref를 거부한다.
+- 검증: proposal adversarial/property-style 42개, FastAPI 전체 Ruff/mypy, pytest 104 passed·1 live smoke skipped를 통과했다.
+- 남은 경계: evidence ID ownership은 문장 의미의 claim support를 증명하지 않는다. 이 평가는 후속 #111 frozen eval이 소유하고 Spring은 canonical 상태를 다시 검증한다.
+- 다음 단계: `develop` 대상 PR #203의 CI와 필수 승인을 확인해 merge한다. Merge 후 #105 종료를 확인하면 #111과 #114가 dependency상 Ready가 된다.
 
 ## Current Session Quick Handoff - 2026-09-15 Issue #134
 
