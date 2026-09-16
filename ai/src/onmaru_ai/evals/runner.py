@@ -141,7 +141,9 @@ def _ndcg(retrieved_refs: tuple[str, ...], grades: Mapping[str, int]) -> float:
 
 
 def _discounted_gain(grades: tuple[int, ...]) -> float:
-    return sum((2**grade - 1) / math.log2(index + 2) for index, grade in enumerate(grades))
+    return math.fsum(
+        (2**grade - 1) / math.log2(index + 2) for index, grade in enumerate(grades)
+    )
 
 
 def _safety_violations(case: EvaluationCase) -> int:
