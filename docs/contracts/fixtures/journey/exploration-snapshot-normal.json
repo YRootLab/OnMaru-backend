@@ -30,6 +30,7 @@
       },
       "pinnedRefs": [],
       "excludedRefs": [],
+      "unavailableRefs": [],
       "execution": {"dataMode": "PUBLIC", "engine": "BASELINE", "rankingVersion": "baseline-v1", "datasetRevision": "dataset-20260915"},
       "latestRun": null,
       "pendingProposal": null,

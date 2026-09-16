@@ -35,14 +35,17 @@ public final class ExplorationController {
     private final ExplorationService explorationService;
     private final ExplorationActorResolver actorResolver;
     private final IdempotencyService idempotencyService;
+    private final ExplorationSnapshotHydrator snapshotHydrator;
 
     ExplorationController(
             ExplorationService explorationService,
             ExplorationActorResolver actorResolver,
-            IdempotencyService idempotencyService) {
+            IdempotencyService idempotencyService,
+            ExplorationSnapshotHydrator snapshotHydrator) {
         this.explorationService = explorationService;
         this.actorResolver = actorResolver;
         this.idempotencyService = idempotencyService;
+        this.snapshotHydrator = snapshotHydrator;
     }
 
     @PostMapping("/api/v1/explorations")
@@ -76,9 +79,22 @@ public final class ExplorationController {
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var actor = actorResolver.resolve(sessionToken, guestToken).actor();
+        var snapshot = explorationService.get(actor, explorationId);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(ExplorationResponse.from(explorationService.get(actor, explorationId)));
+                .body(ExplorationResponse.from(snapshot, snapshotHydrator.hydrate(snapshot)));
+    }
+
+    @GetMapping("/api/v1/explorations/{explorationId}/runs/{runId}")
+    ResponseEntity<ExplorationResponse.RunResponse> getRun(
+            @PathVariable UUID explorationId,
+            @PathVariable UUID runId,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
+        var actor = actorResolver.resolve(sessionToken, guestToken).actor();
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ExplorationResponse.RunResponse.from(explorationService.getRun(actor, explorationId, runId)));
     }
 
     @PostMapping("/api/v1/explorations/{explorationId}/turns")
