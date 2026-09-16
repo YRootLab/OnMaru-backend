@@ -9,8 +9,8 @@
 - 운영 증거: sanitized JSON에 source revision, artifact digest, RPO/RTO, aggregate integrity count만 기록한다. provider PITR은 hosting/WAL 근거가 없으므로 `UNAVAILABLE_UNTIL_HOSTING_SELECTED`로 fail-closed다.
 - 로컬 통합 drill: ARM 개발 환경의 amd64 PostGIS emulation과 entrypoint init race, SQL directory execute permission, preinstalled extension 충돌을 재현해 각각 platform 지정, init-complete gate, `a+rX`, `template0` target으로 교정했다.
 - 측정 결과: CI와 같은 외부 evidence mount에서 encrypted backup부터 restore·ledger replay·integrity suite까지 PASS, RPO 1초, checksum·복호화를 포함한 RTO 1초, deletion re-exposure 0, migration version `008`.
-- 병합 상태: PR #200은 develop에 병합되고 Issue #139는 reconcile workflow로 Closed 됐다. #196/#198/#199는 approval 없이 열린 상태이며 최신 develop과 충돌해 각 작업 branch 갱신이 필요하다.
-- 다음 단계: 전체 repository verification 후 #94 PR을 `develop` 대상으로 만들고 `yshls` review를 요청한다. CI와 최소 1명 approval이 모두 확인된 뒤에만 병합하고, post-merge reconcile로 #94 종료를 확인한다.
+- PR: #202 `feat(ops): PostgreSQL 복원 drill 자동화`를 `develop` 대상으로 생성했고 본문에 `Closes #94`와 검증 근거를 기록했다. 최신 `origin/develop`을 병합해 #134와의 `CHANGELOG.md`/`handoff.md` 충돌 후보를 해소했다.
+- 다음 단계: 갱신 commit push 후 PR #202의 `verify`/`restore-drill` CI, mergeability, review gate를 확인한다. 병합 뒤 #94 상태를 조회하고 `develop` 대상 auto-close가 적용되지 않으면 검증 근거를 comment로 남긴 뒤 수동 close한다.
 
 ## Current Session Quick Handoff - 2026-09-15 Issue #134
 
