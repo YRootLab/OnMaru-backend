@@ -2,7 +2,7 @@
 
 ## 경계
 
-`ai/src/onmaru_ai/providers/gemini`은 Gemini를 신뢰하지 않는 structured proposal source로 다룬다. 호출은 `generateContent` 한 번으로 제한하고 provider-selected tool을 전달하지 않는다. policy, versioned few-shot, untrusted data를 분리해 보내며 응답 JSON의 business allowlist 검증은 후속 Issue #105가 소유한다.
+`ai/src/onmaru_ai/providers/gemini`은 Gemini를 신뢰하지 않는 structured proposal source로 다룬다. 호출은 `generateContent` 한 번으로 제한하고 provider-selected tool을 전달하지 않는다. policy, versioned few-shot, untrusted data를 분리해 보내며 응답 JSON은 Issue #105의 [proposal validation 계약](proposal-validation.md)에 따라 candidate와 evidence allowlist를 다시 검증한다.
 
 Google 공식 REST 계약에 따라 API key는 `x-goog-api-key` header로 보내고 `generationConfig.responseMimeType=application/json`과 `responseJsonSchema`를 사용한다.
 
