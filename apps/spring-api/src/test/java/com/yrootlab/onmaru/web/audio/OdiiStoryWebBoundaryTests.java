@@ -2,9 +2,12 @@ package com.yrootlab.onmaru.web.audio;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.OnMaruApplication;
+import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLink;
+import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLinkQuery;
+import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkMatchMethod;
+import com.yrootlab.onmaru.audio.placelink.CanonicalPlaceLinkCard;
 import com.yrootlab.onmaru.audio.query.OdiiActiveSnapshot;
 import com.yrootlab.onmaru.audio.query.OdiiCoordinates;
-import com.yrootlab.onmaru.audio.query.OdiiPlaceLinkResolver;
 import com.yrootlab.onmaru.audio.query.OdiiRegionRef;
 import com.yrootlab.onmaru.audio.query.OdiiSavedStateLookup;
 import com.yrootlab.onmaru.audio.query.OdiiStoryProjection;
@@ -26,9 +29,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.nullValue;
@@ -255,10 +260,21 @@ class OdiiStoryWebBoundaryTests {
 
         @Bean
         @Primary
-        OdiiPlaceLinkResolver testOdiiPlaceLinkResolver() {
+        ApprovedAudioPlaceLinkQuery testApprovedAudioPlaceLinkQuery() {
             return (spotId, memberId) -> spotId.equals("odii-spot-jeonju")
-                    ? "p-jeonju-hanok-village"
-                    : null;
+                    ? Optional.of(new ApprovedAudioPlaceLink(
+                            spotId,
+                            AudioPlaceLinkMatchMethod.MANUAL_REFERENCE,
+                            BigDecimal.ONE,
+                            Instant.parse("2026-09-15T00:00:00Z"),
+                            new CanonicalPlaceLinkCard(
+                                    "p-jeonju-hanok-village",
+                                    "전주 한옥마을",
+                                    "한옥/고택",
+                                    "전북 전주시",
+                                    "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+                                    memberId.isPresent())))
+                    : Optional.empty();
         }
 
         @Bean

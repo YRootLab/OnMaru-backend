@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.audio.query;
 
+import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLinkQuery;
 import com.yrootlab.onmaru.audio.sync.AudioStatus;
 
 import java.util.Comparator;
@@ -21,19 +22,19 @@ public final class OdiiStoryQueryService {
 
     private final OdiiStoryQueryStore store;
     private final OdiiSavedStateLookup savedStateLookup;
-    private final OdiiPlaceLinkResolver placeLinkResolver;
+    private final ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery;
     private final OdiiPublicAudioUrlPolicy audioUrlPolicy;
     private final OdiiStoryCursorCodec cursorCodec;
 
     public OdiiStoryQueryService(
             OdiiStoryQueryStore store,
             OdiiSavedStateLookup savedStateLookup,
-            OdiiPlaceLinkResolver placeLinkResolver,
+            ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery,
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
             OdiiStoryCursorCodec cursorCodec) {
         this.store = store;
         this.savedStateLookup = savedStateLookup;
-        this.placeLinkResolver = placeLinkResolver;
+        this.approvedPlaceLinkQuery = approvedPlaceLinkQuery;
         this.audioUrlPolicy = audioUrlPolicy;
         this.cursorCodec = cursorCodec;
     }
@@ -168,7 +169,9 @@ public final class OdiiStoryQueryService {
                 story.coordinates(),
                 story.durationSeconds(),
                 story.imageUrl(),
-                placeLinkResolver.approvedPlaceId(story.spotId(), effectiveMemberId),
+                approvedPlaceLinkQuery.findApprovedPlace(story.spotId(), effectiveMemberId)
+                        .map(link -> link.place().placeId())
+                        .orElse(null),
                 savedStateLookup.savedBy(effectiveMemberId, story.storyId()));
     }
 

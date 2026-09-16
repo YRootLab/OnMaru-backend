@@ -1,7 +1,7 @@
 package com.yrootlab.onmaru.web.audio;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yrootlab.onmaru.audio.query.OdiiPlaceLinkResolver;
+import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLinkQuery;
 import com.yrootlab.onmaru.audio.query.OdiiPublicAudioUrlPolicy;
 import com.yrootlab.onmaru.audio.query.OdiiSavedStateLookup;
 import com.yrootlab.onmaru.audio.query.OdiiStoryCursorCodec;
@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Clock;
+import java.util.Optional;
 import java.util.Set;
 
 @Configuration
@@ -41,16 +42,17 @@ class OdiiStoryConfiguration {
     OdiiStoryQueryService odiiStoryQueryService(
             ObjectProvider<OdiiStoryQueryStore> storyQueryStores,
             ObjectProvider<OdiiSavedStateLookup> savedStateLookups,
-            ObjectProvider<OdiiPlaceLinkResolver> placeLinkResolvers,
+            ObjectProvider<ApprovedAudioPlaceLinkQuery> approvedPlaceLinkQueries,
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
             OdiiStoryCursorCodec cursorCodec) {
         var storyQueryStore = storyQueryStores.getIfAvailable(UnavailableOdiiStoryQueryStore::new);
         var savedStateLookup = savedStateLookups.getIfAvailable(() -> (memberId, storyId) -> false);
-        var placeLinkResolver = placeLinkResolvers.getIfAvailable(() -> (spotId, memberId) -> null);
+        var approvedPlaceLinkQuery = approvedPlaceLinkQueries.getIfAvailable(
+                () -> (spotId, memberId) -> Optional.empty());
         return new OdiiStoryQueryService(
                 storyQueryStore,
                 savedStateLookup,
-                placeLinkResolver,
+                approvedPlaceLinkQuery,
                 audioUrlPolicy,
                 cursorCodec);
     }

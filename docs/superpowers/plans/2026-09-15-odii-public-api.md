@@ -204,3 +204,16 @@ gh pr create --base develop --head feature/103-odii-public-api --title "feat(aud
 - transcript provenance와 공개 audio URL 정책을 적용했습니다.
 - OpenAPI fixture와 runtime serializer를 함께 검증합니다."
 ```
+
+### Task 5: Approved Canonical Place Query Integration
+
+**Files:**
+- Modify: `modules/audio/src/main/java/com/yrootlab/onmaru/audio/query/OdiiStoryQueryService.java`
+- Modify: `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/audio/OdiiStoryConfiguration.java`
+- Delete: `modules/audio/src/main/java/com/yrootlab/onmaru/audio/query/OdiiPlaceLinkResolver.java`
+- Modify: Odii module and web boundary tests
+
+- [x] **Step 1: Merge the #104 implementation from `origin/develop`**
+- [x] **Step 2: Change tests to require `ApprovedAudioPlaceLinkQuery` and verify RED**
+- [x] **Step 3: Replace the temporary resolver with the approved-link query**
+- [x] **Step 4: Verify focused module and Spring web boundary tests**

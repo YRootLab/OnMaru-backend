@@ -1,9 +1,13 @@
 package com.yrootlab.onmaru.audio.query;
 
+import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLink;
+import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkMatchMethod;
+import com.yrootlab.onmaru.audio.placelink.CanonicalPlaceLinkCard;
 import com.yrootlab.onmaru.audio.sync.AudioStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,8 +38,8 @@ class OdiiStoryQueryServiceTests {
                 (memberId, storyId) -> memberId.filter(MEMBER_ID::equals).isPresent()
                         && storyId.equals("odii-story-jeonju-hanok-01"),
                 (spotId, memberId) -> spotId.equals("odii-spot-jeonju")
-                        ? "p-jeonju-hanok-village"
-                        : null,
+                        ? Optional.of(approvedPlaceLink(spotId))
+                        : Optional.empty(),
                 new OdiiPublicAudioUrlPolicy(Set.of("cdn.onmaru.example")),
                 cursorCodec);
     }
@@ -253,6 +257,21 @@ class OdiiStoryQueryServiceTests {
 
     private OdiiActiveSnapshot snapshot(UUID revisionId, OdiiStoryProjection... stories) {
         return new OdiiActiveSnapshot(revisionId, List.of(stories));
+    }
+
+    private ApprovedAudioPlaceLink approvedPlaceLink(String spotId) {
+        return new ApprovedAudioPlaceLink(
+                spotId,
+                AudioPlaceLinkMatchMethod.MANUAL_REFERENCE,
+                BigDecimal.ONE,
+                Instant.parse("2026-09-15T00:00:00Z"),
+                new CanonicalPlaceLinkCard(
+                        "p-jeonju-hanok-village",
+                        "전주 한옥마을",
+                        "한옥/고택",
+                        "전북 전주시",
+                        "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+                        false));
     }
 
     private OdiiStoryProjection story(

@@ -4,7 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
-- Issue #103의 active Odii story 목록·상세 조회, 언어 fallback, 자막 provenance, 안전한 audio URL 정책을 추가했다.
+- Issue #103의 active Odii story 목록·상세 조회, 언어 fallback, 자막 provenance, 안전한 audio URL 정책과 승인된 canonical place 연결을 추가했다.
 - Issue #104의 Odii–canonical place 후보 검수 상태, 단일 승인 projection, 공개 장소 hydration을 추가한다.
 - Issue #134의 Journey actions·SavedJourney OpenAPI와 stateVersion·idempotency·재개 fixture 검증을 추가했다.
 - Issue #91의 Gemini structured-output adapter, timeout·cancel·typed failure와 sanitized usage/cost 계측을 추가했다.
