@@ -12,6 +12,7 @@
 - 독립 리뷰: raw input policy 누락, Idempotency-Key 미적용, 미등록 guest cookie 신뢰, baseVersion 기본값 승인, 비계약 오류 code를 보완했다. null replay와 canonical clarification answer도 함께 교정했다.
 - 최종 리뷰 보완: clarification 답변은 최신 `COMPLETED/CLARIFICATION_REQUIRED` run의 실제 ID와 일치할 때만 승인하고 stale/unknown/non-pending 답변은 409로 거절한다. control character와 create/turn/nested unknown field는 저장·dispatch 전에 422로 거절하며, CSRF 403에도 `Cache-Control: no-store`를 적용했다.
 - 검증: 최신 `origin/develop` 병합과 최종 리뷰 보완 뒤 격리 Gradle home 전체 Java 41 tasks, focused domain/web/CSRF/ArchUnit 24 tasks, FastAPI Ruff·mypy와 pytest 104 passed/1 skipped, Node 37 tests, planning/Odii fixture, 전체 contract/generated artifact, branch parser `101`, `git diff --check`를 통과했다. 첫 전체 Java 실행의 result-file `NoSuchFileException` 뒤 `cleanTest` Spring 전체와 전체 41 tasks를 순차 재실행해 성공을 확인했다.
+- 최신 통합: PR #205 merge commit `56f6d54`를 union merge해 #101/#111 work log를 모두 보존했다. develop 변경은 AI/CI/문서에 한정되며, #101 focused Java 24 tasks와 최신 AI 125 passed/1 skipped, offline eval 5 gates, Node/contract/planning/Odii 검증을 재통과했다.
 - 다음 단계: branch를 push하고 `develop` 대상 PR을 만든다. 필수 CI와 approval 전에는 merge하지 않는다.
 ## Current Session Quick Handoff - 2026-09-16 Issue #111
 
