@@ -40,6 +40,7 @@ REQUIRED_SCHEMAS = {
     "RegionCountPage",
     "OdiiStoryPage",
     "OdiiStoryDetail",
+    "TranscriptStatus",
     "ObservationPage",
     "HeatmapResponse",
     "Error",
@@ -51,6 +52,7 @@ REQUIRED_FIXTURES = {
     "region-count-normal",
     "odii-stories-normal",
     "odii-story-detail-normal",
+    "odii-story-detail-missing-transcript",
     "odii-story-missing-language",
     "odii-story-not-found",
     "insights-observations-normal",
@@ -262,6 +264,11 @@ def validate_openapi(openapi: dict[str, Any]) -> set[str]:
         properties = schemas.get(schema_name, {}).get("properties", {})
         if "language" not in properties or "languageStatus" not in properties:
             fail(f"{schema_name} must expose language and languageStatus")
+    if "transcriptStatus" not in schemas["OdiiStoryDetail"].get("required", []):
+        fail("OdiiStoryDetail must require transcriptStatus")
+    error_codes = schemas["Error"]["properties"]["code"].get("enum", [])
+    if "CURSOR_INVALID" not in error_codes:
+        fail("R2 Error.code must include CURSOR_INVALID")
 
     assert_no_forbidden_public_keys(openapi, str(OPENAPI_PATH.relative_to(ROOT)))
     return set(schemas.keys()).union(response_schema_names(openapi))
@@ -303,6 +310,10 @@ def validate_fixtures(
         if not isinstance(component_schemas.get(schema_name), dict):
             fail(f"{source} references non-object schema {schema_name!r}")
         validate_fixture_body_json_schema(response["body"], schema_name, component_schemas, source)
+        if schema_name == "OdiiStoryDetail":
+            body = response["body"]
+            if body.get("transcriptStatus") == "MISSING" and body.get("transcript") != []:
+                fail(f"{source} must use an empty transcript when transcriptStatus is MISSING")
 
 
 def main() -> None:

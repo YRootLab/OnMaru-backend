@@ -1,5 +1,17 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #103
+
+- 현재 작업 브랜치와 worktree: `feature/103-odii-public-api`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-103-odii-public-api`.
+- 관련 Issue: #103 `[A03] Odii story·음원·대본 공개 API 구현`; blocked-by #96/#70/#133은 모두 Closed이고 열린 중복 PR은 없다.
+- 구현 범위: active Odii revision 기반 공개 story 목록·상세 조회, category/region/cursor 필터, 요청 언어 exact/`ko-KR` fallback, transcript `OFFICIAL`/`ESTIMATED`/`MISSING` provenance, nullable place link·saved state를 추가했다.
+- 공개 경계: `ACTIVE` story·spot만 노출하고 `HIDDEN`/`DELETED`는 404로 처리한다. provider ID·secret query가 포함된 audio URL은 거부하며 production query store 미연결 시 503으로 fail-closed한다.
+- 계약 정합성: R2 OpenAPI에 `transcriptStatus`와 `CURSOR_INVALID`를 추가하고 normal/missing transcript fixture 및 validator를 갱신했다.
+- 통합 상태: 최신 `origin/develop`을 merge commit `53ea9b1`로 충돌 없이 병합했다.
+- 최종 검증: 최신 develop 기준 Gradle 41 tasks, Node 35 tests, planning/Odii fixture, contract pytest 9개, R1/identity/R2 contract, FastAPI 62 passed·1 live smoke skipped, Ruff/mypy, branch parser `103`, `git diff --check`를 통과했다. Contract 검증에는 기존 Python 3.9 LibreSSL warning만 출력됐다.
+- review: active revision·언어 fallback·cursor 결속·비공개/unsafe URL 차단·missing transcript·fail-closed 경계를 점검했고 남은 Critical/Important finding은 없다. 최신 공통 opaque request ID 계약과 어긋난 Odii assertion 3개를 수정해 focused/전체 테스트를 재통과했다.
+- 다음 단계: 커밋·push하고 `develop` 대상 PR을 `Closes #103`으로 생성한다.
+
 ## Current Session Quick Handoff - 2026-09-15 Issue #91
 
 - 현재 작업 브랜치와 worktree: `feature/91-gemini-provider`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-91-gemini-provider`.

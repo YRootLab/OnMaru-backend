@@ -37,6 +37,7 @@
         "savedByMe": false
       },
       "audioUrl": "https://cdn.onmaru.example/odii/odii-story-jeonju-hanok-01.mp3",
+      "transcriptStatus": "OFFICIAL",
       "transcript": [
         {
           "index": 0,
