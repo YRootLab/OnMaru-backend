@@ -1,5 +1,13 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #140
+
+- 현재 작업 브랜치와 worktree: `feature/140-r2-contract-e2e`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-140-r2-contract-e2e`.
+- 관련 Issue: #140 `[M09] R2 지도·후기·Odii·찜 통합 계약 E2E 게이트`; blocked-by #102/#122/#138/#139/#103/#104/#108/#113/#69는 모두 Closed임을 확인했다.
+- 구현 범위: `testing/e2e/r2/contract-gate.json` manifest, `scripts/test/validate-r2-e2e-gate.py`, `docs/operations/release-evidence/r2/README.md`, `R2ContractE2ETests` runtime suite를 추가하고 `scripts/verify-contracts`에 R2 E2E gate를 연결했다.
+- runtime suite: `public-region-map-insights`, `member-review-odii-save`, `moderation-hidden-review`, `source-outage` 4개 시나리오가 region/map/review/Odii/insights(save 포함)/moderation/authorization/CSRF/cursor/error-envelope를 함께 검증한다. 관측 `MISSING`과 `STALE`을 fixture와 runtime serializer shape 양쪽에서 비교해 drift를 잡는다.
+- 검증: R2 focused Spring 4개 scenario, Insights focused test, 최신 develop 통합 뒤 전체 Gradle 44 tasks(PostgreSQL Testcontainers 포함), `scripts/verify-contracts`, branch parser `140`, `git diff --check`를 통과했다. `scripts/verify-contracts`의 urllib3 LibreSSL 문구는 기존 환경 경고이며 검증 실패가 아니다.
+- 다음 단계: commit/push 후 `develop` 대상 PR의 필수 CI `verify`와 approval을 확인한다. 승인 전에는 merge하지 않는다.
 ## Current Session Quick Handoff - 2026-09-16 Issue #106
 
 - 현재 작업 브랜치와 worktree: `feature/106-corpus-manifest-sync`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-106-corpus-manifest-sync`.
