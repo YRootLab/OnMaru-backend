@@ -3,7 +3,7 @@
 ## Current Session Quick Handoff - 2026-09-16 Issue #111
 
 - 병합 후 final audit: `fix/111-eval-text-safety`에서 Unicode 접두어 뒤 ASCII URI scheme을 공용 text safety가 놓치지 않도록 보강하고, offline launcher가 Python 3.11 이하와 3.13 이상 모두 `uv` Python 3.12로 재실행하도록 shell regression test와 CI를 추가했다.
-- final audit 재리뷰: 모든 ASCII scheme token을 scan해 기본 거절하고 exact title-case prose label 5개만 단일 행 plain payload로 허용한다. URI 구조·nested scheme·lowercase scheme은 거절한다. focused proposal/eval 112개, FastAPI 전체 174 passed·1 opt-in live smoke skipped, Ruff/mypy, launcher shell test, offline 5 gates·schema/byte 재현성을 통과했다.
+- final audit 재리뷰: 모든 ASCII scheme token을 scan해 기본 거절하고 exact title-case prose label 5개만 단일 행 plain payload로 허용한다. URI 구조·nested scheme·lowercase scheme과 `splitlines()`가 인식하는 Unicode line boundary는 거절한다. focused proposal/eval 118개, FastAPI 전체 180 passed·1 opt-in live smoke skipped, Ruff/mypy, launcher shell test, offline 5 gates·schema/byte 재현성을 통과했다.
 - 현재 작업 브랜치와 worktree: `fix/111-eval-text-safety`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/fix-111-eval-text-safety`.
 - 관련 Issue: #111 `[AI06] AI 품질·안전·비용·latency 평가 harness 구축`; blocked-by #105는 Closed이고 담당자·열린 중복 PR은 없다.
 - 구현 범위: model·prompt·ranking·dataset version을 고정한 synthetic held-out seed, recall@5·nDCG@3·human claim support·evidence ID precision·allowlist/pin/exclude/outcome safety·p95·평균/단건 비용 gate를 추가했다.

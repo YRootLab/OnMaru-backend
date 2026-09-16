@@ -22,7 +22,11 @@ def _is_allowed_prose_label(match: re.Match[str], value: str) -> bool:
     remainder = value[match.end() :]
     if match.group("label") not in _PROSE_LABELS:
         return False
-    if not remainder or not remainder[0].isspace() or "\n" in remainder or "\r" in remainder:
+    if (
+        not remainder
+        or not remainder[0].isspace()
+        or remainder.splitlines() != [remainder]
+    ):
         return False
     payload = remainder.strip()
     return bool(payload) and _URI_STRUCTURE.search(payload) is None
