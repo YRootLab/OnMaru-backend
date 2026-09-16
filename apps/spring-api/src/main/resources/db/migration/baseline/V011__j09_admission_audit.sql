@@ -1,4 +1,4 @@
--- onmaru-checksum: j09-v010-20260916
+-- onmaru-checksum: j09-v011-20260916
 -- Issue: #117 Guest/member AI daily quota admission audit.
 
 CREATE TABLE onmaru.operations_admission_audit (
@@ -42,7 +42,7 @@ INSERT INTO onmaru_registry.migration_version_reservations (
     issue_number,
     description
 ) VALUES (
-    '010',
+    '011',
     'J09',
     117,
     'Guest/member AI daily quota admission audit'

@@ -16,6 +16,7 @@ spring:
 onmaru:
   audio:
     dataset: ${ONMARU_AUDIO_DATASET:odii-audio}
+    category: ${ONMARU_AUDIO_CATEGORY:오디오 관광}
     public-hosts: ${ONMARU_AUDIO_PUBLIC_HOSTS:}
   tourapi:
     client:
@@ -29,6 +30,11 @@ onmaru:
       attempt-timeout: 5s
       page-timeout: 12s
       retry-count: 2
+    sync:
+      base-uri: ${ONMARU_ODII_BASE_URI:https://apis.data.go.kr/B551011/Odii}
+      mobile-app: ${ONMARU_ODII_MOBILE_APP:OnMaru}
+      keyword: ${ONMARU_ODII_KEYWORD:한옥}
+      page-size: ${ONMARU_ODII_PAGE_SIZE:100}
 
 management:
   otlp:

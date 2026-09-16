@@ -23,13 +23,23 @@ public final class ActiveRevisionOdiiStoryQueryStore implements OdiiStoryQuerySt
 
     private final AudioRevisionStore revisionStore;
     private final String dataset;
+    private final OdiiProjectionMetadataResolver metadataResolver;
 
     public ActiveRevisionOdiiStoryQueryStore(AudioRevisionStore revisionStore, String dataset) {
+        this(revisionStore, dataset, ignored -> new OdiiProjectionMetadata(CATEGORY, COUNTRY_REGION));
+    }
+
+    public ActiveRevisionOdiiStoryQueryStore(
+            AudioRevisionStore revisionStore,
+            String dataset,
+            OdiiProjectionMetadataResolver metadataResolver
+    ) {
         this.revisionStore = Objects.requireNonNull(revisionStore, "revisionStore");
         if (dataset == null || dataset.isBlank()) {
             throw new IllegalArgumentException("dataset must not be blank");
         }
         this.dataset = dataset;
+        this.metadataResolver = Objects.requireNonNull(metadataResolver, "metadataResolver");
     }
 
     @Override
@@ -61,17 +71,22 @@ public final class ActiveRevisionOdiiStoryQueryStore implements OdiiStoryQuerySt
                 ? OdiiTranscriptStatus.OFFICIAL
                 : OdiiTranscriptStatus.MISSING;
         List<OdiiTranscriptLine> transcript = transcriptStatus == OdiiTranscriptStatus.MISSING
-                || story.script() == null || story.script().isBlank()
                 ? List.of()
-                : List.of(new OdiiTranscriptLine(0, 0, story.script()));
+                : story.subtitleLines().stream()
+                        .map(line -> new OdiiTranscriptLine(
+                                line.position(),
+                                line.startSeconds() == null ? 0 : line.startSeconds().doubleValue(),
+                                line.text()))
+                        .toList();
+        OdiiProjectionMetadata metadata = metadataResolver.resolve(spot);
         return new OdiiStoryProjection(
                 publicId("odii-story-", story.identity().provider(), story.identity().stid()),
                 publicId("odii-spot-", spot.identity().provider(), spot.identity().tid()),
                 publicLanguage(story.identity().langCode()),
                 spot.title(),
                 story.title(),
-                CATEGORY,
-                COUNTRY_REGION,
+                metadata.category(),
+                metadata.region(),
                 new OdiiCoordinates(spot.latitude().doubleValue(), spot.longitude().doubleValue()),
                 story.durationSeconds(),
                 story.imageUrl(),
