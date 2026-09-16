@@ -12,6 +12,20 @@
 - 검증: 신규 eval 11개, FastAPI 전체 115 passed·1 opt-in live smoke skipped, Ruff/mypy, Node 37개, contract validator 9개, planning/Odii, offline 5 gates·schema drift, Gradle 전체 41 tasks를 통과했다.
 - 다음 단계: `develop` 대상 PR의 `verify` CI와 최소 1명 approval을 확인한다. Merge 후 #111 상태를 조회하고 `develop` 대상 auto-close가 적용되지 않으면 정책에 따라 검증 근거를 남긴 뒤 수동 close 여부를 조정한다.
 
+## Current Session Quick Handoff - 2026-09-16 Issue #103
+
+- 현재 작업 브랜치와 worktree: `feature/103-odii-public-api`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-103-odii-public-api`.
+- 관련 Issue: #103 `[A03] Odii story·음원·대본 공개 API 구현`; blocked-by #96/#70/#133은 모두 Closed이고 열린 중복 PR은 없다.
+- 구현 범위: active Odii revision 기반 공개 story 목록·상세 조회, category/region/cursor 필터, 요청 언어 exact/`ko-KR` fallback, transcript `OFFICIAL`/`ESTIMATED`/`MISSING` provenance, nullable place link·saved state를 추가했다.
+- #104 통합: 최신 `origin/develop`의 `ApprovedAudioPlaceLinkQuery`를 직접 소비한다. 임시 resolver를 제거했으며 검수 승인된 단일 canonical place만 `linkedPlaceId`로 노출하고, 미승인·삭제된 연결은 `null`로 유지한다.
+- 공개 경계: `ACTIVE` story·spot만 노출하고 `HIDDEN`/`DELETED`는 404로 처리한다. provider ID·secret query가 포함된 audio URL은 거부하고 unsafe image URL은 `null`로 축소한다.
+- production adapter: #96 `AudioRevisionStore`의 active snapshot을 opaque public ID와 공개 projection으로 변환하는 `ActiveRevisionOdiiStoryQueryStore`를 Spring bean으로 연결했다. active revision 데이터가 비어 있을 때만 503으로 fail-closed한다.
+- 계약 정합성: R2 OpenAPI에 `transcriptStatus`와 `CURSOR_INVALID`를 추가하고 normal/missing transcript fixture 및 validator를 갱신했다.
+- 통합 상태: #104·#105·#94가 포함된 최신 `origin/develop` `92ef2a1`을 merge commit `1031c06`으로 충돌 없이 병합했고, 공유 로그를 보존했다.
+- 최종 검증: latest develop과 reviewer follow-up 기준 Gradle 41 tasks, Node 37 tests, planning/Odii fixture, contract pytest 9개, R1/identity/Journey 23 fixtures/R2 contract, FastAPI 104 passed·1 live smoke skipped, Ruff/mypy, branch parser `103`, `git diff --check`를 통과했다. Contract 검증에는 기존 Python 3.9 LibreSSL warning만 출력됐다.
+- review: 독립 리뷰 Important 2건인 unsafe image URL 노출과 production active revision adapter 부재를 TDD로 수정했다. provider identity는 언어 간 동일한 결정적 opaque UUID로 변환해 공개 응답에 원본 ID를 노출하지 않는다.
+- PR: #204 `feat(audio): Odii 공개 조회 API 구현`을 `develop` 대상으로 생성했으며 본문에 `Closes #103`, acceptance criteria와 전체 검증 근거를 기록했다.
+- 다음 단계: reviewer follow-up 전체 검증 후 commit/push하고 PR #204 본문을 갱신한다. 필수 `verify` CI 재통과와 최소 1명 approval을 확인한 뒤 병합하고 #103 상태를 reconcile한다.
 ## Current Session Quick Handoff - 2026-09-16 Issue #94
 
 - 현재 작업 브랜치와 worktree: `feature/94-postgres-restore-drill`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-94-postgres-restore-drill`.
