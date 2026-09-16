@@ -237,7 +237,18 @@ components:
         clientTurnId: { type: string, format: uuid }
         baseVersion: { type: integer, minimum: 0 }
         query: { type: string, minLength: 1, maxLength: 1000 }
-        clarificationAnswer: { type: [object, 'null'] }
+        clarificationAnswer:
+          oneOf:
+            - $ref: '#/components/schemas/ClarificationAnswer'
+            - type: 'null'
+    ClarificationAnswer:
+      type: object
+      additionalProperties: false
+      required: [clarificationId]
+      properties:
+        clarificationId: { type: string, minLength: 1 }
+        choiceId: { type: [string, 'null'], minLength: 1 }
+        text: { type: [string, 'null'], minLength: 1, maxLength: 1000 }
     ActionCommandRequest:
       type: object
       additionalProperties: false

@@ -1,8 +1,12 @@
 package com.yrootlab.onmaru.web.exploration;
 
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yrootlab.onmaru.journey.exploration.CreateExplorationCommand;
 import com.yrootlab.onmaru.journey.exploration.CreateExplorationTurnCommand;
 import com.yrootlab.onmaru.journey.exploration.ExplorationInputInvalidException;
+import com.yrootlab.onmaru.journey.exploration.ExplorationInputRejectedException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationService;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
@@ -19,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -47,6 +53,7 @@ public final class ExplorationController {
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var key = IdempotencyKey.fromHeader(idempotencyKey);
         var resolved = actorResolver.resolve(sessionToken, guestToken);
+        rejectUnknownFields(body);
         var command = body == null
                 ? new CreateExplorationCommand(null, null, null)
                 : new CreateExplorationCommand(body.query(), body.locale(), body.regionCode());
@@ -86,18 +93,21 @@ public final class ExplorationController {
         if (body == null || body.baseVersion() == null) {
             throw new ExplorationInputInvalidException(body == null ? "body" : "baseVersion");
         }
+        rejectUnknownFields(body);
+        rejectUnknownFields(body.clarificationAnswer());
         var command = new CreateExplorationTurnCommand(
                 body.clientTurnId(),
                 body.baseVersion(),
                 body.query(),
-                regionCode(body.clarificationAnswer()));
+                regionCode(body.clarificationAnswer()),
+                body.clarificationAnswer() == null ? null : body.clarificationAnswer().clarificationId());
         var path = "/api/v1/explorations/" + explorationId + "/turns";
         var response = idempotencyService.execute(new IdempotencyCommand(
                 key.value(),
                 actor.type() + ":" + actor.subject(),
                 "POST",
                 path,
-                IdempotencyFingerprint.sha256("POST", path, "exploration.turn", body)), () -> {
+                IdempotencyFingerprint.sha256("POST", path, "exploration.turn", command)), () -> {
             var snapshot = explorationService.createTurn(actor, explorationId, command);
             return IdempotentResponse.accepted(RunAcceptedResponse.from(snapshot));
         });
@@ -107,9 +117,6 @@ public final class ExplorationController {
     private String regionCode(ClarificationAnswer answer) {
         if (answer == null) {
             return null;
-        }
-        if (!"region".equals(answer.clarificationId())) {
-            throw new ExplorationInputInvalidException("clarificationAnswer.clarificationId");
         }
         var hasChoice = answer.choiceId() != null && !answer.choiceId().isBlank();
         var hasText = answer.text() != null && !answer.text().isBlank();
@@ -141,16 +148,134 @@ public final class ExplorationController {
                 .body((RunAcceptedResponse) response.body());
     }
 
-    record CreateRequest(String query, String locale, String regionCode) {
+    private void rejectUnknownFields(StrictRequest body) {
+        if (body != null && !body.unknownFields().isEmpty()) {
+            throw new ExplorationInputRejectedException("VALIDATION_ERROR");
+        }
     }
 
-    record CreateTurnRequest(
-            UUID clientTurnId,
-            Integer baseVersion,
-            String query,
-            ClarificationAnswer clarificationAnswer) {
+    private interface StrictRequest {
+        Set<String> unknownFields();
     }
 
-    record ClarificationAnswer(String clarificationId, String choiceId, String text) {
+    static final class CreateRequest implements StrictRequest {
+        private final String query;
+        private final String locale;
+        private final String regionCode;
+        private final Set<String> unknownFields = new LinkedHashSet<>();
+
+        @JsonCreator
+        CreateRequest(
+                @JsonProperty("query") String query,
+                @JsonProperty("locale") String locale,
+                @JsonProperty("regionCode") String regionCode) {
+            this.query = query;
+            this.locale = locale;
+            this.regionCode = regionCode;
+        }
+
+        String query() {
+            return query;
+        }
+
+        String locale() {
+            return locale;
+        }
+
+        String regionCode() {
+            return regionCode;
+        }
+
+        public Set<String> unknownFields() {
+            return Set.copyOf(unknownFields);
+        }
+
+        @JsonAnySetter
+        void unknown(String name, Object ignored) {
+            unknownFields.add(name);
+        }
+    }
+
+    static final class CreateTurnRequest implements StrictRequest {
+        private final UUID clientTurnId;
+        private final Integer baseVersion;
+        private final String query;
+        private final ClarificationAnswer clarificationAnswer;
+        private final Set<String> unknownFields = new LinkedHashSet<>();
+
+        @JsonCreator
+        CreateTurnRequest(
+                @JsonProperty("clientTurnId") UUID clientTurnId,
+                @JsonProperty("baseVersion") Integer baseVersion,
+                @JsonProperty("query") String query,
+                @JsonProperty("clarificationAnswer") ClarificationAnswer clarificationAnswer) {
+            this.clientTurnId = clientTurnId;
+            this.baseVersion = baseVersion;
+            this.query = query;
+            this.clarificationAnswer = clarificationAnswer;
+        }
+
+        UUID clientTurnId() {
+            return clientTurnId;
+        }
+
+        Integer baseVersion() {
+            return baseVersion;
+        }
+
+        String query() {
+            return query;
+        }
+
+        ClarificationAnswer clarificationAnswer() {
+            return clarificationAnswer;
+        }
+
+        public Set<String> unknownFields() {
+            return Set.copyOf(unknownFields);
+        }
+
+        @JsonAnySetter
+        void unknown(String name, Object ignored) {
+            unknownFields.add(name);
+        }
+    }
+
+    static final class ClarificationAnswer implements StrictRequest {
+        private final String clarificationId;
+        private final String choiceId;
+        private final String text;
+        private final Set<String> unknownFields = new LinkedHashSet<>();
+
+        @JsonCreator
+        ClarificationAnswer(
+                @JsonProperty("clarificationId") String clarificationId,
+                @JsonProperty("choiceId") String choiceId,
+                @JsonProperty("text") String text) {
+            this.clarificationId = clarificationId;
+            this.choiceId = choiceId;
+            this.text = text;
+        }
+
+        String clarificationId() {
+            return clarificationId;
+        }
+
+        String choiceId() {
+            return choiceId;
+        }
+
+        String text() {
+            return text;
+        }
+
+        public Set<String> unknownFields() {
+            return Set.copyOf(unknownFields);
+        }
+
+        @JsonAnySetter
+        void unknown(String name, Object ignored) {
+            unknownFields.add(name);
+        }
     }
 }

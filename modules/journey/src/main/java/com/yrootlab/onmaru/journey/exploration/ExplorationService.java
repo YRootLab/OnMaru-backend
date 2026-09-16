@@ -60,7 +60,7 @@ public final class ExplorationService {
             CreateExplorationTurnCommand command) {
         var state = ownedState(actor, explorationId);
         validateTurn(command);
-        var query = intakePolicy.validateTurn(validateQuery(command.query()));
+        var validatedQuery = validateQuery(command.query());
         var existing = store.findTurn(explorationId, command.clientTurnId());
         if (existing.isPresent()) {
             if (!existing.get().matches(command)) {
@@ -76,11 +76,13 @@ public final class ExplorationService {
         if (command.baseVersion() != state.stateVersion()) {
             throw new ExplorationVersionConflictException(state.stateVersion());
         }
+        validateClarificationAnswer(state, command.clarificationId());
+        var query = intakePolicy.validateTurn(validatedQuery);
         var regionCode = normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode());
         var now = clock.instant();
         var run = newRun(regionCode, now);
         var turn = new StoredExplorationTurn(
-                command.clientTurnId(), command.baseVersion(), query, regionCode, run, now);
+                command.clientTurnId(), command.baseVersion(), query, regionCode, command.clarificationId(), run, now);
         var updated = new ExplorationState(
                 state.id(), state.owner(), state.stateVersion(), regionCode, run, now);
         store.appendTurn(explorationId, turn);
@@ -138,6 +140,20 @@ public final class ExplorationService {
         }
     }
 
+    private void validateClarificationAnswer(ExplorationState state, String clarificationId) {
+        if (clarificationId == null) {
+            return;
+        }
+        var run = state.latestRun();
+        var clarification = run.clarification();
+        if (run.status() != ExplorationRunStatus.COMPLETED
+                || run.outcome() != ExplorationRunOutcome.CLARIFICATION_REQUIRED
+                || clarification == null
+                || !clarification.id().equals(clarificationId)) {
+            throw new ExplorationVersionConflictException(state.stateVersion());
+        }
+    }
+
     private ExplorationRun newRun(String regionCode, java.time.Instant now) {
         if (regionCode == null) {
             return new ExplorationRun(
@@ -146,6 +162,7 @@ public final class ExplorationService {
                     "BASELINE",
                     ExplorationRunOutcome.CLARIFICATION_REQUIRED,
                     new ExplorationClarification(
+                            "region",
                             "REGION_MISSING",
                             "어느 지역을 둘러보고 싶으신가요?",
                             true),

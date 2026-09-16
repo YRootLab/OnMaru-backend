@@ -6,5 +6,6 @@ public record CreateExplorationTurnCommand(
         UUID clientTurnId,
         int baseVersion,
         String query,
-        String regionCode) {
+        String regionCode,
+        String clarificationId) {
 }

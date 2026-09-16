@@ -14,6 +14,7 @@ final class ExplorationIntakePolicy {
     private static final Pattern EMAIL = Pattern.compile(
             "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern CONTROL_CHARACTER = Pattern.compile("\\p{Cc}");
     private static final List<Pattern> PROMPT_INJECTION = List.of(
             Pattern.compile("이전\\s*지시", Pattern.CASE_INSENSITIVE),
             Pattern.compile("시스템\\s*프롬프트", Pattern.CASE_INSENSITIVE),
@@ -57,7 +58,9 @@ final class ExplorationIntakePolicy {
     }
 
     private void validateSafetyAndPrivacy(String query) {
-        if (HTML.matcher(query).find() || PROMPT_INJECTION.stream().anyMatch(pattern -> pattern.matcher(query).find())) {
+        if (CONTROL_CHARACTER.matcher(query).find()
+                || HTML.matcher(query).find()
+                || PROMPT_INJECTION.stream().anyMatch(pattern -> pattern.matcher(query).find())) {
             throw new ExplorationInputRejectedException("SAFETY_BLOCKED");
         }
         if (PHONE.matcher(query).find() || EMAIL.matcher(query).find()) {

@@ -63,6 +63,7 @@ class SecurityWebBoundaryTests {
                         .content("{}")
                         .header("X-Request-Id", "req-csrf-missing"))
                 .andExpect(status().isForbidden())
+                .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.code").value("CSRF_INVALID"))
                 .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-csrf-missing")));

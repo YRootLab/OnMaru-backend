@@ -20,6 +20,7 @@ public final class InMemoryExplorationStore implements ExplorationStore {
                 state.stateVersion(),
                 query,
                 state.regionCode(),
+                null,
                 state.latestRun(),
                 createdAt);
         turns.computeIfAbsent(state.id(), ignored -> new LinkedHashMap<>()).put(initialTurnId, initialTurn);

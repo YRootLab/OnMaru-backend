@@ -86,7 +86,7 @@ record ExplorationResponse(
                 return null;
             }
             return new ClarificationResponse(
-                    "region",
+                    clarification.id(),
                     clarification.reason(),
                     clarification.question(),
                     List.of(),

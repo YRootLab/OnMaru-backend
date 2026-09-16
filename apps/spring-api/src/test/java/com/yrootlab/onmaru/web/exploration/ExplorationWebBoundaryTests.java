@@ -101,6 +101,7 @@ class ExplorationWebBoundaryTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestRun.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.latestRun.outcome").value("CLARIFICATION_REQUIRED"))
+                .andExpect(jsonPath("$.latestRun.clarification.id").value("region"))
                 .andExpect(jsonPath("$.latestRun.clarification.reason").value("REGION_MISSING"));
 
         assertThat(runDispatcher.dispatchCount()).isZero();
@@ -225,6 +226,55 @@ class ExplorationWebBoundaryTests {
     }
 
     @Test
+    void clarificationAnswerIsRejectedWhenLatestRunIsNotPendingClarification() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var explorationId = objectMapper.readTree(created).path("explorationId").asText();
+        var answer = Map.of(
+                "clarificationId", "region",
+                "text", "서울");
+
+        mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "clientTurnId", UUID.randomUUID(),
+                                "baseVersion", 0,
+                                "query", "서울로 바꿀게요",
+                                "clarificationAnswer", answer)))
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VERSION_CONFLICT"));
+
+        assertThat(explorationStore.turnCount(UUID.fromString(explorationId))).isEqualTo(1);
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(1);
+    }
+
+    @Test
+    void unknownClarificationIdIsRejectedAsVersionConflict() throws Exception {
+        var created = createGuestExploration(ownerToken, null);
+        var explorationId = objectMapper.readTree(created).path("explorationId").asText();
+
+        mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "clientTurnId", UUID.randomUUID(),
+                                "baseVersion", 0,
+                                "query", "전주로 갈게요",
+                                "clarificationAnswer", Map.of(
+                                        "clarificationId", "stale-region",
+                                        "text", "전주"))))
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("VERSION_CONFLICT"));
+
+        assertThat(explorationStore.turnCount(UUID.fromString(explorationId))).isEqualTo(1);
+        assertThat(runDispatcher.dispatchCount()).isZero();
+    }
+
+    @Test
     void missingOrUnknownGuestCredentialReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/v1/explorations/{id}", UUID.randomUUID()))
                 .andExpect(status().isUnauthorized())
@@ -270,6 +320,74 @@ class ExplorationWebBoundaryTests {
 
         assertThat(explorationStore.explorationCount()).isZero();
         assertThat(explorationStore.totalTurnCount()).isZero();
+        assertThat(runDispatcher.dispatchCount()).isZero();
+    }
+
+    @Test
+    void controlCharactersAreRejectedBeforePersistenceOrDispatch() throws Exception {
+        mockMvc.perform(post("/api/v1/explorations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "query", "전주\u0000 한옥 여행",
+                                "locale", "ko-KR",
+                                "regionCode", "kr-45-jeonju")))
+                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("SAFETY_BLOCKED"));
+
+        assertThat(explorationStore.explorationCount()).isZero();
+        assertThat(explorationStore.totalTurnCount()).isZero();
+        assertThat(runDispatcher.dispatchCount()).isZero();
+    }
+
+    @Test
+    void unknownRequestFieldsAreStrictlyRejected() throws Exception {
+        mockMvc.perform(post("/api/v1/explorations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "query", "전주 한옥 여행",
+                                "locale", "ko-KR",
+                                "unexpected", true)))
+                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        var created = createGuestExploration(ownerToken, null);
+        var explorationId = objectMapper.readTree(created).path("explorationId").asText();
+        var turn = new java.util.LinkedHashMap<String, Object>();
+        turn.put("clientTurnId", UUID.randomUUID());
+        turn.put("baseVersion", 0);
+        turn.put("query", "전주로 갈게요");
+        turn.put("unexpected", true);
+
+        mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(turn))
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        turn.remove("unexpected");
+        turn.put("clarificationAnswer", Map.of(
+                "clarificationId", "region",
+                "text", "전주",
+                "unexpected", true));
+        mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(turn))
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        assertThat(explorationStore.turnCount(UUID.fromString(explorationId))).isEqualTo(1);
         assertThat(runDispatcher.dispatchCount()).isZero();
     }
 

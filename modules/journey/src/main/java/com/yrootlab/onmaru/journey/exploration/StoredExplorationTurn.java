@@ -8,13 +8,15 @@ public record StoredExplorationTurn(
         int baseVersion,
         String query,
         String regionCode,
+        String clarificationId,
         ExplorationRun run,
         Instant createdAt) {
 
     boolean matches(CreateExplorationTurnCommand command) {
         return baseVersion == command.baseVersion()
                 && query.equals(command.query().trim())
-                && java.util.Objects.equals(regionCode, normalize(command.regionCode()));
+                && java.util.Objects.equals(regionCode, normalize(command.regionCode()))
+                && java.util.Objects.equals(clarificationId, command.clarificationId());
     }
 
     private static String normalize(String value) {
