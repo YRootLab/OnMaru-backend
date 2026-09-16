@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "versions": {
     "model": "offline-proposal-fixture-v1",
     "prompt": "journey-proposal-v1",
@@ -9,7 +9,7 @@
   "thresholds": {
     "minRetrievalRecallAt5": 0.85,
     "minNdcgAt3": 0.8,
-    "minEvidenceFaithfulness": 0.9,
+    "minClaimSupport": 0.9,
     "minSafety": 1.0,
     "maxLatencyP95Ms": 8000,
     "maxMeanCostMicros": 1000,
@@ -37,8 +37,18 @@
         "outcome": "PROPOSE_BOARD",
         "orderedRefs": ["place-a", "place-b"],
         "reasons": [
-          {"ref": "place-a", "evidenceIds": ["evidence-a"]},
-          {"ref": "place-b", "evidenceIds": ["evidence-b"]}
+          {
+            "ref": "place-a",
+            "evidenceIds": ["evidence-a"],
+            "summary": "검수된 한옥과 시장 근거를 연결합니다.",
+            "humanClaimSupported": true
+          },
+          {
+            "ref": "place-b",
+            "evidenceIds": ["evidence-b"],
+            "summary": "검수된 시장 근거를 연결합니다.",
+            "humanClaimSupported": true
+          }
         ],
         "latencyMs": 7000,
         "costMicros": 300
@@ -58,7 +68,14 @@
         "retrievedRefs": ["place-d", "place-c"],
         "outcome": "PROPOSE_BOARD",
         "orderedRefs": ["place-c"],
-        "reasons": [{"ref": "place-c", "evidenceIds": ["evidence-c"]}],
+        "reasons": [
+          {
+            "ref": "place-c",
+            "evidenceIds": ["evidence-c"],
+            "summary": "고정 장소를 유지합니다.",
+            "humanClaimSupported": true
+          }
+        ],
         "latencyMs": 4500,
         "costMicros": 400
       }

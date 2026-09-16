@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from onmaru_ai.evals import EvalReport, compare_reports, evaluate_document, load_eval_document
 from onmaru_ai.evals.cli import main
+from onmaru_ai.evals.runner import _ndcg
 
 EVAL_ROOT = Path(__file__).parents[2] / "evals"
 FIXTURE_PATH = EVAL_ROOT / "journey-held-out-v1.json"
@@ -26,13 +27,19 @@ def test_scores_fixed_versions_quality_safety_latency_and_cost() -> None:
     assert report.versions.dataset == "journey-held-out-v1"
     assert report.dataset.case_count == 4
     assert len(report.dataset.input_sha256) == 64
+    assert len(report.dataset.gold_sha256) == 64
     assert report.metrics.retrieval_recall_at_5.model_dump(by_alias=True) == {
         "numerator": 3,
         "denominator": 3,
         "value": 1.0,
     }
     assert report.metrics.ndcg_at_3 == 0.815465
-    assert report.metrics.evidence_faithfulness.model_dump(by_alias=True) == {
+    assert report.metrics.evidence_id_precision.model_dump(by_alias=True) == {
+        "numerator": 3,
+        "denominator": 3,
+        "value": 1.0,
+    }
+    assert report.metrics.claim_support.model_dump(by_alias=True) == {
         "numerator": 3,
         "denominator": 3,
         "value": 1.0,
@@ -61,14 +68,19 @@ def test_fails_closed_for_unsupported_evidence_constraint_latency_and_cost() -> 
     unsafe = document["cases"][0]
     unsafe["actual"]["orderedRefs"] = ["place-outside"]
     unsafe["actual"]["reasons"] = [
-        {"ref": "place-outside", "evidenceIds": ["fabricated-evidence"]}
+        {
+            "ref": "place-outside",
+            "evidenceIds": ["fabricated-evidence"],
+            "summary": "검수되지 않은 주장입니다.",
+            "humanClaimSupported": False,
+        }
     ]
     unsafe["actual"]["latencyMs"] = 20_001
     unsafe["actual"]["costMicros"] = 2_001
 
     report = evaluate_document(document)
 
-    assert report.metrics.evidence_faithfulness.value < 1.0
+    assert report.metrics.evidence_id_precision.value < 1.0
     assert report.metrics.safety.violations >= 2
     assert report.overall_passed is False
     assert {gate.name for gate in report.gates if not gate.passed} == {
@@ -89,6 +101,50 @@ def test_empty_retrieval_scores_zero_when_relevant_gold_exists() -> None:
     assert report.metrics.ndcg_at_3 == 0.315465
 
 
+def test_rejects_empty_or_mismatched_proposal_shape() -> None:
+    empty_board = fixture_document()
+    empty_board["cases"][0]["actual"].update(orderedRefs=[], reasons=[])
+    missing_reason = fixture_document()
+    missing_reason["cases"][0]["actual"]["reasons"].pop()
+    wrong_outcome_shape = fixture_document()
+    wrong_outcome_shape["cases"][0]["actual"]["outcome"] = "NO_RESULTS"
+
+    for document in (empty_board, missing_reason, wrong_outcome_shape):
+        try:
+            load_eval_document(document)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("proposal shape must match the #105 outcome contract")
+
+
+def test_rejects_duplicate_retrieval_refs_without_scoring_or_cli_traceback(
+    tmp_path: Path,
+) -> None:
+    document = fixture_document()
+    document["cases"][0]["actual"]["retrievedRefs"] = ["place-a", "place-a"]
+    input_path = tmp_path / "duplicate.json"
+    output_path = tmp_path / "report.json"
+    input_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+
+    assert main(["--input", str(input_path), "--output", str(output_path)]) == 2
+    assert not output_path.exists()
+    assert _ndcg(("place-a", "place-a", "place-b"), {"place-a": 2, "place-b": 1}) <= 1
+
+
+def test_human_claim_support_is_distinct_from_evidence_id_precision() -> None:
+    document = fixture_document()
+    document["cases"][0]["actual"]["reasons"][0]["humanClaimSupported"] = False
+
+    report = evaluate_document(document)
+
+    assert report.metrics.evidence_id_precision.value == 1.0
+    assert report.metrics.claim_support.value == 0.666667
+    assert {gate.name for gate in report.gates if not gate.passed} == {
+        "evidenceFaithfulness"
+    }
+
+
 def test_report_is_byte_reproducible_and_comparable(tmp_path: Path) -> None:
     first_path = tmp_path / "first.json"
     second_path = tmp_path / "second.json"
@@ -105,7 +161,8 @@ def test_report_is_byte_reproducible_and_comparable(tmp_path: Path) -> None:
     assert comparison.metric_deltas == {
         "retrievalRecallAt5": 0.0,
         "ndcgAt3": 0.0,
-        "evidenceFaithfulness": 0.0,
+        "evidenceIdPrecision": 0.0,
+        "claimSupport": 0.0,
         "safety": 0.0,
         "latencyP95Ms": 0,
         "meanCostMicros": 0,
@@ -129,6 +186,30 @@ def test_report_is_byte_reproducible_and_comparable(tmp_path: Path) -> None:
     compared = EvalReport.model_validate_json(compared_path.read_text(encoding="utf-8"))
     assert compared.comparison is not None
     assert compared.comparison.compatible is True
+
+
+def test_comparison_uses_gold_fingerprint_not_model_actual() -> None:
+    baseline_document = fixture_document()
+    changed_actual = fixture_document()
+    changed_actual["versions"]["model"] = "challenger-model-v2"
+    changed_actual["cases"][0]["actual"]["latencyMs"] = 7999
+    changed_actual["cases"][0]["actual"]["reasons"][0]["summary"] = (
+        "challenger가 생성한 다른 설명입니다."
+    )
+    changed_actual["cases"][0]["actual"]["reasons"][0]["humanClaimSupported"] = False
+
+    baseline = evaluate_document(baseline_document)
+    challenger = evaluate_document(changed_actual)
+
+    assert baseline.dataset.gold_sha256 == challenger.dataset.gold_sha256
+    assert compare_reports(challenger, baseline).compatible is True
+
+    changed_gold = fixture_document()
+    changed_gold["cases"][0]["gold"]["relevance"][0]["grade"] = 1
+    changed_gold_report = evaluate_document(changed_gold)
+
+    assert changed_gold_report.dataset.gold_sha256 != baseline.dataset.gold_sha256
+    assert compare_reports(changed_gold_report, baseline).compatible is False
 
 
 def test_failed_gate_returns_nonzero_and_writes_report(tmp_path: Path) -> None:

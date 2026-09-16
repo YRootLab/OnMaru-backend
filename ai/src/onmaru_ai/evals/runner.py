@@ -34,8 +34,10 @@ def evaluate_document(value: object) -> EvalReport:
     recall_numerator = 0
     recall_denominator = 0
     ndcg_values: list[float] = []
-    supported_evidence = 0
-    proposed_evidence = 0
+    matching_evidence_ids = 0
+    proposed_evidence_ids = 0
+    supported_claims = 0
+    proposed_claims = 0
     passing_safety_cases = 0
     safety_violations = 0
     latencies: list[int] = []
@@ -43,7 +45,7 @@ def evaluate_document(value: object) -> EvalReport:
 
     for case in document.cases:
         grades = {item.ref: item.grade for item in case.gold.relevance if item.grade > 0}
-        retrieved = case.actual.retrieved_refs[:5]
+        retrieved = _unique_refs(case.actual.retrieved_refs)[:5]
         recall_numerator += sum(ref in retrieved for ref in grades)
         recall_denominator += len(grades)
         if grades:
@@ -52,8 +54,10 @@ def evaluate_document(value: object) -> EvalReport:
         for reason in case.actual.reasons:
             expected = set(case.gold.supported_evidence.get(reason.ref, ()))
             for evidence_id in reason.evidence_ids:
-                proposed_evidence += 1
-                supported_evidence += evidence_id in expected
+                proposed_evidence_ids += 1
+                matching_evidence_ids += evidence_id in expected
+            proposed_claims += 1
+            supported_claims += reason.human_claim_supported
 
         violations = _safety_violations(case)
         safety_violations += violations
@@ -62,7 +66,8 @@ def evaluate_document(value: object) -> EvalReport:
         costs.append(case.actual.cost_micros)
 
     recall = _ratio(recall_numerator, recall_denominator)
-    faithfulness = _ratio(supported_evidence, proposed_evidence)
+    evidence_id_precision = _ratio(matching_evidence_ids, proposed_evidence_ids)
+    claim_support = _ratio(supported_claims, proposed_claims)
     safety_value = passing_safety_cases / len(document.cases)
     metrics = EvalMetrics(
         retrievalRecallAt5=RatioMetric(
@@ -71,10 +76,15 @@ def evaluate_document(value: object) -> EvalReport:
             value=_rounded(recall),
         ),
         ndcgAt3=_rounded(sum(ndcg_values) / len(ndcg_values) if ndcg_values else 1.0),
-        evidenceFaithfulness=RatioMetric(
-            numerator=supported_evidence,
-            denominator=proposed_evidence,
-            value=_rounded(faithfulness),
+        evidenceIdPrecision=RatioMetric(
+            numerator=matching_evidence_ids,
+            denominator=proposed_evidence_ids,
+            value=_rounded(evidence_id_precision),
+        ),
+        claimSupport=RatioMetric(
+            numerator=supported_claims,
+            denominator=proposed_claims,
+            value=_rounded(claim_support),
         ),
         safety=SafetyMetric(
             passingCases=passing_safety_cases,
@@ -88,10 +98,11 @@ def evaluate_document(value: object) -> EvalReport:
     )
     gates = _gates(metrics, document)
     return EvalReport(
-        schemaVersion="1.0",
+        schemaVersion="1.1",
         versions=document.versions,
         dataset=DatasetIdentity(
             inputSha256=_input_hash(document),
+            goldSha256=_gold_hash(document),
             caseCount=len(document.cases),
         ),
         metrics=metrics,
@@ -104,7 +115,7 @@ def compare_reports(current: EvalReport, baseline: EvalReport) -> ReportComparis
     compatible = (
         current.schema_version == baseline.schema_version
         and current.versions.dataset == baseline.versions.dataset
-        and current.dataset.case_count == baseline.dataset.case_count
+        and current.dataset.gold_sha256 == baseline.dataset.gold_sha256
     )
     current_metrics = current.metrics
     baseline_metrics = baseline.metrics
@@ -116,9 +127,12 @@ def compare_reports(current: EvalReport, baseline: EvalReport) -> ReportComparis
                 - baseline_metrics.retrieval_recall_at_5.value
             ),
             "ndcgAt3": _rounded(current_metrics.ndcg_at_3 - baseline_metrics.ndcg_at_3),
-            "evidenceFaithfulness": _rounded(
-                current_metrics.evidence_faithfulness.value
-                - baseline_metrics.evidence_faithfulness.value
+            "evidenceIdPrecision": _rounded(
+                current_metrics.evidence_id_precision.value
+                - baseline_metrics.evidence_id_precision.value
+            ),
+            "claimSupport": _rounded(
+                current_metrics.claim_support.value - baseline_metrics.claim_support.value
             ),
             "safety": _rounded(current_metrics.safety.value - baseline_metrics.safety.value),
             "latencyP95Ms": (
@@ -135,7 +149,8 @@ def compare_reports(current: EvalReport, baseline: EvalReport) -> ReportComparis
 
 
 def _ndcg(retrieved_refs: tuple[str, ...], grades: Mapping[str, int]) -> float:
-    actual = _discounted_gain(tuple(grades.get(ref, 0) for ref in retrieved_refs))
+    unique_refs = _unique_refs(retrieved_refs)[:3]
+    actual = _discounted_gain(tuple(grades.get(ref, 0) for ref in unique_refs))
     ideal = _discounted_gain(tuple(sorted(grades.values(), reverse=True)[:3]))
     return actual / ideal if ideal else 1.0
 
@@ -154,6 +169,7 @@ def _safety_violations(case: EvaluationCase) -> int:
     violations = 0
 
     violations += actual.outcome != gold.expected_outcome
+    violations += len(actual.retrieved_refs) != len(set(actual.retrieved_refs))
     violations += sum(ref not in allowed or ref in excluded for ref in actual.retrieved_refs)
     violations += len(actual.ordered_refs) != len(set(actual.ordered_refs))
     violations += len(actual.ordered_refs) > 3
@@ -195,9 +211,12 @@ def _gates(metrics: EvalMetrics, document: EvalDocument) -> tuple[GateResult, ..
         ),
         GateResult(
             name="evidenceFaithfulness",
-            passed=metrics.evidence_faithfulness.value >= threshold.min_evidence_faithfulness,
-            observed={"evidenceFaithfulness": metrics.evidence_faithfulness.value},
-            thresholds={"minEvidenceFaithfulness": threshold.min_evidence_faithfulness},
+            passed=metrics.claim_support.value >= threshold.min_claim_support,
+            observed={
+                "claimSupport": metrics.claim_support.value,
+                "evidenceIdPrecision": metrics.evidence_id_precision.value,
+            },
+            thresholds={"minClaimSupport": threshold.min_claim_support},
         ),
         GateResult(
             name="safety",
@@ -235,13 +254,36 @@ def _gates(metrics: EvalMetrics, document: EvalDocument) -> tuple[GateResult, ..
 
 
 def _input_hash(document: EvalDocument) -> str:
+    return _canonical_hash(document.model_dump(mode="json", by_alias=True))
+
+
+def _gold_hash(document: EvalDocument) -> str:
+    return _canonical_hash(
+        {
+            "dataset": document.versions.dataset,
+            "cases": [
+                {
+                    "id": case.id,
+                    "gold": case.gold.model_dump(mode="json", by_alias=True),
+                }
+                for case in document.cases
+            ],
+        }
+    )
+
+
+def _canonical_hash(value: object) -> str:
     canonical = json.dumps(
-        document.model_dump(mode="json", by_alias=True),
+        value,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
     ).encode()
     return hashlib.sha256(canonical).hexdigest()
+
+
+def _unique_refs(refs: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(refs))
 
 
 def _nearest_rank_percentile(values: list[int], percentile: float) -> int:

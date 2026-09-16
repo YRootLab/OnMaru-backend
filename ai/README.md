@@ -36,8 +36,9 @@ uv run --project ai python scripts/run-ai-evals \
   --compare /tmp/onmaru-ai-eval-report.json
 ```
 
-하나 이상의 gate가 실패하면 report를 남기고 종료 코드 `1`을 반환한다. fixture와 report
-계약의 관리 규칙은 [`docs/ai/evaluation-harness.md`](../docs/ai/evaluation-harness.md)를 따른다.
+하나 이상의 gate가 실패하면 report를 남기고 종료 코드 `1`, 입력 계약이 유효하지 않으면 report
+없이 종료 코드 `2`를 반환한다. fixture와 report 계약의 관리 규칙은
+[`docs/ai/evaluation-harness.md`](../docs/ai/evaluation-harness.md)를 따른다.
 
 서버 실행 후 다음 응답을 확인한다.
 

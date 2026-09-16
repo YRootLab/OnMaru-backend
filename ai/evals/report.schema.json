@@ -8,6 +8,11 @@
           "title": "Casecount",
           "type": "integer"
         },
+        "goldSha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Goldsha256",
+          "type": "string"
+        },
         "inputSha256": {
           "pattern": "^[a-f0-9]{64}$",
           "title": "Inputsha256",
@@ -16,6 +21,7 @@
       },
       "required": [
         "inputSha256",
+        "goldSha256",
         "caseCount"
       ],
       "title": "DatasetIdentity",
@@ -24,7 +30,10 @@
     "EvalMetrics": {
       "additionalProperties": false,
       "properties": {
-        "evidenceFaithfulness": {
+        "claimSupport": {
+          "$ref": "#/$defs/RatioMetric"
+        },
+        "evidenceIdPrecision": {
           "$ref": "#/$defs/RatioMetric"
         },
         "latencyP95Ms": {
@@ -58,7 +67,8 @@
       "required": [
         "retrievalRecallAt5",
         "ndcgAt3",
-        "evidenceFaithfulness",
+        "evidenceIdPrecision",
+        "claimSupport",
         "safety",
         "latencyP95Ms",
         "meanCostMicros",
@@ -279,7 +289,7 @@
       "type": "boolean"
     },
     "schemaVersion": {
-      "const": "1.0",
+      "const": "1.1",
       "title": "Schemaversion",
       "type": "string"
     },

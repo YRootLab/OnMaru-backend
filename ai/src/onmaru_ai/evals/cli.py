@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -17,13 +18,19 @@ def main(arguments: Sequence[str] | None = None) -> int:
     parser.add_argument("--schema-output", type=Path)
     options = parser.parse_args(arguments)
 
-    document = json.loads(options.input.read_text(encoding="utf-8"))
-    report = evaluate_document(document)
-    if options.compare is not None:
-        baseline = EvalReport.model_validate_json(options.compare.read_text(encoding="utf-8"))
-        report = report.model_copy(
-            update={"comparison": compare_reports(report, baseline)}
-        )
+    try:
+        document = json.loads(options.input.read_text(encoding="utf-8"))
+        report = evaluate_document(document)
+        if options.compare is not None:
+            baseline = EvalReport.model_validate_json(
+                options.compare.read_text(encoding="utf-8")
+            )
+            report = report.model_copy(
+                update={"comparison": compare_reports(report, baseline)}
+            )
+    except (OSError, ValueError, json.JSONDecodeError):
+        print("ERROR invalid evaluation input or comparison report", file=sys.stderr)
+        return 2
     payload = report.model_dump(mode="json", by_alias=True)
 
     options.output.parent.mkdir(parents=True, exist_ok=True)
