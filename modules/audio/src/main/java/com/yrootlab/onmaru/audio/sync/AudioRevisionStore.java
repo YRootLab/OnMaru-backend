@@ -21,4 +21,6 @@ public interface AudioRevisionStore extends PublicationStore {
     UUID activeRevision(String dataset);
 
     AudioRevisionSnapshot activeSnapshot();
+
+    ActiveAudioRevision activePublishedRevision(String dataset);
 }
