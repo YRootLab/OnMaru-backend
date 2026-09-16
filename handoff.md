@@ -8,8 +8,8 @@
 - #104 통합: 최신 `origin/develop`의 `ApprovedAudioPlaceLinkQuery`를 직접 소비한다. 임시 resolver를 제거했으며 검수 승인된 단일 canonical place만 `linkedPlaceId`로 노출하고, 미승인·삭제된 연결은 `null`로 유지한다.
 - 공개 경계: `ACTIVE` story·spot만 노출하고 `HIDDEN`/`DELETED`는 404로 처리한다. provider ID·secret query가 포함된 audio URL은 거부하며 production query store 미연결 시 503으로 fail-closed한다.
 - 계약 정합성: R2 OpenAPI에 `transcriptStatus`와 `CURSOR_INVALID`를 추가하고 normal/missing transcript fixture 및 validator를 갱신했다.
-- 통합 상태: #104가 포함된 최신 `origin/develop`을 merge commit `32ab717`로 충돌 없이 병합했고, 공유 로그를 보존했다.
-- 최종 검증: 최신 develop 기준 Gradle 41 tasks, Node 35 tests, planning/Odii fixture, contract pytest 9개, R1/identity/Journey 23 fixtures/R2 contract, FastAPI 62 passed·1 live smoke skipped, Ruff/mypy, branch parser `103`, `git diff --check`를 통과했다. Contract 검증에는 기존 Python 3.9 LibreSSL warning만 출력됐다.
+- 통합 상태: #104와 #105가 포함된 최신 `origin/develop`을 merge commit `1aaad7a`로 충돌 없이 병합했고, 공유 로그를 보존했다.
+- 최종 검증: 최신 develop 기준 Gradle 41 tasks, Node 35 tests, planning/Odii fixture, contract pytest 9개, R1/identity/Journey 23 fixtures/R2 contract, FastAPI 104 passed·1 live smoke skipped, Ruff/mypy, branch parser `103`, `git diff --check`를 통과했다. Contract 검증에는 기존 Python 3.9 LibreSSL warning만 출력됐다.
 - review: active revision·언어 fallback·cursor 결속·비공개/unsafe URL 차단·missing transcript·fail-closed 경계를 점검했고 남은 Critical/Important finding은 없다. 최신 공통 opaque request ID 계약과 어긋난 Odii assertion 3개를 수정해 focused/전체 테스트를 재통과했다.
 - PR: #204 `feat(audio): Odii 공개 조회 API 구현`을 `develop` 대상으로 생성했으며 본문에 `Closes #103`, acceptance criteria와 전체 검증 근거를 기록했다.
 - 다음 단계: #104 공식 query 통합 변경을 commit/push하고 PR #204 본문을 갱신한다. 필수 `verify` CI 재통과 후 사용자의 명시적 merge 승인에 따라 병합하고 #103 상태를 reconcile한다.
