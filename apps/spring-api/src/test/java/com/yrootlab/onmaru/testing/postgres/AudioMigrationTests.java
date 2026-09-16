@@ -184,21 +184,43 @@ class AudioMigrationTests {
 
             statement.execute("""
                     INSERT INTO onmaru.audio_place_odii_links (
-                        place_id, spot_id, match_method, confidence, verified_at
+                        place_id, spot_id, match_method, confidence, review_status, verified_at
                     ) VALUES (
-                        '%s', '%s', 'MANUAL_VERIFIED', 0.95, CURRENT_TIMESTAMP
+                        '%s', '%s', 'MANUAL_VERIFIED', 0.95, 'APPROVED', CURRENT_TIMESTAMP
                     )
                     """.formatted(placeId, spotId));
 
             assertThatThrownBy(() -> statement.execute("""
                     INSERT INTO onmaru.audio_place_odii_links (
-                        place_id, spot_id, match_method, confidence, verified_at
+                        place_id, spot_id, match_method, confidence, review_status, verified_at
                     ) VALUES (
-                        '%s', '%s', 'NAME_DISTANCE_ONLY', 1.2, NULL
+                        '%s', '%s', 'NAME_DISTANCE_ONLY', 1.2, 'PENDING', NULL
                     )
                     """.formatted(placeId, spotId)))
                     .isInstanceOf(SQLException.class)
                     .hasMessageContaining("audio_place_odii_links_confidence_ck");
+        }
+    }
+
+    @Test
+    void permitsOnlyOneApprovedPlaceLinkPerAudioSpot() throws Exception {
+        resetAndMigrate();
+        var firstPlaceId = UUID.randomUUID();
+        var secondPlaceId = UUID.randomUUID();
+        var spotId = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_place_identity (id, created_at)
+                    VALUES ('%s', CURRENT_TIMESTAMP), ('%s', CURRENT_TIMESTAMP)
+                    """.formatted(firstPlaceId, secondPlaceId));
+            insertSpot(statement, spotId, "KTO_ODII", "tid-approved", "tlid-approved", "ko");
+            insertPlaceLink(statement, firstPlaceId, spotId, "APPROVED");
+
+            assertThatThrownBy(() -> insertPlaceLink(statement, secondPlaceId, spotId, "APPROVED"))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("audio_place_odii_links_one_approved_per_spot_uq");
         }
     }
 
@@ -421,6 +443,21 @@ class AudioMigrationTests {
                     '%s', '%s', %d, '%s', %d, 'OFFICIAL'
                 )
                 """.formatted(revisionId, storyId, position, text, startSeconds));
+    }
+
+    private static void insertPlaceLink(
+            Statement statement,
+            UUID placeId,
+            UUID spotId,
+            String reviewStatus
+    ) throws Exception {
+        statement.execute("""
+                INSERT INTO onmaru.audio_place_odii_links (
+                    place_id, spot_id, match_method, confidence, review_status, verified_at
+                ) VALUES (
+                    '%s', '%s', 'MANUAL_REFERENCE', NULL, '%s', CURRENT_TIMESTAMP
+                )
+                """.formatted(placeId, spotId, reviewStatus));
     }
 
     private static void resetAndMigrate() throws Exception {

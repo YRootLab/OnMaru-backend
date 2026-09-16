@@ -25,6 +25,20 @@
 
 
 
+## Current Session Quick Handoff - 2026-09-16 Issue #197
+
+- 현재 작업 브랜치와 worktree: `feature/197-odii-production`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-197-odii-production`.
+- 관련 Issue: #197 `[A02-FOLLOWUP] Odii production revision 저장·공개 projection wiring 구현`.
+- 구현 범위: PostgreSQL `AudioRevisionStore` adapter, production Spring composition, Odii sync source composition, active revision 기반 공개 projection, category/region/subtitle hydrate, place-link DB 승인 원자성, 관측성 이벤트를 추가했다.
+- DB 변경: `V010__a02_odii_production_persistence.sql`이 `audio_revision_stages`, version row의 `source_modified_at/observed/missing_observations`, `transcript_provenance`, place-link `review_status`, spot별 approved partial unique index를 추가한다. `db/migration/registry/migrations.json`과 DBML/schema 문서도 갱신했다.
+- runtime 구성: production profile은 JDBC `AudioRevisionStore`/`AudioPlaceLinkStore`를 선택하고, non-production에서만 in-memory fallback을 둔다. `OdiiClientConfiguration`은 production에서 Odii HTTP source와 `OdiiRevisionSyncService`를 구성한다.
+- 공개 projection: `ActiveRevisionOdiiStoryQueryStore`가 active revision snapshot을 읽어 subtitle line을 transcript로 매핑하고, `OdiiProjectionMetadataResolver`로 category/region을 hydrate한다. region 미해결은 대한민국 fallback을 사용한다.
+- 장소 연결: `AudioPlaceLinkStore.approveExclusive(...)`로 승인 전환을 store-level 단일 operation으로 올렸고, JDBC adapter는 row lock + transaction + partial unique index로 동시 승인 단일 승자와 rollback 보존을 검증한다.
+- 관측성: `odii.sync.started/failed/completed`, `odii.place_link.approval.completed/failed`, `odii.active_revision.snapshot/unavailable` 이벤트를 기존 `TelemetrySink`로 기록한다.
+- 작업 로그: `troubleshooting-worklog/26.09.16 odii-production-persistence-observability.md`.
+- 검증: `./gradlew :modules:audio:test --no-daemon --max-workers=1`, `./gradlew :apps:spring-api:compileTestJava --no-daemon --max-workers=1`, `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.tourism.audio.JdbcAudioRevisionStoreIntegrationTests' --tests 'com.yrootlab.onmaru.testing.postgres.AudioMigrationTests.permitsOnlyOneApprovedPlaceLinkPerAudioSpot' --no-daemon --max-workers=1`, `git diff --check`, `node scripts/print-branch-issue.mjs`를 통과했다. 사용자가 Spring 전체 테스트 1회 수행 완료를 확인했다.
+- CI 주의: 로컬 Spring 전체 테스트 성공은 GitHub required `verify` check를 대체하지 않는다. push/PR 후 GitHub CI 녹색과 최소 1명 approval을 확인해야 merge 가능하다.
+- 다음 단계: PR body에 #197 완료 조건별 근거를 명시하고 `develop` 대상으로 PR을 생성한다. PR merge 후 `Closes/Fixes/Resolves #197`가 `develop` 대상 auto-close로 처리되지 않을 수 있으므로 Issue 상태를 확인하고 필요 시 검증 근거 comment 후 수동 close한다.
 
 ## Current Session Quick Handoff - 2026-09-16 Issue #101
 

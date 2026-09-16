@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLinkQuery;
 import com.yrootlab.onmaru.audio.query.ActiveRevisionOdiiStoryQueryStore;
 import com.yrootlab.onmaru.audio.query.OdiiPublicAudioUrlPolicy;
+import com.yrootlab.onmaru.audio.query.OdiiProjectionMetadataResolver;
 import com.yrootlab.onmaru.audio.query.OdiiSavedStateLookup;
 import com.yrootlab.onmaru.audio.query.OdiiStoryCursorCodec;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
@@ -14,6 +15,8 @@ import com.yrootlab.onmaru.audio.sync.AudioRevisionStore;
 import com.yrootlab.onmaru.audio.sync.InMemoryAudioRevisionStore;
 import com.yrootlab.onmaru.catalog.application.publication.SourceWatermark;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
+import com.yrootlab.onmaru.catalog.application.regionboundary.RegionBoundaryStore;
+import com.yrootlab.onmaru.observability.TelemetrySink;
 import com.yrootlab.onmaru.web.common.cursor.CursorCodec;
 import com.yrootlab.onmaru.web.common.cursor.CursorSigningKey;
 import org.springframework.beans.factory.ObjectProvider;
@@ -22,6 +25,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -32,7 +36,7 @@ import java.util.UUID;
 
 @Configuration
 @EnableConfigurationProperties(OdiiStoryConfiguration.OdiiStorySettings.class)
-class OdiiStoryConfiguration {
+public class OdiiStoryConfiguration {
 
     @Bean
     OdiiPublicAudioUrlPolicy odiiPublicAudioUrlPolicy(OdiiStorySettings settings) {
@@ -48,6 +52,7 @@ class OdiiStoryConfiguration {
     }
 
     @Bean
+    @Profile("!production")
     @ConditionalOnMissingBean(AudioRevisionStore.class)
     AudioRevisionStore odiiAudioRevisionStore(OdiiStorySettings settings) {
         var revisionId = UUID.nameUUIDFromBytes(
@@ -64,8 +69,26 @@ class OdiiStoryConfiguration {
     @Bean
     OdiiStoryQueryStore odiiStoryQueryStore(
             AudioRevisionStore revisionStore,
-            OdiiStorySettings settings) {
-        return new ActiveRevisionOdiiStoryQueryStore(revisionStore, settings.dataset());
+            OdiiStorySettings settings,
+            OdiiProjectionMetadataResolver metadataResolver,
+            ObjectProvider<TelemetrySink> telemetrySinks) {
+        var store = new ActiveRevisionOdiiStoryQueryStore(
+                revisionStore,
+                settings.dataset(),
+                metadataResolver);
+        return telemetrySinks.getIfAvailable() == null
+                ? store
+                : new TelemetryOdiiStoryQueryStore(store, telemetrySinks.getObject());
+    }
+
+    @Bean
+    OdiiProjectionMetadataResolver odiiProjectionMetadataResolver(
+            OdiiStorySettings settings,
+            ObjectProvider<RegionBoundaryStore> regionStores
+    ) {
+        return new CatalogRegionOdiiProjectionMetadataResolver(
+                settings.category(),
+                Optional.ofNullable(regionStores.getIfAvailable()));
     }
 
     @Bean
@@ -88,11 +111,12 @@ class OdiiStoryConfiguration {
     }
 
     @ConfigurationProperties("onmaru.audio")
-    record OdiiStorySettings(Set<String> publicHosts, String dataset) {
+    record OdiiStorySettings(Set<String> publicHosts, String dataset, String category) {
 
         OdiiStorySettings {
             publicHosts = publicHosts == null ? Set.of() : Set.copyOf(publicHosts);
             dataset = dataset == null || dataset.isBlank() ? "odii-audio" : dataset;
+            category = category == null || category.isBlank() ? "오디오 관광" : category;
         }
     }
 }
