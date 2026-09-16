@@ -15,7 +15,8 @@ public class OnMaruSecretProperties {
             "odii.service-key",
             "gemini.api-key",
             "oauth.client-secret",
-            "otlp.exporter-token"));
+            "otlp.exporter-token",
+            "moderation.operator-token"));
 
     public Source getSource() {
         return source;

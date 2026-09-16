@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -381,3 +382,39 @@ def test_verify_contracts_supports_negative_fixture_mode(tmp_path: Path) -> None
     assert "greeting-broken.json does not match JSON Schema Greeting" in (
         result.stdout + result.stderr
     )
+
+
+def test_dbml2sql_wrapper_pins_toolchain_and_forwards_arguments(tmp_path: Path) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    capture_path = tmp_path / "npx-arguments.txt"
+    fake_npx = bin_dir / "npx"
+    fake_npx.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$@" >"$NPX_CAPTURE_PATH"\nprintf "compiled sql\\n"\n',
+        encoding="utf-8",
+    )
+    fake_npx.chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = f"{bin_dir}:{env['PATH']}"
+    env["NPX_CAPTURE_PATH"] = str(capture_path)
+    result = subprocess.run(
+        [str(ROOT / "scripts/dbml2sql"), "schema.dbml", "--postgres"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == "compiled sql\n"
+    assert capture_path.read_text(encoding="utf-8").splitlines() == [
+        "--yes",
+        "--package=@types/node@22.20.2",
+        "--package=@dbml/cli@10.1.1",
+        "--",
+        "dbml2sql",
+        "schema.dbml",
+        "--postgres",
+    ]

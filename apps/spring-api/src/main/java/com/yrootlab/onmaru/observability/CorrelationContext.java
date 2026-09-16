@@ -5,8 +5,9 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import jakarta.servlet.http.HttpServletRequest;
+import com.yrootlab.onmaru.web.common.error.ExternalCorrelationId;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import jakarta.servlet.http.HttpServletRequest;
 
 record CorrelationContext(String requestId, String traceId, String runId, String revision) {
 
@@ -20,9 +21,10 @@ record CorrelationContext(String requestId, String traceId, String runId, String
                 requestIdFrom(request).orElseGet(CorrelationContext::randomUuid),
                 firstHeader(request, "traceparent")
                         .flatMap(CorrelationContext::traceIdFromTraceparent)
+                        .map(traceId -> ExternalCorrelationId.opaqueHex("trace", traceId))
                         .orElseGet(() -> randomHex(16)),
-                firstHeader(request, "X-Run-Id").orElse("unknown"),
-                firstHeader(request, "X-Revision").orElse("unknown"));
+                opaqueHeader(request, "X-Run-Id", "run").orElse("unknown"),
+                opaqueHeader(request, "X-Revision", "rev").orElse("unknown"));
     }
 
     private static Optional<String> requestIdFrom(HttpServletRequest request) {
@@ -35,6 +37,10 @@ record CorrelationContext(String requestId, String traceId, String runId, String
 
     private static Optional<String> firstHeader(HttpServletRequest request, String name) {
         return Optional.ofNullable(request.getHeader(name)).filter(value -> !value.isBlank());
+    }
+
+    private static Optional<String> opaqueHeader(HttpServletRequest request, String name, String namespace) {
+        return firstHeader(request, name).map(value -> ExternalCorrelationId.opaque(namespace, value));
     }
 
     private static Optional<String> traceIdFromTraceparent(String traceparent) {

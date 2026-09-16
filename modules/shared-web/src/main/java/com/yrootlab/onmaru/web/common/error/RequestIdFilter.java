@@ -24,10 +24,10 @@ public final class RequestIdFilter extends OncePerRequestFilter {
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
-        var requestId = request.getHeader(HEADER);
-        if (requestId == null || requestId.isBlank()) {
-            requestId = UUID.randomUUID().toString();
-        }
+        var externalRequestId = request.getHeader(HEADER);
+        var requestId = externalRequestId == null || externalRequestId.isBlank()
+                ? UUID.randomUUID().toString()
+                : ExternalCorrelationId.opaque("req", externalRequestId);
         request.setAttribute(ATTRIBUTE, requestId);
         response.setHeader(HEADER, requestId);
         filterChain.doFilter(request, response);
