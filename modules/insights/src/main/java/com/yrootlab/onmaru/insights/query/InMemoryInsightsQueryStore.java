@@ -16,6 +16,11 @@ public final class InMemoryInsightsQueryStore {
         heatSpots.add(heatSpot);
     }
 
+    public void clear() {
+        observations.clear();
+        heatSpots.clear();
+    }
+
     List<Observation> observations() {
         return List.copyOf(observations);
     }

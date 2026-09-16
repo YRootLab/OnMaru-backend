@@ -28,6 +28,26 @@ Table operations_admission [headercolor: #9C755F] {
   active_count int [not null]
 }
 
+Table operations_admission_audit [headercolor: #9C755F] {
+  id uuid [pk]
+  scope_key varchar [not null]
+  operation varchar [not null]
+  subject_type varchar [not null]
+  window_start timestamptz [not null]
+  decision varchar [not null]
+  reason varchar
+  limit_value int [not null]
+  consumed_after int [not null]
+  active_after int [not null]
+  retry_after_ms bigint [not null]
+  occurred_at timestamptz [not null]
+
+  Indexes {
+    (scope_key, occurred_at)
+    (operation, decision, occurred_at)
+  }
+}
+
 Table operations_sync_schedules [headercolor: #9C755F] {
   dataset varchar [pk]
   timezone varchar [not null]
@@ -103,6 +123,7 @@ Table operations_sync_quarantine [headercolor: #9C755F] {
 TableGroup operations [color: #9C755F, note: 'Idempotency, rate admission, durable KST 03:00 sync schedules, runs, checkpoints, leases, watermarks, and quarantine.'] {
   operations_idempotency
   operations_admission
+  operations_admission_audit
   operations_sync_schedules
   operations_sync_runs
   operations_sync_checkpoints

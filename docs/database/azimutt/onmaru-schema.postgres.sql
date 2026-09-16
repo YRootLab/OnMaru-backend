@@ -349,6 +349,9 @@ CREATE TABLE "audio_spot_versions" (
   "location" geography,
   "status" audio_status NOT NULL,
   "hash" varchar NOT NULL,
+  "source_modified_at" timestamptz,
+  "observed" boolean NOT NULL DEFAULT true,
+  "missing_observations" int NOT NULL DEFAULT 0,
   PRIMARY KEY ("revision_id", "spot_id")
 );
 
@@ -363,7 +366,20 @@ CREATE TABLE "audio_story_versions" (
   "duration_seconds" int,
   "status" audio_status NOT NULL,
   "hash" varchar NOT NULL,
+  "transcript_provenance" varchar NOT NULL,
+  "source_modified_at" timestamptz,
+  "observed" boolean NOT NULL DEFAULT true,
+  "missing_observations" int NOT NULL DEFAULT 0,
   PRIMARY KEY ("revision_id", "story_id")
+);
+
+CREATE TABLE "audio_revision_stages" (
+  "revision_id" uuid PRIMARY KEY,
+  "ready" boolean NOT NULL DEFAULT false,
+  "row_count" bigint NOT NULL DEFAULT 0,
+  "empty_full_sync_reviewed" boolean NOT NULL DEFAULT false,
+  "failure_code" varchar,
+  "tombstone_count" bigint NOT NULL DEFAULT 0
 );
 
 CREATE TABLE "audio_subtitle_lines" (
@@ -381,6 +397,7 @@ CREATE TABLE "audio_place_odii_links" (
   "spot_id" uuid NOT NULL,
   "match_method" varchar NOT NULL,
   "confidence" numeric,
+  "review_status" varchar NOT NULL DEFAULT 'APPROVED',
   "verified_at" timestamptz,
   PRIMARY KEY ("place_id", "spot_id")
 );
@@ -468,6 +485,21 @@ CREATE TABLE "discovery_runs" (
   "generation" int NOT NULL,
   "error_code" varchar,
   "engine" varchar NOT NULL
+);
+
+CREATE TABLE "discovery_run_commands" (
+  "actor_key" varchar NOT NULL,
+  "operation" varchar NOT NULL,
+  "command_key" uuid NOT NULL,
+  "request_hash" varchar NOT NULL,
+  "run_id" uuid NOT NULL,
+  "result_status" discovery_run_status NOT NULL,
+  "result_stage" varchar,
+  "result_outcome" varchar,
+  "result_generation" int NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "expires_at" timestamptz NOT NULL,
+  PRIMARY KEY ("actor_key", "operation", "command_key")
 );
 
 CREATE TABLE "discovery_proposals" (
@@ -564,6 +596,21 @@ CREATE TABLE "operations_admission" (
   "window_start" timestamptz NOT NULL,
   "consumed" int NOT NULL,
   "active_count" int NOT NULL
+);
+
+CREATE TABLE "operations_admission_audit" (
+  "id" uuid PRIMARY KEY,
+  "scope_key" varchar NOT NULL,
+  "operation" varchar NOT NULL,
+  "subject_type" varchar NOT NULL,
+  "window_start" timestamptz NOT NULL,
+  "decision" varchar NOT NULL,
+  "reason" varchar,
+  "limit_value" int NOT NULL,
+  "consumed_after" int NOT NULL,
+  "active_after" int NOT NULL,
+  "retry_after_ms" bigint NOT NULL,
+  "occurred_at" timestamptz NOT NULL
 );
 
 CREATE TABLE "operations_sync_schedules" (
@@ -731,6 +778,8 @@ CREATE UNIQUE INDEX ON "audio_story_content_tag_versions" ("revision_id", "story
 
 CREATE INDEX ON "audio_story_content_tag_versions" ("label", "revision_id");
 
+CREATE UNIQUE INDEX "audio_place_odii_links_one_approved_per_spot_uq" ON "audio_place_odii_links" ("spot_id");
+
 CREATE INDEX ON "insights_visitor_observations" ("region_id", "basis_date");
 
 CREATE UNIQUE INDEX ON "insights_tourism_targets" ("provider", "source_target_key");
@@ -748,6 +797,8 @@ CREATE INDEX ON "discovery_runs" ("exploration_id");
 CREATE INDEX ON "discovery_runs" ("actor_key");
 
 CREATE INDEX ON "discovery_runs" ("deadline_at");
+
+CREATE INDEX ON "discovery_run_commands" ("expires_at");
 
 CREATE INDEX ON "discovery_proposals" ("exploration_id", "status");
 
@@ -779,6 +830,10 @@ CREATE INDEX ON "community_review_moderation_actions" ("review_id", "created_at"
 
 CREATE INDEX ON "operations_idempotency" ("expires_at");
 
+CREATE INDEX ON "operations_admission_audit" ("scope_key", "occurred_at");
+
+CREATE INDEX ON "operations_admission_audit" ("operation", "decision", "occurred_at");
+
 CREATE UNIQUE INDEX ON "operations_sync_runs" ("dataset", "scheduled_for", "attempt");
 
 CREATE INDEX ON "operations_sync_runs" ("dataset", "status");
@@ -806,6 +861,8 @@ COMMENT ON COLUMN "insights_visitor_observations"."visitor_type" IS 'local, dome
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
+
+COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The executable migration enforces the operation/stage allowlists, positive generation, expiry, and composite primary key.';
 
 COMMENT ON COLUMN "journey_saved_resources"."resource_id" IS 'PLACE -> catalog_place_identity.id for every public canonical tourism place (hanok, stay, cafe, experience, market, attraction); ODII_STORY -> audio_odii_stories.id only for standalone replay. Enforced by application eligibility port.';
 
@@ -842,6 +899,8 @@ ALTER TABLE "community_review_likes" ADD FOREIGN KEY ("member_id") REFERENCES "i
 ALTER TABLE "community_review_reports" ADD FOREIGN KEY ("reporter_member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "audio_revision_stages" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "insights_visitor_observations" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
@@ -930,6 +989,8 @@ ALTER TABLE "audio_story_content_tag_versions" ADD FOREIGN KEY ("revision_id", "
 ALTER TABLE "insights_target_place_links" ADD FOREIGN KEY ("target_id") REFERENCES "insights_tourism_targets" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "discovery_runs" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "discovery_run_commands" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "discovery_proposals" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

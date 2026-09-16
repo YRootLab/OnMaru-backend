@@ -62,7 +62,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("008");
+                    """)).isEqualTo("011");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM information_schema.tables
@@ -103,7 +103,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("008");
+                    """)).isEqualTo("011");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM onmaru.community_visit_reviews
@@ -313,7 +313,7 @@ class DatabaseMigrationContractTests {
                 () -> updateRows("""
                         UPDATE onmaru.discovery_runs
                         SET status = 'CANCELLED',
-                            outcome = 'USER_CANCELLED'
+                            error_code = 'USER_CANCELLED'
                         WHERE id = '%s'
                           AND status = 'RUNNING'
                         """.formatted(runId)),
@@ -357,7 +357,7 @@ class DatabaseMigrationContractTests {
                 () -> updateRows("""
                         UPDATE onmaru.discovery_runs
                         SET status = 'FAILED',
-                            outcome = 'DEADLINE_EXPIRED'
+                            error_code = 'DEADLINE_EXPIRED'
                         WHERE id = '%s'
                           AND status = 'RUNNING'
                           AND deadline_at < CURRENT_TIMESTAMP

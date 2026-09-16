@@ -118,10 +118,10 @@ npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres
 | Catalog | `catalog_regions`, `catalog_region_source_codes`, `catalog_region_boundaries`, `catalog_dataset_revisions`, `catalog_active_datasets`, `catalog_place_identity`, `catalog_place_sources`, `catalog_place_versions`, `catalog_kto_korean_content_versions`, `catalog_kto_korean_intro_versions`, `catalog_kto_korean_info_versions`, `catalog_place_image_versions`, `catalog_hanok_detail_versions`, `catalog_place_content_tag_versions`, `content_tag_overrides` |
 | Audio | `audio_odii_spots`, `audio_odii_stories`, `audio_spot_versions`, `audio_story_versions`, `audio_subtitle_lines`, `audio_place_odii_links`, `audio_story_content_tag_versions` |
 | Insights | `insights_visitor_observations`, `insights_tourism_targets`, `insights_target_place_links`, `insights_concentration_observations` |
-| Discovery | `discovery_explorations`, `discovery_runs`, `discovery_proposals`, `discovery_turns` |
+| Discovery | `discovery_explorations`, `discovery_runs`, `discovery_run_commands`, `discovery_proposals`, `discovery_turns` |
 | Journey | `journey_saved_journeys`, `journey_saved_resources` |
 | Community | `community_visit_reviews`, `community_review_likes` |
-| Operations | `operations_idempotency`, `operations_admission`, `operations_sync_schedules`, `operations_sync_runs`, `operations_sync_checkpoints`, `operations_sync_leases`, `operations_sync_watermarks`, `operations_sync_quarantine` |
+| Operations | `operations_idempotency`, `operations_admission`, `operations_admission_audit`, `operations_sync_schedules`, `operations_sync_runs`, `operations_sync_checkpoints`, `operations_sync_leases`, `operations_sync_watermarks`, `operations_sync_quarantine` |
 | AI | `ai_documents`, `ai_chunks`, `ai_embeddings` |
 
 ## 모듈 분류 이유
@@ -134,13 +134,13 @@ Audio는 Odii spot/story 안정 ID, versioned story/script/audio URL, subtitle l
 
 Insights는 지역 방문자수와 관광지 집중률 같은 통계성 관측값을 소유한다. 이 값은 실시간 사용자 수가 아니라 공공데이터 기반 추정치다.
 
-Discovery는 자연어 탐색 workspace, run, proposal, turn을 소유한다. 장소·지역은 JSON ref와 FK로 참조하지만 catalog를 수정하지 않는다.
+Discovery는 자연어 탐색 workspace, durable run, command receipt, proposal, turn을 소유한다. 장소·지역은 JSON ref와 FK로 참조하지만 catalog를 수정하지 않는다.
 
 Journey는 저장 여정 snapshot, 장소/Odii 담아두기, 내 월간 타임라인의 source row를 소유한다. `journey_saved_resources.resource_id`는 PLACE/Odii polymorphic pointer라서 DBML에서 조건부 FK로 표현하지 않고 application eligibility port로 검증한다.
 
 Community는 짧은 방문 후기와 좋아요를 소유한다. 기존 Warmth mood/score 모델과 분리한다.
 
-Operations는 idempotency, admission, 03:00 KST sync schedule/run/checkpoint/lease/watermark/quarantine을 소유한다.
+Operations는 idempotency, admission counter/audit, 03:00 KST sync schedule/run/checkpoint/lease/watermark/quarantine을 소유한다.
 
 AI는 optional RAG 승인 후 사용하는 corpus/chunk/embedding schema다. MVP에서는 FastAPI에 DB credential을 주지 않으므로 실제 migration 대상이 아니다.
 
@@ -152,7 +152,7 @@ AI는 optional RAG 승인 후 사용하는 corpus/chunk/embedding schema다. MVP
 | Catalog | region은 self hierarchy를 가진다. place source/version/image/hanok/KTO Korean source version은 place identity, source ref, dataset revision을 참조한다. |
 | Audio | story는 spot을 참조한다. spot/story/subtitle version은 stable Odii identity를 참조한다. |
 | Insights | target place link와 concentration observation은 tourism target을 참조한다. |
-| Discovery | run/proposal/turn은 exploration을 참조하고 proposal은 run에 1:1로 묶인다. |
+| Discovery | run/proposal/turn은 exploration을 참조하고 proposal은 run에 1:1로 묶인다. run command receipt는 run을 참조하고 command idempotency replay와 payload mismatch를 기록한다. |
 | Journey | 내부 FK는 의도적으로 적다. saved resource polymorphic target은 application 검증 대상이다. |
 | Community | review like는 visit review를 참조한다. |
 | Operations | checkpoint와 quarantine은 sync run을 참조한다. |

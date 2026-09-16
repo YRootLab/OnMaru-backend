@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.web.exploration;
 
 import com.yrootlab.onmaru.journey.exploration.ExplorationInputInvalidException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationNotFoundException;
+import com.yrootlab.onmaru.journey.exploration.ExplorationActiveRunException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationInputRejectedException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationTurnConflictException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationVersionConflictException;
@@ -10,6 +11,7 @@ import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -85,6 +87,30 @@ final class ExplorationExceptionHandler {
                 ApiErrorCode.IDEMPOTENCY_CONFLICT.message(),
                 request,
                 Map.of());
+    }
+
+    @ExceptionHandler(ExplorationActiveRunException.class)
+    ResponseEntity<ApiErrorResponse> activeRun(HttpServletRequest request) {
+        return error(
+                HttpStatus.CONFLICT,
+                "ACTIVE_RUN",
+                "Exploration already has an active run.",
+                request,
+                Map.of());
+    }
+
+    @ExceptionHandler(ExplorationQuotaExceededException.class)
+    ResponseEntity<ApiErrorResponse> quotaExceeded(
+            ExplorationQuotaExceededException exception,
+            HttpServletRequest request) {
+        var retryAfter = exception.retryAfter();
+        return ResponseEntity.status(ApiErrorCode.RATE_LIMITED.status())
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(Math.max(1, retryAfter.toSeconds())))
+                .cacheControl(CacheControl.noStore())
+                .body(ApiErrorResponse.of(
+                        ApiErrorCode.RATE_LIMITED,
+                        requestId(request),
+                        Map.of("retryAfterMs", retryAfter.toMillis())));
     }
 
     private ResponseEntity<ApiErrorResponse> error(

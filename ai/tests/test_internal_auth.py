@@ -10,7 +10,11 @@ from onmaru_ai.main import create_app
 from onmaru_ai.security.internal_auth import create_internal_token
 
 
-async def post_proposal(token: str, headers: dict[str, str] | None = None) -> Response:
+async def post_proposal(
+    token: str,
+    headers: dict[str, str] | None = None,
+    body: dict[str, object] | None = None,
+) -> Response:
     app = create_app(secret_provider=FakeSecretProvider())
     request_headers = {
         "Authorization": f"Bearer {token}",
@@ -26,7 +30,7 @@ async def post_proposal(token: str, headers: dict[str, str] | None = None) -> Re
         return await client.post(
             "/internal/v1/journey/proposals",
             headers=request_headers,
-            json={
+            json=body or {
                 "schemaVersion": "internal.ai.v1",
                 "requestId": "req-ai-001",
                 "runId": "run-ai-001",
@@ -61,10 +65,9 @@ def test_accepts_current_internal_token_and_propagates_correlation_headers() -> 
     assert response.status_code == 202
     assert response.json() == {
         "schemaVersion": "internal.ai.v1",
-        "status": "accepted",
-        "requestId": "req-ai-001",
         "runId": "run-ai-001",
-        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "orderedRefs": ["place:001", "place:002"],
+        "outcome": "PROPOSAL",
     }
     assert response.headers["X-Request-Id"] == "req-ai-001"
     assert response.headers["X-Run-Id"] == "run-ai-001"
@@ -80,7 +83,12 @@ def test_accepts_previous_internal_token_during_rotation_overlap() -> None:
 
 
 def test_rejects_wrong_audience_before_request_body_is_trusted() -> None:
-    response = asyncio.run(post_proposal(token(audience="other-service")))
+    response = asyncio.run(
+        post_proposal(
+            token(audience="other-service"),
+            body={"schemaVersion": "wrong", "candidateCount": "too-many"},
+        )
+    )
 
     assert response.status_code == 401
     assert response.json()["code"] == "INTERNAL_AUTH_INVALID_AUDIENCE"
@@ -98,3 +106,37 @@ def test_rejects_expired_internal_token() -> None:
 
     assert response.status_code == 401
     assert response.json()["code"] == "INTERNAL_AUTH_EXPIRED"
+
+
+def test_rejects_invalid_contract_after_authentication() -> None:
+    response = asyncio.run(
+        post_proposal(
+            token(),
+            body={
+                "schemaVersion": "wrong",
+                "requestId": "req-ai-001",
+                "runId": "run-ai-001",
+                "candidateCount": 13,
+            },
+        )
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "INTERNAL_AI_CONTRACT_INVALID"
+
+
+def test_rejects_body_run_id_that_does_not_match_correlation_header() -> None:
+    response = asyncio.run(
+        post_proposal(
+            token(),
+            body={
+                "schemaVersion": "internal.ai.v1",
+                "requestId": "req-ai-001",
+                "runId": "different-run",
+                "candidateCount": 2,
+            },
+        )
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "INTERNAL_AI_CONTRACT_INVALID"

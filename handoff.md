@@ -14,6 +14,83 @@
 - 작업 로그: `troubleshooting-worklog/26.09.16 content-tags-hardening.md`에 기존 부족점, 고도화 이유, pipeline, sync 품질 요약, lexicon resource 분리를 자세히 기록했다.
 - 검증: `./gradlew :modules:catalog:test :modules:audio:test --no-daemon`, `./gradlew :apps:spring-api:test --tests '*PlaceDetailWebBoundaryTests' --tests '*OdiiStoryWebBoundaryTests' --tests '*SavedOdiiResourceWebBoundaryTests' --no-daemon`, `node --test scripts/test/migration-policy.test.mjs`, `bash scripts/verify-contracts`, `git diff --check` 통과. `verify-contracts`의 LibreSSL warning은 로컬 Python 환경 warning이며 계약/fixture 검증은 성공했다.
 - 남은 후속: DB에서 `content_tag_overrides`를 읽는 adapter, catalog/audio 실제 persistence adapter 저장 연결, 관리자 override API, 검색 ranking boost, 태그 클릭/필터 API, 품질 dashboard는 별도 Issue로 분리하는 것이 좋다.
+## Current Session Quick Handoff - 2026-09-16 Issue #117
+
+- 현재 작업 브랜치와 worktree: `feature/117-guest-member-ai-quota-admission`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j09-guest-member-ai-quota-admission`.
+- 관련 Issue: #117 `[J09] Guest·member AI 일일 quota와 admission 구현`; blocked-by #109/#86은 모두 Closed이고 시작 시 열린 중복 PR은 없었다.
+- 구현 범위: `journey.ai` admission을 게스트 2회/회원 5회 KST 일일 quota로 추가했다. 기존 `login.start` 1분 IP admission과 공존하도록 `OperationBudget`에 operation별 window를 확장했다.
+- KST 경계: `Duration.ofDays(1)` admission window는 Asia/Seoul 자정 기준으로 계산하고, KST 23:59:59 거절은 `retryAfter=1s`, 00:00:00에는 새 window로 리셋된다.
+- 웹 경계: `/api/v1/explorations`와 turn 생성은 실제 새 AI run이 생길 요청만 preview validation 후 `admitActive`로 quota와 active slot을 함께 점유한다. safety/privacy/scope/validation 거절, baseline clarification, idempotent replay는 quota를 소모하지 않는다. 생성 도중 예외가 나면 점유한 active slot은 즉시 반환한다.
+- 429 응답: quota 초과는 `RATE_LIMITED` envelope와 `Retry-After` header로 반환한다. baseline clarification/degraded 응답과 분리된 exception path를 사용한다.
+- 영속화: `JdbcAdmissionStore`가 `operations_admission` row를 `SELECT ... FOR UPDATE`로 잠그고 counter/active_count update와 `operations_admission_audit` insert를 같은 transaction에서 commit한다. Spring은 `DataSource`가 있으면 JDBC store, 없으면 in-memory fallback을 사용한다.
+- active slot: `AdmissionService.admitActive`는 quota와 activeLimit를 함께 확인한다. active slot 거절은 `ACTIVE_LIMIT` reason으로 반환하고 daily consumed를 증가시키지 않는다. `POST /api/v1/explorations/{explorationId}/runs/{runId}/cancel`은 소유권과 latest run을 확인한 뒤 active 상태였던 run의 slot을 idempotent하게 반환한다.
+- 관측성: journey AI admission 결정은 `journey_ai_admission_decision` structured log로 operation, actorType, allowed, retryAfterMs를 남긴다. Micrometer counter는 `onmaru.admission.decisions`와 `onmaru.admission.releases`에 operation, subjectType, decision, reason tag를 기록한다. DB audit은 operation, subjectType, decision, reason, limit, consumedAfter, activeAfter, retryAfterMs를 시도별로 남긴다.
+- 검증: `./gradlew test`, `./gradlew :modules:operations:test --tests com.yrootlab.onmaru.operations.admission.AdmissionServiceTests :modules:journey:test`, `./gradlew :apps:spring-api:test --tests com.yrootlab.onmaru.web.exploration.ExplorationWebBoundaryTests --tests com.yrootlab.onmaru.web.admission.AdmissionWebBoundaryTests`, `./gradlew :apps:spring-api:test --tests com.yrootlab.onmaru.testing.postgres.DatabaseMigrationContractTests`, `./gradlew :apps:spring-api:test --rerun-tasks --tests com.yrootlab.onmaru.testing.postgres.JdbcAdmissionStoreTests --tests com.yrootlab.onmaru.testing.postgres.OperationsMigrationTests --tests com.yrootlab.onmaru.testing.postgres.FlywayMigrationBaselineTests`, `bash scripts/verify-contracts`, `node --test scripts/test/migration-policy.test.mjs`, `git diff --check` 통과.
+- 남은 리스크: cancel 반환 경로는 웹에 연결됐지만, worker/FastAPI 완료 콜백이나 sweeper가 Spring에 terminal 완료를 통지하는 API는 아직 없다. 해당 lifecycle 경로가 생기면 `AdmissionService.releaseActive`를 같은 lock order로 호출하도록 연결해야 한다.
+- 최신 develop 병합: #197의 `V010__a02_odii_production_persistence.sql`와 충돌해 #117 audit migration을 `V011__j09_admission_audit.sql`로 승격했다. `web -> persistence` ArchUnit cycle은 JDBC admission bean을 `persistence.operations.AdmissionPersistenceConfiguration`으로 이동해 해소했다.
+
+## Current Session Quick Handoff - 2026-09-16 Issue #116
+
+- 현재 작업 브랜치와 worktree: `feature/116-sse-stage-terminal-heartbeat-replay-reset`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j05-sse-stage-terminal-heartbeat-replay-reset`.
+- 관련 Issue: #116 `[J05] SSE stage·terminal·heartbeat·replay/reset 구현`; blocked-by #109/#87은 시작 시점에 모두 Closed였다.
+- 구현 범위: `modules/journey/events`에 run별 단조 sequence 기반 bounded in-memory replay buffer를 추가하고, `ExplorationService`가 create/turn/claim/terminal 전환을 SSE event sink로 발행하도록 연결했다.
+- Spring API: `GET /api/v1/explorations/{explorationId}/runs/{runId}/events`를 `text/event-stream;charset=UTF-8`, `Cache-Control: no-store`로 제공한다. 정상 frame은 `run.stage`, `run.terminal`, `heartbeat`, `reset` 계약을 따르고, 인증 없는 SSE 연결은 private data 없이 `event: auth_closed` / `data: 0`으로 닫는다. 열린 SSE 연결은 `SseEmitter` subscriber로 후속 stage/terminal event를 받고 15초 heartbeat를 예약한다.
+- Run snapshot: `GET /api/v1/explorations/{explorationId}/runs/{runId}`를 추가해 `RunAccepted.runUrl`과 reset/terminal 후 복구 경로를 맞췄다.
+- 계약 보정: `docs/contracts/schemas/journey-sse-event.schema.json`의 `run.stage.data.stage`가 QUEUED 상태의 `null` stage를 허용하도록 수정했다. REST prose의 “QUEUED는 stage=null” 설명과 맞춘 변경이다.
+- 관측성: SSE endpoint도 기존 `CorrelationFilter`의 `http.server.request` telemetry를 타며, web boundary test에서 route/status 기록을 확인한다. 추가로 `JourneySseTelemetryEvent`를 Spring event로 publish하고 `observability` listener가 `journey.sse.replayed`, `journey.sse.reset`, `journey.sse.auth_closed`를 기록한다. 의존 방향은 `observability -> web event`로 유지해 ArchUnit cycle을 피했다.
+- 추가 테스트: 웹 endpoint의 `Last-Event-ID` replay, buffer miss reset, auth close telemetry, terminal close telemetry, 열린 stream 이후 terminal 전달, restart/empty-buffer reset, terminal idempotency를 추가했다.
+- 독립 리뷰 보완: finite string SSE를 `SseEmitter` live stream으로 교체했고, Last-Event-ID+empty buffer reset, auth_closed schema/OpenAPI, duplicate terminal event, missing runUrl endpoint 지적을 보완했다. 추가 re-review의 replay/subscribe gap은 buffer `open(...)`에서 replay와 subscription 등록을 같은 lock 안에서 수행하도록 막았고, heartbeat는 새 sequence를 소비하지 않도록 조정했다.
+- 검증: focused RED/GREEN 후 `./gradlew :modules:journey:test`, `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.web.exploration.ExplorationWebBoundaryTests'`, `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.architecture.ModuleBoundaryArchUnitTests.productionModulesStayAcyclic'`, `bash scripts/verify-contracts`, `git diff --check`, `./gradlew test`, `node scripts/print-branch-issue.mjs` → `116` 통과.
+## Current Session Quick Handoff - 2026-09-16 Issue #140
+
+- 현재 작업 브랜치와 worktree: `feature/140-r2-contract-e2e`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-140-r2-contract-e2e`.
+- 관련 Issue: #140 `[M09] R2 지도·후기·Odii·찜 통합 계약 E2E 게이트`; blocked-by #102/#122/#138/#139/#103/#104/#108/#113/#69는 모두 Closed임을 확인했다.
+- 구현 범위: `testing/e2e/r2/contract-gate.json` manifest, `scripts/test/validate-r2-e2e-gate.py`, `docs/operations/release-evidence/r2/README.md`, `R2ContractE2ETests` runtime suite를 추가하고 `scripts/verify-contracts`에 R2 E2E gate를 연결했다.
+- runtime suite: `public-region-map-insights`, `member-review-odii-save`, `moderation-hidden-review`, `source-outage` 4개 시나리오가 region/map/review/Odii/insights(save 포함)/moderation/authorization/CSRF/cursor/error-envelope를 함께 검증한다. 관측 `MISSING`과 `STALE`을 fixture와 runtime serializer shape 양쪽에서 비교해 drift를 잡는다.
+- 검증: R2 focused Spring 4개 scenario, Insights focused test, 최신 develop 통합 뒤 전체 Gradle 44 tasks(PostgreSQL Testcontainers 포함), `scripts/verify-contracts`, branch parser `140`, `git diff --check`를 통과했다. `scripts/verify-contracts`의 urllib3 LibreSSL 문구는 기존 환경 경고이며 검증 실패가 아니다.
+- 다음 단계: commit/push 후 `develop` 대상 PR의 필수 CI `verify`와 approval을 확인한다. 승인 전에는 merge하지 않는다.
+## Current Session Quick Handoff - 2026-09-16 Issue #106
+
+- 현재 작업 브랜치와 worktree: `feature/106-corpus-manifest-sync`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-106-corpus-manifest-sync`.
+- 관련 Issue: #106 `[AI07] Revision-pinned corpus export·manifest sync 구현`; blocked-by #74/#95/#96은 모두 Closed였다.
+- 구현 범위: Spring internal corpus export scaffold와 FastAPI corpus pull/stage/ACK service를 추가했다. Spring은 immutable revision publish, canonical JSON 기반 manifest/document hash, tombstone manifest entry, revision-pinned document fetch, ACK endpoint와 manifest hash 검증을 제공한다. FastAPI는 duplicate pull insert 0, partial fetch reject, hash mismatch reject, out-of-order manifest rollback 방지, complete activation tombstone 적용을 처리한다.
+- 계약 문서: `docs/contracts/openapi/internal-ai.yaml`에 corpus manifest/document/ACK private contract를 추가했다.
+- 작업 로그: `troubleshooting-worklog/26.09.16 corpus-manifest-sync.md`.
+- 독립 리뷰 보완: ACK endpoint 누락, Spring controller 응답 shape와 OpenAPI 불일치, Spring/FastAPI hash canonicalization 불일치, store-null service split 문제를 수정했다. Spring/Python 양쪽에 같은 document/manifest hash literal 회귀 테스트를 추가했다.
+- 검증: focused Spring corpus tests, Spring app 전체 테스트, Gradle 전체 `test` 41 tasks, FastAPI 전체 pytest 185 passed/1 skipped, corpus Ruff/mypy, contract validation, `scripts/verify-contracts`, `git diff --check`, branch parser `106`을 통과했다. 첫 `./gradlew test`는 Gradle result binary `NoSuchFileException`으로 실패했으나 `:apps:spring-api:cleanTest :apps:spring-api:test` 성공 후 전체 `./gradlew test`를 재실행해 성공했다. contract 검증 중 Python 3.9/LibreSSL `urllib3 NotOpenSSLWarning`은 출력됐지만 실패는 아니다.
+- 다음 단계: PR 생성 전 work log cleanup과 Issue #106 AC를 다시 대조한다.
+
+## Current Session Quick Handoff - 2026-09-16 Issue #109
+
+- 현재 작업 브랜치와 worktree: `feature/109-durable-run`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-109-durable-run`.
+- 관련 Issue: #109 `[J02] Durable run 상태 머신·command idempotency 구현`; blocked-by #101은 Closed이고 시작 시 열린 중복 PR은 없었다.
+- 구현 범위: `modules/journey/run`에 create/claim/stage/terminal 상태 머신과 persistence port를 추가하고, `adapters/persistence-jdbc`에서 PostgreSQL CAS와 durable command receipt를 한 transaction으로 구현했다. Exploration scaffold도 `QUEUED/RUNNING/COMPLETED/FAILED/CANCELLED`와 active run 경계를 표현한다.
+- active run rule: 같은 exploration의 latest run이 `QUEUED` 또는 `RUNNING`이면 새 turn을 `ACTIVE_RUN` 409로 막는다. stale/unknown clarification answer는 기존 J01 계약대로 `VERSION_CONFLICT`를 유지한다.
+- idempotency: actor/operation/key와 request hash별 immutable receipt를 저장한다. 같은 payload는 원래 result를 replay하고 다른 payload는 conflict로 rollback한다.
+- migration: V009가 `discovery_run_commands`와 canonical status/outcome/stage 제약을 추가한다. V006의 FAILED/CANCELLED legacy outcome은 `error_code`로 무손실 이관한다.
+- 동시성 검증: 실제 PostgreSQL에서 동일 command race 효과 1회, exploration/actor active run 하나, cancel/complete terminal 하나, stale generation/stage conflict와 새 adapter instance snapshot 복구를 확인했다.
+- 현재 검증: focused Journey/JDBC/web/migration/Testcontainers 통과. 전체 Java 검증 중 `apps:spring-api:test` result binary `NoSuchFileException`이 한 번 발생했으나 XML assertion failure는 없었고, `./gradlew :apps:spring-api:cleanTest :apps:spring-api:test --no-daemon` 재실행으로 Spring API 전체가 통과했다. Node 37 tests, planning/Odii, contract/generated artifact, Python contract 9 passed, AI pytest 180 passed/1 skipped, Ruff/mypy, offline AI eval 5 gates, branch parser `109`, `git diff --check` 통과.
+- PR: #211 `feat(journey): durable run 상태 머신과 command idempotency 구현` (`develop` 대상, `Closes #109`). CI와 approval 전에는 merge하지 않는다.
+
+
+
+## Current Session Quick Handoff - 2026-09-16 Issue #197
+
+- 현재 작업 브랜치와 worktree: `feature/197-odii-production`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-197-odii-production`.
+- 관련 Issue: #197 `[A02-FOLLOWUP] Odii production revision 저장·공개 projection wiring 구현`.
+- 구현 범위: PostgreSQL `AudioRevisionStore` adapter, production Spring composition, Odii sync source composition, active revision 기반 공개 projection, category/region/subtitle hydrate, place-link DB 승인 원자성, 관측성 이벤트를 추가했다.
+- DB 변경: `V010__a02_odii_production_persistence.sql`이 `audio_revision_stages`, version row의 `source_modified_at/observed/missing_observations`, `transcript_provenance`, place-link `review_status`, spot별 approved partial unique index를 추가한다. `db/migration/registry/migrations.json`과 DBML/schema 문서도 갱신했다.
+- runtime 구성: production profile은 JDBC `AudioRevisionStore`/`AudioPlaceLinkStore`를 선택하고, non-production에서만 in-memory fallback을 둔다. `OdiiClientConfiguration`은 production에서 Odii HTTP source와 `OdiiRevisionSyncService`를 구성한다.
+- 공개 projection: `ActiveRevisionOdiiStoryQueryStore`가 active revision snapshot을 읽어 subtitle line을 transcript로 매핑하고, `OdiiProjectionMetadataResolver`로 category/region을 hydrate한다. region 미해결은 대한민국 fallback을 사용한다.
+- 장소 연결: `AudioPlaceLinkStore.approveExclusive(...)`로 승인 전환을 store-level 단일 operation으로 올렸고, JDBC adapter는 row lock + transaction + partial unique index로 동시 승인 단일 승자와 rollback 보존을 검증한다.
+- 관측성: `odii.sync.started/failed/completed`, `odii.place_link.approval.completed/failed`, `odii.active_revision.snapshot/unavailable` 이벤트를 기존 `TelemetrySink`로 기록한다.
+- 작업 로그: `troubleshooting-worklog/26.09.16 odii-production-persistence-observability.md`.
+- 검증: `./gradlew :modules:audio:test --no-daemon --max-workers=1`, `./gradlew :apps:spring-api:compileTestJava --no-daemon --max-workers=1`, `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.tourism.audio.JdbcAudioRevisionStoreIntegrationTests' --tests 'com.yrootlab.onmaru.testing.postgres.AudioMigrationTests.permitsOnlyOneApprovedPlaceLinkPerAudioSpot' --no-daemon --max-workers=1`, `git diff --check`, `node scripts/print-branch-issue.mjs`를 통과했다. 사용자가 Spring 전체 테스트 1회 수행 완료를 확인했다.
+- PR #214 생성 후 GitHub `verify`가 실패했다. 원인은 `V010` 반영 후 migration contract 기대값 미갱신, 새 `transcript_provenance` NOT NULL 컬럼을 legacy fixture insert가 채우지 않음, `web -> observability` 직접 참조로 인한 ArchUnit cycle, production-profile 테스트의 전역 system property 오염이었다.
+- CI 보정: query 관측성은 `audio` observer port + `observability` adapter로 이동했고, fixture/contract/property override를 수정했다. 재검증으로 실패 4개 클래스 묶음, `./gradlew :apps:spring-api:test --no-daemon --max-workers=1`, `./gradlew :modules:audio:test --no-daemon --max-workers=1`, `git diff --check`를 통과했다.
+- 추가 CI 보정: 두 번째 `verify`는 Spring 단계까지 통과했으나 `Public contract and generated artifact validation`에서 stale Azimutt SQL artifact diff로 실패했다. `node scripts/azimutt-export.mjs`로 `docs/database/azimutt/*`를 재생성했고 `bash scripts/verify-contracts`가 통과했다.
+- CI 주의: 로컬 Spring 전체 테스트 성공은 GitHub required `verify` check를 대체하지 않는다. push 후 GitHub CI 녹색과 최소 1명 approval을 확인해야 merge 가능하다.
+- 다음 단계: PR #214의 재실행된 `verify` check를 확인한다. PR merge 후 `Closes/Fixes/Resolves #197`가 `develop` 대상 auto-close로 처리되지 않을 수 있으므로 Issue 상태를 확인하고 필요 시 검증 근거 comment 후 수동 close한다.
 
 ## Current Session Quick Handoff - 2026-09-16 Issue #101
 

@@ -25,11 +25,17 @@ class ExplorationConfiguration {
     }
 
     @Bean
+    InMemoryJourneyRunEventStream journeyRunEventStream() {
+        return new InMemoryJourneyRunEventStream();
+    }
+
+    @Bean
     ExplorationService explorationService(
             InMemoryExplorationStore store,
             InMemoryExplorationRunDispatcher dispatcher,
             Clock clock,
-            GuestGrantService guestGrantService) {
+            GuestGrantService guestGrantService,
+            InMemoryJourneyRunEventStream eventStream) {
         return new ExplorationService(store, dispatcher, clock, (actor, state) -> {
             if (state.owner().equals(actor)) {
                 return true;
@@ -40,6 +46,6 @@ class ExplorationConfiguration {
             return guestGrantService.canAccess(new MemberExplorationAccess(
                     java.util.UUID.fromString(actor.subject()),
                     state.id()));
-        });
+        }, eventStream);
     }
 }

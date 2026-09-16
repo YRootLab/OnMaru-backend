@@ -17,6 +17,7 @@ public final class OdiiRevisionSyncService {
     private final OdiiSourceMapper mapper;
     private final Clock clock;
     private final DatasetPublicationService publisher;
+    private final OdiiSyncObserver observer;
 
     public OdiiRevisionSyncService(
             AudioRevisionStore store,
@@ -24,14 +25,26 @@ public final class OdiiRevisionSyncService {
             OdiiSourceMapper mapper,
             Clock clock
     ) {
+        this(store, source, mapper, clock, OdiiSyncObserver.NOOP);
+    }
+
+    public OdiiRevisionSyncService(
+            AudioRevisionStore store,
+            OdiiPageSource source,
+            OdiiSourceMapper mapper,
+            Clock clock,
+            OdiiSyncObserver observer
+    ) {
         this.store = store;
         this.source = source;
         this.mapper = mapper;
         this.clock = clock;
+        this.observer = observer == null ? OdiiSyncObserver.NOOP : observer;
         this.publisher = new DatasetPublicationService(store, clock);
     }
 
     public OdiiSyncResult sync(OdiiSyncCommand command) {
+        observer.started(command.dataset(), command.expectedActiveRevisionId());
         AudioRevisionStage stage = store.openStage(
                 command.dataset(), command.expectedActiveRevisionId(), clock.instant());
         Instant latestModifiedAt = null;
@@ -60,7 +73,10 @@ public final class OdiiRevisionSyncService {
             }
         } catch (OdiiSourceException | OdiiMappingException exception) {
             store.failStage(stage.revisionId(), "SOURCE_FAILED");
-            return OdiiSyncResult.sourceFailed(stage.revisionId());
+            observer.failed(command.dataset(), stage.revisionId(), "SOURCE_FAILED");
+            var result = OdiiSyncResult.sourceFailed(stage.revisionId());
+            observer.completed(command.dataset(), result);
+            return result;
         }
 
         AudioStageCompletion completion = store.completeStage(
@@ -79,12 +95,14 @@ public final class OdiiRevisionSyncService {
                 completion.tombstoneCount()
         ));
         var tagQuality = OdiiContentTagQualitySummary.from(mappedStories);
-        return OdiiSyncResult.publication(
+        var result = OdiiSyncResult.publication(
                 stage.revisionId(),
                 store.stagedItemCount(stage.revisionId()),
                 completion.tombstoneCount(),
                 publication.status(),
                 tagQuality
         );
+        observer.completed(command.dataset(), result);
+        return result;
     }
 }

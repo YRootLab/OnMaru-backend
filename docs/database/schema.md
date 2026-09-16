@@ -11,6 +11,10 @@
 // Level 1 overview:
 // ./overview.dbml
 // 아래 DBML은 역사적 Odii 모델이며 새 migration의 전체 스키마가 아니다.
+// Journey durable run의 최신 논리 계약은 ./modules/discovery.dbml의
+// discovery_runs와 discovery_run_commands에 있다.
+// command receipt와 run mutation은 같은 PostgreSQL transaction에서 commit되어야 하며,
+// run snapshot이 SSE보다 우선하는 정답이다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 
@@ -59,6 +63,18 @@ Table audio_guides {
 
   Note: '특정 관광지에 속한 개별 이야기(도슨트) 정보를 저장합니다.'
 }
+
+// 2-1. Production revision/link 보강 (#197)
+// 실제 PostgreSQL baseline은 docs/database/modules/audio.dbml 및
+// V008-V010 Flyway migration을 기준으로 한다.
+// - audio_revision_stages: staged revision의 ready/failure/row/tombstone 상태를 저장한다.
+// - audio_spot_versions/audio_story_versions: source_modified_at, observed,
+//   missing_observations를 보존해 LKG 복사와 tombstone publish를 지원한다.
+// - audio_story_versions.transcript_provenance와 audio_subtitle_lines가
+//   공개 projection의 transcriptStatus/transcript line을 구성한다.
+// - audio_place_odii_links.review_status는 PENDING/APPROVED/REJECTED이며,
+//   partial unique index audio_place_odii_links_one_approved_per_spot_uq로
+//   spot별 APPROVED 연결을 최대 1개로 제한한다.
 
 // 관계 (Relationships)
 Ref: audio_guides.(tid, tlid) > tour_spots.(tid, tlid)

@@ -46,6 +46,9 @@ public final class InsightsQueryService {
         if (items.stream().anyMatch(this::isMissing)) {
             return "MISSING";
         }
+        if (items.stream().anyMatch(this::isStale)) {
+            return "STALE";
+        }
         if (items.stream().anyMatch(this::isPartial)) {
             return "PARTIAL";
         }
@@ -58,6 +61,16 @@ public final class InsightsQueryService {
         }
         if (item instanceof HeatSpot spot) {
             return "MISSING".equals(spot.coverageStatus());
+        }
+        return false;
+    }
+
+    private boolean isStale(Record item) {
+        if (item instanceof Observation observation) {
+            return "STALE".equals(observation.coverageStatus());
+        }
+        if (item instanceof HeatSpot spot) {
+            return "STALE".equals(spot.coverageStatus());
         }
         return false;
     }

@@ -1,0 +1,47 @@
+{
+  "name": "exploration-snapshot-unavailable-ref",
+  "description": "비공개 또는 현재 public이 아닌 place는 board에서 누출하지 않고 unavailableRefs로만 반환한다.",
+  "given": {"unavailablePlaceIds": ["place-private-001"]},
+  "request": {"method": "GET", "path": "/api/v1/explorations/11111111-1111-4111-8111-222222222222"},
+  "response": {
+    "status": 200,
+    "schema": "ExplorationSnapshot",
+    "body": {
+      "schemaVersion": "1.2",
+      "explorationId": "11111111-1111-4111-8111-222222222222",
+      "stateVersion": 1,
+      "board": null,
+      "pinnedRefs": [],
+      "excludedRefs": [],
+      "unavailableRefs": [{"type": "PLACE", "id": "place-private-001"}],
+      "execution": {"dataMode": "PUBLIC", "engine": "BASELINE", "rankingVersion": "baseline-v1", "datasetRevision": "dataset-20260915"},
+      "latestRun": {
+        "schemaVersion": "1.2",
+        "runId": "71111111-1111-4111-8111-222222222222",
+        "status": "COMPLETED",
+        "engine": "BASELINE",
+        "degradedReason": null,
+        "stage": null,
+        "outcome": "INITIAL_BOARD",
+        "clarification": null,
+        "retryAfterMs": 0,
+        "createdAt": "2026-09-15T12:00:00Z",
+        "startedAt": "2026-09-15T12:00:01Z",
+        "deadlineAt": "2026-09-15T12:00:30Z",
+        "error": null
+      },
+      "pendingProposal": null,
+      "recentHistory": [{
+        "id": "d1111111-1111-4111-8111-222222222222",
+        "type": "BOARD_COMMITTED",
+        "createdAt": "2026-09-15T12:00:00Z",
+        "query": "전주 한옥 여행",
+        "runId": "71111111-1111-4111-8111-222222222222",
+        "stateVersion": 1,
+        "proposalId": null,
+        "affectedRefs": [{"type": "PLACE", "id": "place-private-001"}]
+      }],
+      "updatedAt": "2026-09-15T12:00:00Z"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 plugins {
-    `java-library`
+    id("onmaru.java-library-conventions")
     alias(libs.plugins.spring.dependency.management)
 }
 
@@ -8,8 +8,4 @@ dependencies {
     testImplementation("org.assertj:assertj-core")
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-tasks.withType<Test> {
-    useJUnitPlatform()
 }

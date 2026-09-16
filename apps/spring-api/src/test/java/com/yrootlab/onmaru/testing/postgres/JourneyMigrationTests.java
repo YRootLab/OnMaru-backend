@@ -169,6 +169,43 @@ class JourneyMigrationTests {
     }
 
     @Test
+    void upgradesLegacyTerminalOutcomesWithoutLosingFailureReason() throws Exception {
+        resetAndMigrateTo("8");
+        var memberId = UUID.randomUUID();
+        var explorationId = UUID.randomUUID();
+        var failedRunId = UUID.randomUUID();
+        var cancelledRunId = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            insertMember(statement, memberId);
+            insertExploration(statement, explorationId, memberId);
+            insertRun(statement, failedRunId, explorationId, "actor:failed", "FAILED", "DEADLINE_EXPIRED");
+            insertRun(statement, cancelledRunId, explorationId, "actor:cancelled", "CANCELLED", "USER_CANCELLED");
+        }
+
+        migrate();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement();
+             var result = statement.executeQuery("""
+                     SELECT status::text, outcome, error_code
+                     FROM onmaru.discovery_runs
+                     WHERE id IN ('%s', '%s')
+                     ORDER BY status
+                     """.formatted(failedRunId, cancelledRunId))) {
+            assertThat(result.next()).isTrue();
+            assertThat(result.getString("status")).isEqualTo("CANCELLED");
+            assertThat(result.getString("outcome")).isNull();
+            assertThat(result.getString("error_code")).isEqualTo("USER_CANCELLED");
+            assertThat(result.next()).isTrue();
+            assertThat(result.getString("status")).isEqualTo("FAILED");
+            assertThat(result.getString("outcome")).isNull();
+            assertThat(result.getString("error_code")).isEqualTo("DEADLINE_EXPIRED");
+        }
+    }
+
+    @Test
     void preventsDuplicateSavedJourneyAndSavedResourceForMember() throws Exception {
         resetAndMigrate();
         var memberId = UUID.randomUUID();
@@ -285,6 +322,28 @@ class JourneyMigrationTests {
                 .locations("classpath:db/migration/baseline")
                 .baselineOnMigrate(true)
                 .baselineVersion("0")
+                .load()
+                .migrate();
+    }
+
+    private static void resetAndMigrateTo(String target) throws Exception {
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD)) {
+            PostgresTestDatabase.reset(connection);
+        }
+        Flyway.configure()
+                .dataSource(jdbcUrl(), USERNAME, PASSWORD)
+                .locations("classpath:db/migration/baseline")
+                .baselineOnMigrate(true)
+                .baselineVersion("0")
+                .target(target)
+                .load()
+                .migrate();
+    }
+
+    private static void migrate() {
+        Flyway.configure()
+                .dataSource(jdbcUrl(), USERNAME, PASSWORD)
+                .locations("classpath:db/migration/baseline")
                 .load()
                 .migrate();
     }

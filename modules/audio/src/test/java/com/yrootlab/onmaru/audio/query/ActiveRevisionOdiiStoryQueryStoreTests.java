@@ -54,6 +54,39 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
     }
 
     @Test
+    void preservesEveryOfficialSubtitleLineInOrder() {
+        var mapped = new OdiiSourceMapper().map(source(
+                "한옥 골목 이야기",
+                "첫 문장입니다.\n두 번째 문장입니다."));
+        var store = new ActiveRevisionOdiiStoryQueryStore(revisionStore(
+                AudioRevisionSnapshot.from(List.of(mapped))), DATASET);
+
+        var story = store.activeSnapshot().stories().getFirst();
+
+        assertThat(story.transcript())
+                .extracting(OdiiTranscriptLine::index, OdiiTranscriptLine::text)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(0, "첫 문장입니다."),
+                        org.assertj.core.groups.Tuple.tuple(1, "두 번째 문장입니다."));
+    }
+
+    @Test
+    void preservesConfiguredCategoryAndResolvedRegionWithoutFallingBack() {
+        var mapped = new OdiiSourceMapper().map(source());
+        var expectedRegion = new OdiiRegionRef(
+                "kr-45-jeonju", "전북 전주시", "CITY", "kr-45");
+        var store = new ActiveRevisionOdiiStoryQueryStore(
+                revisionStore(AudioRevisionSnapshot.from(List.of(mapped))),
+                DATASET,
+                spot -> new OdiiProjectionMetadata("한옥/고택", expectedRegion));
+
+        var story = store.activeSnapshot().stories().getFirst();
+
+        assertThat(story.category()).isEqualTo("한옥/고택");
+        assertThat(story.region()).isEqualTo(expectedRegion);
+    }
+
+    @Test
     void failsClosedWhenThePublishedRevisionContainsNoStories() {
         var store = new ActiveRevisionOdiiStoryQueryStore(
                 revisionStore(AudioRevisionSnapshot.empty()), DATASET);
@@ -103,6 +136,10 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
     }
 
     private OdiiSourceStory source(String audioTitle) {
+        return source(audioTitle, "골목에 남은 이야기를 들어보세요.");
+    }
+
+    private OdiiSourceStory source(String audioTitle, String script) {
         return new OdiiSourceStory(
                 "89",
                 "300",
@@ -110,7 +147,7 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
                 "1204",
                 "전주 한옥마을",
                 audioTitle,
-                "골목에 남은 이야기를 들어보세요.",
+                script,
                 "https://cdn.onmaru.example/odii/story.mp3",
                 "https://cdn.onmaru.example/odii/story.jpg",
                 "185",

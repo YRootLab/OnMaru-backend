@@ -139,6 +139,37 @@ class OdiiRevisionSyncServiceTests {
         assertThat(findSpot(store, "412").status()).isEqualTo(AudioStatus.ACTIVE);
     }
 
+    @Test
+    void recordsSyncLifecycleForPublishedAndSourceFailedRuns() {
+        UUID baseRevision = UUID.randomUUID();
+        var store = store(baseRevision, List.of());
+        var observer = new RecordingObserver();
+        var source = new StubPageSource()
+                .page("ko", 1, page(List.of(source("300", "1204", "ko", "562")), true));
+        var service = new OdiiRevisionSyncService(store, source, mapper, clock, observer);
+
+        OdiiSyncResult published = service.sync(command(baseRevision, List.of("ko"), 1));
+
+        assertThat(observer.events).containsExactly(
+                "started:odii-audio:" + baseRevision,
+                "completed:odii-audio:PUBLISHED:" + published.stagedRevisionId() + ":2:0");
+
+        var failingObserver = new RecordingObserver();
+        var failing = new OdiiRevisionSyncService(
+                store,
+                new StubPageSource().fail("ko", 1),
+                mapper,
+                clock,
+                failingObserver);
+
+        OdiiSyncResult failed = failing.sync(command(published.stagedRevisionId(), List.of("ko"), 1));
+
+        assertThat(failingObserver.events).containsExactly(
+                "started:odii-audio:" + published.stagedRevisionId(),
+                "failed:odii-audio:" + failed.stagedRevisionId() + ":SOURCE_FAILED",
+                "completed:odii-audio:SOURCE_FAILED:" + failed.stagedRevisionId() + ":0:0");
+    }
+
     private InMemoryAudioRevisionStore store(UUID baseRevision, List<OdiiMappedStory> stories) {
         return new InMemoryAudioRevisionStore(
                 DATASET,
@@ -247,6 +278,27 @@ class OdiiRevisionSyncServiceTests {
 
         private String key(String language, int page) {
             return language + ":" + page;
+        }
+    }
+
+    private static final class RecordingObserver implements OdiiSyncObserver {
+
+        private final List<String> events = new ArrayList<>();
+
+        @Override
+        public void started(String dataset, UUID expectedRevisionId) {
+            events.add("started:" + dataset + ":" + expectedRevisionId);
+        }
+
+        @Override
+        public void failed(String dataset, UUID revisionId, String failureCode) {
+            events.add("failed:" + dataset + ":" + revisionId + ":" + failureCode);
+        }
+
+        @Override
+        public void completed(String dataset, OdiiSyncResult result) {
+            events.add("completed:" + dataset + ":" + result.status() + ":" + result.stagedRevisionId()
+                    + ":" + result.itemCount() + ":" + result.tombstoneCount());
         }
     }
 }

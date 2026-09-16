@@ -40,6 +40,9 @@ Table audio_spot_versions [headercolor: #F28E2B] {
   location geography [note: 'PostGIS Point(4326)']
   status audio_status [not null]
   hash varchar [not null]
+  source_modified_at timestamptz
+  observed boolean [not null, default: true]
+  missing_observations int [not null, default: 0]
 
   Indexes {
     (revision_id, spot_id) [pk]
@@ -58,11 +61,24 @@ Table audio_story_versions [headercolor: #F28E2B] {
   duration_seconds int
   status audio_status [not null]
   hash varchar [not null]
+  transcript_provenance varchar [not null]
+  source_modified_at timestamptz
+  observed boolean [not null, default: true]
+  missing_observations int [not null, default: 0]
 
   Indexes {
     (revision_id, story_id) [pk]
     (revision_id, spot_id)
   }
+}
+
+Table audio_revision_stages [headercolor: #F28E2B] {
+  revision_id uuid [pk]
+  ready boolean [not null, default: false]
+  row_count bigint [not null, default: 0]
+  empty_full_sync_reviewed boolean [not null, default: false]
+  failure_code varchar
+  tombstone_count bigint [not null, default: 0]
 }
 
 Table audio_subtitle_lines [headercolor: #F28E2B] {
@@ -83,11 +99,13 @@ Table audio_place_odii_links [headercolor: #F28E2B] {
   spot_id uuid [not null]
   match_method varchar [not null]
   confidence numeric
+  review_status varchar [not null, default: 'APPROVED']
   verified_at timestamptz
 
   Indexes {
     (place_id, spot_id) [pk]
     spot_id
+    spot_id [unique, name: 'audio_place_odii_links_one_approved_per_spot_uq', note: 'partial: review_status = APPROVED']
   }
 }
 
@@ -117,6 +135,7 @@ TableGroup audio [color: #F28E2B, note: 'KTO Odii stable identities, versioned s
   audio_subtitle_lines
   audio_place_odii_links
   audio_story_content_tag_versions
+  audio_revision_stages
 }
 
 Ref: audio_odii_stories.spot_id > audio_odii_spots.id
