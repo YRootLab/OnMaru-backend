@@ -12,6 +12,14 @@
 - 병합 상태: PR #200은 develop에 병합되고 Issue #139는 reconcile workflow로 Closed 됐다. #196/#198/#199는 approval 없이 열린 상태이며 최신 develop과 충돌해 각 작업 branch 갱신이 필요하다.
 - 다음 단계: 전체 repository verification 후 #94 PR을 `develop` 대상으로 만들고 `yshls` review를 요청한다. CI와 최소 1명 approval이 모두 확인된 뒤에만 병합하고, post-merge reconcile로 #94 종료를 확인한다.
 
+## Current Session Quick Handoff - 2026-09-15 Issue #91
+
+- 현재 작업 브랜치와 worktree: `feature/91-gemini-provider`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-91-gemini-provider`.
+- 관련 Issue: #91 `[AI04] Gemini provider adapter·timeout·usage 계측 구현`; blocked-by #83/#74는 Closed이며 열린 중복 PR은 없다.
+- 구현 범위: policy/few-shot/untrusted data prompt package, Gemini REST structured output, absolute timeout·caller cancel, 429/5xx/malformed JSON typed failure, token·주입 단가 기반 추정 비용 계측.
+- 보안 경계: key/raw prompt/evidence는 telemetry에 기록하지 않고 model alias와 version, revision, token count, 추정 비용만 기록한다. 운영은 2026-09 authorization key 전환 정책을 따른다.
+- 검증: fake transport 7개 테스트와 opt-in 5초/64-token live smoke를 추가했다. 실제 live smoke는 authorization key가 없어 기본 검증에서 skip한다.
+- 다음 단계: 전체 FastAPI/저장소 검증 후 PR을 만들고, merge 뒤 #105 proposal allowlist validator를 시작한다.
 ## Current Session Quick Handoff - 2026-09-16 Issue #139
 
 - 현재 작업 브랜치와 worktree: `feature/139-moderation-queue`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-139-moderation-queue`.
