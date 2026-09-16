@@ -30,14 +30,16 @@ paths:
               $ref: '#/components/schemas/InternalJourneyProposalRequest'
       responses:
         '202':
-          description: Request authenticated and accepted by the private AI boundary.
+          description: Request authenticated and synchronously converted into a bounded proposal.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InternalJourneyProposalAccepted'
+                $ref: '#/components/schemas/InternalJourneyProposalResponse'
         '401':
           $ref: '#/components/responses/InternalAuthError'
         '403':
+          $ref: '#/components/responses/InternalAuthError'
+        '422':
           $ref: '#/components/responses/InternalAuthError'
 components:
   securitySchemes:
@@ -113,33 +115,35 @@ components:
           type: integer
           minimum: 0
           maximum: 12
-    InternalJourneyProposalAccepted:
+    InternalJourneyProposalResponse:
       type: object
       additionalProperties: false
       required:
         - schemaVersion
-        - status
-        - requestId
         - runId
-        - traceId
+        - orderedRefs
+        - outcome
       properties:
         schemaVersion:
           type: string
           const: internal.ai.v1
-        status:
-          type: string
-          const: accepted
-        requestId:
-          type: string
-          minLength: 1
-          maxLength: 128
         runId:
           type: string
           minLength: 1
           maxLength: 128
-        traceId:
+        orderedRefs:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+        outcome:
           type: string
-          pattern: '^[0-9a-f]{32}$'
+          enum:
+            - PROPOSAL
+            - INITIAL_BOARD
+            - NO_RESULTS
     InternalError:
       type: object
       additionalProperties: false
@@ -162,6 +166,7 @@ components:
             - INTERNAL_AUTH_INVALID_AUDIENCE
             - INTERNAL_AUTH_FORBIDDEN_SCOPE
             - INTERNAL_AUTH_EXPIRED
+            - INTERNAL_AI_CONTRACT_INVALID
         message:
           type: string
           minLength: 1

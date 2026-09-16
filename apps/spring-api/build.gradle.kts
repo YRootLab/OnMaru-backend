@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":adapters:tourism-api"))
+    implementation(project(":adapters:persistence-jdbc"))
     implementation(project(":modules:audio"))
     implementation(project(":modules:catalog"))
     implementation(project(":modules:community"))
@@ -28,7 +29,6 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation(libs.archunit.junit5)
     testImplementation(libs.testcontainers)
-    testImplementation(project(":adapters:persistence-jdbc"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly(libs.postgresql)
 }
