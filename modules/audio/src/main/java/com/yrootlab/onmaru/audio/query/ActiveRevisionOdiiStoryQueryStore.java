@@ -34,8 +34,9 @@ public final class ActiveRevisionOdiiStoryQueryStore implements OdiiStoryQuerySt
 
     @Override
     public OdiiActiveSnapshot activeSnapshot() {
-        UUID revisionId = revisionStore.activeRevision(dataset);
-        var snapshot = revisionStore.activeSnapshot();
+        var activeRevision = revisionStore.activePublishedRevision(dataset);
+        UUID revisionId = activeRevision.revisionId();
+        var snapshot = activeRevision.snapshot();
         if (revisionId == null || snapshot.stories().isEmpty()) {
             throw new OdiiStoryUnavailableException();
         }
