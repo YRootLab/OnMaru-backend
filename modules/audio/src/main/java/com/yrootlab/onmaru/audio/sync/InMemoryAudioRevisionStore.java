@@ -137,6 +137,7 @@ public final class InMemoryAudioRevisionStore implements AudioRevisionStore {
         return PublicationStatus.PUBLISHED;
     }
 
+    @Override
     public synchronized UUID activeRevision(String dataset) {
         if (!this.dataset.equals(dataset)) {
             throw new IllegalArgumentException("unknown dataset: " + dataset);
@@ -144,6 +145,7 @@ public final class InMemoryAudioRevisionStore implements AudioRevisionStore {
         return activeRevision;
     }
 
+    @Override
     public synchronized AudioRevisionSnapshot activeSnapshot() {
         return activeSnapshot.copy();
     }

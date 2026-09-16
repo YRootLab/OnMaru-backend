@@ -163,6 +163,23 @@ class OdiiStoryQueryServiceTests {
     }
 
     @Test
+    void redactsUnsafeImageUrlsFromListAndDetailWithoutHidingPlayableStories() {
+        var unsafeImage = storyWithImageUrl(
+                story("odii-story-jeonju-hanok-01", "ko-KR", "한옥/고택", "kr-45-jeonju",
+                        Instant.parse("2026-09-15T03:00:00Z"),
+                        OdiiTranscriptStatus.OFFICIAL, AudioStatus.ACTIVE),
+                "https://provider.example/cover.jpg?serviceKey=secret");
+        store.replaceActive(snapshot(REVISION_ONE, unsafeImage));
+
+        var page = service.list(OdiiStoryQuery.firstPage("ko-KR", 20, Optional.empty()));
+        var detail = service.detail("odii-story-jeonju-hanok-01", "ko-KR", Optional.empty());
+
+        assertThat(page.items()).singleElement().extracting(OdiiStorySummary::imageUrl).isNull();
+        assertThat(detail.story().imageUrl()).isNull();
+        assertThat(detail.audioUrl()).isEqualTo(unsafeImage.audioUrl());
+    }
+
+    @Test
     void bindsCursorToLanguageFiltersLimitAndActiveRevision() {
         store.replaceActive(snapshot(REVISION_ONE,
                 story("odii-story-first-01", "ko-KR", "한옥/고택", "kr-45-jeonju",
@@ -337,6 +354,26 @@ class OdiiStoryQueryServiceTests {
                 story.audioUrl(),
                 story.transcriptStatus(),
                 transcript,
+                story.publishedAt(),
+                story.status(),
+                story.spotStatus());
+    }
+
+    private OdiiStoryProjection storyWithImageUrl(OdiiStoryProjection story, String imageUrl) {
+        return new OdiiStoryProjection(
+                story.storyId(),
+                story.spotId(),
+                story.language(),
+                story.title(),
+                story.audioTitle(),
+                story.category(),
+                story.region(),
+                story.coordinates(),
+                story.durationSeconds(),
+                imageUrl,
+                story.audioUrl(),
+                story.transcriptStatus(),
+                story.transcript(),
                 story.publishedAt(),
                 story.status(),
                 story.spotStatus());

@@ -217,3 +217,18 @@ gh pr create --base develop --head feature/103-odii-public-api --title "feat(aud
 - [x] **Step 2: Change tests to require `ApprovedAudioPlaceLinkQuery` and verify RED**
 - [x] **Step 3: Replace the temporary resolver with the approved-link query**
 - [x] **Step 4: Verify focused module and Spring web boundary tests**
+
+### Task 6: Independent Review Follow-up
+
+**Files:**
+- Create: `modules/audio/src/main/java/com/yrootlab/onmaru/audio/query/ActiveRevisionOdiiStoryQueryStore.java`
+- Modify: `modules/audio/src/main/java/com/yrootlab/onmaru/audio/query/OdiiStoryQueryService.java`
+- Modify: `modules/audio/src/main/java/com/yrootlab/onmaru/audio/sync/AudioRevisionStore.java`
+- Modify: `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/audio/OdiiStoryConfiguration.java`
+- Add: module and Spring integration regression tests
+
+- [x] **Step 1: Reproduce unsafe image URL exposure in list and detail**
+- [x] **Step 2: Reproduce the missing active revision query adapter**
+- [x] **Step 3: Apply exact-host media policy and opaque public IDs**
+- [x] **Step 4: Wire the #96 active snapshot adapter with empty-data fail-closed behavior**
+- [x] **Step 5: Verify focused module and Spring integration tests**

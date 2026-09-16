@@ -168,11 +168,15 @@ public final class OdiiStoryQueryService {
                 story.region(),
                 story.coordinates(),
                 story.durationSeconds(),
-                story.imageUrl(),
+                publicImageUrl(story.imageUrl()),
                 approvedPlaceLinkQuery.findApprovedPlace(story.spotId(), effectiveMemberId)
                         .map(link -> link.place().placeId())
                         .orElse(null),
                 savedStateLookup.savedBy(effectiveMemberId, story.storyId()));
+    }
+
+    private String publicImageUrl(String imageUrl) {
+        return audioUrlPolicy.allows(imageUrl) ? imageUrl : null;
     }
 
     private OdiiCoverageStatus detailCoverage(

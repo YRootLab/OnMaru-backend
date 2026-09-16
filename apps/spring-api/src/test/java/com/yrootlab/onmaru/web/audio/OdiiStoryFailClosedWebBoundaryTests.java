@@ -19,7 +19,7 @@ class OdiiStoryFailClosedWebBoundaryTests {
     private MockMvc mockMvc;
 
     @Test
-    void defaultsToUnavailableUntilAProductionQueryStoreIsConnected() throws Exception {
+    void returnsUnavailableWhenTheActivePublishedRevisionHasNoStories() throws Exception {
         mockMvc.perform(get("/api/v1/odii/stories")
                         .header("X-Request-Id", "req-odii-default-unavailable"))
                 .andExpect(status().isServiceUnavailable())
