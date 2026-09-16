@@ -1,5 +1,16 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #106
+
+- 현재 작업 브랜치와 worktree: `feature/106-corpus-manifest-sync`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-106-corpus-manifest-sync`.
+- 관련 Issue: #106 `[AI07] Revision-pinned corpus export·manifest sync 구현`; blocked-by #74/#95/#96은 모두 Closed였다.
+- 구현 범위: Spring internal corpus export scaffold와 FastAPI corpus pull/stage/ACK service를 추가했다. Spring은 immutable revision publish, canonical JSON 기반 manifest/document hash, tombstone manifest entry, revision-pinned document fetch, ACK endpoint와 manifest hash 검증을 제공한다. FastAPI는 duplicate pull insert 0, partial fetch reject, hash mismatch reject, out-of-order manifest rollback 방지, complete activation tombstone 적용을 처리한다.
+- 계약 문서: `docs/contracts/openapi/internal-ai.yaml`에 corpus manifest/document/ACK private contract를 추가했다.
+- 작업 로그: `troubleshooting-worklog/26.09.16 corpus-manifest-sync.md`.
+- 독립 리뷰 보완: ACK endpoint 누락, Spring controller 응답 shape와 OpenAPI 불일치, Spring/FastAPI hash canonicalization 불일치, store-null service split 문제를 수정했다. Spring/Python 양쪽에 같은 document/manifest hash literal 회귀 테스트를 추가했다.
+- 검증: focused Spring corpus tests, Spring app 전체 테스트, Gradle 전체 `test` 41 tasks, FastAPI 전체 pytest 185 passed/1 skipped, corpus Ruff/mypy, contract validation, `scripts/verify-contracts`, `git diff --check`, branch parser `106`을 통과했다. 첫 `./gradlew test`는 Gradle result binary `NoSuchFileException`으로 실패했으나 `:apps:spring-api:cleanTest :apps:spring-api:test` 성공 후 전체 `./gradlew test`를 재실행해 성공했다. contract 검증 중 Python 3.9/LibreSSL `urllib3 NotOpenSSLWarning`은 출력됐지만 실패는 아니다.
+- 다음 단계: PR 생성 전 work log cleanup과 Issue #106 AC를 다시 대조한다.
+
 ## Current Session Quick Handoff - 2026-09-16 Issue #109
 
 - 현재 작업 브랜치와 worktree: `feature/109-durable-run`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-109-durable-run`.
@@ -11,6 +22,9 @@
 - 동시성 검증: 실제 PostgreSQL에서 동일 command race 효과 1회, exploration/actor active run 하나, cancel/complete terminal 하나, stale generation/stage conflict와 새 adapter instance snapshot 복구를 확인했다.
 - 현재 검증: focused Journey/JDBC/web/migration/Testcontainers 통과. 전체 Java 검증 중 `apps:spring-api:test` result binary `NoSuchFileException`이 한 번 발생했으나 XML assertion failure는 없었고, `./gradlew :apps:spring-api:cleanTest :apps:spring-api:test --no-daemon` 재실행으로 Spring API 전체가 통과했다. Node 37 tests, planning/Odii, contract/generated artifact, Python contract 9 passed, AI pytest 180 passed/1 skipped, Ruff/mypy, offline AI eval 5 gates, branch parser `109`, `git diff --check` 통과.
 - PR: #211 `feat(journey): durable run 상태 머신과 command idempotency 구현` (`develop` 대상, `Closes #109`). CI와 approval 전에는 merge하지 않는다.
+
+
+
 
 ## Current Session Quick Handoff - 2026-09-16 Issue #101
 
