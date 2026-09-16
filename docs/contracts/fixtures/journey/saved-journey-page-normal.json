@@ -1,0 +1,22 @@
+{
+  "name": "saved-journey-page-normal",
+  "description": "savedAt DESC와 id DESC 순서의 cursor page를 반환한다.",
+  "given": {
+    "requestActorId": "11111111-1111-4111-8111-111111111111",
+    "records": [
+      {"savedJourneyId": "51111111-1111-4111-8111-111111111111", "ownerActorId": "11111111-1111-4111-8111-111111111111"},
+      {"savedJourneyId": "d1111111-1111-4111-8111-111111111111", "ownerActorId": "22222222-2222-4222-8222-222222222222"}
+    ]
+  },
+  "request": {"method": "GET", "path": "/api/v1/saved-journeys", "query": {"limit": 20}},
+  "response": {
+    "status": 200,
+    "schema": "SavedJourneyPage",
+    "body": {
+      "schemaVersion": "1.2",
+      "items": [{"savedJourneyId": "51111111-1111-4111-8111-111111111111", "title": "전주 한옥 여행", "sourceExplorationId": "11111111-1111-4111-8111-111111111111", "sourceVersion": 1, "savedAt": "2026-09-15T12:05:00Z", "candidateCount": 1}],
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}

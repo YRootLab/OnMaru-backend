@@ -1,0 +1,15 @@
+{
+  "name": "action-csrf-invalid",
+  "description": "cookie 인증 command에 CSRF token이 없으면 요청을 거절한다.",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/explorations/11111111-1111-4111-8111-111111111111/actions",
+    "headers": {"Idempotency-Key": "e1111111-1111-4111-8111-111111111111"},
+    "body": {"commandId": "e1111111-1111-4111-8111-111111111111", "baseVersion": 1, "action": {"type": "PIN", "resourceRef": {"type": "PLACE", "id": "place-jeonju-001"}}}
+  },
+  "response": {
+    "status": 403,
+    "schema": "Error",
+    "body": {"schemaVersion": "1.2", "code": "CSRF_INVALID", "message": "CSRF token이 필요합니다.", "requestId": "req-csrf-invalid", "details": {}}
+  }
+}
