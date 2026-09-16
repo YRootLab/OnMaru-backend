@@ -6,6 +6,9 @@ import com.yrootlab.onmaru.journey.exploration.ExplorationActiveRunException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationInputRejectedException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationTurnConflictException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationVersionConflictException;
+import com.yrootlab.onmaru.journey.actions.JourneyActionVersionConflictException;
+import com.yrootlab.onmaru.journey.actions.PinnedResourceActionException;
+import com.yrootlab.onmaru.journey.actions.ProposalUnavailableException;
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
@@ -77,6 +80,24 @@ final class ExplorationExceptionHandler {
                 "Exploration state version is stale.",
                 request,
                 Map.of("currentVersion", exception.currentVersion()));
+    }
+
+    @ExceptionHandler(JourneyActionVersionConflictException.class)
+    ResponseEntity<ApiErrorResponse> actionVersionConflict(JourneyActionVersionConflictException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, "VERSION_CONFLICT", "Exploration state version is stale.", request,
+                Map.of("currentVersion", exception.currentVersion()));
+    }
+
+    @ExceptionHandler(PinnedResourceActionException.class)
+    ResponseEntity<ApiErrorResponse> pinnedResource(PinnedResourceActionException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, "PINNED_REF", "Pinned resource cannot be excluded.", request,
+                Map.of("placeId", exception.resourceRef().id()));
+    }
+
+    @ExceptionHandler(ProposalUnavailableException.class)
+    ResponseEntity<ApiErrorResponse> proposalUnavailable(ProposalUnavailableException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, "PROPOSAL_EXPIRED", "Journey proposal is unavailable.", request,
+                Map.of("proposalId", exception.proposalId().toString()));
     }
 
     @ExceptionHandler(ExplorationTurnConflictException.class)

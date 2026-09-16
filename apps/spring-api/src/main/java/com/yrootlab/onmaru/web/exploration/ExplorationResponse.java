@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.web.exploration;
 import com.yrootlab.onmaru.journey.exploration.ExplorationClarification;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRun;
 import com.yrootlab.onmaru.journey.exploration.ExplorationSnapshot;
+import com.yrootlab.onmaru.journey.actions.JourneyActionState;
 
 import java.time.Instant;
 import java.util.List;
@@ -43,6 +44,17 @@ record ExplorationResponse(
                 null,
                 List.of(),
                 snapshot.updatedAt());
+    }
+
+    static ExplorationResponse from(
+            ExplorationSnapshot snapshot,
+            ExplorationSnapshotHydrator.HydratedSnapshot hydrated,
+            JourneyActionState actions) {
+        return new ExplorationResponse(
+                "1.2", snapshot.explorationId(), snapshot.stateVersion(), hydrated.board(),
+                List.copyOf(actions.pinnedRefs().stream().map(ref -> (Object) Map.of("type", ref.type(), "id", ref.id())).toList()),
+                List.copyOf(actions.excludedRefs().stream().map(ref -> (Object) Map.of("type", ref.type(), "id", ref.id())).toList()), hydrated.unavailableRefs(),
+                hydrated.execution(), RunResponse.from(snapshot), null, List.of(), snapshot.updatedAt());
     }
 
     record RunResponse(
