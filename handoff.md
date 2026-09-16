@@ -10,8 +10,8 @@
 - AI 경계: 지역이 없으면 dispatcher를 호출하지 않고 terminal `CLARIFICATION_REQUIRED/REGION_MISSING`을 저장한다. 지역이 있으면 #109가 이어받을 `ExplorationRunDispatcher`로 queued run을 전달한다.
 - 작업 로그: `troubleshooting-worklog/26.09.16 j01-exploration-intake.md`.
 - 독립 리뷰: raw input policy 누락, Idempotency-Key 미적용, 미등록 guest cookie 신뢰, baseVersion 기본값 승인, 비계약 오류 code를 보완했다. null replay와 canonical clarification answer도 함께 교정했다.
-- 최종 검증: 격리된 Gradle home 전체 Java 41 tasks, FastAPI Ruff·mypy와 pytest 62 passed/1 live skip, Node 35 tests, planning/Odii fixture, 전체 contract/generated artifact, branch parser `101`, `git diff --check`가 통과했다.
-- 다음 단계: 최신 `origin/develop`을 병합하고 commit·push한 뒤 `develop` 대상 PR을 만든다. 필수 CI와 approval 전에는 merge하지 않는다.
+- 검증: 구현 commit에서는 격리된 Gradle home 전체 Java 41 tasks를 통과했다. 최신 `origin/develop` 병합 뒤 focused domain/web/ArchUnit 25 tasks, FastAPI Ruff·mypy와 pytest 104 passed/1 skipped, Node 37 tests, planning/Odii fixture, 전체 contract/generated artifact, branch parser `101`, `git diff --check`를 통과했다. 병합 트리의 전체 Java 재실행은 assertion 실패 없이 Gradle test result의 `EOFException`/`NoSuchFileException` 경합으로 중단되어 PR `verify`를 최종 전체 gate로 사용한다.
+- 다음 단계: branch를 push하고 `develop` 대상 PR을 만든다. 필수 CI와 approval 전에는 merge하지 않는다.
 ## Current Session Quick Handoff - 2026-09-16 Issue #94
 
 - 현재 작업 브랜치와 worktree: `feature/94-postgres-restore-drill`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-94-postgres-restore-drill`.
