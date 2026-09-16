@@ -8,6 +8,20 @@
 - 보안 경계: key/raw prompt/evidence는 telemetry에 기록하지 않고 model alias와 version, revision, token count, 추정 비용만 기록한다. 운영은 2026-09 authorization key 전환 정책을 따른다.
 - 검증: fake transport 7개 테스트와 opt-in 5초/64-token live smoke를 추가했다. 실제 live smoke는 authorization key가 없어 기본 검증에서 skip한다.
 - 다음 단계: 전체 FastAPI/저장소 검증 후 PR을 만들고, merge 뒤 #105 proposal allowlist validator를 시작한다.
+## Current Session Quick Handoff - 2026-09-16 Issue #139
+
+- 현재 작업 브랜치와 worktree: `feature/139-moderation-queue`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-139-moderation-queue`.
+- 관련 Issue: #139 `[M08] 보호된 moderation queue·operator drill·runbook 구현`; blocked-by #123/#81은 Closed이고 열린 중복 PR은 없다.
+- 구현 범위: open report 기반 high-risk 우선 queue, 24/72시간 SLA·age·overdue projection, reporter ID 없는 내부 DTO, `Cache-Control: no-store` protected GET을 추가했다.
+- 인증: `moderation.operator-token`을 기존 `SecretProvider` 필수 secret에 넣고 current/previous token을 constant-time 비교한다. Bearer와 `X-OnMaru-Operator`가 모두 필요하며 missing은 401, malformed/invalid는 403이고 기존 moderation POST에도 동일하게 적용했다.
+- 판정: system PII hide는 report를 open으로 유지하고 audit을 남긴다. Operator false-positive 복원은 report를 `DISMISSED`, 숨김·삭제는 `RESOLVED`로 전환하며 모든 상태 변경은 기존 M05 command를 재사용한다.
+- Synthetic drill: 다섯 신고 reason, 동일 reporter/review 중복, PII hide와 즉시 public 제외, previous token 복원, current token 삭제, audit 순서, report disposition, public/telemetry 비노출을 `testing/e2e/moderation/operator-drill.json`과 Spring 통합 테스트로 고정했다.
+- 구조 검증: 전체 Spring 테스트에서 발견한 `operations -> web -> operations` 순환은 HTTP/auth code를 `web.moderation.queue` adapter로 이동해 해소했고 ArchUnit cycle test를 재통과했다.
+- 독립 review: Critical은 없었고 Important 5건을 반영했다. 표준 same-status dismiss, report 없는 system PII queue, in-memory coordinator 원자성, 외부 correlation header의 process-keyed HMAC 치환, global/place별 public no-store drill을 추가했다.
+- PR #200 CI 보완: process-keyed HMAC 결과에 짧은 입력 조각(`123`, `456`, `789`)이 우연히 포함될 수 있어 `CorrelationFilterTests`가 확률적으로 실패했다. opaque correlation ID의 `prefix + 32자리 hex` 형식과 원본 전체 불일치를 검증하도록 assertion을 교정했고 Spring API 전체 테스트를 재통과했다. 이어 npm publish 직후 `@types/node@26.6.0` tarball 404가 발생해 #201을 만들고, DBML CLI wrapper가 `@types/node@22.20.2`와 `@dbml/cli@10.1.1`을 함께 고정하도록 보강했다.
+- 문서: `docs/operations/runbooks/moderation.md`, `troubleshooting-worklog/26.09.15 m08-moderation-queue-drill.md`, 설계와 실행 plan을 기록했다.
+- 최종 검증: `./gradlew test --no-daemon` 41 tasks, FastAPI Ruff/mypy와 pytest 53개, Node 35개, planning input, Odii fixture 8개, `bash scripts/verify-contracts`, branch parser `139`, `git diff --check`를 통과했다. Contract 검증에는 기존 Python 3.9 LibreSSL warning만 출력됐다.
+- 다음 단계: `develop` 대상 PR의 필수 `verify` CI와 최소 1명 approval을 확인한다. Merge 후 #139 상태를 조회하고 `develop` 대상 auto-close가 적용되지 않으면 정책에 따라 검증 근거를 남기고 수동 close 여부를 조정한다.
 
 ## Current Session Quick Handoff - 2026-09-15 Issue #96
 

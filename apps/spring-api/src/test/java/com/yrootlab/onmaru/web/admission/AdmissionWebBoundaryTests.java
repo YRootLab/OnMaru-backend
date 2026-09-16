@@ -65,7 +65,7 @@ class AdmissionWebBoundaryTests {
                 .andExpect(header().string("Retry-After", "55"))
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"))
-                .andExpect(jsonPath("$.requestId").value("req-rate-limited"))
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-rate-limited")))
                 .andExpect(jsonPath("$.details.retryAfterMs").value(55000));
     }
 

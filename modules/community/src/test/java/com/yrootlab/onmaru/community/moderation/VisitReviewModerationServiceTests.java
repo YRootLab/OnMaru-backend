@@ -4,12 +4,15 @@ import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -76,10 +79,153 @@ class VisitReviewModerationServiceTests {
         assertThat(store.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.HIDDEN);
     }
 
+    @Test
+    void systemPiiHideKeepsReportOpenAndOperatorFalsePositiveRestoreDismissesIt() {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(VisitReviewStatus.PUBLISHED));
+        var reportStore = new InMemoryReviewReportStore();
+        var service = service(reviewStore, reportStore);
+        service.report(REPORTER_ID, REVIEW_ID,
+                new CreateReviewReportCommand(ReviewReportReason.PERSONAL_DATA, "synthetic phone"));
+
+        ModerationAction systemAction = service.hideHighRiskPii(REVIEW_ID, "pii-detector-v1");
+
+        assertThat(systemAction.actorType()).isEqualTo(ModerationActorType.SYSTEM);
+        assertThat(systemAction.reason()).isEqualTo(ModerationReason.PII_HIGH_RISK);
+        assertThat(service.openReports()).hasSize(1);
+        assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.HIDDEN);
+
+        ModerationAction operatorAction = service.moderate(
+                REVIEW_ID,
+                "operator-1",
+                VisitReviewStatus.PUBLISHED,
+                ModerationReason.FALSE_POSITIVE);
+
+        assertThat(operatorAction.actorType()).isEqualTo(ModerationActorType.OPERATOR);
+        assertThat(service.openReports()).isEmpty();
+        assertThat(service.auditLog()).containsExactly(systemAction, operatorAction);
+        assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.PUBLISHED);
+    }
+
+    @Test
+    void operatorRemovalResolvesEveryOpenReportForReview() {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(VisitReviewStatus.PUBLISHED));
+        var reportStore = new InMemoryReviewReportStore();
+        var service = service(reviewStore, reportStore);
+        service.report(REPORTER_ID, REVIEW_ID,
+                new CreateReviewReportCommand(ReviewReportReason.ABUSE, "synthetic abuse"));
+        service.report(UUID.fromString("00000000-0000-0000-0000-000000000777"), REVIEW_ID,
+                new CreateReviewReportCommand(ReviewReportReason.SPAM, "synthetic spam"));
+
+        service.moderate(
+                REVIEW_ID,
+                "operator-1",
+                VisitReviewStatus.REMOVED,
+                ModerationReason.ABUSE_CONFIRMED);
+
+        assertThat(service.openReports()).isEmpty();
+        assertThat(reportStore.reports()).extracting(ReviewReport::status)
+                .containsOnly(ReviewReportStatus.RESOLVED);
+    }
+
+    @Test
+    void operatorDismissesPublishedStandardReportWithoutChangingPublicStatus() {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(VisitReviewStatus.PUBLISHED));
+        var reportStore = new InMemoryReviewReportStore();
+        var service = service(reviewStore, reportStore);
+        service.report(REPORTER_ID, REVIEW_ID,
+                new CreateReviewReportCommand(ReviewReportReason.SPAM, "synthetic spam"));
+
+        ModerationAction action = service.moderate(
+                REVIEW_ID,
+                "operator-1",
+                VisitReviewStatus.PUBLISHED,
+                ModerationReason.FALSE_POSITIVE);
+
+        assertThat(action.previousStatus()).isEqualTo(VisitReviewStatus.PUBLISHED);
+        assertThat(action.nextStatus()).isEqualTo(VisitReviewStatus.PUBLISHED);
+        assertThat(action.reason()).isEqualTo(ModerationReason.FALSE_POSITIVE);
+        assertThat(reportStore.reports()).extracting(ReviewReport::status)
+                .containsOnly(ReviewReportStatus.DISMISSED);
+        assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.PUBLISHED);
+    }
+
+    @Test
+    @Timeout(10)
+    void reportAndDispositionUseSharedAtomicBoundary() throws Exception {
+        var reviewStore = new InMemoryVisitReviewStore();
+        reviewStore.add(review(VisitReviewStatus.PUBLISHED));
+        var reportStore = new InMemoryReviewReportStore();
+        var service = service(reviewStore, reportStore);
+        var lockHeld = new CountDownLatch(1);
+        var releaseLock = new CountDownLatch(1);
+        var reportAttempted = new CountDownLatch(1);
+        var moderationAttempted = new CountDownLatch(1);
+
+        try (var executor = Executors.newFixedThreadPool(3)) {
+            var lockOwner = executor.submit(() -> reportStore.executeAtomically(() -> {
+                lockHeld.countDown();
+                await(releaseLock);
+                return null;
+            }));
+            try {
+                await(lockHeld);
+                var report = executor.submit(() -> {
+                    reportAttempted.countDown();
+                    return service.report(REPORTER_ID, REVIEW_ID,
+                            new CreateReviewReportCommand(ReviewReportReason.SPAM, "synthetic spam"));
+                });
+                var disposition = executor.submit(() -> {
+                    moderationAttempted.countDown();
+                    return service.moderate(
+                            REVIEW_ID,
+                            "operator-1",
+                            VisitReviewStatus.REMOVED,
+                            ModerationReason.SPAM_CONFIRMED);
+                });
+                await(reportAttempted);
+                await(moderationAttempted);
+                assertThat(report).isNotDone();
+                assertThat(disposition).isNotDone();
+
+                releaseLock.countDown();
+                lockOwner.get();
+                disposition.get();
+                try {
+                    report.get();
+                } catch (java.util.concurrent.ExecutionException ignored) {
+                    // The report is rejected when the disposition acquires the coordinator first.
+                }
+            } finally {
+                releaseLock.countDown();
+            }
+        }
+
+        assertThat(reviewStore.findSnapshot().getFirst().status()).isEqualTo(VisitReviewStatus.REMOVED);
+        assertThat(reportStore.openReports()).isEmpty();
+    }
+
+    private void await(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("test coordinator interrupted", exception);
+        }
+    }
+
     private VisitReviewModerationService service(InMemoryVisitReviewStore store) {
+        return service(store, new InMemoryReviewReportStore());
+    }
+
+    private VisitReviewModerationService service(
+            InMemoryVisitReviewStore store,
+            InMemoryReviewReportStore reportStore) {
         return new VisitReviewModerationService(
                 store,
-                new InMemoryReviewReportStore(),
+                reportStore,
                 () -> UUID.fromString("00000000-0000-0000-0000-000000000900"),
                 () -> UUID.fromString("00000000-0000-0000-0000-000000000901"),
                 CLOCK);
