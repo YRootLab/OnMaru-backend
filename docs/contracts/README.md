@@ -4,7 +4,8 @@
 
 - [Public REST API](rest-api.md): 여정, 저장, 오류, idempotency, VisitReview 계약
 - [Frontend handoff](frontend-handoff.md): FE 반영 범위와 전환 체크리스트
-- [`openapi/journey.openapi.yaml`](openapi/journey.openapi.yaml): AI 여정 REST command/snapshot/SSE endpoint OpenAPI 3.1 초안
+- [`openapi/journey.openapi.yaml`](openapi/journey.openapi.yaml): AI 여정 REST command/snapshot/SSE와 SavedJourney endpoint OpenAPI 3.1 계약
+- [`fixtures/journey`](fixtures/journey): stateVersion, idempotency, 409 conflict, 비식별 저장·상세·삭제·재개 시나리오 fixture
 - [`openapi/r1.openapi.yaml`](openapi/r1.openapi.yaml): R1 한옥·장소·찜·월간 타임라인 OpenAPI 3.1 초안
 - [`openapi/identity-saved.openapi.yaml`](openapi/identity-saved.openapi.yaml): 인증·회원·SavedResource·월간 타임라인 OpenAPI 3.1 초안
 - [`openapi/r2-map-audio-insights.openapi.yaml`](openapi/r2-map-audio-insights.openapi.yaml): R2 지도·행정구역·Odii·관광 관측 OpenAPI 3.1 초안

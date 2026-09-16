@@ -101,7 +101,7 @@ JPA entity 간 타 context 연관 대신 scalar ID와 `ResourceEligibilityPort`�
 
 VisitReview의 place FK는 revision 행이 아니라 stable catalog.place_identity를 참조한다. catalog publication eligibility는 공개 API로 검사한다. 좋아요 회원 탈퇴 시 review_likes를 먼저 삭제하고 회원을 삭제한다. 숨김 후기와 삭제 tombstone은 동일 본인 DELETE의 멱등 응답을 위해 최대24h 유지하고 이후404가 될 수 있다.
 
-Saved snapshot의 board.querySummary는 사용자 원문이 아니라 검수된 지역/주제 label에서 다시 만든다. 사용자가 정한 title은 개인 자료로 보호하며 공개 API에 노출하지 않는다. snapshot_hash는 정규화 JSON 기준이며 같은 sourceVersion 중복저장에 다른 제목을 보내도 기존 저장 제목을 유지한다. 제목 수정은 별도 후속 기능이다.
+Saved snapshot은 자유문 `board.querySummary`를 복사하지 않고 검수된 지역/주제의 canonical ref만 `board.summaryRefs`에 저장한다. FE는 같은 snapshot의 resource label로 요약을 다시 구성한다. 사용자가 정한 title은 개인 자료로 보호하며 공개 API에 노출하지 않는다. snapshot_hash는 정규화 JSON 기준이며 같은 sourceVersion 중복저장에 다른 제목을 보내도 기존 저장 제목을 유지한다. 제목 수정은 별도 후속 기능이다.
 
 SavedResource는 현재 공개 projection을 다시 hydrate하는 참조 저장이다. 저장 시점의 장소명·오디 제목·좌표·대본을 snapshot으로 복사하지 않는다. 원천 삭제나 권리 변경으로 비공개가 되면 목록에서 사라질 수 있으며, 사용자가 직접 만든 컬렉션·메모·후기 담아두기는 project roadmap 후속 후보로 남긴다.
 

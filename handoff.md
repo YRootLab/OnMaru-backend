@@ -12,6 +12,16 @@
 - review: active revision·언어 fallback·cursor 결속·비공개/unsafe URL 차단·missing transcript·fail-closed 경계를 점검했고 남은 Critical/Important finding은 없다. 최신 공통 opaque request ID 계약과 어긋난 Odii assertion 3개를 수정해 focused/전체 테스트를 재통과했다.
 - 다음 단계: 커밋·push하고 `develop` 대상 PR을 `Closes #103`으로 생성한다.
 
+## Current Session Quick Handoff - 2026-09-15 Issue #134
+
+- 현재 작업 브랜치와 worktree: `docs/134-journey-actions-saved-contract`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j11-journey-contracts`.
+- 관련 Issue: #134 `[J11] Journey actions·SavedJourney OpenAPI·fixture 완성`; blocked-by #131/#132는 Closed이며 열린 중복 PR은 없다.
+- 구현 범위: PIN·UNPIN·EXCLUDE·UNEXCLUDE·proposal action, 엄격한 ExplorationSnapshot, SavedJourney 생성·목록·상세·재개·삭제의 OpenAPI 3.1 계약과 fixture 23개를 추가했다.
+- 검증 경계: request/response JSON Schema와 선언 status·required path/header/query, 동일 operation command replay와 conflict 관계, CSRF·no-store·400/413, stateVersion 증가, 생성·목록·상세·삭제·재개의 actor ownership, canonical ref 기반 SavedJourney snapshot과 resume unavailableRefs를 전용 validator에서 검사한다.
+- CI 연결: `scripts/verify-contracts`가 `validate-journey-contract.py`를 실행한다.
+- 사용자 요청: GitHub Issue 우선순위와 dependency graph를 따라 다음 10건을 병렬 구현하고 CI·review 후 `develop`에 merge한다.
+- PR: #196의 독립 리뷰 Important 항목을 모두 반영했다. `origin/develop`의 PR #200·#198 변경을 merge해 GitHub conflict를 해소했고, 최신 병합 트리에서 Gradle 41 tasks, FastAPI Ruff/mypy와 pytest 62 passed·1 skipped, Node 35개, Journey fixture 23개 포함 전체 contract 검증과 diff-check를 통과했다.
+- 다음 단계: conflict 해소 commit을 push하고 PR #196의 최신 `verify` CI와 mergeability를 확인한 뒤 `develop`에 merge한다. 이후 #134 상태를 확인하고 #101 구현을 시작한다.
 ## Current Session Quick Handoff - 2026-09-15 Issue #91
 
 - 현재 작업 브랜치와 worktree: `feature/91-gemini-provider`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-91-gemini-provider`.

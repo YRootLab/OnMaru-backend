@@ -1,0 +1,40 @@
+{
+  "name": "exploration-snapshot-normal",
+  "description": "공개 resource와 evidence를 포함한 authoritative board snapshot이다.",
+  "request": {"method": "GET", "path": "/api/v1/explorations/11111111-1111-4111-8111-111111111111"},
+  "response": {
+    "status": 200,
+    "schema": "ExplorationSnapshot",
+    "body": {
+      "schemaVersion": "1.2",
+      "explorationId": "11111111-1111-4111-8111-111111111111",
+      "stateVersion": 1,
+      "board": {
+        "title": "전주 한옥 산책",
+        "querySummary": "전주에서 한옥 문화를 천천히 둘러보는 여정",
+        "regionRef": {"type": "REGION", "id": "region-jeonju"},
+        "candidates": [{
+          "placeRef": {"type": "PLACE", "id": "place-jeonju-001"},
+          "reason": "검수된 한옥 문화 근거가 있습니다.",
+          "evidenceRefs": ["evidence-provider-001"],
+          "relationRefs": ["relation-region-001"],
+          "constraintChecks": [{"key": "REGION", "status": "SATISFIED", "label": "전주 지역", "evidenceRefs": ["evidence-provider-001"]}]
+        }],
+        "legs": [],
+        "resources": [
+          {"ref": {"type": "PLACE", "id": "place-jeonju-001"}, "title": "전주 한옥마을", "category": "한옥", "regionRef": {"type": "REGION", "id": "region-jeonju"}, "summary": "전주의 한옥 문화 장소", "image": null, "location": {"latitude": 35.815, "longitude": 127.153, "accuracy": "APPROXIMATE"}, "sourceRefs": ["odii-story-001"], "unavailableFields": ["image"]},
+          {"ref": {"type": "REGION", "id": "region-jeonju"}, "title": "전주시"}
+        ],
+        "relations": [{"id": "relation-region-001", "sourceRef": {"type": "PLACE", "id": "place-jeonju-001"}, "targetRef": {"type": "REGION", "id": "region-jeonju"}, "type": "LOCATED_IN", "label": "전주시", "evidenceRefs": ["evidence-provider-001"]}],
+        "evidence": [{"id": "evidence-provider-001", "kind": "PROVIDER_FIELD", "sourceName": "한국관광공사", "sourceUrl": null, "sourceRevision": "dataset-20260915", "summary": "공개 장소와 지역 연결", "asOf": "2026-09-15T00:00:00Z"}]
+      },
+      "pinnedRefs": [],
+      "excludedRefs": [],
+      "execution": {"dataMode": "PUBLIC", "engine": "BASELINE", "rankingVersion": "baseline-v1", "datasetRevision": "dataset-20260915"},
+      "latestRun": null,
+      "pendingProposal": null,
+      "recentHistory": [{"id": "d1111111-1111-4111-8111-111111111111", "type": "BOARD_COMMITTED", "createdAt": "2026-09-15T12:00:00Z", "query": "전주 한옥 여행", "runId": null, "stateVersion": 1, "proposalId": null, "affectedRefs": [{"type": "PLACE", "id": "place-jeonju-001"}]}],
+      "updatedAt": "2026-09-15T12:00:00Z"
+    }
+  }
+}
