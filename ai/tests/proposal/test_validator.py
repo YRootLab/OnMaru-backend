@@ -201,6 +201,47 @@ def test_rejects_markup_url_and_control_character_variants(unsafe_summary: str) 
     rejection(payload, ProposalRejectionCode.UNSAFE_TEXT)
 
 
+@pytest.mark.parametrize(
+    ("target", "unsafe_text"),
+    [
+        ("summary", "tel:+821012345678"),
+        ("question", "geo:37.1,127.1"),
+        ("label", "sms:+821012345678"),
+        ("summary", "//192.0.2.1/path"),
+        ("question", "예시.한국/경로"),
+        ("label", "제목\n==="),
+        ("summary", "구분\n---"),
+    ],
+)
+def test_rejects_generic_uri_and_markdown_in_every_generated_text_field(
+    target: str,
+    unsafe_text: str,
+) -> None:
+    if target == "summary":
+        payload = board_payload()
+        payload["reasons"][0]["summary"] = unsafe_text
+    else:
+        payload = {
+            "outcome": "ASK_CLARIFICATION",
+            "orderedRefs": [],
+            "reasons": [],
+            "clarification": {
+                "reason": "UNSUPPORTED_CONDITION",
+                "question": unsafe_text if target == "question" else "조건을 고를까요?",
+                "choices": [
+                    {
+                        "id": "choice",
+                        "label": unsafe_text if target == "label" else "다른 조건",
+                        "regionCode": None,
+                    }
+                ],
+                "allowFreeText": False,
+            },
+        }
+
+    rejection(payload, ProposalRejectionCode.UNSAFE_TEXT)
+
+
 def test_clarification_cannot_introduce_a_region_reference() -> None:
     payload = {
         "outcome": "ASK_CLARIFICATION",

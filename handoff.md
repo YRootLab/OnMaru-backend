@@ -6,10 +6,10 @@
 - 관련 Issue: #105 `[AI05] AI proposal schema·evidence allowlist validator 구현`; blocked-by #97/#91은 Closed이고 담당자·열린 중복 PR은 없다.
 - 구현 범위: outcome별 closed Pydantic schema, `$ref` 없는 Gemini response JSON Schema, candidate 최대12·board 최대3·evidence 최대3 제한, pin/exclude/candidate/evidence ownership과 revision 검증을 추가했다.
 - 실패 계약: duplicate/unknown/missing/over-limit/unsafe text를 typed `ProposalRejectionCode`로 분류하고 provider payload를 exception에 넣지 않는다. orchestration에는 `AI_INVALID_RESPONSE`만 노출해 자동 repair 없이 baseline으로 전환한다.
-- 보안 보강: extra field, tool call, URI scheme, 임의 TLD domain, HTML, Markdown 구조 문자·목록, control character와 provider가 만든 region ref를 거부한다.
-- 검증: proposal adversarial/property-style 35개, FastAPI 전체 Ruff/mypy, pytest 97 passed·1 live smoke skipped를 통과했다.
+- 보안 보강: extra field, tool call, 일반 URI scheme, protocol-relative·IP·IDN URL, HTML, Markdown 구조 문자·목록·Setext 구문, control character와 provider가 만든 region ref를 거부한다.
+- 검증: proposal adversarial/property-style 42개, FastAPI 전체 Ruff/mypy, pytest 104 passed·1 live smoke skipped를 통과했다.
 - 남은 경계: evidence ID ownership은 문장 의미의 claim support를 증명하지 않는다. 이 평가는 후속 #111 frozen eval이 소유하고 Spring은 canonical 상태를 다시 검증한다.
-- 다음 단계: 저장소 전체 gate와 work log cleanup 후 `develop` 대상 PR을 만들고 review/CI를 기다린다. Merge 후 #105 종료를 확인하면 #111과 #114가 dependency상 Ready가 된다.
+- 다음 단계: `develop` 대상 PR #203의 CI와 필수 승인을 확인해 merge한다. Merge 후 #105 종료를 확인하면 #111과 #114가 dependency상 Ready가 된다.
 
 ## Current Session Quick Handoff - 2026-09-15 Issue #91
 
