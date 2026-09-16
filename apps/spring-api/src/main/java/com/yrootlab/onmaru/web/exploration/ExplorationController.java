@@ -81,6 +81,22 @@ public final class ExplorationController {
                 .body(ExplorationResponse.from(explorationService.get(actor, explorationId)));
     }
 
+    @GetMapping("/api/v1/explorations/{explorationId}/runs/{runId}")
+    ResponseEntity<ExplorationResponse.RunResponse> getRun(
+            @PathVariable UUID explorationId,
+            @PathVariable UUID runId,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
+        var actor = actorResolver.resolve(sessionToken, guestToken).actor();
+        var snapshot = explorationService.get(actor, explorationId);
+        if (!snapshot.run().id().equals(runId)) {
+            throw new com.yrootlab.onmaru.journey.exploration.ExplorationNotFoundException();
+        }
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ExplorationResponse.RunResponse.from(snapshot));
+    }
+
     @PostMapping("/api/v1/explorations/{explorationId}/turns")
     ResponseEntity<RunAcceptedResponse> createTurn(
             @PathVariable UUID explorationId,
