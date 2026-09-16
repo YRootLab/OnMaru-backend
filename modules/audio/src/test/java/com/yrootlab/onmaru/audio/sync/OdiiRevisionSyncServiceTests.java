@@ -66,6 +66,23 @@ class OdiiRevisionSyncServiceTests {
     }
 
     @Test
+    void summarizesContentTagQualityForPublishedRevision() {
+        UUID baseRevision = UUID.randomUUID();
+        var store = store(baseRevision, List.of());
+        var source = new StubPageSource()
+                .page("ko", 1, page(List.of(genericTagSource("300", "1204", "ko", "562")), true));
+        var service = new OdiiRevisionSyncService(store, source, mapper, clock);
+
+        OdiiSyncResult result = service.sync(command(baseRevision, List.of("ko"), 1));
+
+        assertThat(result.status()).isEqualTo(OdiiSyncStatus.PUBLISHED);
+        assertThat(result.contentTagQuality().storyCount()).isEqualTo(1);
+        assertThat(result.contentTagQuality().emptyStoryCount()).isEqualTo(1);
+        assertThat(result.contentTagQuality().lowConfidenceStoryCount()).isEqualTo(1);
+        assertThat(result.contentTagQuality().removedGenericCount()).isGreaterThan(0);
+    }
+
+    @Test
     void missingStoryAndSpotBecomeTombstonesOnlyAfterTwoSuccessfulFullRuns() {
         UUID baseRevision = UUID.randomUUID();
         var retained = mapper.map(source("300", "1204", "ko", "562"));
@@ -187,6 +204,26 @@ class OdiiRevisionSyncServiceTests {
                 "story-" + stlid,
                 "audio-" + stlid,
                 "official script",
+                "https://example.com/" + stlid + ".mp3",
+                "",
+                "105",
+                "126.9936798",
+                "37.559163",
+                language,
+                "20150619173503",
+                "20250609074606"
+        );
+    }
+
+    private OdiiSourceStory genericTagSource(String tlid, String stlid, String language, String stid) {
+        return new OdiiSourceStory(
+                "89",
+                tlid,
+                stid,
+                stlid,
+                "관광 정보 안내",
+                "관광 소개 코스",
+                "관광 정보 안내 소개 코스 여행",
                 "https://example.com/" + stlid + ".mp3",
                 "",
                 "105",

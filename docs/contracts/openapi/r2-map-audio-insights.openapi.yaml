@@ -464,6 +464,7 @@ components:
         - durationSeconds
         - imageUrl
         - linkedPlaceId
+        - contentTags
         - savedByMe
       properties:
         storyId:
@@ -488,6 +489,16 @@ components:
         linkedPlaceId:
           type: [string, 'null']
           pattern: '^p-[a-z0-9-]{3,80}$'
+        contentTags:
+          type: array
+          maxItems: 7
+          description: >
+            OnMaru가 Odii 제목, 오디오 제목, 대본/자막에서 LLM 없이 추출한 콘텐츠 이해용 태그.
+            값에는 # 문자를 포함하지 않으며, FE가 해시태그 칩으로 렌더링할 수 있다.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 24
         savedByMe:
           type: boolean
     OdiiStoryPage:

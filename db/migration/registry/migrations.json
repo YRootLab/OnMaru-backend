@@ -104,6 +104,15 @@
       "checksum": "j09-v011-20260916",
       "sha256": "e73c4068225cea273c951d599dbcec544ef830047f8ed28ee75c9264fa7fcd58",
       "description": "Guest/member AI daily quota admission audit"
+    },
+    {
+      "version": "013",
+      "reservedFor": "CONTENT_TAGS",
+      "issueNumber": 208,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V013__content_tag_projection_schema.sql",
+      "checksum": "content-tags-v013-20260917",
+      "sha256": "5080fa0f6f6bb798b7f12765564b34fdcfb2725e502208b1594aa75c4172b171",
+      "description": "Content tag projection storage and operator override schema"
     }
   ]
 }

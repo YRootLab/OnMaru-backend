@@ -538,6 +538,8 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
                             duration,
                             instant(result, "source_modified_at"),
                             AudioStatus.valueOf(result.getString("status")),
+                            List.of(),
+                            null,
                             result.getString("hash"),
                             subtitleLines.getOrDefault(storyId, List.of()));
                     mappedStories.add(new OdiiMappedStory(spot, story));

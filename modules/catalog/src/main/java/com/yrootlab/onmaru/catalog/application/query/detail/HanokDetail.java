@@ -13,7 +13,12 @@ public record HanokDetail(
         List<ImageProjection> images,
         String description,
         List<String> highlights,
+        List<String> contentTags,
         boolean savedByMe,
         LinkedPlaceCard mapCard,
         LinkedPlaceCard odiiLinkedCard) {
+
+    public HanokDetail {
+        contentTags = contentTags == null ? List.of() : List.copyOf(contentTags);
+    }
 }

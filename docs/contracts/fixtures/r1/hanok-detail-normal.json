@@ -30,6 +30,7 @@
       ],
       "description": "전통 한옥과 공예, 음식, 산책 코스를 한 번에 경험할 수 있는 공개 관광 장소입니다.",
       "highlights": ["한옥 골목", "공예 체험", "야간 산책"],
+      "contentTags": ["한옥 골목", "공예 체험", "야간 산책", "전통 한옥"],
       "savedByMe": true,
       "mapCard": {
         "placeId": "p-jeonju-hanok-village",

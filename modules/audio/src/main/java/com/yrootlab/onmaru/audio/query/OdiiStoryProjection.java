@@ -20,6 +20,7 @@ public record OdiiStoryProjection(
         String audioUrl,
         OdiiTranscriptStatus transcriptStatus,
         List<OdiiTranscriptLine> transcript,
+        List<String> contentTags,
         Instant publishedAt,
         AudioStatus status,
         AudioStatus spotStatus) {
@@ -31,6 +32,7 @@ public record OdiiStoryProjection(
         transcript = transcriptStatus == OdiiTranscriptStatus.MISSING || transcript == null
                 ? List.of()
                 : List.copyOf(transcript);
+        contentTags = contentTags == null ? List.of() : List.copyOf(contentTags);
     }
 
     public OdiiStoryProjection withAudioUrl(String replacementAudioUrl) {
@@ -48,6 +50,28 @@ public record OdiiStoryProjection(
                 replacementAudioUrl,
                 transcriptStatus,
                 transcript,
+                contentTags,
+                publishedAt,
+                status,
+                spotStatus);
+    }
+
+    public OdiiStoryProjection withContentTags(List<String> replacementContentTags) {
+        return new OdiiStoryProjection(
+                storyId,
+                spotId,
+                language,
+                title,
+                audioTitle,
+                category,
+                region,
+                coordinates,
+                durationSeconds,
+                imageUrl,
+                audioUrl,
+                transcriptStatus,
+                transcript,
+                replacementContentTags,
                 publishedAt,
                 status,
                 spotStatus);

@@ -115,8 +115,8 @@ npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres
 | Module | Tables |
 |---|---|
 | Identity | `identity_members`, `identity_external_accounts`, `identity_sessions`, `identity_guests`, `identity_oauth_states`, `identity_exploration_grants` |
-| Catalog | `catalog_regions`, `catalog_region_source_codes`, `catalog_region_boundaries`, `catalog_dataset_revisions`, `catalog_active_datasets`, `catalog_place_identity`, `catalog_place_sources`, `catalog_place_versions`, `catalog_kto_korean_content_versions`, `catalog_kto_korean_intro_versions`, `catalog_kto_korean_info_versions`, `catalog_place_image_versions`, `catalog_hanok_detail_versions` |
-| Audio | `audio_odii_spots`, `audio_odii_stories`, `audio_spot_versions`, `audio_story_versions`, `audio_subtitle_lines`, `audio_place_odii_links` |
+| Catalog | `catalog_regions`, `catalog_region_source_codes`, `catalog_region_boundaries`, `catalog_dataset_revisions`, `catalog_active_datasets`, `catalog_place_identity`, `catalog_place_sources`, `catalog_place_versions`, `catalog_kto_korean_content_versions`, `catalog_kto_korean_intro_versions`, `catalog_kto_korean_info_versions`, `catalog_place_image_versions`, `catalog_hanok_detail_versions`, `catalog_place_content_tag_versions`, `content_tag_overrides` |
+| Audio | `audio_odii_spots`, `audio_odii_stories`, `audio_spot_versions`, `audio_story_versions`, `audio_subtitle_lines`, `audio_place_odii_links`, `audio_story_content_tag_versions` |
 | Insights | `insights_visitor_observations`, `insights_tourism_targets`, `insights_target_place_links`, `insights_concentration_observations` |
 | Discovery | `discovery_explorations`, `discovery_runs`, `discovery_run_commands`, `discovery_proposals`, `discovery_turns` |
 | Journey | `journey_saved_journeys`, `journey_saved_resources` |

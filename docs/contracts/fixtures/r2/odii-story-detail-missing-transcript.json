@@ -34,6 +34,7 @@
         "durationSeconds": 120,
         "imageUrl": null,
         "linkedPlaceId": null,
+        "contentTags": ["한옥마을", "소리 산책"],
         "savedByMe": false
       },
       "audioUrl": "https://cdn.onmaru.example/odii/odii-story-missing-transcript-01.mp3",

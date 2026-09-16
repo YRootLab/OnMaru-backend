@@ -1,7 +1,9 @@
 package com.yrootlab.onmaru.audio.sync;
 
-import java.time.Instant;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagQualityReport;
+
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 public record OdiiStoryVersion(
@@ -15,12 +17,89 @@ public record OdiiStoryVersion(
         Integer durationSeconds,
         Instant sourceModifiedAt,
         AudioStatus status,
+        List<String> contentTags,
+        ContentTagQualityReport contentTagQualityReport,
         String contentHash,
         List<AudioSubtitleLine> subtitleLines
 ) {
 
     public OdiiStoryVersion {
+        contentTags = contentTags == null ? List.of() : List.copyOf(contentTags);
+        contentTagQualityReport = contentTagQualityReport == null
+                ? new ContentTagQualityReport(
+                0,
+                contentTags.size(),
+                0,
+                0,
+                0,
+                contentTags.isEmpty(),
+                contentTags.size() < 3,
+                List.of())
+                : contentTagQualityReport;
         subtitleLines = subtitleLines == null ? List.of() : List.copyOf(subtitleLines);
+    }
+
+    public OdiiStoryVersion(
+            OdiiStoryIdentity identity,
+            OdiiSpotIdentity spotIdentity,
+            String title,
+            String script,
+            TranscriptProvenance transcriptProvenance,
+            String audioUrl,
+            String imageUrl,
+            Integer durationSeconds,
+            Instant sourceModifiedAt,
+            AudioStatus status,
+            List<String> contentTags,
+            String contentHash
+    ) {
+        this(
+                identity,
+                spotIdentity,
+                title,
+                script,
+                transcriptProvenance,
+                audioUrl,
+                imageUrl,
+                durationSeconds,
+                sourceModifiedAt,
+                status,
+                contentTags,
+                null,
+                contentHash,
+                subtitleLines(script, transcriptProvenance));
+    }
+
+    public OdiiStoryVersion(
+            OdiiStoryIdentity identity,
+            OdiiSpotIdentity spotIdentity,
+            String title,
+            String script,
+            TranscriptProvenance transcriptProvenance,
+            String audioUrl,
+            String imageUrl,
+            Integer durationSeconds,
+            Instant sourceModifiedAt,
+            AudioStatus status,
+            List<String> contentTags,
+            ContentTagQualityReport contentTagQualityReport,
+            String contentHash
+    ) {
+        this(
+                identity,
+                spotIdentity,
+                title,
+                script,
+                transcriptProvenance,
+                audioUrl,
+                imageUrl,
+                durationSeconds,
+                sourceModifiedAt,
+                status,
+                contentTags,
+                contentTagQualityReport,
+                contentHash,
+                subtitleLines(script, transcriptProvenance));
     }
 
     public OdiiStoryVersion(
@@ -47,6 +126,8 @@ public record OdiiStoryVersion(
                 durationSeconds,
                 sourceModifiedAt,
                 status,
+                List.of(),
+                null,
                 contentHash,
                 subtitleLines(script, transcriptProvenance));
     }

@@ -21,6 +21,22 @@ CREATE TYPE "catalog_place_status" AS ENUM (
   'DELETED'
 );
 
+CREATE TYPE "content_tag_source" AS ENUM (
+  'GENERATED',
+  'PINNED',
+  'OPERATOR'
+);
+
+CREATE TYPE "content_tag_override_target" AS ENUM (
+  'PLACE',
+  'ODII_STORY'
+);
+
+CREATE TYPE "content_tag_override_action" AS ENUM (
+  'PIN',
+  'HIDE'
+);
+
 CREATE TYPE "audio_status" AS ENUM (
   'ACTIVE',
   'HIDDEN',
@@ -281,6 +297,31 @@ CREATE TABLE "catalog_hanok_detail_versions" (
   PRIMARY KEY ("revision_id", "place_id")
 );
 
+CREATE TABLE "catalog_place_content_tag_versions" (
+  "revision_id" uuid NOT NULL,
+  "place_id" uuid NOT NULL,
+  "position" int NOT NULL,
+  "label" varchar NOT NULL,
+  "score" numeric NOT NULL,
+  "source" content_tag_source NOT NULL,
+  "algorithm_version" varchar NOT NULL,
+  "source_hash" varchar NOT NULL,
+  "generated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("revision_id", "place_id", "position")
+);
+
+CREATE TABLE "content_tag_overrides" (
+  "id" uuid PRIMARY KEY,
+  "target_type" content_tag_override_target NOT NULL,
+  "target_id" uuid NOT NULL,
+  "label" varchar NOT NULL,
+  "action" content_tag_override_action NOT NULL,
+  "reason" text,
+  "created_by" uuid,
+  "created_at" timestamptz NOT NULL,
+  "expires_at" timestamptz
+);
+
 CREATE TABLE "audio_odii_spots" (
   "id" uuid PRIMARY KEY,
   "provider" varchar NOT NULL,
@@ -359,6 +400,19 @@ CREATE TABLE "audio_place_odii_links" (
   "review_status" varchar NOT NULL DEFAULT 'APPROVED',
   "verified_at" timestamptz,
   PRIMARY KEY ("place_id", "spot_id")
+);
+
+CREATE TABLE "audio_story_content_tag_versions" (
+  "revision_id" uuid NOT NULL,
+  "story_id" uuid NOT NULL,
+  "position" int NOT NULL,
+  "label" varchar NOT NULL,
+  "score" numeric NOT NULL,
+  "source" content_tag_source NOT NULL,
+  "algorithm_version" varchar NOT NULL,
+  "source_hash" varchar NOT NULL,
+  "generated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("revision_id", "story_id", "position")
 );
 
 CREATE TABLE "insights_visitor_observations" (
@@ -724,6 +778,12 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
+
+
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -830,6 +890,8 @@ ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("place_id") REFEREN
 
 ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("source_ref_id") REFERENCES "catalog_place_sources" ("id");
 
+ALTER TABLE "catalog_place_content_tag_versions" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id");
+
 ALTER TABLE "audio_odii_stories" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id");
 
 ALTER TABLE "audio_spot_versions" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id");
@@ -841,6 +903,8 @@ ALTER TABLE "audio_story_versions" ADD FOREIGN KEY ("spot_id") REFERENCES "audio
 ALTER TABLE "audio_subtitle_lines" ADD FOREIGN KEY ("story_id") REFERENCES "audio_odii_stories" ("id");
 
 ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id");
+
+ALTER TABLE "audio_story_content_tag_versions" ADD FOREIGN KEY ("revision_id", "story_id") REFERENCES "audio_story_versions" ("revision_id", "story_id");
 
 ALTER TABLE "insights_target_place_links" ADD FOREIGN KEY ("target_id") REFERENCES "insights_tourism_targets" ("id");
 
