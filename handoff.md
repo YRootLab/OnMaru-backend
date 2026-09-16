@@ -12,6 +12,27 @@
 - 독립 리뷰: raw input policy 누락, Idempotency-Key 미적용, 미등록 guest cookie 신뢰, baseVersion 기본값 승인, 비계약 오류 code를 보완했다. null replay와 canonical clarification answer도 함께 교정했다.
 - 최종 검증: 격리된 Gradle home 전체 Java 41 tasks, FastAPI Ruff·mypy와 pytest 62 passed/1 live skip, Node 35 tests, planning/Odii fixture, 전체 contract/generated artifact, branch parser `101`, `git diff --check`가 통과했다.
 - 다음 단계: 최신 `origin/develop`을 병합하고 commit·push한 뒤 `develop` 대상 PR을 만든다. 필수 CI와 approval 전에는 merge하지 않는다.
+## Current Session Quick Handoff - 2026-09-16 Issue #94
+
+- 현재 작업 브랜치와 worktree: `feature/94-postgres-restore-drill`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-94-postgres-restore-drill`.
+- 관련 Issue: #94 `[O04] PostgreSQL backup·PITR·restore drill 자동화`; blocked-by #85/#72는 Closed이고 열린 중복 PR은 없다. 후속 deletion ledger producer와 장기 cleanup은 기존 #125가 소유한다.
+- 구현 범위: `onmaru_backup` non-superuser membership을 강제하는 PostgreSQL 17 runner, 동일 exported MVCC snapshot 기반 dump·critical count, AES-256 encrypted logical full backup, artifact basename 결합 checksum, 7일 retention, source/target fingerprint와 전체 user relation 빈 target guard를 추가했다.
+- 복원 검증: 별도 source/target PostGIS 17 컨테이너에서 `template0` 기반 빈 DB에 복원하고, backup 이후 deletion ledger를 transaction으로 replay한 뒤 row count, FK validation, snapshot hash, migration version, 삭제 재노출을 검사한다.
+- 운영 증거: sanitized JSON에 source revision, artifact digest, RPO/RTO, aggregate integrity count만 기록한다. provider PITR은 hosting/WAL 근거가 없으므로 `UNAVAILABLE_UNTIL_HOSTING_SELECTED`로 fail-closed다.
+- 로컬 통합 drill: ARM 개발 환경의 amd64 PostGIS emulation과 entrypoint init race, SQL directory execute permission, preinstalled extension 충돌을 재현해 각각 platform 지정, init-complete gate, `a+rX`, `template0` target으로 교정했다.
+- 측정 결과: CI와 같은 외부 evidence mount에서 다른 artifact명 sidecar·pre-existing public table 거부를 확인한 뒤 encrypted backup부터 restore·ledger replay·integrity suite까지 PASS, RPO 4초, checksum·복호화를 포함한 RTO 2초, deletion re-exposure 0, migration version `008`.
+- PR: #202 `feat(ops): PostgreSQL 복원 drill 자동화`를 `develop` 대상으로 생성했고 본문에 `Closes #94`와 검증 근거를 기록했다. 최신 `origin/develop`을 병합해 #134와의 `CHANGELOG.md`/`handoff.md` 충돌 후보를 해소했다.
+- 다음 단계: 독립 review의 snapshot·empty target·checksum Important 3건 보강 commit을 push한 뒤 PR #202의 `verify`/`restore-drill` CI, mergeability, review gate를 확인한다. 병합 뒤 #94 상태를 조회하고 `develop` 대상 auto-close가 적용되지 않으면 검증 근거를 comment로 남긴 뒤 수동 close한다.
+## Current Session Quick Handoff - 2026-09-16 Issue #105
+
+- 현재 작업 브랜치와 worktree: `feature/105-ai-proposal-validator`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-105-proposal-validator`.
+- 관련 Issue: #105 `[AI05] AI proposal schema·evidence allowlist validator 구현`; blocked-by #97/#91은 Closed이고 담당자·열린 중복 PR은 없다.
+- 구현 범위: outcome별 closed Pydantic schema, `$ref` 없는 Gemini response JSON Schema, candidate 최대12·board 최대3·evidence 최대3 제한, pin/exclude/candidate/evidence ownership과 revision 검증을 추가했다.
+- 실패 계약: duplicate/unknown/missing/over-limit/unsafe text를 typed `ProposalRejectionCode`로 분류하고 provider payload를 exception에 넣지 않는다. orchestration에는 `AI_INVALID_RESPONSE`만 노출해 자동 repair 없이 baseline으로 전환한다.
+- 보안 보강: extra field, tool call, 일반 URI scheme, protocol-relative·IP·IDN URL, HTML, Markdown 구조 문자·목록·Setext 구문, control character와 provider가 만든 region ref를 거부한다.
+- 검증: proposal adversarial/property-style 42개, FastAPI 전체 Ruff/mypy, pytest 104 passed·1 live smoke skipped를 통과했다.
+- 남은 경계: evidence ID ownership은 문장 의미의 claim support를 증명하지 않는다. 이 평가는 후속 #111 frozen eval이 소유하고 Spring은 canonical 상태를 다시 검증한다.
+- 다음 단계: `develop` 대상 PR #203의 CI와 필수 승인을 확인해 merge한다. Merge 후 #105 종료를 확인하면 #111과 #114가 dependency상 Ready가 된다.
 
 ## Current Session Quick Handoff - 2026-09-15 Issue #134
 

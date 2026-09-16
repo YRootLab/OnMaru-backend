@@ -7,5 +7,6 @@ FastAPI는 Spring이 준비한 후보와 증거만 받아 입력 정책, prompt 
 - [Retrieval and optional RAG](retrieval-and-rag.md): deterministic retrieval 우선과 optional RAG 진입 조건
 - [Corpus sync contract](corpus-sync-contract.md): Spring manifest, tombstone, ACK, FastAPI activation pointer
 - [Internal service authentication](internal-service-authentication.md): jti replay TTL, key rotation, outage and Grafana runbook proof
+- [AI proposal validation](proposal-validation.md): provider output closed schema, candidate/evidence allowlist, typed degraded reason
 
 구현 전 게이트: Gemini의 실제 free-tier 한도/약관 확인, synthetic eval fixture, schema validation, timeout/실패 시 baseline 전환을 검증한다.
