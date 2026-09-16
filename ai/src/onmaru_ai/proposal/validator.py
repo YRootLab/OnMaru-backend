@@ -17,9 +17,11 @@ from .models import (
 
 _PROPOSAL_ADAPTER: TypeAdapter[ProviderProposal] = TypeAdapter(ProviderProposal)
 _UNSAFE_TEXT = re.compile(
-    r"https?://|www\.|(?:[a-z0-9-]+\.)+(?:com|net|org|kr|io)(?:/|\b)|"
-    r"[<>]|\[[^\]]*\]\([^)]*\)|!\[|`|\*\*|__|~~|"
-    r"(?:^|\n)\s{0,3}(?:#{1,6}|[-*+]\s)|[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]",
+    r"(?:https?|ftp|mailto|data|file|javascript):|www\.|"
+    r"(?:[a-z0-9-]+\.)+[a-z]{2,63}(?:[/:?#]|\b)|"
+    r"[\[\]<>`#*_]|~~|"
+    r"(?:^|\n)\s{0,3}(?:[-+]\s|\d+[.)]\s)|"
+    r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]",
     re.IGNORECASE,
 )
 

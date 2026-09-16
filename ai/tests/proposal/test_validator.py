@@ -184,6 +184,13 @@ def test_rejects_missing_pin_even_when_every_returned_ref_is_known() -> None:
         "<script",
         "**검수되지 않은 강조**",
         "example.com/path에서 확인하세요.",
+        "example.xyz/path",
+        "ftp://example.xyz/file",
+        "mailto:test@example.xyz",
+        "data:text/plain,hello",
+        "1. 목록",
+        "*기울임*",
+        "[참조][id]",
         "제어문자\x00포함",
     ],
 )

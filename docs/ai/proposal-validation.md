@@ -7,7 +7,7 @@
 1. Pydantic discriminated schema가 `PROPOSE_BOARD`, `ASK_CLARIFICATION`, `NO_RESULTS`별 필수·금지 field와 길이·개수 상한을 검사한다.
 2. `ProposalValidator`가 Spring이 전달한 `ProposalScope`와 비교해 candidate ref, pin, exclude, evidence ownership과 revision을 검사한다.
 
-provider schema는 `$ref`, `$defs`, discriminator를 제거한 closed JSON Schema로 생성한다. 모든 object는 `additionalProperties: false`이며 board와 reason은 각각 최대 3개다. wire field는 `orderedRefs`, `evidenceIds`, `allowFreeText` 같은 camelCase alias만 허용하고 내부 Python field name 우회 입력을 받지 않는다. provider output에 tool call, URL, HTML, Markdown, control character, 임의 user-facing error field를 허용하지 않는다.
+provider schema는 `$ref`, `$defs`, discriminator를 제거한 closed JSON Schema로 생성한다. 모든 object는 `additionalProperties: false`이며 board와 reason은 각각 최대 3개다. wire field는 `orderedRefs`, `evidenceIds`, `allowFreeText` 같은 camelCase alias만 허용하고 내부 Python field name 우회 입력을 받지 않는다. provider output에 tool call, URI scheme, 임의 TLD domain, HTML, Markdown 구조 문자·목록, control character, 임의 user-facing error field를 허용하지 않는다.
 
 ## Scope와 불변식
 
@@ -35,4 +35,4 @@ uv run ruff check src/onmaru_ai/proposal tests/proposal
 uv run mypy src/onmaru_ai/proposal tests/proposal
 ```
 
-adversarial suite는 unknown ref 100개, duplicate/missing pin·reason, cross-candidate evidence, 빈 evidence, 초과 길이, extra field와 snake_case alias 우회, URL/HTML/Markdown/control character, outcome별 shape 혼합을 포함한다.
+adversarial suite는 unknown ref 100개, duplicate/missing pin·reason, cross-candidate evidence, 빈 evidence, 초과 길이, extra field와 snake_case alias 우회, URI scheme·임의 TLD domain·HTML·Markdown·control character, outcome별 shape 혼합을 포함한다.
