@@ -16,6 +16,29 @@ uv run mypy src tests
 uv run pytest
 ```
 
+## Offline AI 평가
+
+저장소 루트에서 고정 held-out fixture의 품질·근거·안전·지연·비용 gate를 실행한다.
+외부 모델이나 네트워크를 호출하지 않는다.
+
+```bash
+uv run --project ai python scripts/run-ai-evals \
+  --input ai/evals/journey-held-out-v1.json \
+  --output /tmp/onmaru-ai-eval-report.json
+```
+
+이전 report와 같은 dataset인지 확인하고 지표 delta를 포함하려면 `--compare`를 사용한다.
+
+```bash
+uv run --project ai python scripts/run-ai-evals \
+  --input ai/evals/journey-held-out-v1.json \
+  --output /tmp/onmaru-ai-eval-compared.json \
+  --compare /tmp/onmaru-ai-eval-report.json
+```
+
+하나 이상의 gate가 실패하면 report를 남기고 종료 코드 `1`을 반환한다. fixture와 report
+계약의 관리 규칙은 [`docs/ai/evaluation-harness.md`](../docs/ai/evaluation-harness.md)를 따른다.
+
 서버 실행 후 다음 응답을 확인한다.
 
 ```bash
@@ -28,4 +51,9 @@ curl http://localhost:8001/ready
 
 ## 현재 범위
 
-Gemini adapter는 opt-in composition에서만 외부 모델에 연결한다. 기본 health runtime은 외부 호출을 만들지 않으며, 설정과 제한된 smoke 절차는 [`docs/ai/gemini-provider-adapter.md`](../docs/ai/gemini-provider-adapter.md)를 따른다. provider proposal은 [`docs/ai/proposal-validation.md`](../docs/ai/proposal-validation.md)의 closed schema와 candidate/evidence allowlist를 통과해야 한다. DB와 RAG 연결은 각 후속 Issue가 계약과 버전을 정한 뒤 추가한다.
+Gemini adapter는 opt-in composition에서만 외부 모델에 연결한다. 기본 health runtime과 offline
+평가는 외부 호출을 만들지 않으며, 설정과 제한된 smoke 절차는
+[`docs/ai/gemini-provider-adapter.md`](../docs/ai/gemini-provider-adapter.md)를 따른다. provider
+proposal은 [`docs/ai/proposal-validation.md`](../docs/ai/proposal-validation.md)의 closed schema와
+candidate/evidence allowlist를 통과해야 한다. DB와 RAG 연결은 각 후속 Issue가 계약과 버전을 정한
+뒤 추가한다.
