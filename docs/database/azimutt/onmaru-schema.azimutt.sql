@@ -544,6 +544,21 @@ CREATE TABLE "operations_admission" (
   "active_count" int NOT NULL
 );
 
+CREATE TABLE "operations_admission_audit" (
+  "id" uuid PRIMARY KEY,
+  "scope_key" varchar NOT NULL,
+  "operation" varchar NOT NULL,
+  "subject_type" varchar NOT NULL,
+  "window_start" timestamptz NOT NULL,
+  "decision" varchar NOT NULL,
+  "reason" varchar,
+  "limit_value" int NOT NULL,
+  "consumed_after" int NOT NULL,
+  "active_after" int NOT NULL,
+  "retry_after_ms" bigint NOT NULL,
+  "occurred_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "operations_sync_schedules" (
   "dataset" varchar PRIMARY KEY,
   "timezone" varchar NOT NULL,
@@ -640,6 +655,8 @@ CREATE TABLE "ai_corpus_sync_runs" (
   "finished_at" timestamptz,
   "error_code" varchar
 );
+
+
 
 
 

@@ -121,7 +121,7 @@ npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres
 | Discovery | `discovery_explorations`, `discovery_runs`, `discovery_run_commands`, `discovery_proposals`, `discovery_turns` |
 | Journey | `journey_saved_journeys`, `journey_saved_resources` |
 | Community | `community_visit_reviews`, `community_review_likes` |
-| Operations | `operations_idempotency`, `operations_admission`, `operations_sync_schedules`, `operations_sync_runs`, `operations_sync_checkpoints`, `operations_sync_leases`, `operations_sync_watermarks`, `operations_sync_quarantine` |
+| Operations | `operations_idempotency`, `operations_admission`, `operations_admission_audit`, `operations_sync_schedules`, `operations_sync_runs`, `operations_sync_checkpoints`, `operations_sync_leases`, `operations_sync_watermarks`, `operations_sync_quarantine` |
 | AI | `ai_documents`, `ai_chunks`, `ai_embeddings` |
 
 ## 모듈 분류 이유
@@ -140,7 +140,7 @@ Journey는 저장 여정 snapshot, 장소/Odii 담아두기, 내 월간 타임�
 
 Community는 짧은 방문 후기와 좋아요를 소유한다. 기존 Warmth mood/score 모델과 분리한다.
 
-Operations는 idempotency, admission, 03:00 KST sync schedule/run/checkpoint/lease/watermark/quarantine을 소유한다.
+Operations는 idempotency, admission counter/audit, 03:00 KST sync schedule/run/checkpoint/lease/watermark/quarantine을 소유한다.
 
 AI는 optional RAG 승인 후 사용하는 corpus/chunk/embedding schema다. MVP에서는 FastAPI에 DB credential을 주지 않으므로 실제 migration 대상이 아니다.
 

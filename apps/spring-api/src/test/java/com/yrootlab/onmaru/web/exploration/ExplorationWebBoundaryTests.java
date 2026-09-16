@@ -18,6 +18,12 @@ import com.yrootlab.onmaru.journey.exploration.ExplorationService;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationRunDispatcher;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationStore;
 import com.yrootlab.onmaru.observability.InMemoryTelemetrySink;
+import com.yrootlab.onmaru.operations.admission.AdmissionPolicy;
+import com.yrootlab.onmaru.operations.admission.AdmissionRequest;
+import com.yrootlab.onmaru.operations.admission.AdmissionService;
+import com.yrootlab.onmaru.operations.admission.AdmissionSubject;
+import com.yrootlab.onmaru.operations.admission.SubjectType;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +45,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -84,12 +91,22 @@ class ExplorationWebBoundaryTests {
     private GuestGrantService guestGrantService;
 
     @Autowired
+    private AdmissionService admissionService;
+
+    @Autowired
+    private AdmissionPolicy admissionPolicy;
+
+    @Autowired
+    private MeterRegistry meterRegistry;
+
+    @Autowired
     private InMemoryPlaceDetailStore placeDetailStore;
 
     @Autowired
     private InMemoryTelemetrySink telemetrySink;
 
     private final TokenHasher hasher = new TokenHasher("fake-oauth-client-secret-current");
+    private UUID guestId;
     private String guestToken;
     private String ownerToken;
     private String otherToken;
@@ -101,10 +118,12 @@ class ExplorationWebBoundaryTests {
         runEventStream.clear();
         identityStore.clear();
         guestCredentialService.clear();
+        var guest = guestCredentialService.issue();
+        guestId = guest.guestId();
+        guestToken = guest.rawToken();
         placeDetailStore.clear();
         telemetrySink.clear();
         seedPublicJeonjuPlace();
-        guestToken = guestCredentialService.issue().rawToken();
         ownerToken = guestCredentialService.issue().rawToken();
         otherToken = guestCredentialService.issue().rawToken();
     }
@@ -186,6 +205,77 @@ class ExplorationWebBoundaryTests {
                 .andExpect(jsonPath("$.explorationId").value(explorationId))
                 .andExpect(jsonPath("$.latestRun.status").value("QUEUED"));
         assertThat(runDispatcher.dispatchCount()).isEqualTo(1);
+    }
+
+    @Test
+    void guestAiQuotaRejectsThirdDailyQueuedRunWithoutDispatching() throws Exception {
+        var first = objectMapper.readTree(createGuestExploration(guestToken, "kr-45-jeonju"));
+        cancelRun(guestToken, first.path("explorationId").asText(), first.path("runId").asText());
+        var second = objectMapper.readTree(createGuestExploration(guestToken, "kr-11-seoul"));
+        cancelRun(guestToken, second.path("explorationId").asText(), second.path("runId").asText());
+
+        mockMvc.perform(post("/api/v1/explorations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "query", "경주 한옥 여행",
+                                "locale", "ko-KR",
+                                "regionCode", "kr-47-gyeongju")))
+                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().exists("Retry-After"))
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"))
+                .andExpect(jsonPath("$.details.retryAfterMs", greaterThan(0)));
+
+        assertThat(explorationStore.explorationCount()).isEqualTo(2);
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(2);
+    }
+
+    @Test
+    void cancelRunReturnsActiveAdmissionSlotForSameGuest() throws Exception {
+        var created = createGuestExploration(guestToken, "kr-45-jeonju");
+        var root = objectMapper.readTree(created);
+        var explorationId = root.path("explorationId").asText();
+        var runId = root.path("runId").asText();
+        var subject = new AdmissionRequest(
+                "journey.ai",
+                new AdmissionSubject(SubjectType.GUEST, guestId.toString()));
+        var rejectedBefore = counter(
+                "onmaru.admission.decisions",
+                "operation", "journey.ai",
+                "subjectType", "GUEST",
+                "decision", "rejected",
+                "reason", "ACTIVE_LIMIT");
+        var releasedBefore = counter(
+                "onmaru.admission.releases",
+                "operation", "journey.ai",
+                "subjectType", "GUEST");
+
+        assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isFalse();
+        assertThat(counter(
+                "onmaru.admission.decisions",
+                "operation", "journey.ai",
+                "subjectType", "GUEST",
+                "decision", "rejected",
+                "reason", "ACTIVE_LIMIT")).isEqualTo(rejectedBefore + 1.0);
+
+        mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+        assertThat(counter(
+                "onmaru.admission.releases",
+                "operation", "journey.ai",
+                "subjectType", "GUEST")).isEqualTo(releasedBefore + 1.0);
+
+        assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isTrue();
+        admissionService.releaseActive(subject, admissionPolicy);
     }
 
     @Test
@@ -796,6 +886,21 @@ class ExplorationWebBoundaryTests {
                         .header("Idempotency-Key", key))
                 .andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsByteArray();
+    }
+
+    private void cancelRun(String guestToken, String explorationId, String runId) throws Exception {
+        mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isOk());
+    }
+
+    private double counter(String name, String... tags) {
+        var counter = meterRegistry.find(name).tags(tags).counter();
+        return counter == null ? 0.0 : counter.count();
     }
 
     private Cookie guestCookie(String token) {

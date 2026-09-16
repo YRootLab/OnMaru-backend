@@ -95,6 +95,15 @@
       "checksum": "a02-v010-20260916",
       "sha256": "29eb68d926af14fb514eadd235679c791894e72d168988703405fadd02b0a0fe",
       "description": "Odii production revision persistence and atomic place-link approval"
+    },
+    {
+      "version": "011",
+      "reservedFor": "J09",
+      "issueNumber": 117,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V011__j09_admission_audit.sql",
+      "checksum": "j09-v011-20260916",
+      "sha256": "e73c4068225cea273c951d599dbcec544ef830047f8ed28ee75c9264fa7fcd58",
+      "description": "Guest/member AI daily quota admission audit"
     }
   ]
 }

@@ -11,6 +11,7 @@ import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -96,6 +97,20 @@ final class ExplorationExceptionHandler {
                 "Exploration already has an active run.",
                 request,
                 Map.of());
+    }
+
+    @ExceptionHandler(ExplorationQuotaExceededException.class)
+    ResponseEntity<ApiErrorResponse> quotaExceeded(
+            ExplorationQuotaExceededException exception,
+            HttpServletRequest request) {
+        var retryAfter = exception.retryAfter();
+        return ResponseEntity.status(ApiErrorCode.RATE_LIMITED.status())
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(Math.max(1, retryAfter.toSeconds())))
+                .cacheControl(CacheControl.noStore())
+                .body(ApiErrorResponse.of(
+                        ApiErrorCode.RATE_LIMITED,
+                        requestId(request),
+                        Map.of("retryAfterMs", retryAfter.toMillis())));
     }
 
     private ResponseEntity<ApiErrorResponse> error(

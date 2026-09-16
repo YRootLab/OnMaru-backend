@@ -66,6 +66,17 @@ public final class ExplorationService {
         return state.snapshot();
     }
 
+    public boolean willCreateAiRun(ExplorationActor actor, CreateExplorationCommand command) {
+        validateActor(actor);
+        var query = intakePolicy.validateCreate(validateQuery(command == null ? null : command.query()));
+        validateLocale(command.locale());
+        var regionCode = normalizeRegion(command.regionCode());
+        if (regionCode == null) {
+            regionCode = intakePolicy.detectRegion(query);
+        }
+        return regionCode != null;
+    }
+
     public ExplorationSnapshot get(ExplorationActor actor, UUID explorationId) {
         return ownedState(actor, explorationId).snapshot();
     }
@@ -118,6 +129,35 @@ public final class ExplorationService {
         publish(run);
         dispatchIfNeeded(updated);
         return updated.snapshot();
+    }
+
+    public boolean willCreateTurnAiRun(
+            ExplorationActor actor,
+            UUID explorationId,
+            CreateExplorationTurnCommand command) {
+        var state = ownedState(actor, explorationId);
+        validateTurn(command);
+        validateQuery(command.query());
+        var existing = store.findTurn(explorationId, command.clientTurnId());
+        if (existing.isPresent()) {
+            if (!existing.get().matches(command)) {
+                throw new ExplorationTurnConflictException();
+            }
+            return false;
+        }
+        if (command.baseVersion() != state.stateVersion()) {
+            throw new ExplorationVersionConflictException(state.stateVersion());
+        }
+        validateClarificationAnswer(state, command.clarificationId());
+        if (state.latestRun().isActive()) {
+            throw new ExplorationActiveRunException();
+        }
+        var query = intakePolicy.validateTurn(validateQuery(command.query()));
+        var regionCode = normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode());
+        if (regionCode == null) {
+            regionCode = intakePolicy.detectRegion(query);
+        }
+        return regionCode != null;
     }
 
     public ExplorationRun claimRun(UUID explorationId, UUID runId, String stage) {

@@ -544,6 +544,21 @@ CREATE TABLE "operations_admission" (
   "active_count" int NOT NULL
 );
 
+CREATE TABLE "operations_admission_audit" (
+  "id" uuid PRIMARY KEY,
+  "scope_key" varchar NOT NULL,
+  "operation" varchar NOT NULL,
+  "subject_type" varchar NOT NULL,
+  "window_start" timestamptz NOT NULL,
+  "decision" varchar NOT NULL,
+  "reason" varchar,
+  "limit_value" int NOT NULL,
+  "consumed_after" int NOT NULL,
+  "active_after" int NOT NULL,
+  "retry_after_ms" bigint NOT NULL,
+  "occurred_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "operations_sync_schedules" (
   "dataset" varchar PRIMARY KEY,
   "timezone" varchar NOT NULL,
@@ -748,6 +763,10 @@ CREATE INDEX ON "community_review_reports" ("status", "created_at");
 CREATE INDEX ON "community_review_moderation_actions" ("review_id", "created_at");
 
 CREATE INDEX ON "operations_idempotency" ("expires_at");
+
+CREATE INDEX ON "operations_admission_audit" ("scope_key", "occurred_at");
+
+CREATE INDEX ON "operations_admission_audit" ("operation", "decision", "occurred_at");
 
 CREATE UNIQUE INDEX ON "operations_sync_runs" ("dataset", "scheduled_for", "attempt");
 

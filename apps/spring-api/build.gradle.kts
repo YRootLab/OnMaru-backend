@@ -5,6 +5,7 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":adapters:persistence-jdbc"))
     implementation(project(":adapters:tourism-api"))
     implementation(project(":modules:audio"))
     implementation(project(":modules:catalog"))
