@@ -154,6 +154,10 @@ def test_accepts_typed_clarification_and_no_results_without_board_data() -> None
             lambda payload: payload.update(toolCall={"name": "search"}),
             ProposalRejectionCode.UNEXPECTED_FIELD,
         ),
+        (
+            lambda payload: payload.update(ordered_refs=payload.pop("orderedRefs")),
+            ProposalRejectionCode.UNEXPECTED_FIELD,
+        ),
     ],
 )
 def test_rejects_adversarial_board_variants_with_typed_codes(
