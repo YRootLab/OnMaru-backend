@@ -1,0 +1,117 @@
+#!/bin/sh
+set -eu
+
+require_env() {
+  name="$1"
+  eval "value=\${$name:-}"
+  if [ -z "$value" ]; then
+    echo "required environment variable is missing: $name" >&2
+    exit 2
+  fi
+}
+
+for name in PGHOST PGDATABASE PGUSER PGPASSWORD ONMARU_BACKUP_OUTPUT_DIR ONMARU_BACKUP_KEY_FILE; do
+  require_env "$name"
+done
+
+case "$ONMARU_BACKUP_OUTPUT_DIR" in
+  /*) ;;
+  *) echo "ONMARU_BACKUP_OUTPUT_DIR must be an absolute isolated storage path" >&2; exit 2 ;;
+esac
+
+if [ ! -f "$ONMARU_BACKUP_KEY_FILE" ]; then
+  echo "ONMARU_BACKUP_KEY_FILE must point to a mounted secret file" >&2
+  exit 2
+fi
+
+key_bytes=$(wc -c < "$ONMARU_BACKUP_KEY_FILE" | tr -d ' ')
+if [ "$key_bytes" -lt 32 ]; then
+  echo "backup encryption key must contain at least 32 bytes" >&2
+  exit 2
+fi
+
+backup_role_allowed=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
+  "SELECT pg_has_role(current_user, 'onmaru_backup', 'member') AND NOT rolsuper FROM pg_roles WHERE rolname = current_user")
+if [ "$backup_role_allowed" != "t" ]; then
+  echo "backup credential must be a non-superuser member of onmaru_backup" >&2
+  exit 2
+fi
+
+sql_dir=${ONMARU_BACKUP_SQL_DIR:-/opt/onmaru/backup/sql}
+retention_days=${ONMARU_BACKUP_RETENTION_DAYS:-7}
+source_revision=${ONMARU_SOURCE_REVISION:-unknown}
+tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/onmaru-backup.XXXXXX")
+gnupg_home="$tmp_dir/gnupg"
+
+cleanup() {
+  rm -rf "$tmp_dir"
+}
+trap cleanup EXIT HUP INT TERM
+
+mkdir -p "$ONMARU_BACKUP_OUTPUT_DIR" "$gnupg_home"
+chmod 700 "$gnupg_home"
+
+source_fingerprint=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
+  "SELECT coalesce(inet_server_addr()::text, 'local') || ':' || inet_server_port() || '/' || current_database()")
+captured_epoch=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
+  "SELECT extract(epoch FROM clock_timestamp())::bigint")
+captured_at=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
+  "SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')")
+
+pg_dump \
+  --format=custom \
+  --no-owner \
+  --no-privileges \
+  --file="$tmp_dir/database.dump" \
+  "$PGDATABASE"
+
+psql -X -qAt -v ON_ERROR_STOP=1 -f "$sql_dir/critical-counts.sql" \
+  > "$tmp_dir/critical-counts.tsv"
+
+jq -n \
+  --arg capturedAt "$captured_at" \
+  --argjson capturedEpoch "$captured_epoch" \
+  --arg sourceFingerprint "$source_fingerprint" \
+  --arg sourceRevision "$source_revision" \
+  '{
+    schemaVersion: 1,
+    capturedAt: $capturedAt,
+    capturedEpoch: $capturedEpoch,
+    sourceFingerprint: $sourceFingerprint,
+    sourceRevision: $sourceRevision,
+    format: "POSTGRES_CUSTOM_LOGICAL_FULL"
+  }' > "$tmp_dir/metadata.json"
+
+tar -C "$tmp_dir" -cf "$tmp_dir/backup.tar" \
+  database.dump critical-counts.tsv metadata.json
+
+artifact_stamp=$(printf '%s' "$captured_at" | tr -d ':-' | tr 'T' '-')
+artifact_name="onmaru-$artifact_stamp.tar.gpg"
+partial_path="$ONMARU_BACKUP_OUTPUT_DIR/$artifact_name.partial"
+artifact_path="$ONMARU_BACKUP_OUTPUT_DIR/$artifact_name"
+
+GNUPGHOME="$gnupg_home" gpg \
+  --batch \
+  --yes \
+  --pinentry-mode loopback \
+  --passphrase-file "$ONMARU_BACKUP_KEY_FILE" \
+  --symmetric \
+  --cipher-algo AES256 \
+  --output "$partial_path" \
+  "$tmp_dir/backup.tar"
+
+mv "$partial_path" "$artifact_path"
+(
+  cd "$ONMARU_BACKUP_OUTPUT_DIR"
+  sha256sum "$artifact_name" > "$artifact_name.sha256"
+)
+
+find "$ONMARU_BACKUP_OUTPUT_DIR" -type f \
+  \( -name 'onmaru-*.tar.gpg' -o -name 'onmaru-*.tar.gpg.sha256' \) \
+  -mtime "+$retention_days" -delete
+
+jq -n \
+  --arg artifact "$artifact_path" \
+  --arg capturedAt "$captured_at" \
+  --arg sourceRevision "$source_revision" \
+  '{artifact: $artifact, capturedAt: $capturedAt, sourceRevision: $sourceRevision, encrypted: true}'

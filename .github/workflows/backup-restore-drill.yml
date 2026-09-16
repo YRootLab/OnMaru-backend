@@ -1,0 +1,39 @@
+name: PostgreSQL Restore Drill
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/backup-restore-drill.yml"
+      - "infra/backup/**"
+      - "scripts/test/backup-restore-drill.test.mjs"
+      - "apps/spring-api/src/main/resources/db/migration/baseline/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postgres-restore-drill-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run encrypted two-database restore drill
+        env:
+          ONMARU_DRILL_EVIDENCE_DIR: ${{ runner.temp }}/onmaru-restore-evidence
+        run: infra/backup/test/run-restore-drill
+
+      - name: Upload sanitized restore evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-restore-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/onmaru-restore-evidence/*.json
+          if-no-files-found: error
+          retention-days: 7

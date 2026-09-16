@@ -1,0 +1,217 @@
+#!/bin/sh
+set -eu
+
+require_env() {
+  name="$1"
+  eval "value=\${$name:-}"
+  if [ -z "$value" ]; then
+    echo "required environment variable is missing: $name" >&2
+    exit 2
+  fi
+}
+
+for name in PGHOST PGDATABASE PGUSER PGPASSWORD \
+  ONMARU_BACKUP_ARTIFACT ONMARU_BACKUP_KEY_FILE \
+  ONMARU_DELETION_LEDGER_ARTIFACT ONMARU_DELETION_LEDGER_KEY_FILE \
+  ONMARU_RESTORE_EVIDENCE_DIR \
+  ONMARU_RESTORE_CONFIRM; do
+  require_env "$name"
+done
+
+if [ "$ONMARU_RESTORE_CONFIRM" != "isolated-target" ]; then
+  echo "restore requires ONMARU_RESTORE_CONFIRM=isolated-target" >&2
+  exit 2
+fi
+
+if [ "${ONMARU_RECOVERY_MODE:-logical-full}" != "logical-full" ]; then
+  echo "provider PITR is unavailable until hosting and WAL recovery evidence are configured" >&2
+  exit 2
+fi
+
+if [ ! -f "$ONMARU_BACKUP_ARTIFACT" ] \
+  || [ ! -f "$ONMARU_BACKUP_ARTIFACT.sha256" ] \
+  || [ ! -f "$ONMARU_BACKUP_KEY_FILE" ] \
+  || [ ! -f "$ONMARU_DELETION_LEDGER_ARTIFACT" ] \
+  || [ ! -f "$ONMARU_DELETION_LEDGER_ARTIFACT.sha256" ] \
+  || [ ! -f "$ONMARU_DELETION_LEDGER_KEY_FILE" ]; then
+  echo "encrypted backup and deletion ledger artifacts, checksums, and keys are required" >&2
+  exit 2
+fi
+
+sql_dir=${ONMARU_BACKUP_SQL_DIR:-/opt/onmaru/backup/sql}
+rpo_target=86400
+rto_target=14400
+tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/onmaru-restore.XXXXXX")
+gnupg_home="$tmp_dir/gnupg"
+
+cleanup() {
+  rm -rf "$tmp_dir"
+}
+trap cleanup EXIT HUP INT TERM
+
+mkdir -p "$gnupg_home" "$ONMARU_RESTORE_EVIDENCE_DIR"
+chmod 700 "$gnupg_home"
+
+restore_started_epoch=$(date +%s)
+restore_started_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+artifact_dir=$(dirname "$ONMARU_BACKUP_ARTIFACT")
+artifact_name=$(basename "$ONMARU_BACKUP_ARTIFACT")
+(
+  cd "$artifact_dir"
+  sha256sum -c "$artifact_name.sha256"
+)
+
+ledger_dir=$(dirname "$ONMARU_DELETION_LEDGER_ARTIFACT")
+ledger_name=$(basename "$ONMARU_DELETION_LEDGER_ARTIFACT")
+(
+  cd "$ledger_dir"
+  sha256sum -c "$ledger_name.sha256"
+)
+
+GNUPGHOME="$gnupg_home" gpg \
+  --batch \
+  --yes \
+  --pinentry-mode loopback \
+  --passphrase-file "$ONMARU_BACKUP_KEY_FILE" \
+  --decrypt \
+  --output "$tmp_dir/backup.tar" \
+  "$ONMARU_BACKUP_ARTIFACT"
+
+tar -C "$tmp_dir" -xf "$tmp_dir/backup.tar"
+GNUPGHOME="$gnupg_home" gpg \
+  --batch \
+  --yes \
+  --pinentry-mode loopback \
+  --passphrase-file "$ONMARU_DELETION_LEDGER_KEY_FILE" \
+  --decrypt \
+  --output "$tmp_dir/deletion-ledger.tsv" \
+  "$ONMARU_DELETION_LEDGER_ARTIFACT"
+
+if [ -s "$tmp_dir/deletion-ledger.tsv" ]; then
+  awk -F '\t' '
+    NF != 2 || length($1) != 36 || $1 !~ /^[0-9a-f-]+$/ || $2 !~ /^[0-9]{4}-/ { exit 1 }
+  ' "$tmp_dir/deletion-ledger.tsv" || {
+    echo "deletion ledger must contain UUID and ISO-8601 timestamp TSV rows" >&2
+    exit 2
+  }
+fi
+
+source_fingerprint=$(jq -er '.sourceFingerprint' "$tmp_dir/metadata.json")
+captured_epoch=$(jq -er '.capturedEpoch' "$tmp_dir/metadata.json")
+captured_at=$(jq -er '.capturedAt' "$tmp_dir/metadata.json")
+source_revision=$(jq -er '.sourceRevision' "$tmp_dir/metadata.json")
+target_fingerprint=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
+  "SELECT coalesce(inet_server_addr()::text, 'local') || ':' || inet_server_port() || '/' || current_database()")
+
+if [ "$source_fingerprint" = "$target_fingerprint" ]; then
+  echo "refusing to restore into the source database" >&2
+  exit 2
+fi
+
+target_table_count=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema IN ('onmaru', 'onmaru_registry')")
+if [ "$target_table_count" -ne 0 ]; then
+  echo "restore target must be a new empty database" >&2
+  exit 2
+fi
+
+pg_restore \
+  --exit-on-error \
+  --no-owner \
+  --no-privileges \
+  --dbname="$PGDATABASE" \
+  "$tmp_dir/database.dump"
+
+integrity_json=$(psql -X -qAt -v ON_ERROR_STOP=1 <<SQL
+CREATE TEMP TABLE expected_restore_counts (
+  table_name text PRIMARY KEY,
+  row_count bigint NOT NULL
+);
+\copy expected_restore_counts FROM '$tmp_dir/critical-counts.tsv' WITH (FORMAT csv, DELIMITER E'\t')
+CREATE TEMP TABLE restore_deletion_ledger (
+  member_id uuid PRIMARY KEY,
+  requested_at timestamptz NOT NULL
+);
+\copy restore_deletion_ledger FROM '$tmp_dir/deletion-ledger.tsv' WITH (FORMAT csv, DELIMITER E'\t')
+\i $sql_dir/replay-deletion-ledger.sql
+\i $sql_dir/integrity.sql
+SQL
+)
+
+restore_completed_epoch=$(date +%s)
+restore_completed_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+rpo_seconds=$((restore_started_epoch - captured_epoch))
+if [ "$rpo_seconds" -lt 0 ]; then
+  rpo_seconds=0
+fi
+rto_seconds=$((restore_completed_epoch - restore_started_epoch))
+
+count_mismatches=$(printf '%s' "$integrity_json" | jq -er '.countMismatches')
+unvalidated_foreign_keys=$(printf '%s' "$integrity_json" | jq -er '.unvalidatedForeignKeys')
+invalid_saved_hashes=$(printf '%s' "$integrity_json" | jq -er '.invalidSavedSnapshotHashes')
+deletion_reexposure=$(printf '%s' "$integrity_json" | jq -er '.deletionReexposureCount')
+migration_version=$(printf '%s' "$integrity_json" | jq -er '.migrationVersion')
+ledger_entries=$(printf '%s' "$integrity_json" | jq -er '.deletionLedgerEntries')
+artifact_sha=$(cut -d ' ' -f 1 "$ONMARU_BACKUP_ARTIFACT.sha256")
+
+result=PASS
+if [ "$rpo_seconds" -gt "$rpo_target" ] \
+  || [ "$rto_seconds" -gt "$rto_target" ] \
+  || [ "$count_mismatches" -ne 0 ] \
+  || [ "$unvalidated_foreign_keys" -ne 0 ] \
+  || [ "$invalid_saved_hashes" -ne 0 ] \
+  || [ "$deletion_reexposure" -ne 0 ]; then
+  result=FAIL
+fi
+
+evidence_path="$ONMARU_RESTORE_EVIDENCE_DIR/restore-$restore_completed_epoch.json"
+jq -n \
+  --arg result "$result" \
+  --arg recoveryMode "LOGICAL_FULL" \
+  --arg sourceRevision "$source_revision" \
+  --arg artifactSha256 "$artifact_sha" \
+  --arg capturedAt "$captured_at" \
+  --arg restoreStartedAt "$restore_started_at" \
+  --arg restoreCompletedAt "$restore_completed_at" \
+  --arg migrationVersion "$migration_version" \
+  --argjson rpoSeconds "$rpo_seconds" \
+  --argjson rtoSeconds "$rto_seconds" \
+  --argjson rpoTargetSeconds "$rpo_target" \
+  --argjson rtoTargetSeconds "$rto_target" \
+  --argjson countMismatches "$count_mismatches" \
+  --argjson unvalidatedForeignKeys "$unvalidated_foreign_keys" \
+  --argjson invalidSavedSnapshotHashes "$invalid_saved_hashes" \
+  --argjson deletionLedgerEntries "$ledger_entries" \
+  --argjson deletionReexposureCount "$deletion_reexposure" \
+  '{
+    schemaVersion: 1,
+    result: $result,
+    recoveryMode: $recoveryMode,
+    sourceRevision: $sourceRevision,
+    artifactSha256: $artifactSha256,
+    capturedAt: $capturedAt,
+    restoreStartedAt: $restoreStartedAt,
+    restoreCompletedAt: $restoreCompletedAt,
+    rpoSeconds: $rpoSeconds,
+    rtoSeconds: $rtoSeconds,
+    targets: {
+      rpoSeconds: $rpoTargetSeconds,
+      rtoSeconds: $rtoTargetSeconds,
+      deletionReexposureCount: 0
+    },
+    integrity: {
+      migrationVersion: $migrationVersion,
+      countMismatches: $countMismatches,
+      unvalidatedForeignKeys: $unvalidatedForeignKeys,
+      invalidSavedSnapshotHashes: $invalidSavedSnapshotHashes,
+      deletionLedgerEntries: $deletionLedgerEntries,
+      deletionReexposureCount: $deletionReexposureCount
+    }
+  }' > "$evidence_path"
+
+cat "$evidence_path"
+if [ "$result" != "PASS" ]; then
+  echo "restore drill failed recovery targets or integrity checks" >&2
+  exit 1
+fi
