@@ -110,6 +110,11 @@ describe('PostgreSQL backup and restore drill', () => {
     assert.match(drill, /restore-drill/);
     assert.match(drill, /checksum sidecar accepted a different artifact name/);
     assert.match(drill, /restore accepted a non-empty user schema/);
+    assert.match(drill, /ONMARU_ARTIFACT_NAME="\$artifact_name"/);
+    assert.match(drill, /sidecar="\/work\/backups\/\$ONMARU_ARTIFACT_NAME\.sha256"/);
+    assert.match(drill, /mv "\$sidecar" "\$sidecar\.valid"/);
+    assert.match(drill, /mv "\$sidecar\.valid" "\$sidecar"/);
+    assert.doesNotMatch(drill, /cp "\$artifact\.sha256"/);
     assert.match(drill, /\.tar\.gpg/);
     assert.match(
       drill,

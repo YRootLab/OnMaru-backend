@@ -195,14 +195,29 @@ run_restore() {
     "$image" restore-drill
 }
 
-cp "$artifact.sha256" "$artifact.sha256.valid"
-artifact_digest=$(awk 'NR == 1 { print $1 }' "$artifact.sha256")
-printf '%s  %s\n' "$artifact_digest" 'different-artifact.tar.gpg' > "$artifact.sha256"
+docker run --rm \
+  -v "$work_dir:/work" \
+  -e ONMARU_ARTIFACT_NAME="$artifact_name" \
+  "$image" sh -c '
+    set -eu
+    sidecar="/work/backups/$ONMARU_ARTIFACT_NAME.sha256"
+    mv "$sidecar" "$sidecar.valid"
+    artifact_digest=$(awk "NR == 1 { print \$1 }" "$sidecar.valid")
+    printf "%s  %s\n" "$artifact_digest" "different-artifact.tar.gpg" > "$sidecar"
+  '
 if run_restore >/dev/null 2>&1; then
   echo "checksum sidecar accepted a different artifact name" >&2
   exit 1
 fi
-mv "$artifact.sha256.valid" "$artifact.sha256"
+docker run --rm \
+  -v "$work_dir:/work" \
+  -e ONMARU_ARTIFACT_NAME="$artifact_name" \
+  "$image" sh -c '
+    set -eu
+    sidecar="/work/backups/$ONMARU_ARTIFACT_NAME.sha256"
+    rm "$sidecar"
+    mv "$sidecar.valid" "$sidecar"
+  '
 
 docker exec "$target_container" \
   psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$database" \
