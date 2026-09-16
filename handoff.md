@@ -13,6 +13,17 @@
 - review: active revision·언어 fallback·cursor 결속·비공개/unsafe URL 차단·missing transcript·fail-closed 경계를 점검했고 남은 Critical/Important finding은 없다. 최신 공통 opaque request ID 계약과 어긋난 Odii assertion 3개를 수정해 focused/전체 테스트를 재통과했다.
 - PR: #204 `feat(audio): Odii 공개 조회 API 구현`을 `develop` 대상으로 생성했으며 본문에 `Closes #103`, acceptance criteria와 전체 검증 근거를 기록했다.
 - 다음 단계: #104 공식 query 통합 변경을 commit/push하고 PR #204 본문을 갱신한다. 필수 `verify` CI 재통과 후 사용자의 명시적 merge 승인에 따라 병합하고 #103 상태를 reconcile한다.
+## Current Session Quick Handoff - 2026-09-16 Issue #94
+
+- 현재 작업 브랜치와 worktree: `feature/94-postgres-restore-drill`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-94-postgres-restore-drill`.
+- 관련 Issue: #94 `[O04] PostgreSQL backup·PITR·restore drill 자동화`; blocked-by #85/#72는 Closed이고 열린 중복 PR은 없다. 후속 deletion ledger producer와 장기 cleanup은 기존 #125가 소유한다.
+- 구현 범위: `onmaru_backup` non-superuser membership을 강제하는 PostgreSQL 17 runner, 동일 exported MVCC snapshot 기반 dump·critical count, AES-256 encrypted logical full backup, artifact basename 결합 checksum, 7일 retention, source/target fingerprint와 전체 user relation 빈 target guard를 추가했다.
+- 복원 검증: 별도 source/target PostGIS 17 컨테이너에서 `template0` 기반 빈 DB에 복원하고, backup 이후 deletion ledger를 transaction으로 replay한 뒤 row count, FK validation, snapshot hash, migration version, 삭제 재노출을 검사한다.
+- 운영 증거: sanitized JSON에 source revision, artifact digest, RPO/RTO, aggregate integrity count만 기록한다. provider PITR은 hosting/WAL 근거가 없으므로 `UNAVAILABLE_UNTIL_HOSTING_SELECTED`로 fail-closed다.
+- 로컬 통합 drill: ARM 개발 환경의 amd64 PostGIS emulation과 entrypoint init race, SQL directory execute permission, preinstalled extension 충돌을 재현해 각각 platform 지정, init-complete gate, `a+rX`, `template0` target으로 교정했다.
+- 측정 결과: CI와 같은 외부 evidence mount에서 다른 artifact명 sidecar·pre-existing public table 거부를 확인한 뒤 encrypted backup부터 restore·ledger replay·integrity suite까지 PASS, RPO 4초, checksum·복호화를 포함한 RTO 2초, deletion re-exposure 0, migration version `008`.
+- PR: #202 `feat(ops): PostgreSQL 복원 drill 자동화`를 `develop` 대상으로 생성했고 본문에 `Closes #94`와 검증 근거를 기록했다. 최신 `origin/develop`을 병합해 #134와의 `CHANGELOG.md`/`handoff.md` 충돌 후보를 해소했다.
+- 다음 단계: 독립 review의 snapshot·empty target·checksum Important 3건 보강 commit을 push한 뒤 PR #202의 `verify`/`restore-drill` CI, mergeability, review gate를 확인한다. 병합 뒤 #94 상태를 조회하고 `develop` 대상 auto-close가 적용되지 않으면 검증 근거를 comment로 남긴 뒤 수동 close한다.
 ## Current Session Quick Handoff - 2026-09-16 Issue #105
 
 - 현재 작업 브랜치와 worktree: `feature/105-ai-proposal-validator`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-105-proposal-validator`.
