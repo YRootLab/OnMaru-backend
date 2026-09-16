@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.persistence.journey.run;
 
+import com.yrootlab.onmaru.journey.cancellation.CancelJourneyRunCommand;
 import com.yrootlab.onmaru.journey.run.ActiveRunConflictException;
 import com.yrootlab.onmaru.journey.run.AdvanceRunStageCommand;
 import com.yrootlab.onmaru.journey.run.ClaimRunCommand;
@@ -25,11 +26,14 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public final class JdbcJourneyRunStore implements JourneyRunStore {
 
     private static final Duration COMMAND_TTL = Duration.ofHours(24);
+    private static final Duration RUN_LEASE = Duration.ofSeconds(20);
     private final DataSource dataSource;
 
     public JdbcJourneyRunStore(DataSource dataSource) {
@@ -68,14 +72,17 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
         return execute(command.actorKey(), "CLAIM", command.commandKey(), command.requestHash(), connection -> {
             try (var statement = connection.prepareStatement("""
                     UPDATE onmaru.discovery_runs
-                    SET status = 'RUNNING', started_at = ?, generation = generation + 1
+                    SET status = 'RUNNING', started_at = ?, lease_expires_at = LEAST(deadline_at, ?), generation = generation + 1
                     WHERE id = ? AND actor_key = ? AND status = 'QUEUED' AND generation = ?
+                      AND deadline_at > ?
                     RETURNING id, status::text, stage, outcome, generation
                     """)) {
                 statement.setObject(1, utc(command.startedAt()));
-                statement.setObject(2, command.runId());
-                statement.setString(3, command.actorKey());
-                statement.setInt(4, command.expectedGeneration());
+                statement.setObject(2, utc(command.startedAt().plus(RUN_LEASE)));
+                statement.setObject(3, command.runId());
+                statement.setString(4, command.actorKey());
+                statement.setInt(5, command.expectedGeneration());
+                statement.setObject(6, utc(command.startedAt()));
                 return requiredTransition(connection, statement.executeQuery(), command.runId(), command.actorKey());
             }
         });
@@ -117,8 +124,10 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                         stage = NULL,
                         outcome = ?,
                         error_code = ?,
+                        lease_expires_at = NULL,
                         generation = generation + 1
                     WHERE id = ? AND actor_key = ? AND generation = ? AND %s
+                      AND (? = 'CANCELLED' OR deadline_at > ?)
                     RETURNING id, status::text, stage, outcome, generation
                     """.formatted(allowedStatus);
             try (var statement = connection.prepareStatement(sql)) {
@@ -128,9 +137,56 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                 statement.setObject(4, command.runId());
                 statement.setString(5, command.actorKey());
                 statement.setInt(6, command.expectedGeneration());
+                statement.setString(7, command.terminalStatus().name());
+                statement.setObject(8, utc(command.finishedAt()));
                 return requiredFinishTransition(connection, statement.executeQuery(), command.runId(), command.actorKey());
             }
         });
+    }
+
+    @Override
+    public RunCommandResult cancel(CancelJourneyRunCommand command) {
+        return execute(command.actorKey(), "CANCEL", command.commandKey(), command.requestHash(), connection -> {
+            try (var statement = connection.prepareStatement("""
+                    UPDATE onmaru.discovery_runs
+                    SET status = 'CANCELLED', stage = NULL, outcome = NULL, error_code = NULL,
+                        lease_expires_at = NULL, generation = generation + 1
+                    WHERE id = ? AND actor_key = ? AND status IN ('QUEUED', 'RUNNING')
+                    RETURNING id, status::text, stage, outcome, generation
+                    """)) {
+                statement.setObject(1, command.runId());
+                statement.setString(2, command.actorKey());
+                return requiredFinishTransition(connection, statement.executeQuery(), command.runId(), command.actorKey());
+            }
+        });
+    }
+
+    @Override
+    public List<JourneyRunSnapshot> expireDueRuns(Instant now) {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     UPDATE onmaru.discovery_runs
+                     SET status = 'FAILED', stage = NULL, outcome = NULL,
+                         error_code = CASE WHEN deadline_at <= ? THEN 'RUN_DEADLINE_EXCEEDED' ELSE 'RUN_LEASE_EXPIRED' END,
+                         lease_expires_at = NULL, generation = generation + 1
+                     WHERE status IN ('QUEUED', 'RUNNING')
+                       AND (deadline_at <= ? OR (status = 'RUNNING' AND lease_expires_at <= ?))
+                     RETURNING id, exploration_id, actor_key, base_version, status::text, stage, outcome,
+                               created_at, deadline_at, started_at, generation, error_code, engine
+                     """)) {
+            statement.setObject(1, utc(now));
+            statement.setObject(2, utc(now));
+            statement.setObject(3, utc(now));
+            try (var result = statement.executeQuery()) {
+                var expired = new ArrayList<JourneyRunSnapshot>();
+                while (result.next()) {
+                    expired.add(snapshot(result));
+                }
+                return List.copyOf(expired);
+            }
+        } catch (SQLException exception) {
+            throw databaseFailure(exception);
+        }
     }
 
     @Override

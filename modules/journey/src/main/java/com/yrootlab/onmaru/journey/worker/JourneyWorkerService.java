@@ -7,6 +7,7 @@ import com.yrootlab.onmaru.journey.run.JourneyRunStage;
 import com.yrootlab.onmaru.journey.run.JourneyRunStatus;
 import com.yrootlab.onmaru.journey.run.JourneyRunStore;
 import com.yrootlab.onmaru.journey.run.RunCommandReceipt;
+import com.yrootlab.onmaru.journey.run.RunTransitionConflictException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -39,52 +40,81 @@ public final class JourneyWorkerService {
 
     public JourneyWorkerOutcome process(JourneyWorkerRequest request) {
         requireRequest(request);
-        recordStarted(request);
-        var receipt = claim(request);
-        receipt = advance(request, receipt, null, JourneyRunStage.RETRIEVING);
-        var candidates = candidateProvider.retrieve(request);
-        recordCandidatesRetrieved(request, candidates);
-        receipt = advance(request, receipt, JourneyRunStage.RETRIEVING, JourneyRunStage.VALIDATING);
-
-        WorkerDegradedReason degradedReason = null;
-        JourneyResultEngine engine = JourneyResultEngine.LLM;
-        JourneyWorkerPlan plan;
         try {
-            plan = aiProposalClient.propose(request, candidates);
-        } catch (AiProposalException exception) {
-            degradedReason = exception.degradedReason();
-            engine = JourneyResultEngine.BASELINE;
-            plan = baselinePlanner.plan(candidates);
-        }
+            recordStarted(request);
+            var receipt = claim(request);
+            receipt = advance(request, receipt, null, JourneyRunStage.RETRIEVING);
+            if (!isRunning(request)) {
+                return cancelled(request);
+            }
+            var candidates = candidateProvider.retrieve(request);
+            recordCandidatesRetrieved(request, candidates);
+            if (!isRunning(request)) {
+                return cancelled(request);
+            }
+            receipt = advance(request, receipt, JourneyRunStage.RETRIEVING, JourneyRunStage.VALIDATING);
 
-        receipt = advance(request, receipt, JourneyRunStage.VALIDATING, JourneyRunStage.PERSISTING);
-        var persistResult = resultStore.persist(new PersistJourneyResultCommand(
-                request.runId(),
-                request.explorationId(),
-                request.baseVersion(),
-                engine,
-                degradedReason,
-                plan.orderedRefs(),
-                plan.outcome()));
-        if (persistResult != PersistJourneyResultResult.PERSISTED) {
-            recordLateDiscard(request, persistResult);
-            return JourneyWorkerOutcome.DISCARDED_LATE_RESULT;
-        }
+            WorkerDegradedReason degradedReason = null;
+            JourneyResultEngine engine = JourneyResultEngine.LLM;
+            JourneyWorkerPlan plan;
+            try {
+                plan = aiProposalClient.propose(request, candidates);
+            } catch (AiProposalException exception) {
+                degradedReason = exception.degradedReason();
+                engine = JourneyResultEngine.BASELINE;
+                plan = baselinePlanner.plan(candidates);
+            }
 
-        runStore.finish(new FinishRunCommand(
-                request.runId(),
-                request.actorKey(),
-                UUID.randomUUID(),
-                requestHash(request, "finish"),
-                receipt.generation(),
-                JourneyRunStatus.COMPLETED,
-                plan.outcome(),
-                null,
-                Instant.now()));
-        recordCompleted(request, engine, degradedReason);
-        return engine == JourneyResultEngine.BASELINE
-                ? JourneyWorkerOutcome.COMPLETED_BASELINE
-                : JourneyWorkerOutcome.COMPLETED_LLM;
+            if (!isRunning(request)) {
+                return cancelled(request);
+            }
+            receipt = advance(request, receipt, JourneyRunStage.VALIDATING, JourneyRunStage.PERSISTING);
+            var persistResult = resultStore.persist(new PersistJourneyResultCommand(
+                    request.runId(),
+                    request.explorationId(),
+                    request.baseVersion(),
+                    engine,
+                    degradedReason,
+                    plan.orderedRefs(),
+                    plan.outcome()));
+            if (persistResult != PersistJourneyResultResult.PERSISTED) {
+                recordLateDiscard(request, persistResult);
+                return JourneyWorkerOutcome.DISCARDED_LATE_RESULT;
+            }
+
+            if (!isRunning(request)) {
+                return cancelled(request);
+            }
+            runStore.finish(new FinishRunCommand(
+                    request.runId(),
+                    request.actorKey(),
+                    UUID.randomUUID(),
+                    requestHash(request, "finish"),
+                    receipt.generation(),
+                    JourneyRunStatus.COMPLETED,
+                    plan.outcome(),
+                    null,
+                    Instant.now()));
+            recordCompleted(request, engine, degradedReason);
+            return engine == JourneyResultEngine.BASELINE
+                    ? JourneyWorkerOutcome.COMPLETED_BASELINE
+                    : JourneyWorkerOutcome.COMPLETED_LLM;
+        } catch (RunTransitionConflictException exception) {
+            return cancelled(request);
+        }
+    }
+
+    private boolean isRunning(JourneyWorkerRequest request) {
+        return runStore.find(request.runId(), request.actorKey())
+                .map(snapshot -> snapshot.status() == JourneyRunStatus.RUNNING)
+                .orElse(false);
+    }
+
+    private JourneyWorkerOutcome cancelled(JourneyWorkerRequest request) {
+        telemetry.record(new WorkerTelemetryEvent(
+                "journey.worker.cancelled_or_expired",
+                Map.of("run.id", request.runId().toString())));
+        return JourneyWorkerOutcome.DISCARDED_LATE_RESULT;
     }
 
     private RunCommandReceipt claim(JourneyWorkerRequest request) {

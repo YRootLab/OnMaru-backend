@@ -13,11 +13,15 @@ import com.yrootlab.onmaru.journey.exploration.ExplorationNotFoundException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationService;
 import com.yrootlab.onmaru.journey.exploration.ExplorationSnapshot;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRunStatus;
+import com.yrootlab.onmaru.journey.cancellation.CancelJourneyRunCommand;
+import com.yrootlab.onmaru.journey.cancellation.JourneyRunCancellationService;
+import com.yrootlab.onmaru.journey.run.RunNotFoundException;
 import com.yrootlab.onmaru.operations.admission.AdmissionPolicy;
 import com.yrootlab.onmaru.operations.admission.AdmissionRequest;
 import com.yrootlab.onmaru.operations.admission.AdmissionService;
 import com.yrootlab.onmaru.operations.admission.AdmissionSubject;
 import com.yrootlab.onmaru.operations.admission.SubjectType;
+import org.springframework.beans.factory.ObjectProvider;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
@@ -53,6 +57,7 @@ public final class ExplorationController {
     private final AdmissionService admissionService;
     private final AdmissionPolicy admissionPolicy;
     private final ExplorationSnapshotHydrator snapshotHydrator;
+    private final ObjectProvider<JourneyRunCancellationService> cancellationService;
 
     ExplorationController(
             ExplorationService explorationService,
@@ -60,13 +65,15 @@ public final class ExplorationController {
             IdempotencyService idempotencyService,
             AdmissionService admissionService,
             AdmissionPolicy admissionPolicy,
-            ExplorationSnapshotHydrator snapshotHydrator) {
+            ExplorationSnapshotHydrator snapshotHydrator,
+            ObjectProvider<JourneyRunCancellationService> cancellationService) {
         this.explorationService = explorationService;
         this.actorResolver = actorResolver;
         this.idempotencyService = idempotencyService;
         this.admissionService = admissionService;
         this.admissionPolicy = admissionPolicy;
         this.snapshotHydrator = snapshotHydrator;
+        this.cancellationService = cancellationService;
     }
 
     @PostMapping("/api/v1/explorations")
@@ -199,6 +206,7 @@ public final class ExplorationController {
                 "POST",
                 path,
                 IdempotencyFingerprint.sha256("POST", path, "run.cancel", runId)), () -> {
+            cancelDurableRunIfPresent(actor, runId, path);
             var cancelled = explorationService.cancelRun(explorationId, runId);
             if (isActive(before)) {
                 releaseAiRun(actor);
@@ -211,6 +219,25 @@ public final class ExplorationController {
                     cancelled.createdAt())));
         });
         return run(response);
+    }
+
+    private void cancelDurableRunIfPresent(ExplorationActor actor, UUID runId, String path) {
+        var service = cancellationService.getIfAvailable();
+        if (service == null) {
+            return;
+        }
+        try {
+            service.cancel(new CancelJourneyRunCommand(
+                    UUID.randomUUID(),
+                    actorKey(actor),
+                    runId,
+                    IdempotencyFingerprint.sha256("POST", path, "run.cancel.durable", runId),
+                    java.time.Instant.now()));
+        } catch (RunNotFoundException ignored) {
+            LOGGER.atDebug()
+                    .addKeyValue("run.id", runId)
+                    .log("journey_durable_run_cancel_skipped_missing_row");
+        }
     }
 
     private void admitAiRun(ExplorationActor actor) {
@@ -243,6 +270,10 @@ public final class ExplorationController {
 
     private SubjectType subjectType(ExplorationActorType actorType) {
         return actorType == ExplorationActorType.MEMBER ? SubjectType.MEMBER : SubjectType.GUEST;
+    }
+
+    private String actorKey(ExplorationActor actor) {
+        return actor.type().name() + ":" + actor.subject();
     }
 
     private String regionCode(ClarificationAnswer answer) {

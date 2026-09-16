@@ -29,6 +29,16 @@ class JourneyRunServiceTests {
                 .hasMessageContaining("terminal");
     }
 
+    @Test
+    void rejectsRunDeadlineOtherThanTwentySecondsBeforeCallingPersistence() {
+        var createdAt = Instant.parse("2026-09-16T00:00:00Z");
+
+        assertThatThrownBy(() -> service.create(new CreateRunCommand(
+                UUID.randomUUID(), "actor:member:1", "hash", UUID.randomUUID(), UUID.randomUUID(), 0, "LLM",
+                createdAt, createdAt.plusSeconds(30))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private static final class RejectingStore implements JourneyRunStore {
         @Override
         public RunCommandResult create(CreateRunCommand command) {

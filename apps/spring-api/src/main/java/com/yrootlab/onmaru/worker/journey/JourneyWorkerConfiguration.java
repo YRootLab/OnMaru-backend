@@ -8,6 +8,8 @@ import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFacto
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenProperties;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenSigner;
 import com.yrootlab.onmaru.journey.run.JourneyRunStore;
+import com.yrootlab.onmaru.journey.cancellation.JourneyRunCancellationService;
+import com.yrootlab.onmaru.scheduling.run.JourneyRunSweeper;
 import com.yrootlab.onmaru.journey.worker.AiProposalClient;
 import com.yrootlab.onmaru.journey.worker.BaselinePlanner;
 import com.yrootlab.onmaru.journey.worker.DefaultBaselinePlanner;
@@ -61,6 +63,19 @@ class JourneyWorkerConfiguration {
     @ConditionalOnMissingBean
     JourneyRunStore journeyRunStore(DataSource dataSource) {
         return new JdbcJourneyRunStore(dataSource);
+    }
+
+    @Bean
+    @ConditionalOnBean(JourneyRunStore.class)
+    @ConditionalOnMissingBean
+    JourneyRunCancellationService journeyRunCancellationService(JourneyRunStore runStore) {
+        return new JourneyRunCancellationService(runStore);
+    }
+
+    @Bean
+    @ConditionalOnBean(JourneyRunCancellationService.class)
+    JourneyRunSweeper journeyRunSweeper(JourneyRunCancellationService cancellationService, Clock clock) {
+        return new JourneyRunSweeper(cancellationService, clock);
     }
 
     @Bean

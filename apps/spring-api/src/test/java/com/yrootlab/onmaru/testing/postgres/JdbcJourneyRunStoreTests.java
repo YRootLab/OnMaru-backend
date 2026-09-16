@@ -10,6 +10,8 @@ import com.yrootlab.onmaru.journey.run.JourneyRunStage;
 import com.yrootlab.onmaru.journey.run.JourneyRunStatus;
 import com.yrootlab.onmaru.journey.run.RunCommandConflictException;
 import com.yrootlab.onmaru.journey.run.RunTransitionConflictException;
+import com.yrootlab.onmaru.journey.cancellation.CancelJourneyRunCommand;
+import com.yrootlab.onmaru.journey.cancellation.JourneyRunCancellationService;
 import com.yrootlab.onmaru.persistence.journey.run.JdbcJourneyRunStore;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
@@ -202,6 +204,131 @@ class JdbcJourneyRunStoreTests {
     }
 
     @Test
+    void returnsExistingTerminalSnapshotWhenCancelledAgain() {
+        var runId = UUID.randomUUID();
+        create(runId, UUID.randomUUID(), "create-hash");
+        service.claim(new ClaimRunCommand(
+                UUID.randomUUID(), actorKey, runId, "claim-hash", 1, Instant.parse("2026-09-16T01:00:01Z")));
+        service.finish(new FinishRunCommand(
+                UUID.randomUUID(), actorKey, runId, "complete-hash", 2,
+                JourneyRunStatus.COMPLETED, "INITIAL_BOARD", null, Instant.parse("2026-09-16T01:00:02Z")));
+
+        var cancellation = new JourneyRunCancellationService(new JdbcJourneyRunStore(dataSource));
+        var result = cancellation.cancel(new CancelJourneyRunCommand(
+                UUID.randomUUID(), actorKey, runId, "cancel-hash", Instant.parse("2026-09-16T01:00:03Z")));
+
+        assertThat(result.receipt().status()).isEqualTo(JourneyRunStatus.COMPLETED);
+        assertThat(cancellation.find(runId, actorKey).orElseThrow().status()).isEqualTo(JourneyRunStatus.COMPLETED);
+    }
+
+    @Test
+    void sweeperRecoversAnOrphanedRunningRunAtTheTwentySecondDeadline() {
+        var createdAt = Instant.parse("2026-09-16T01:00:00Z");
+        var runId = UUID.randomUUID();
+        service.create(new CreateRunCommand(
+                UUID.randomUUID(), actorKey, "create-hash", runId, explorationId, 0, "LLM",
+                createdAt, createdAt.plusSeconds(20)));
+        service.claim(new ClaimRunCommand(
+                UUID.randomUUID(), actorKey, runId, "claim-hash", 1, createdAt.plusSeconds(1)));
+
+        var cancellation = new JourneyRunCancellationService(new JdbcJourneyRunStore(dataSource));
+        var expired = cancellation.expireDueRuns(createdAt.plusSeconds(20));
+
+        assertThat(expired).singleElement().satisfies(snapshot -> {
+            assertThat(snapshot.id()).isEqualTo(runId);
+            assertThat(snapshot.status()).isEqualTo(JourneyRunStatus.FAILED);
+            assertThat(snapshot.errorCode()).isEqualTo("RUN_DEADLINE_EXCEEDED");
+        });
+        assertThat(cancellation.find(runId, actorKey).orElseThrow().status()).isEqualTo(JourneyRunStatus.FAILED);
+    }
+
+    @Test
+    void cancelCompleteAndDeadlineRaceCommitsExactlyOneTerminalTransition() throws Exception {
+        var createdAt = Instant.parse("2026-09-16T01:00:00Z");
+        var runId = UUID.randomUUID();
+        service.create(new CreateRunCommand(
+                UUID.randomUUID(), actorKey, "create-hash", runId, explorationId, 0, "LLM",
+                createdAt, createdAt.plusSeconds(20)));
+        service.claim(new ClaimRunCommand(
+                UUID.randomUUID(), actorKey, runId, "claim-hash", 1, createdAt.plusSeconds(1)));
+        var cancellation = new JourneyRunCancellationService(new JdbcJourneyRunStore(dataSource));
+        var gate = new CountDownLatch(1);
+        Callable<Void> cancel = () -> {
+            gate.await(5, TimeUnit.SECONDS);
+            cancellation.cancel(new CancelJourneyRunCommand(
+                    UUID.randomUUID(), actorKey, runId, "cancel-hash", createdAt.plusSeconds(20)));
+            return null;
+        };
+        Callable<Void> complete = () -> {
+            gate.await(5, TimeUnit.SECONDS);
+            try {
+                service.finish(new FinishRunCommand(
+                        UUID.randomUUID(), actorKey, runId, "complete-hash", 2,
+                        JourneyRunStatus.COMPLETED, "INITIAL_BOARD", null, createdAt.plusSeconds(20)));
+            } catch (RunTransitionConflictException ignored) {
+                // The sweeper may have the row lock while moving the expired run to terminal.
+            }
+            return null;
+        };
+        Callable<Void> expire = () -> {
+            gate.await(5, TimeUnit.SECONDS);
+            cancellation.expireDueRuns(createdAt.plusSeconds(20));
+            return null;
+        };
+
+        try (var executor = Executors.newFixedThreadPool(3)) {
+            var cancelFuture = executor.submit(cancel);
+            var completeFuture = executor.submit(complete);
+            var expireFuture = executor.submit(expire);
+            gate.countDown();
+            cancelFuture.get(10, TimeUnit.SECONDS);
+            completeFuture.get(10, TimeUnit.SECONDS);
+            expireFuture.get(10, TimeUnit.SECONDS);
+        }
+
+        var terminal = cancellation.find(runId, actorKey).orElseThrow();
+        assertThat(terminal.status()).isIn(JourneyRunStatus.CANCELLED, JourneyRunStatus.COMPLETED, JourneyRunStatus.FAILED);
+        assertThat(terminal.generation()).isEqualTo(3);
+    }
+
+    @Test
+    void rejectsCompletionAfterTheDeadlineUntilTheSweeperRecoversTheRun() {
+        var createdAt = Instant.parse("2026-09-16T01:00:00Z");
+        var runId = UUID.randomUUID();
+        service.create(new CreateRunCommand(
+                UUID.randomUUID(), actorKey, "create-hash", runId, explorationId, 0, "LLM",
+                createdAt, createdAt.plusSeconds(20)));
+        service.claim(new ClaimRunCommand(
+                UUID.randomUUID(), actorKey, runId, "claim-hash", 1, createdAt.plusSeconds(1)));
+
+        assertThatThrownBy(() -> service.finish(new FinishRunCommand(
+                UUID.randomUUID(), actorKey, runId, "complete-hash", 2,
+                JourneyRunStatus.COMPLETED, "INITIAL_BOARD", null, createdAt.plusSeconds(21))))
+                .isInstanceOf(RunTransitionConflictException.class);
+
+        var cancellation = new JourneyRunCancellationService(new JdbcJourneyRunStore(dataSource));
+        cancellation.expireDueRuns(createdAt.plusSeconds(21));
+        assertThat(cancellation.find(runId, actorKey).orElseThrow().status()).isEqualTo(JourneyRunStatus.FAILED);
+    }
+
+    @Test
+    void rejectsClaimAfterTheDeadlineUntilTheSweeperRecoversTheRun() {
+        var createdAt = Instant.parse("2026-09-16T01:00:00Z");
+        var runId = UUID.randomUUID();
+        service.create(new CreateRunCommand(
+                UUID.randomUUID(), actorKey, "create-hash", runId, explorationId, 0, "LLM",
+                createdAt, createdAt.plusSeconds(20)));
+
+        assertThatThrownBy(() -> service.claim(new ClaimRunCommand(
+                UUID.randomUUID(), actorKey, runId, "claim-hash", 1, createdAt.plusSeconds(21))))
+                .isInstanceOf(RunTransitionConflictException.class);
+
+        var cancellation = new JourneyRunCancellationService(new JdbcJourneyRunStore(dataSource));
+        cancellation.expireDueRuns(createdAt.plusSeconds(21));
+        assertThat(cancellation.find(runId, actorKey).orElseThrow().status()).isEqualTo(JourneyRunStatus.FAILED);
+    }
+
+    @Test
     void rejectsStaleGenerationAndSkippedDatabaseStage() {
         var runId = UUID.randomUUID();
         create(runId, UUID.randomUUID(), "create-hash");
@@ -221,7 +348,7 @@ class JdbcJourneyRunStoreTests {
             UUID runId, UUID commandKey, String requestHash) {
         return service.create(new CreateRunCommand(
                 commandKey, actorKey, requestHash, runId, explorationId, 0, "LLM",
-                Instant.parse("2026-09-16T01:00:00Z"), Instant.parse("2026-09-16T01:00:30Z")));
+                Instant.parse("2026-09-16T01:00:00Z"), Instant.parse("2026-09-16T01:00:20Z")));
     }
 
     private Object finishRace(CountDownLatch gate, FinishRunCommand command) throws InterruptedException {

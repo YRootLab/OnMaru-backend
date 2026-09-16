@@ -357,6 +357,7 @@ CREATE TABLE "discovery_runs" (
   "clarification" text,
   "created_at" timestamp NOT NULL,
   "deadline_at" timestamp NOT NULL,
+  "lease_expires_at" timestamp,
   "started_at" timestamp,
   "generation" int NOT NULL,
   "error_code" varchar,
@@ -657,6 +658,7 @@ CREATE TABLE "ai_corpus_sync_runs" (
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
+
 
 COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The executable migration enforces the operation/stage allowlists, positive generation, expiry, and composite primary key.';
 

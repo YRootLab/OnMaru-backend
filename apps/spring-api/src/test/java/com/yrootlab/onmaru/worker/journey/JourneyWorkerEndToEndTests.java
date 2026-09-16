@@ -195,7 +195,21 @@ class JourneyWorkerEndToEndTests {
 
         @Override
         public Optional<JourneyRunSnapshot> find(UUID runId, String actorKey) {
-            return Optional.empty();
+            var request = request();
+            return Optional.of(new JourneyRunSnapshot(
+                    runId,
+                    request.explorationId(),
+                    actorKey,
+                    request.baseVersion(),
+                    JourneyRunStatus.RUNNING,
+                    JourneyRunStage.RETRIEVING,
+                    null,
+                    Instant.parse("2026-09-16T01:00:00Z"),
+                    request.deadlineAt(),
+                    Instant.parse("2026-09-16T01:00:01Z"),
+                    2,
+                    null,
+                    "LLM"));
         }
 
         private RunCommandResult result(JourneyRunStatus status, JourneyRunStage stage, int generation) {

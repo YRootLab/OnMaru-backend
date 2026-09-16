@@ -1,5 +1,15 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-17 Issue #121
+
+- 현재 작업 브랜치와 worktree: `feature/121-journey-cancel`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-121-journey-cancel`.
+- 관련 Issue: #121 `[J07] Run cancel·20초 deadline·sweeper 구현`; 이전 comment의 blocker는 공개 REST cancel 경로가 durable `JourneyRunCancellationService`를 호출하지 않아 worker/JDBC run cancel을 API 경계에서 증명하지 못한다는 점이었다.
+- 이번 세션 구현: `ExplorationController`의 `POST /api/v1/explorations/{explorationId}/runs/{runId}/cancel`가 optional durable cancellation service를 호출하도록 연결했다. actor key는 기존 web 경계와 같은 `TYPE:subject` 형식이며, durable row가 없는 in-memory 경로는 기존 응답을 유지한다.
+- 테스트 보강: `ExplorationWebBoundaryTests.cancelRunCancelsDurableRunForSameActorAndRun`을 추가해 공개 cancel API가 같은 actor/run으로 durable cancellation command를 남기는지 검증한다. 테스트용 `RecordingJourneyRunStore` 주입을 위해 worker cancellation bean은 `@ConditionalOnMissingBean`으로 대체 가능하게 조정했다.
+- 전체 검증: 신규 테스트는 먼저 durable cancel 미호출로 실패한 뒤 구현 후 통과했다. 이후 web cancel/quota focused 3개 테스트, `JdbcJourneyRunStoreTests`, `:modules:journey:test`, `JourneyWorkerEndToEndTests`, `node scripts/test/migration-policy.test.mjs`, `python3 scripts/test/validate-journey-contract.py`, `./gradlew test`, `bash scripts/verify-contracts`, `git diff --check`, branch parser `121`이 통과했다.
+- 참고: 처음 병렬로 돌린 `JdbcJourneyRunStoreTests`는 Gradle test result binary `NoSuchFileException`으로 실패했으나, `:apps:spring-api:cleanTest` 후 단독 재실행으로 통과했다. 첫 전체 `./gradlew test`는 `DatabaseMigrationContractTests`의 latest baseline 기대값이 `011`로 남아 실패했고 `012`로 갱신 후 통과했다. 첫 `scripts/verify-contracts`는 Azimutt generated artifact drift로 실패했고 `node scripts/azimutt-export.mjs` 재생성 후 통과했다. contract 검증의 LibreSSL/urllib3 문구는 기존 환경 경고다.
+- 남은 리스크: create/run snapshot까지 완전한 JDBC-backed REST lifecycle bridge는 아직 별도 설계가 필요하다. 이번 변경은 cancel API가 durable cancel service를 호출하는 최소 연결이다.
+
 ## Current Session Quick Handoff - 2026-09-16 Issue #117
 
 - 현재 작업 브랜치와 worktree: `feature/117-guest-member-ai-quota-admission`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j09-guest-member-ai-quota-admission`.
