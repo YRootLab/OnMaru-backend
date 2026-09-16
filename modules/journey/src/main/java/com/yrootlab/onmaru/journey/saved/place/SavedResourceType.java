@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.journey.saved.place;
 
 public enum SavedResourceType {
-    PLACE
+    PLACE,
+    ODII_STORY
 }

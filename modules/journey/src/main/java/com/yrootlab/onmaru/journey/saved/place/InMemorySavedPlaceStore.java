@@ -1,12 +1,16 @@
 package com.yrootlab.onmaru.journey.saved.place;
 
+import com.yrootlab.onmaru.journey.saved.list.SavedResourceRecord;
+import com.yrootlab.onmaru.journey.saved.list.SavedResourceRecordSource;
+
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class InMemorySavedPlaceStore implements SavedPlaceStore {
+public final class InMemorySavedPlaceStore implements SavedPlaceStore, SavedResourceRecordSource {
 
     private final Map<SavedPlaceKey, SavedPlaceState> savedPlaces = new ConcurrentHashMap<>();
 
@@ -43,6 +47,9 @@ public final class InMemorySavedPlaceStore implements SavedPlaceStore {
 
     @Override
     public long countFor(UUID memberId, SavedResourceType resourceType) {
+        if (resourceType != SavedResourceType.PLACE) {
+            return 0;
+        }
         return savedPlaces.keySet().stream()
                 .filter(key -> key.memberId().equals(memberId))
                 .count();
@@ -50,6 +57,20 @@ public final class InMemorySavedPlaceStore implements SavedPlaceStore {
 
     public Optional<SavedPlaceState> find(UUID memberId, String placeId) {
         return Optional.ofNullable(savedPlaces.get(new SavedPlaceKey(memberId, placeId)));
+    }
+
+    @Override
+    public List<SavedResourceRecord> records(UUID memberId, SavedResourceType resourceType) {
+        if (resourceType != SavedResourceType.PLACE) {
+            return List.of();
+        }
+        return savedPlaces.entrySet().stream()
+                .filter(entry -> entry.getKey().memberId().equals(memberId))
+                .map(entry -> new SavedResourceRecord(
+                        SavedResourceType.PLACE,
+                        entry.getValue().resourceId(),
+                        entry.getValue().savedAt()))
+                .toList();
     }
 
     public void clear() {

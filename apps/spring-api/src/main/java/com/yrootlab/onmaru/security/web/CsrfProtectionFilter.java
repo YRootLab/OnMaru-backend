@@ -6,6 +6,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -79,6 +80,7 @@ public final class CsrfProtectionFilter extends OncePerRequestFilter {
     private void reject(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setStatus(ApiErrorCode.CSRF_INVALID.status().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         response.getWriter().write("""
                 {"schemaVersion":"1.2","code":"CSRF_INVALID","message":"%s","requestId":"%s","details":{}}
                 """.formatted(ApiErrorCode.CSRF_INVALID.message(), escapeJson(requestId(request))).trim());
