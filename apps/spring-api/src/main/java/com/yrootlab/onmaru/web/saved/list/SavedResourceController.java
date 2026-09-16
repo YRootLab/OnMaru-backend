@@ -2,7 +2,9 @@ package com.yrootlab.onmaru.web.saved.list;
 
 import com.yrootlab.onmaru.audio.query.OdiiStoryNotFoundException;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
+import com.yrootlab.onmaru.audio.query.OdiiStoryUnavailableException;
 import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailStore;
+import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailUnavailableException;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjectionStatus;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.journey.saved.list.SavedResourceRecord;
@@ -42,7 +44,7 @@ public final class SavedResourceController {
     private static final String SESSION_COOKIE = "__Host-onmaru-session";
     private static final Comparator<SavedResourceRecord> ORDER = Comparator
             .comparing(SavedResourceRecord::savedAt).reversed()
-            .thenComparing(SavedResourceRecord::resourceId, Comparator.reverseOrder());
+            .thenComparing(SavedResourceRecord::id, Comparator.reverseOrder());
 
     private final MemberLifecycleService members;
     private final SavedOdiiStoryService odiiSaveService;
@@ -82,6 +84,8 @@ public final class SavedResourceController {
                 return notFound(request);
             } catch (SavedOdiiStoryLimitExceededException exception) {
                 return saveLimit(request, exception.limit());
+            } catch (OdiiStoryUnavailableException exception) {
+                return unavailable(request);
             }
         }).orElseGet(() -> authRequired(request));
     }
@@ -129,6 +133,8 @@ public final class SavedResourceController {
             return error(HttpStatus.BAD_REQUEST, "CURSOR_INVALID", "Cursor is invalid.", request, Map.of());
         } catch (CursorExpiredException exception) {
             return error(HttpStatus.GONE, "CURSOR_EXPIRED", "Cursor is expired.", request, Map.of());
+        } catch (OdiiStoryUnavailableException | PlaceDetailUnavailableException exception) {
+            return unavailable(request);
         }
     }
 
@@ -160,7 +166,7 @@ public final class SavedResourceController {
         String nextCursor = hasMore
                 ? cursors.encode(new SavedResourceCursorCodec.Cursor(
                         memberId, type, limit, asOf,
-                        selected.getLast().record().savedAt(), selected.getLast().record().resourceId()))
+                        selected.getLast().record().savedAt(), selected.getLast().record().id()))
                 : null;
         return new SavedResourcePage("1.2", selected.stream().map(Hydrated::value).toList(), nextCursor, hasMore);
     }
@@ -186,7 +192,7 @@ public final class SavedResourceController {
 
     private boolean after(SavedResourceRecord record, SavedResourceCursorCodec.Cursor cursor) {
         int time = record.savedAt().compareTo(cursor.savedAt());
-        return time < 0 || time == 0 && record.resourceId().compareTo(cursor.resourceId()) < 0;
+        return time < 0 || time == 0 && record.id().compareTo(cursor.lastId()) < 0;
     }
 
     private ResponseEntity<ApiErrorResponse> authRequired(HttpServletRequest request) {
@@ -203,6 +209,15 @@ public final class SavedResourceController {
 
     private ResponseEntity<ApiErrorResponse> saveLimit(HttpServletRequest request, int limit) {
         return error(HttpStatus.CONFLICT, "SAVE_LIMIT", "Saved resource limit exceeded.", request, Map.of("limit", limit));
+    }
+
+    private ResponseEntity<ApiErrorResponse> unavailable(HttpServletRequest request) {
+        return error(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "SERVICE_UNAVAILABLE",
+                "Saved resources are temporarily unavailable.",
+                request,
+                Map.of("retryAfterMs", 30000));
     }
 
     private ResponseEntity<ApiErrorResponse> error(

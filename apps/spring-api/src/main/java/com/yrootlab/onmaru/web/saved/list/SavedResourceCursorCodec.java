@@ -31,7 +31,7 @@ final class SavedResourceCursorCodec {
                 "limit", cursor.limit(),
                 "asOf", cursor.asOf().toString(),
                 "savedAt", cursor.savedAt().toString(),
-                "resourceId", cursor.resourceId()), clock.instant().plus(TTL)));
+                "lastId", cursor.lastId().toString()), clock.instant().plus(TTL)));
     }
 
     Cursor decode(String value) {
@@ -43,7 +43,7 @@ final class SavedResourceCursorCodec {
                     intClaim(claims, "limit"),
                     Instant.parse(stringClaim(claims, "asOf")),
                     Instant.parse(stringClaim(claims, "savedAt")),
-                    stringClaim(claims, "resourceId"));
+                    UUID.fromString(stringClaim(claims, "lastId")));
         } catch (IllegalArgumentException exception) {
             throw new CursorInvalidException(exception);
         }
@@ -73,6 +73,6 @@ final class SavedResourceCursorCodec {
             int limit,
             Instant asOf,
             Instant savedAt,
-            String resourceId) {
+            UUID lastId) {
     }
 }

@@ -37,11 +37,11 @@
 
 - 현재 작업 브랜치와 worktree: `feature/113-odii-saved-resource`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-113-odii-saved-resource`.
 - 관련 Issue: #113 `[I06] Odii story 저장과 saved-resource 목록 구현`; 모든 dependency #77/#103/#86/#87/#132는 Closed이며 작업 시작 시 열린 중복 PR이 없었다.
-- 구현: 회원 전용 Odii PUT/DELETE desired state와 type별 300개 상한, `type` 필수 saved-resource 목록, `(savedAt DESC, resourceId DESC)` actor-bound signed cursor, Catalog/Audio current-public hydration을 추가했다.
-- 보안/정책: auth·CSRF·private `no-store` 경계를 유지하고, 다른 actor cursor는 404로 숨긴다. hidden/deleted story는 저장 404 및 목록 제외, raw provider ID는 응답하지 않으며 ODII 저장은 PLACE 저장을 만들지 않는다.
+- 구현: 회원 전용 Odii PUT/DELETE desired state와 type별 300개 상한, `type` 필수 saved-resource 목록, 외부 비노출 UUID row ID 기반 `(savedAt DESC, id DESC)` actor-bound signed cursor, Catalog/Audio current-public hydration을 추가했다. 중복 PUT은 최초 row ID와 `savedAt`을 유지한다.
+- 보안/정책: auth·CSRF·private `no-store` 경계를 유지하고, 다른 actor cursor는 404로 숨긴다. hidden/deleted story는 저장 404 및 목록 제외, raw provider ID와 내부 row ID는 응답하지 않으며 ODII 저장은 PLACE 저장을 만들지 않는다. Audio/Place current source 부재는 PUT/목록에서 공통 503으로 fail-closed한다.
 - DB: V006가 이미 `ODII_STORY` enum, actor/type/resource 유니크 제약과 목록 인덱스를 제공하므로 migration과 schema 문서 변경은 필요하지 않았다.
-- 테스트: `SavedOdiiResourceWebBoundaryTests`가 저장/삭제 멱등성, actor/type cursor binding, current hydration과 보안 경계를 검증한다. `./gradlew test --no-daemon --max-workers=1`, Node tests, planning/fixture 검증, contract pytest와 `bash scripts/verify-contracts`, branch parser, `git diff --check`가 통과했다.
-- 다음 단계: 전체 검증, commit/push, `develop` 대상 PR과 CI/독립 review를 완료한다. approval 전에는 merge하지 않는다.
+- 테스트: `SavedOdiiResourceWebBoundaryTests`가 저장/삭제 멱등성, actor/type cursor binding, current hydration, source unavailable 503과 보안 경계를 검증한다. 최신 develop 병합 후 `./gradlew :apps:spring-api:test --no-daemon --stacktrace`, `./gradlew :modules:journey:test --no-daemon`, contract pytest, `bash scripts/verify-contracts`, branch parser, `git diff --check`가 통과했다.
+- 다음 단계: 변경 push 후 `develop` 대상 PR #210의 CI와 최소 1명 approval을 확인한다. approval 전에는 merge하지 않는다.
 
 ## Cleanup Note
 

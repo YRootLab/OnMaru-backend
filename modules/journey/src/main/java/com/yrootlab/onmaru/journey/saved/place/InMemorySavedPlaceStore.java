@@ -12,14 +12,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class InMemorySavedPlaceStore implements SavedPlaceStore, SavedResourceRecordSource {
 
-    private final Map<SavedPlaceKey, SavedPlaceState> savedPlaces = new ConcurrentHashMap<>();
+    private final Map<SavedPlaceKey, SavedRow> savedPlaces = new ConcurrentHashMap<>();
 
     @Override
     public synchronized SavedPlaceState save(UUID memberId, String placeId, Instant savedAt, int limit) {
         var key = new SavedPlaceKey(memberId, placeId);
         var existing = savedPlaces.get(key);
         if (existing != null) {
-            return existing;
+            return existing.state();
         }
         if (countFor(memberId, SavedResourceType.PLACE) >= limit) {
             throw new SavedPlaceLimitExceededException(limit);
@@ -31,7 +31,7 @@ public final class InMemorySavedPlaceStore implements SavedPlaceStore, SavedReso
                 placeId,
                 true,
                 savedAt);
-        savedPlaces.put(key, state);
+        savedPlaces.put(key, new SavedRow(UUID.randomUUID(), state));
         return state;
     }
 
@@ -56,7 +56,7 @@ public final class InMemorySavedPlaceStore implements SavedPlaceStore, SavedReso
     }
 
     public Optional<SavedPlaceState> find(UUID memberId, String placeId) {
-        return Optional.ofNullable(savedPlaces.get(new SavedPlaceKey(memberId, placeId)));
+        return Optional.ofNullable(savedPlaces.get(new SavedPlaceKey(memberId, placeId))).map(SavedRow::state);
     }
 
     @Override
@@ -67,9 +67,10 @@ public final class InMemorySavedPlaceStore implements SavedPlaceStore, SavedReso
         return savedPlaces.entrySet().stream()
                 .filter(entry -> entry.getKey().memberId().equals(memberId))
                 .map(entry -> new SavedResourceRecord(
+                        entry.getValue().id(),
                         SavedResourceType.PLACE,
-                        entry.getValue().resourceId(),
-                        entry.getValue().savedAt()))
+                        entry.getValue().state().resourceId(),
+                        entry.getValue().state().savedAt()))
                 .toList();
     }
 
@@ -78,5 +79,8 @@ public final class InMemorySavedPlaceStore implements SavedPlaceStore, SavedReso
     }
 
     private record SavedPlaceKey(UUID memberId, String placeId) {
+    }
+
+    private record SavedRow(UUID id, SavedPlaceState state) {
     }
 }

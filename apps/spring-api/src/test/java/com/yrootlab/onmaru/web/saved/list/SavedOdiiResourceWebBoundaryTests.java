@@ -10,12 +10,18 @@ import com.yrootlab.onmaru.audio.query.OdiiStoryProjection;
 import com.yrootlab.onmaru.audio.query.OdiiTranscriptLine;
 import com.yrootlab.onmaru.audio.query.OdiiTranscriptStatus;
 import com.yrootlab.onmaru.audio.sync.AudioStatus;
+import com.yrootlab.onmaru.catalog.application.query.detail.CoordinatesProjection;
+import com.yrootlab.onmaru.catalog.application.query.detail.ImageProjection;
+import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailStore;
+import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjection;
+import com.yrootlab.onmaru.catalog.application.query.detail.RegionProjection;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.journey.saved.list.SavedResourceRecord;
+import com.yrootlab.onmaru.journey.saved.odii.InMemorySavedOdiiStoryStore;
 import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
 import com.yrootlab.onmaru.journey.saved.place.SavedResourceType;
-import com.yrootlab.onmaru.journey.saved.odii.InMemorySavedOdiiStoryStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -70,6 +77,9 @@ class SavedOdiiResourceWebBoundaryTests {
     private InMemorySavedOdiiStoryStore savedOdiiStoryStore;
 
     @Autowired
+    private InMemoryPlaceDetailStore placeDetailStore;
+
+    @Autowired
     private InMemoryOdiiStoryQueryStore storyStore;
 
     @Autowired
@@ -83,6 +93,7 @@ class SavedOdiiResourceWebBoundaryTests {
         identityStore.clear();
         savedPlaceStore.clear();
         savedOdiiStoryStore.clear();
+        placeDetailStore.clear();
         memberId = member("member-session");
         member("other-session");
         storyStore.replaceActive(new OdiiActiveSnapshot(REVISION, List.of(
@@ -101,12 +112,17 @@ class SavedOdiiResourceWebBoundaryTests {
                 .andExpect(jsonPath("$.savedByMe").value(true))
                 .andExpect(jsonPath("$.savedAt", not(emptyOrNullString())))
                 .andReturn().getResponse().getContentAsString();
+        var firstRow = savedOdiiStoryStore.records(memberId, SavedResourceType.ODII_STORY).getFirst();
 
         var second = save(STORY_ONE).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
+        var secondRow = savedOdiiStoryStore.records(memberId, SavedResourceType.ODII_STORY).getFirst();
 
         assertThat(OBJECT_MAPPER.readTree(second).get("savedAt"))
                 .isEqualTo(OBJECT_MAPPER.readTree(first).get("savedAt"));
+        assertThat(secondRow.id()).isEqualTo(firstRow.id());
+        assertThat(secondRow.savedAt()).isEqualTo(firstRow.savedAt());
+        assertThat(savedOdiiStoryStore.records(memberId, SavedResourceType.ODII_STORY)).hasSize(1);
         assertThat(savedPlaceStore.countFor(memberId, SavedResourceType.PLACE)).isZero();
     }
 
@@ -164,15 +180,18 @@ class SavedOdiiResourceWebBoundaryTests {
     void listsOnlyTheRequiredTypeWithCurrentHydrationAndActorBoundStableCursor() throws Exception {
         save(STORY_ONE).andExpect(status().isOk());
         save(STORY_TWO).andExpect(status().isOk());
+        var expectedStoryIds = savedOdiiStoryStore.records(memberId, SavedResourceType.ODII_STORY).stream()
+                .sorted(Comparator.comparing(SavedResourceRecord::id).reversed())
+                .map(SavedResourceRecord::resourceId)
+                .toList();
 
         var response = list("member-session", "ODII_STORY", 1, null)
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.items[0].resourceType").value("ODII_STORY"))
-                .andExpect(jsonPath("$.items[0].storyId").value(STORY_TWO))
-                .andExpect(jsonPath("$.items[0].spotId").value("odii-spot-jeonju-02"))
-                .andExpect(jsonPath("$.items[0].title").value("이야기 " + STORY_TWO))
+                .andExpect(jsonPath("$.items[0].storyId").value(expectedStoryIds.getFirst()))
                 .andExpect(jsonPath("$.items[0].savedByMe").value(true))
+                .andExpect(jsonPath("$.items[0].id").doesNotExist())
                 .andExpect(jsonPath("$.items[0].stid").doesNotExist())
                 .andExpect(jsonPath("$.items[0].stlid").doesNotExist())
                 .andExpect(jsonPath("$.nextCursor", not(emptyOrNullString())))
@@ -182,7 +201,7 @@ class SavedOdiiResourceWebBoundaryTests {
 
         list("member-session", "ODII_STORY", 1, cursor)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].storyId").value(STORY_ONE));
+                .andExpect(jsonPath("$.items[0].storyId").value(expectedStoryIds.get(1)));
         list("other-session", "ODII_STORY", 1, cursor)
                 .andExpect(status().isNotFound());
         list("member-session", "PLACE", 1, cursor)
@@ -204,6 +223,72 @@ class SavedOdiiResourceWebBoundaryTests {
                 .andExpect(jsonPath("$.details.field").value("type"));
     }
 
+    @Test
+    void paginatesPlacesByOpaqueRowIdWithoutPublishingIt() throws Exception {
+        addPublicPlace("p-place-one", "첫 장소");
+        addPublicPlace("p-place-two", "둘째 장소");
+        savedPlaceStore.save(memberId, "p-place-one", clock.instant(), 500);
+        savedPlaceStore.save(memberId, "p-place-two", clock.instant(), 500);
+        var expectedPlaceIds = savedPlaceStore.records(memberId, SavedResourceType.PLACE).stream()
+                .sorted(Comparator.comparing(SavedResourceRecord::id).reversed())
+                .map(SavedResourceRecord::resourceId)
+                .toList();
+
+        var response = list("member-session", "PLACE", 1, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].placeId").value(expectedPlaceIds.getFirst()))
+                .andExpect(jsonPath("$.items[0].id").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        var cursor = OBJECT_MAPPER.readTree(response).get("nextCursor").asText();
+
+        list("member-session", "PLACE", 1, cursor)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].placeId").value(expectedPlaceIds.get(1)));
+    }
+
+    @Test
+    void mapsUnavailableCurrentSourcesToPrivateServiceUnavailableErrors() throws Exception {
+        storyStore.markUnavailable();
+        save(STORY_ONE)
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+
+        storyStore.replaceActive(new OdiiActiveSnapshot(REVISION, List.of(
+                story(STORY_ONE, "odii-spot-jeonju-01", AudioStatus.ACTIVE,
+                        Instant.parse("2026-09-15T03:00:00Z")))));
+        save(STORY_ONE).andExpect(status().isOk());
+        storyStore.markUnavailable();
+        list("member-session", "ODII_STORY", 20, null)
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+
+        savedPlaceStore.save(memberId, "p-place-unavailable", clock.instant(), 500);
+        placeDetailStore.markUnavailable();
+        savePlace("p-place-unavailable")
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+        list("member-session", "PLACE", 20, null)
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+    }
+
+    private void addPublicPlace(String placeId, String name) {
+        placeDetailStore.add(PlaceProjection.publicPlace(
+                placeId,
+                name,
+                "한옥",
+                new RegionProjection("kr-45-jeonju", "전북 전주시"),
+                "전북 전주시",
+                new CoordinatesProjection(35.8, 127.1),
+                List.of(new ImageProjection("https://cdn.onmaru.example/places/" + placeId + ".jpg", name)),
+                "설명",
+                List.of(),
+                null));
+    }
+
     private UUID member(String sessionToken) {
         var id = identityStore.createMember(clock.instant());
         identityStore.saveSession(new SessionRecord(
@@ -221,6 +306,14 @@ class SavedOdiiResourceWebBoundaryTests {
 
     private org.springframework.test.web.servlet.ResultActions deleteSaved(String storyId) throws Exception {
         return mockMvc.perform(delete("/api/v1/saved-resources/odii-stories/{storyId}", storyId)
+                .cookie(
+                        new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session"),
+                        new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                .header("X-CSRF-TOKEN", "csrf-token"));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions savePlace(String placeId) throws Exception {
+        return mockMvc.perform(put("/api/v1/saved-resources/places/{placeId}", placeId)
                 .cookie(
                         new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session"),
                         new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
