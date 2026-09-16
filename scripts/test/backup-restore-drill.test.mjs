@@ -99,6 +99,10 @@ describe('PostgreSQL backup and restore drill', () => {
     assert.match(drill, /create-backup/);
     assert.match(drill, /restore-drill/);
     assert.match(drill, /\.tar\.gpg/);
+    assert.match(
+      drill,
+      /artifact_name[\s\S]+-v "\$evidence_dir:\/evidence"[\s\S]+ONMARU_RESTORE_EVIDENCE_DIR=\/evidence/,
+    );
     assert.match(drill, /deletionReexposureCount[\s\S]+0/);
     assert.match(drill, /trap/);
 

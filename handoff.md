@@ -1,5 +1,17 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #94
+
+- 현재 작업 브랜치와 worktree: `feature/94-postgres-restore-drill`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-94-postgres-restore-drill`.
+- 관련 Issue: #94 `[O04] PostgreSQL backup·PITR·restore drill 자동화`; blocked-by #85/#72는 Closed이고 열린 중복 PR은 없다. 후속 deletion ledger producer와 장기 cleanup은 기존 #125가 소유한다.
+- 구현 범위: `onmaru_backup` non-superuser membership을 강제하는 PostgreSQL 17 runner, AES-256 encrypted logical full backup, checksum, 7일 retention, source/target fingerprint와 빈 target guard를 추가했다.
+- 복원 검증: 별도 source/target PostGIS 17 컨테이너에서 `template0` 기반 빈 DB에 복원하고, backup 이후 deletion ledger를 transaction으로 replay한 뒤 row count, FK validation, snapshot hash, migration version, 삭제 재노출을 검사한다.
+- 운영 증거: sanitized JSON에 source revision, artifact digest, RPO/RTO, aggregate integrity count만 기록한다. provider PITR은 hosting/WAL 근거가 없으므로 `UNAVAILABLE_UNTIL_HOSTING_SELECTED`로 fail-closed다.
+- 로컬 통합 drill: ARM 개발 환경의 amd64 PostGIS emulation과 entrypoint init race, SQL directory execute permission, preinstalled extension 충돌을 재현해 각각 platform 지정, init-complete gate, `a+rX`, `template0` target으로 교정했다.
+- 측정 결과: CI와 같은 외부 evidence mount에서 encrypted backup부터 restore·ledger replay·integrity suite까지 PASS, RPO 1초, checksum·복호화를 포함한 RTO 1초, deletion re-exposure 0, migration version `008`.
+- 병합 상태: PR #200은 develop에 병합되고 Issue #139는 reconcile workflow로 Closed 됐다. #196/#198/#199는 approval 없이 열린 상태이며 최신 develop과 충돌해 각 작업 branch 갱신이 필요하다.
+- 다음 단계: 전체 repository verification 후 #94 PR을 `develop` 대상으로 만들고 `yshls` review를 요청한다. CI와 최소 1명 approval이 모두 확인된 뒤에만 병합하고, post-merge reconcile로 #94 종료를 확인한다.
+
 ## Current Session Quick Handoff - 2026-09-16 Issue #139
 
 - 현재 작업 브랜치와 worktree: `feature/139-moderation-queue`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-139-moderation-queue`.

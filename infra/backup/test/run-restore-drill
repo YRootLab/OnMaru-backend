@@ -19,14 +19,7 @@ cleanup() {
   docker rm -f "$source_container" "$target_container" >/dev/null 2>&1 || true
   docker network rm "$network" >/dev/null 2>&1 || true
   docker image rm "$image" >/dev/null 2>&1 || true
-  if [ -z "${ONMARU_DRILL_EVIDENCE_DIR:-}" ]; then
-    rm -rf "$work_dir"
-  else
-    rm -rf "$work_dir/backups" "$work_dir/gnupg" \
-      "$work_dir/backup-key" "$work_dir/ledger-key" \
-      "$work_dir/deletion-ledger.tsv" "$work_dir/deletion-ledger.tsv.gpg" \
-      "$work_dir/deletion-ledger.tsv.gpg.sha256"
-  fi
+  rm -rf "$work_dir"
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -187,6 +180,7 @@ artifact_name=$(basename "$artifact")
 docker run --rm \
   --network "$network" \
   -v "$work_dir:/work" \
+  -v "$evidence_dir:/evidence" \
   -e PGHOST="$target_container" \
   -e PGDATABASE="$database" \
   -e PGUSER=postgres \
@@ -195,7 +189,7 @@ docker run --rm \
   -e ONMARU_BACKUP_KEY_FILE=/work/backup-key \
   -e ONMARU_DELETION_LEDGER_ARTIFACT=/work/deletion-ledger.tsv.gpg \
   -e ONMARU_DELETION_LEDGER_KEY_FILE=/work/ledger-key \
-  -e ONMARU_RESTORE_EVIDENCE_DIR=/work/evidence \
+  -e ONMARU_RESTORE_EVIDENCE_DIR=/evidence \
   -e ONMARU_RESTORE_CONFIRM=isolated-target \
   "$image" restore-drill >/dev/null
 
