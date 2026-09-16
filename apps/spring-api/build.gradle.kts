@@ -1,5 +1,5 @@
 plugins {
-    java
+    id("onmaru.spring-boot-app-conventions")
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
 }
@@ -31,8 +31,4 @@ dependencies {
     testImplementation(project(":adapters:persistence-jdbc"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly(libs.postgresql)
-}
-
-tasks.withType<Test> {
-    useJUnitPlatform()
 }
