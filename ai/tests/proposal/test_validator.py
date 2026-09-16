@@ -250,6 +250,10 @@ def test_rejects_generic_uri_and_markdown_in_every_generated_text_field(
         "안내 문장은 검수된 근거만 설명합니다.",
         "This itinerary uses reviewed evidence only.",
         "tel 표시는 일반 영문 토큰일 뿐 URI가 아닙니다.",
+        "Version 1.2 is stable.",
+        "평점은 4.5입니다.",
+        "약 1.5km 떨어져 있습니다.",
+        "Reason: reviewed evidence only.",
     ],
 )
 def test_accepts_plain_text_without_uri_scheme_delimiter(safe_summary: str) -> None:

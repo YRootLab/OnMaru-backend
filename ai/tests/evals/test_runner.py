@@ -171,6 +171,26 @@ def test_rejects_summary_that_production_proposal_validator_rejects(
         load_eval_document(document)
 
 
+@pytest.mark.parametrize(
+    "safe_summary",
+    [
+        "Version 1.2 is stable.",
+        "평점은 4.5입니다.",
+        "약 1.5km 떨어져 있습니다.",
+        "Reason: reviewed evidence only.",
+    ],
+)
+def test_accepts_natural_language_version_distance_and_label_text(
+    safe_summary: str,
+) -> None:
+    document = fixture_document()
+    document["cases"][0]["actual"]["reasons"][0]["summary"] = safe_summary
+
+    report = evaluate_document(document)
+
+    assert report.overall_passed is True
+
+
 def test_report_is_byte_reproducible_and_comparable(tmp_path: Path) -> None:
     first_path = tmp_path / "first.json"
     second_path = tmp_path / "second.json"
