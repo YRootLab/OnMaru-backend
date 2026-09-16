@@ -578,6 +578,7 @@ class R2ContractE2ETests {
                                 0,
                                 "전주 한옥마을의 골목은 오래된 집과 생활의 기억이 함께 남아 있습니다."),
                         new OdiiTranscriptLine(1, 12.5, "천천히 걸으며 처마와 담장 사이의 소리를 들어보세요.")),
+                List.of("한옥 골목", "전주 한옥마을", "처마", "담장"),
                 Instant.parse("2026-09-15T02:00:00Z"),
                 status,
                 status);

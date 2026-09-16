@@ -774,11 +774,11 @@ CREATE INDEX ON "audio_story_versions" ("revision_id", "spot_id");
 
 CREATE INDEX ON "audio_place_odii_links" ("spot_id");
 
+CREATE UNIQUE INDEX "audio_place_odii_links_one_approved_per_spot_uq" ON "audio_place_odii_links" ("spot_id");
+
 CREATE UNIQUE INDEX ON "audio_story_content_tag_versions" ("revision_id", "story_id", "label");
 
 CREATE INDEX ON "audio_story_content_tag_versions" ("label", "revision_id");
-
-CREATE UNIQUE INDEX "audio_place_odii_links_one_approved_per_spot_uq" ON "audio_place_odii_links" ("spot_id");
 
 CREATE INDEX ON "insights_visitor_observations" ("region_id", "basis_date");
 
