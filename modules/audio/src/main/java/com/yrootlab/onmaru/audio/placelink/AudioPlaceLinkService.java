@@ -38,13 +38,10 @@ public final class AudioPlaceLinkService implements ApprovedAudioPlaceLinkQuery 
         if (decision == AudioPlaceLinkReviewDecision.APPROVE) {
             canonicalPlaceLookup.findPublicPlace(placeId, Optional.empty())
                     .orElseThrow(AudioPlaceLinkTargetUnavailableException::new);
-            rejectOtherCandidates(spotId, placeId, reviewedAt);
-            candidate = candidate.reviewed(AudioPlaceLinkReviewStatus.APPROVED, reviewedAt);
+            return store.approveExclusive(spotId, placeId, reviewedAt);
         } else {
-            candidate = candidate.reviewed(AudioPlaceLinkReviewStatus.REJECTED, reviewedAt);
+            return store.reject(spotId, placeId, reviewedAt);
         }
-        store.save(candidate);
-        return candidate;
     }
 
     public List<AudioPlaceLinkCandidate> candidates(String spotId) {
@@ -71,10 +68,4 @@ public final class AudioPlaceLinkService implements ApprovedAudioPlaceLinkQuery 
                         place));
     }
 
-    private void rejectOtherCandidates(String spotId, String approvedPlaceId, Instant reviewedAt) {
-        store.findBySpotId(spotId).stream()
-                .filter(candidate -> !candidate.placeId().equals(approvedPlaceId))
-                .map(candidate -> candidate.reviewed(AudioPlaceLinkReviewStatus.REJECTED, reviewedAt))
-                .forEach(store::save);
-    }
 }

@@ -34,7 +34,7 @@
           },
           "thumbnailUrl": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
           "summary": "한옥 골목과 전통 체험을 함께 둘러볼 수 있는 대표 한옥 권역입니다.",
-          "savedByMe": true,
+          "savedByMe": false,
           "linkedOdiiStoryIds": ["odii-story-jeonju-hanok-01"],
           "dataAvailability": {
             "place": "COMPLETE",

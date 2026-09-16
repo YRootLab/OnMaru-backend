@@ -2,16 +2,21 @@ package com.yrootlab.onmaru.web.exploration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.OnMaruApplication;
+import com.yrootlab.onmaru.catalog.application.query.detail.CoordinatesProjection;
+import com.yrootlab.onmaru.catalog.application.query.detail.ImageProjection;
+import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailStore;
+import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjection;
+import com.yrootlab.onmaru.catalog.application.query.detail.RegionProjection;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
 import com.yrootlab.onmaru.identity.guest.GuestCredentialService;
 import com.yrootlab.onmaru.identity.guest.GuestGrantClaimCommand;
 import com.yrootlab.onmaru.identity.guest.GuestGrantService;
-import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationRunDispatcher;
-import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationStore;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRunOutcome;
 import com.yrootlab.onmaru.journey.exploration.ExplorationService;
+import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationRunDispatcher;
+import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationStore;
 import com.yrootlab.onmaru.observability.InMemoryTelemetrySink;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +33,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -78,6 +84,9 @@ class ExplorationWebBoundaryTests {
     private GuestGrantService guestGrantService;
 
     @Autowired
+    private InMemoryPlaceDetailStore placeDetailStore;
+
+    @Autowired
     private InMemoryTelemetrySink telemetrySink;
 
     private final TokenHasher hasher = new TokenHasher("fake-oauth-client-secret-current");
@@ -92,7 +101,9 @@ class ExplorationWebBoundaryTests {
         runEventStream.clear();
         identityStore.clear();
         guestCredentialService.clear();
+        placeDetailStore.clear();
         telemetrySink.clear();
+        seedPublicJeonjuPlace();
         guestToken = guestCredentialService.issue().rawToken();
         ownerToken = guestCredentialService.issue().rawToken();
         otherToken = guestCredentialService.issue().rawToken();
@@ -175,6 +186,96 @@ class ExplorationWebBoundaryTests {
                 .andExpect(jsonPath("$.explorationId").value(explorationId))
                 .andExpect(jsonPath("$.latestRun.status").value("QUEUED"));
         assertThat(runDispatcher.dispatchCount()).isEqualTo(1);
+    }
+
+    @Test
+    void ownerCanHydrateLatestRunSnapshotDirectly() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var body = objectMapper.readTree(created);
+        var explorationId = body.path("explorationId").asText();
+        var runId = body.path("runId").asText();
+        telemetrySink.clear();
+
+        var result = mockMvc.perform(get("/api/v1/explorations/{explorationId}/runs/{runId}", explorationId, runId)
+                        .cookie(guestCookie(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.runId").value(runId))
+                .andExpect(jsonPath("$.status").value("QUEUED"))
+                .andExpect(jsonPath("$.engine").value("LLM"))
+                .andExpect(jsonPath("$.outcome").isEmpty())
+                .andExpect(jsonPath("$.clarification").isEmpty())
+                .andExpect(jsonPath("$.retryAfterMs").value(0))
+                .andExpect(jsonPath("$.deadlineAt", not(emptyOrNullString())))
+                .andReturn();
+
+        var requestId = result.getResponse().getHeader("X-Request-Id");
+        assertThat(telemetrySink.events()).hasSize(1);
+        assertThat(telemetrySink.events().getFirst().attributes())
+                .containsEntry("request.id", requestId)
+                .containsEntry("http.request.method", "GET")
+                .containsEntry("http.route", "/api/v1/explorations/{explorationId}/runs/{runId}")
+                .containsEntry("http.response.status_code", "200");
+    }
+
+    @Test
+    void runSnapshotConcealsOtherActorAndUnknownRunAsNotFound() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var body = objectMapper.readTree(created);
+        var explorationId = body.path("explorationId").asText();
+        var runId = body.path("runId").asText();
+
+        mockMvc.perform(get("/api/v1/explorations/{explorationId}/runs/{runId}", explorationId, runId)
+                        .cookie(guestCookie(otherToken)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+
+        mockMvc.perform(get("/api/v1/explorations/{explorationId}/runs/{runId}", explorationId, UUID.randomUUID())
+                        .cookie(guestCookie(ownerToken)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void completedExplorationHydratesPublicBoardFromCurrentCatalog() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var body = objectMapper.readTree(created);
+        var explorationId = UUID.fromString(body.path("explorationId").asText());
+        var runId = UUID.fromString(body.path("runId").asText());
+        explorationService.claimRun(explorationId, runId, "INTERPRETING");
+        explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
+
+        mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
+                        .cookie(guestCookie(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.board.title").value("전주 한옥 산책"))
+                .andExpect(jsonPath("$.board.candidates[0].placeRef.id").value("p-jeonju-hanok-village"))
+                .andExpect(jsonPath("$.board.resources[0].title").value("전주 한옥마을"))
+                .andExpect(jsonPath("$.execution.dataMode").value("PUBLIC"))
+                .andExpect(jsonPath("$.execution.datasetRevision").value("catalog-current"))
+                .andExpect(jsonPath("$.unavailableRefs").isEmpty());
+    }
+
+    @Test
+    void unavailableCatalogPlaceIsReportedWithoutLeakingPrivateBoard() throws Exception {
+        placeDetailStore.clear();
+        placeDetailStore.add(PlaceProjection.hidden("p-jeonju-hanok-village"));
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var body = objectMapper.readTree(created);
+        var explorationId = UUID.fromString(body.path("explorationId").asText());
+        var runId = UUID.fromString(body.path("runId").asText());
+        explorationService.claimRun(explorationId, runId, "INTERPRETING");
+        explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
+
+        mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
+                        .cookie(guestCookie(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.board").isEmpty())
+                .andExpect(jsonPath("$.unavailableRefs[0].type").value("PLACE"))
+                .andExpect(jsonPath("$.unavailableRefs[0].id").value("p-jeonju-hanok-village"));
     }
 
     @Test
@@ -699,6 +800,22 @@ class ExplorationWebBoundaryTests {
 
     private Cookie guestCookie(String token) {
         return new Cookie("__Host-onmaru-guest", token);
+    }
+
+    private void seedPublicJeonjuPlace() {
+        placeDetailStore.add(PlaceProjection.publicPlace(
+                "p-jeonju-hanok-village",
+                "전주 한옥마을",
+                "한옥",
+                new RegionProjection("kr-45-jeonju", "전북 전주시"),
+                "전북 전주시 완산구 기린대로 99",
+                new CoordinatesProjection(35.8151, 127.153),
+                List.of(new ImageProjection(
+                        "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+                        "전주 한옥마을 골목")),
+                "전통 한옥과 공예, 음식, 산책 코스를 한 번에 경험할 수 있는 공개 관광 장소입니다.",
+                List.of("한옥 골목", "공예 체험", "야간 산책"),
+                "odii-jeonju-hanok-village"));
     }
 
     @TestConfiguration
