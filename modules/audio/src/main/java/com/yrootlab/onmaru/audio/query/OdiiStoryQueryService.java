@@ -103,6 +103,28 @@ public final class OdiiStoryQueryService {
                 projection.transcript());
     }
 
+    public OdiiSavedStoryProjection savedStory(String storyId, Optional<UUID> memberId) {
+        if (storyId == null || !STORY_ID_PATTERN.matcher(storyId).matches()) {
+            throw new OdiiStoryNotFoundException();
+        }
+        var candidates = store.activeSnapshot().stories().stream()
+                .filter(story -> storyId.equals(story.storyId()))
+                .filter(this::isPublicAndPlayable)
+                .toList();
+        var selection = selectLanguage(candidates, FALLBACK_LANGUAGE);
+        var story = selection.stories().stream().sorted(ORDER).findFirst()
+                .orElseThrow(OdiiStoryNotFoundException::new);
+        var effectiveMemberId = memberId == null ? Optional.<UUID>empty() : memberId;
+        return new OdiiSavedStoryProjection(
+                story.storyId(),
+                story.spotId(),
+                story.title(),
+                approvedPlaceLinkQuery.findApprovedPlace(story.spotId(), effectiveMemberId)
+                        .map(link -> link.place().placeId())
+                        .orElse(null),
+                story.durationSeconds());
+    }
+
     private void validateQuery(OdiiStoryQuery query) {
         if (query == null) {
             throw new OdiiStoryInvalidRequestException("query");
