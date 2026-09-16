@@ -60,6 +60,27 @@ Table discovery_runs [headercolor: #EDC948] {
   }
 }
 
+Table discovery_run_commands [headercolor: #EDC948] {
+  actor_key varchar [not null]
+  operation varchar [not null]
+  command_key uuid [not null]
+  request_hash varchar [not null]
+  run_id uuid [not null]
+  result_status discovery_run_status [not null]
+  result_stage varchar
+  result_outcome varchar
+  result_generation int [not null]
+  created_at timestamptz [not null]
+  expires_at timestamptz [not null]
+
+  Note: 'Durable command receipt. The executable migration enforces the operation/stage allowlists, positive generation, expiry, and composite primary key.'
+
+  Indexes {
+    (actor_key, operation, command_key) [pk]
+    expires_at
+  }
+}
+
 Table discovery_proposals [headercolor: #EDC948] {
   id uuid [pk]
   run_id uuid [not null, unique]
@@ -92,11 +113,13 @@ Table discovery_turns [headercolor: #EDC948] {
 TableGroup discovery [color: #EDC948, note: 'Natural-language exploration workspace, async runs, proposals, turns, pinned and excluded refs.'] {
   discovery_explorations
   discovery_runs
+  discovery_run_commands
   discovery_proposals
   discovery_turns
 }
 
 Ref: discovery_runs.exploration_id > discovery_explorations.id
+Ref: discovery_run_commands.run_id > discovery_runs.id
 Ref: discovery_proposals.run_id > discovery_runs.id
 Ref: discovery_proposals.exploration_id > discovery_explorations.id
 Ref: discovery_turns.exploration_id > discovery_explorations.id

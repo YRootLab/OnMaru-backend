@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.journey.exploration;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -11,6 +12,7 @@ public final class ExplorationService {
     private static final int MAX_REGION_CODE_LENGTH = 32;
     private static final Duration RUN_BUDGET = Duration.ofSeconds(30);
     private static final Pattern REGION_CODE = Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*$");
+    private static final Set<String> RUN_STAGES = Set.of("INTERPRETING", "RETRIEVING", "VALIDATING", "PERSISTING");
 
     private final ExplorationStore store;
     private final ExplorationRunDispatcher runDispatcher;
@@ -77,6 +79,9 @@ public final class ExplorationService {
             throw new ExplorationVersionConflictException(state.stateVersion());
         }
         validateClarificationAnswer(state, command.clarificationId());
+        if (state.latestRun().isActive()) {
+            throw new ExplorationActiveRunException();
+        }
         var query = intakePolicy.validateTurn(validatedQuery);
         var regionCode = normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode());
         var now = clock.instant();
@@ -89,6 +94,25 @@ public final class ExplorationService {
         store.update(updated);
         dispatchIfNeeded(updated);
         return updated.snapshot();
+    }
+
+    public ExplorationRun claimRun(UUID explorationId, UUID runId, String stage) {
+        validateRunCommand(explorationId, runId);
+        validateStage(stage);
+        return store.claimRun(explorationId, runId, clock.instant(), stage);
+    }
+
+    public ExplorationRun completeRun(UUID explorationId, UUID runId, ExplorationRunOutcome outcome) {
+        validateRunCommand(explorationId, runId);
+        if (outcome == null) {
+            throw new ExplorationInputInvalidException("outcome");
+        }
+        return store.finishRun(explorationId, runId, ExplorationRunStatus.COMPLETED, outcome, clock.instant());
+    }
+
+    public ExplorationRun cancelRun(UUID explorationId, UUID runId) {
+        validateRunCommand(explorationId, runId);
+        return store.finishRun(explorationId, runId, ExplorationRunStatus.CANCELLED, null, clock.instant());
     }
 
     private ExplorationState ownedState(ExplorationActor actor, UUID explorationId) {
@@ -137,6 +161,18 @@ public final class ExplorationService {
     private void validateActor(ExplorationActor actor) {
         if (actor == null) {
             throw new ExplorationNotFoundException();
+        }
+    }
+
+    private void validateRunCommand(UUID explorationId, UUID runId) {
+        if (explorationId == null || runId == null) {
+            throw new ExplorationNotFoundException();
+        }
+    }
+
+    private void validateStage(String stage) {
+        if (stage == null || !RUN_STAGES.contains(stage)) {
+            throw new ExplorationInputInvalidException("stage");
         }
     }
 

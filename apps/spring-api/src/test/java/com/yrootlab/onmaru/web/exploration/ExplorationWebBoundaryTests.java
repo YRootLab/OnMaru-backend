@@ -420,6 +420,44 @@ class ExplorationWebBoundaryTests {
     }
 
     @Test
+    void turnUsesIdempotencyKeyForReplayAndConflict() throws Exception {
+        var created = createGuestExploration(ownerToken, null);
+        var explorationId = objectMapper.readTree(created).path("explorationId").asText();
+        var key = UUID.randomUUID();
+        var clientTurnId = UUID.randomUUID();
+        var body = objectMapper.writeValueAsBytes(Map.of(
+                "clientTurnId", clientTurnId,
+                "baseVersion", 0,
+                "query", "전주로 갈게요",
+                "clarificationAnswer", Map.of(
+                        "clarificationId", "region",
+                        "text", "전주")));
+
+        var first = createTurnWithKey(explorationId, body, key);
+        var replay = createTurnWithKey(explorationId, body, key);
+
+        assertThat(objectMapper.readTree(replay).path("runId").asText())
+                .isEqualTo(objectMapper.readTree(first).path("runId").asText());
+        assertThat(explorationStore.turnCount(UUID.fromString(explorationId))).isEqualTo(2);
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(1);
+
+        mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "clientTurnId", clientTurnId,
+                                "baseVersion", 0,
+                                "query", "서울로 바꿀게요",
+                                "clarificationAnswer", Map.of(
+                                        "clarificationId", "region",
+                                        "text", "서울"))))
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", key))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("IDEMPOTENCY_CONFLICT"));
+    }
+
+    @Test
     void turnRequiresExplicitBaseVersionBeforePersistence() throws Exception {
         var created = createGuestExploration(ownerToken, null);
         var explorationId = objectMapper.readTree(created).path("explorationId").asText();
@@ -474,6 +512,17 @@ class ExplorationWebBoundaryTests {
                         .cookie(guestCookie(guestToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsByteArray();
+    }
+
+    private byte[] createTurnWithKey(String explorationId, byte[] body, UUID key) throws Exception {
+        return mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)
+                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", key))
                 .andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsByteArray();
     }
