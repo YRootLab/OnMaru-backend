@@ -13,6 +13,11 @@ import com.yrootlab.onmaru.journey.exploration.ExplorationNotFoundException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationService;
 import com.yrootlab.onmaru.journey.exploration.ExplorationSnapshot;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRunStatus;
+import com.yrootlab.onmaru.journey.actions.ActionType;
+import com.yrootlab.onmaru.journey.actions.ProposalAction;
+import com.yrootlab.onmaru.journey.actions.ResourceAction;
+import com.yrootlab.onmaru.journey.actions.ResourceRef;
+import com.yrootlab.onmaru.journey.actions.JourneyAction;
 import com.yrootlab.onmaru.operations.admission.AdmissionPolicy;
 import com.yrootlab.onmaru.operations.admission.AdmissionRequest;
 import com.yrootlab.onmaru.operations.admission.AdmissionService;
@@ -115,7 +120,33 @@ public final class ExplorationController {
         var snapshot = explorationService.get(actor, explorationId);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(ExplorationResponse.from(snapshot, snapshotHydrator.hydrate(snapshot)));
+                .body(ExplorationResponse.from(snapshot, snapshotHydrator.hydrate(snapshot), explorationService.actionState(actor, explorationId)));
+    }
+
+    @PostMapping("/api/v1/explorations/{explorationId}/actions")
+    ResponseEntity<ExplorationResponse> applyAction(
+            @PathVariable UUID explorationId,
+            @RequestBody(required = false) ActionRequest body,
+            @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
+        var key = IdempotencyKey.fromHeader(idempotencyKey);
+        var actor = actorResolver.resolve(sessionToken, guestToken).actor();
+        if (body == null || body.commandId() == null || body.baseVersion() == null || body.action() == null) {
+            throw new ExplorationInputInvalidException("body");
+        }
+        rejectUnknownFields(body);
+        rejectUnknownFields(body.action());
+        rejectUnknownFields(body.action().resourceRef());
+        var action = body.action().toDomain();
+        var path = "/api/v1/explorations/" + explorationId + "/actions";
+        var response = idempotencyService.execute(new IdempotencyCommand(key.value(), actor.type() + ":" + actor.subject(), "POST", path,
+                IdempotencyFingerprint.sha256("POST", path, "exploration.action", java.util.List.of(body.commandId(), body.baseVersion(), action))), () -> {
+            explorationService.applyAction(actor, explorationId, body.baseVersion(), action);
+            var snapshot = explorationService.get(actor, explorationId);
+            return IdempotentResponse.ok(ExplorationResponse.from(snapshot, snapshotHydrator.hydrate(snapshot), explorationService.actionState(actor, explorationId)));
+        });
+        return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body((ExplorationResponse) response.body());
     }
 
     @GetMapping("/api/v1/explorations/{explorationId}/runs/{runId}")
@@ -376,6 +407,65 @@ public final class ExplorationController {
         void unknown(String name, Object ignored) {
             unknownFields.add(name);
         }
+    }
+
+    static final class ActionRequest implements StrictRequest {
+        private final UUID commandId;
+        private final Integer baseVersion;
+        private final ActionBody action;
+        private final Set<String> unknownFields = new LinkedHashSet<>();
+
+        @JsonCreator
+        ActionRequest(@JsonProperty("commandId") UUID commandId, @JsonProperty("baseVersion") Integer baseVersion,
+                @JsonProperty("action") ActionBody action) {
+            this.commandId = commandId;
+            this.baseVersion = baseVersion;
+            this.action = action;
+        }
+        UUID commandId() { return commandId; }
+        Integer baseVersion() { return baseVersion; }
+        ActionBody action() { return action; }
+        public Set<String> unknownFields() { return Set.copyOf(unknownFields); }
+        @JsonAnySetter void unknown(String name, Object ignored) { unknownFields.add(name); }
+    }
+
+    static final class ActionBody implements StrictRequest {
+        private final String type;
+        private final ResourceBody resourceRef;
+        private final UUID proposalId;
+        private final Set<String> unknownFields = new LinkedHashSet<>();
+
+        @JsonCreator
+        ActionBody(@JsonProperty("type") String type, @JsonProperty("resourceRef") ResourceBody resourceRef,
+                @JsonProperty("proposalId") UUID proposalId) {
+            this.type = type;
+            this.resourceRef = resourceRef;
+            this.proposalId = proposalId;
+        }
+        JourneyAction toDomain() {
+            try {
+                var actionType = ActionType.valueOf(type);
+                return switch (actionType) {
+                    case PIN, UNPIN, EXCLUDE, UNEXCLUDE -> new ResourceAction(actionType, resourceRef.toDomain());
+                    case APPLY_PROPOSAL, DISMISS_PROPOSAL -> new ProposalAction(actionType, proposalId);
+                };
+            } catch (IllegalArgumentException | NullPointerException exception) {
+                throw new ExplorationInputInvalidException("action");
+            }
+        }
+        ResourceBody resourceRef() { return resourceRef; }
+        public Set<String> unknownFields() { return Set.copyOf(unknownFields); }
+        @JsonAnySetter void unknown(String name, Object ignored) { unknownFields.add(name); }
+    }
+
+    static final class ResourceBody implements StrictRequest {
+        private final String type;
+        private final String id;
+        private final Set<String> unknownFields = new LinkedHashSet<>();
+        @JsonCreator ResourceBody(@JsonProperty("type") String type, @JsonProperty("id") String id) { this.type = type; this.id = id; }
+        ResourceRef toDomain() { return new ResourceRef(type, id); }
+        public Set<String> unknownFields() { return Set.copyOf(unknownFields); }
+        @JsonAnySetter void unknown(String name, Object ignored) { unknownFields.add(name); }
     }
 
     static final class ClarificationAnswer implements StrictRequest {

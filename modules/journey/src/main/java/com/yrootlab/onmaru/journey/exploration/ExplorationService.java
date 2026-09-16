@@ -3,10 +3,16 @@ package com.yrootlab.onmaru.journey.exploration;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
 import com.yrootlab.onmaru.journey.events.JourneyRunEventSink;
+import com.yrootlab.onmaru.journey.actions.JourneyAction;
+import com.yrootlab.onmaru.journey.actions.JourneyActionResult;
+import com.yrootlab.onmaru.journey.actions.JourneyActionService;
+import com.yrootlab.onmaru.journey.actions.JourneyActionState;
 
 public final class ExplorationService {
 
@@ -22,6 +28,8 @@ public final class ExplorationService {
     private final ExplorationIntakePolicy intakePolicy = new ExplorationIntakePolicy();
     private final ExplorationAccessPolicy accessPolicy;
     private final JourneyRunEventSink eventSink;
+    private final JourneyActionService actionService;
+    private final Map<UUID, JourneyActionState> actionStates = new HashMap<>();
 
     public ExplorationService(ExplorationStore store, ExplorationRunDispatcher runDispatcher, Clock clock) {
         this(store, runDispatcher, clock, (actor, state) -> state.owner().equals(actor));
@@ -41,11 +49,22 @@ public final class ExplorationService {
             Clock clock,
             ExplorationAccessPolicy accessPolicy,
             JourneyRunEventSink eventSink) {
+        this(store, runDispatcher, clock, accessPolicy, eventSink, null);
+    }
+
+    public ExplorationService(
+            ExplorationStore store,
+            ExplorationRunDispatcher runDispatcher,
+            Clock clock,
+            ExplorationAccessPolicy accessPolicy,
+            JourneyRunEventSink eventSink,
+            JourneyActionService actionService) {
         this.store = store;
         this.runDispatcher = runDispatcher;
         this.clock = clock;
         this.accessPolicy = accessPolicy;
         this.eventSink = eventSink;
+        this.actionService = actionService;
     }
 
     public ExplorationSnapshot create(ExplorationActor actor, CreateExplorationCommand command) {
@@ -79,6 +98,30 @@ public final class ExplorationService {
 
     public ExplorationSnapshot get(ExplorationActor actor, UUID explorationId) {
         return ownedState(actor, explorationId).snapshot();
+    }
+
+    public synchronized JourneyActionResult applyAction(
+            ExplorationActor actor, UUID explorationId, int baseVersion, JourneyAction action) {
+        if (actionService == null) {
+            throw new IllegalStateException("journey action service is unavailable");
+        }
+        var state = ownedState(actor, explorationId);
+        if (state.latestRun().isActive()) {
+            throw new ExplorationActiveRunException();
+        }
+        var current = actionStates.computeIfAbsent(explorationId, ignored -> JourneyActionState.empty(state.stateVersion()));
+        var result = actionService.apply(current, baseVersion, action);
+        if (result.changed()) {
+            actionStates.put(explorationId, result.state());
+            store.update(new ExplorationState(
+                    state.id(), state.owner(), result.state().stateVersion(), state.regionCode(), state.latestRun(), clock.instant()));
+        }
+        return result;
+    }
+
+    public synchronized JourneyActionState actionState(ExplorationActor actor, UUID explorationId) {
+        var state = ownedState(actor, explorationId);
+        return actionStates.computeIfAbsent(explorationId, ignored -> JourneyActionState.empty(state.stateVersion()));
     }
 
     public ExplorationRun getRun(ExplorationActor actor, UUID explorationId, UUID runId) {
