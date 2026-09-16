@@ -53,6 +53,7 @@ class OperationsMigrationTests {
                     WHERE table_schema = 'onmaru'
                       AND table_name IN (
                         'operations_admission',
+                        'operations_admission_audit',
                         'operations_sync_schedules',
                         'operations_sync_runs',
                         'operations_sync_checkpoints',
@@ -61,7 +62,7 @@ class OperationsMigrationTests {
                         'operations_sync_quarantine',
                         'operations_outbox_events'
                       )
-                    """)).isEqualTo(8);
+                    """)).isEqualTo(9);
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM pg_index i

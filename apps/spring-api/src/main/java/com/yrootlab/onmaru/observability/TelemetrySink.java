@@ -1,6 +1,6 @@
 package com.yrootlab.onmaru.observability;
 
-interface TelemetrySink {
+public interface TelemetrySink {
 
     void record(TelemetryEvent event);
 }

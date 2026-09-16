@@ -105,8 +105,7 @@ paths:
           required: false
           schema: { type: string, pattern: '^[1-9][0-9]*$' }
       responses:
-        '200': { description: text/event-stream; event schema is a sibling JSON Schema, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { text/event-stream: { schema: { type: string } } } }
-        '401': { $ref: '#/components/responses/Error' }
+        '200': { description: text/event-stream; event schema is a sibling JSON Schema. Auth expiry may close with auth_closed/data 0 instead of JSON, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { text/event-stream: { schema: { type: string } } } }
         '404': { $ref: '#/components/responses/Error' }
   /explorations/{explorationId}/runs/{runId}/cancel:
     post:
@@ -215,11 +214,15 @@ components:
   responses:
     Error:
       description: Error envelope
-      headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }
+      headers:
+        Cache-Control: { $ref: '#/components/headers/NoStore' }
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
   headers:
     NoStore:
       schema: { type: string, const: no-store }
+    RetryAfter:
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
   schemas:
     CreateExplorationRequest:
       type: object
@@ -307,6 +310,44 @@ components:
       type: object
       additionalProperties: false
       required: [schemaVersion, runId, status, engine, degradedReason, stage, outcome, clarification, retryAfterMs, createdAt, startedAt, deadlineAt, error]
+      oneOf:
+        - properties:
+            status: { const: QUEUED }
+            stage: { type: 'null' }
+            outcome: { type: 'null' }
+            clarification: { type: 'null' }
+            startedAt: { type: 'null' }
+            error: { type: 'null' }
+        - properties:
+            status: { const: RUNNING }
+            stage: { type: string, enum: [INTERPRETING, RETRIEVING, VALIDATING, PERSISTING] }
+            outcome: { type: 'null' }
+            clarification: { type: 'null' }
+            startedAt: { type: string, format: date-time }
+            error: { type: 'null' }
+        - properties:
+            status: { const: COMPLETED }
+            stage: { type: 'null' }
+            outcome: { type: string, enum: [INITIAL_BOARD, PROPOSAL, NO_RESULTS] }
+            clarification: { type: 'null' }
+            error: { type: 'null' }
+        - properties:
+            status: { const: COMPLETED }
+            stage: { type: 'null' }
+            outcome: { const: CLARIFICATION_REQUIRED }
+            clarification: { $ref: '#/components/schemas/RunClarification' }
+            error: { type: 'null' }
+        - properties:
+            status: { const: FAILED }
+            stage: { type: 'null' }
+            outcome: { type: 'null' }
+            clarification: { type: 'null' }
+        - properties:
+            status: { const: CANCELLED }
+            stage: { type: 'null' }
+            outcome: { type: 'null' }
+            clarification: { type: 'null' }
+            error: { type: 'null' }
       properties:
         schemaVersion: { type: string, const: '1.2' }
         runId: { type: string, format: uuid }
@@ -315,12 +356,25 @@ components:
         degradedReason: { type: [string, 'null'], enum: [AI_QUOTA_EXCEEDED, AI_TIMEOUT, AI_INVALID_RESPONSE, AI_SERVICE_UNAVAILABLE, null] }
         stage: { type: [string, 'null'], enum: [INTERPRETING, RETRIEVING, VALIDATING, PERSISTING, null] }
         outcome: { type: [string, 'null'], enum: [INITIAL_BOARD, PROPOSAL, CLARIFICATION_REQUIRED, NO_RESULTS, null] }
-        clarification: { type: [object, 'null'] }
+        clarification:
+          anyOf:
+            - $ref: '#/components/schemas/RunClarification'
+            - type: 'null'
         retryAfterMs: { type: integer, minimum: 0 }
         createdAt: { type: string, format: date-time }
         startedAt: { type: [string, 'null'], format: date-time }
         deadlineAt: { type: string, format: date-time }
         error: { type: [object, 'null'] }
+    RunClarification:
+      type: object
+      additionalProperties: false
+      required: [id, reason, question, choices, allowFreeText]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 80 }
+        reason: { type: string, minLength: 1, maxLength: 100 }
+        question: { type: string, minLength: 1, maxLength: 500 }
+        choices: { type: array, items: { type: object }, maxItems: 10 }
+        allowFreeText: { type: boolean }
     PlaceRef:
       type: object
       additionalProperties: false
@@ -505,7 +559,7 @@ components:
     ExplorationSnapshot:
       type: object
       additionalProperties: false
-      required: [schemaVersion, explorationId, stateVersion, board, pinnedRefs, excludedRefs, execution, latestRun, pendingProposal, recentHistory, updatedAt]
+      required: [schemaVersion, explorationId, stateVersion, board, pinnedRefs, excludedRefs, unavailableRefs, execution, latestRun, pendingProposal, recentHistory, updatedAt]
       properties:
         schemaVersion: { type: string, const: '1.2' }
         explorationId: { type: string, format: uuid }
@@ -513,6 +567,7 @@ components:
         board: { anyOf: [ { $ref: '#/components/schemas/JourneyBoard' }, { type: 'null' } ] }
         pinnedRefs: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
         excludedRefs: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+        unavailableRefs: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
         execution: { $ref: '#/components/schemas/JourneyExecution' }
         latestRun: { anyOf: [ { $ref: '#/components/schemas/RunSnapshot' }, { type: 'null' } ] }
         pendingProposal: { anyOf: [ { $ref: '#/components/schemas/JourneyProposal' }, { type: 'null' } ] }

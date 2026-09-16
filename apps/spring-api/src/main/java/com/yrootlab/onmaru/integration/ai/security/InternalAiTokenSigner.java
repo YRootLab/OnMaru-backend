@@ -51,6 +51,7 @@ public final class InternalAiTokenSigner {
         claims.put("requestId", request.requestId());
         claims.put("traceId", request.traceId());
         claims.put("runId", request.runId());
+        claims.put("revision", request.revision());
         claims.put("deadlineAt", request.deadlineAt().toString());
 
         String signingInput = encodeJson(header) + "." + encodeJson(claims);

@@ -105,4 +105,83 @@ class AdmissionServiceTests {
         assertThat(firstWindow.admit(request, policy).allowed()).isFalse();
         assertThat(secondWindow.admit(request, policy).allowed()).isTrue();
     }
+
+    @Test
+    void dailyAiQuotaResetsAtKstMidnightWithOneSecondRetryAfter() {
+        var store = new InMemoryAdmissionStore();
+        var beforeKstMidnight = new AdmissionService(
+                store,
+                Clock.fixed(Instant.parse("2026-09-15T14:59:59Z"), ZoneOffset.UTC)
+        );
+        var afterKstMidnight = new AdmissionService(
+                store,
+                Clock.fixed(Instant.parse("2026-09-15T15:00:00Z"), ZoneOffset.UTC)
+        );
+        var policy = new AdmissionPolicy(Duration.ofDays(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 1)
+        ));
+        var request = new AdmissionRequest(
+                "journey.ai",
+                new AdmissionSubject(SubjectType.MEMBER, "member-1")
+        );
+
+        assertThat(beforeKstMidnight.admit(request, policy).allowed()).isTrue();
+        var rejected = beforeKstMidnight.admit(request, policy);
+        assertThat(rejected.allowed()).isFalse();
+        assertThat(rejected.retryAfter()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(afterKstMidnight.admit(request, policy).allowed()).isTrue();
+    }
+
+    @Test
+    void dailyAiQuotaKeepsGuestAndMemberBudgetsSeparate() {
+        var store = new InMemoryAdmissionStore();
+        var service = new AdmissionService(store, clock);
+        var policy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.GUEST, 2, Duration.ofDays(1)),
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 5, Duration.ofDays(1))
+        ));
+        var guest = new AdmissionRequest(
+                "journey.ai",
+                new AdmissionSubject(SubjectType.GUEST, "guest-1")
+        );
+        var member = new AdmissionRequest(
+                "journey.ai",
+                new AdmissionSubject(SubjectType.MEMBER, "member-1")
+        );
+
+        assertThat(service.admit(guest, policy).allowed()).isTrue();
+        assertThat(service.admit(guest, policy).allowed()).isTrue();
+        assertThat(service.admit(guest, policy).allowed()).isFalse();
+
+        for (int index = 0; index < 5; index++) {
+            assertThat(service.admit(member, policy).allowed()).isTrue();
+        }
+        assertThat(service.admit(member, policy).allowed()).isFalse();
+    }
+
+    @Test
+    void activeRunAdmissionDoesNotConsumeQuotaWhenSlotIsFullAndReleaseReturnsCapacity() {
+        var store = new InMemoryAdmissionStore();
+        var service = new AdmissionService(store, clock);
+        var policy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 2, Duration.ofDays(1), 1)
+        ));
+        var request = new AdmissionRequest(
+                "journey.ai",
+                new AdmissionSubject(SubjectType.MEMBER, "member-1")
+        );
+
+        assertThat(service.admitActive(request, policy).allowed()).isTrue();
+        var activeRejected = service.admitActive(request, policy);
+        assertThat(activeRejected.allowed()).isFalse();
+        assertThat(activeRejected.reason()).isEqualTo(AdmissionRejectionReason.ACTIVE_LIMIT);
+
+        service.releaseActive(request, policy);
+        assertThat(service.admitActive(request, policy).allowed()).isTrue();
+        service.releaseActive(request, policy);
+
+        var quotaRejected = service.admitActive(request, policy);
+        assertThat(quotaRejected.allowed()).isFalse();
+        assertThat(quotaRejected.reason()).isEqualTo(AdmissionRejectionReason.QUOTA_EXCEEDED);
+    }
 }

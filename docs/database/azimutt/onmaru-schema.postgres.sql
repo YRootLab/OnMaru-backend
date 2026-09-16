@@ -308,6 +308,9 @@ CREATE TABLE "audio_spot_versions" (
   "location" geography,
   "status" audio_status NOT NULL,
   "hash" varchar NOT NULL,
+  "source_modified_at" timestamptz,
+  "observed" boolean NOT NULL DEFAULT true,
+  "missing_observations" int NOT NULL DEFAULT 0,
   PRIMARY KEY ("revision_id", "spot_id")
 );
 
@@ -322,7 +325,20 @@ CREATE TABLE "audio_story_versions" (
   "duration_seconds" int,
   "status" audio_status NOT NULL,
   "hash" varchar NOT NULL,
+  "transcript_provenance" varchar NOT NULL,
+  "source_modified_at" timestamptz,
+  "observed" boolean NOT NULL DEFAULT true,
+  "missing_observations" int NOT NULL DEFAULT 0,
   PRIMARY KEY ("revision_id", "story_id")
+);
+
+CREATE TABLE "audio_revision_stages" (
+  "revision_id" uuid PRIMARY KEY,
+  "ready" boolean NOT NULL DEFAULT false,
+  "row_count" bigint NOT NULL DEFAULT 0,
+  "empty_full_sync_reviewed" boolean NOT NULL DEFAULT false,
+  "failure_code" varchar,
+  "tombstone_count" bigint NOT NULL DEFAULT 0
 );
 
 CREATE TABLE "audio_subtitle_lines" (
@@ -340,6 +356,7 @@ CREATE TABLE "audio_place_odii_links" (
   "spot_id" uuid NOT NULL,
   "match_method" varchar NOT NULL,
   "confidence" numeric,
+  "review_status" varchar NOT NULL DEFAULT 'APPROVED',
   "verified_at" timestamptz,
   PRIMARY KEY ("place_id", "spot_id")
 );
@@ -527,6 +544,21 @@ CREATE TABLE "operations_admission" (
   "active_count" int NOT NULL
 );
 
+CREATE TABLE "operations_admission_audit" (
+  "id" uuid PRIMARY KEY,
+  "scope_key" varchar NOT NULL,
+  "operation" varchar NOT NULL,
+  "subject_type" varchar NOT NULL,
+  "window_start" timestamptz NOT NULL,
+  "decision" varchar NOT NULL,
+  "reason" varchar,
+  "limit_value" int NOT NULL,
+  "consumed_after" int NOT NULL,
+  "active_after" int NOT NULL,
+  "retry_after_ms" bigint NOT NULL,
+  "occurred_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "operations_sync_schedules" (
   "dataset" varchar PRIMARY KEY,
   "timezone" varchar NOT NULL,
@@ -680,6 +712,8 @@ CREATE INDEX ON "audio_story_versions" ("revision_id", "spot_id");
 
 CREATE INDEX ON "audio_place_odii_links" ("spot_id");
 
+CREATE UNIQUE INDEX "audio_place_odii_links_one_approved_per_spot_uq" ON "audio_place_odii_links" ("spot_id");
+
 CREATE INDEX ON "insights_visitor_observations" ("region_id", "basis_date");
 
 CREATE UNIQUE INDEX ON "insights_tourism_targets" ("provider", "source_target_key");
@@ -729,6 +763,10 @@ CREATE INDEX ON "community_review_reports" ("status", "created_at");
 CREATE INDEX ON "community_review_moderation_actions" ("review_id", "created_at");
 
 CREATE INDEX ON "operations_idempotency" ("expires_at");
+
+CREATE INDEX ON "operations_admission_audit" ("scope_key", "occurred_at");
+
+CREATE INDEX ON "operations_admission_audit" ("operation", "decision", "occurred_at");
 
 CREATE UNIQUE INDEX ON "operations_sync_runs" ("dataset", "scheduled_for", "attempt");
 
@@ -795,6 +833,8 @@ ALTER TABLE "community_review_likes" ADD FOREIGN KEY ("member_id") REFERENCES "i
 ALTER TABLE "community_review_reports" ADD FOREIGN KEY ("reporter_member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "audio_revision_stages" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "insights_visitor_observations" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

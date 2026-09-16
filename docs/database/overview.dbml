@@ -36,6 +36,12 @@ Table audio_odii_stories [headercolor: #F28E2B] {
 Table audio_place_odii_links [headercolor: #F28E2B] {
   place_id uuid [not null]
   spot_id uuid [not null]
+  review_status varchar [not null]
+}
+
+Table audio_revision_stages [headercolor: #F28E2B] {
+  revision_id uuid [pk]
+  ready boolean [not null]
 }
 
 Table insights_visitor_observations [headercolor: #B07AA1] {
@@ -95,6 +101,7 @@ TableGroup catalog [color: #59A14F] {
 TableGroup audio [color: #F28E2B] {
   audio_odii_stories
   audio_place_odii_links
+  audio_revision_stages
 }
 
 TableGroup insights [color: #B07AA1] {
@@ -124,6 +131,7 @@ TableGroup ai [color: #BAB0AC] {
 
 Ref: catalog_regions.parent_id >? catalog_regions.id
 Ref: audio_place_odii_links.place_id > catalog_place_identity.id
+Ref: audio_revision_stages.revision_id > catalog_dataset_revisions.id
 Ref: discovery_explorations.owner_member_id >? identity_members.id
 Ref: discovery_explorations.owner_guest_id >? identity_guests.id
 Ref: discovery_explorations.region_id >? catalog_regions.id

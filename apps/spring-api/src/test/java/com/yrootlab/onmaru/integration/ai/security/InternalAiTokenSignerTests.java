@@ -30,6 +30,7 @@ class InternalAiTokenSignerTests {
                 "req-ai-001",
                 "trace-abc",
                 "run-ai-001",
+                "dataset-2026-09-16",
                 Instant.parse("2026-09-15T10:00:20Z")));
 
         Map<String, Object> header = decodeSegment(token.split("\\.")[0]);
@@ -47,6 +48,7 @@ class InternalAiTokenSignerTests {
                 .containsEntry("requestId", "req-ai-001")
                 .containsEntry("traceId", "trace-abc")
                 .containsEntry("runId", "run-ai-001")
+                .containsEntry("revision", "dataset-2026-09-16")
                 .containsEntry("deadlineAt", "2026-09-15T10:00:20Z");
         assertThat((Integer) claims.get("iat")).isEqualTo(1789466400);
         assertThat((Integer) claims.get("exp")).isEqualTo(1789466460);
@@ -65,11 +67,13 @@ class InternalAiTokenSignerTests {
                 "req-ai-001",
                 "4bf92f3577b34da6a3ce929d0e0e4736",
                 "run-ai-001",
+                "dataset-2026-09-16",
                 Instant.parse("2026-09-15T10:00:20Z")));
 
         assertThat(headers)
                 .containsEntry("X-Request-Id", "req-ai-001")
                 .containsEntry("X-Run-Id", "run-ai-001")
+                .containsEntry("X-Revision", "dataset-2026-09-16")
                 .containsEntry("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01");
         assertThat(headers.get("Authorization")).startsWith("Bearer ");
         assertThat(headers.get("X-Request-Id")).doesNotContain("Bearer");

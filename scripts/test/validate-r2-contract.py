@@ -56,6 +56,7 @@ REQUIRED_FIXTURES = {
     "odii-story-missing-language",
     "odii-story-not-found",
     "insights-observations-normal",
+    "insights-observations-stale",
     "insights-heatmap-normal",
     "insights-coverage-missing",
     "invalid-request",
