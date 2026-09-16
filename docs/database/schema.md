@@ -11,6 +11,10 @@
 // Level 1 overview:
 // ./overview.dbml
 // 아래 DBML은 역사적 Odii 모델이며 새 migration의 전체 스키마가 아니다.
+// Journey durable run의 최신 논리 계약은 ./modules/discovery.dbml의
+// discovery_runs와 discovery_run_commands에 있다.
+// command receipt와 run mutation은 같은 PostgreSQL transaction에서 commit되어야 하며,
+// run snapshot이 SSE보다 우선하는 정답이다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

@@ -21,8 +21,9 @@ WHERE proposal.exploration_id = exploration.id
 
 UPDATE onmaru.discovery_runs run
 SET status = 'CANCELLED',
-    outcome = 'MEMBER_DELETION_RESTORED',
-    error_code = 'MEMBER_DELETED'
+    outcome = NULL,
+    error_code = 'MEMBER_DELETED',
+    generation = generation + 1
 FROM onmaru.discovery_explorations exploration,
      restore_deletion_ledger replay
 WHERE run.exploration_id = exploration.id

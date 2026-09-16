@@ -416,6 +416,21 @@ CREATE TABLE "discovery_runs" (
   "engine" varchar NOT NULL
 );
 
+CREATE TABLE "discovery_run_commands" (
+  "actor_key" varchar NOT NULL,
+  "operation" varchar NOT NULL,
+  "command_key" uuid NOT NULL,
+  "request_hash" varchar NOT NULL,
+  "run_id" uuid NOT NULL,
+  "result_status" discovery_run_status NOT NULL,
+  "result_stage" varchar,
+  "result_outcome" varchar,
+  "result_generation" int NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "expires_at" timestamptz NOT NULL,
+  PRIMARY KEY ("actor_key", "operation", "command_key")
+);
+
 CREATE TABLE "discovery_proposals" (
   "id" uuid PRIMARY KEY,
   "run_id" uuid UNIQUE NOT NULL,
@@ -683,6 +698,8 @@ CREATE INDEX ON "discovery_runs" ("actor_key");
 
 CREATE INDEX ON "discovery_runs" ("deadline_at");
 
+CREATE INDEX ON "discovery_run_commands" ("expires_at");
+
 CREATE INDEX ON "discovery_proposals" ("exploration_id", "status");
 
 CREATE UNIQUE INDEX ON "discovery_turns" ("exploration_id", "client_turn_id");
@@ -740,6 +757,8 @@ COMMENT ON COLUMN "insights_visitor_observations"."visitor_type" IS 'local, dome
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
+
+COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The executable migration enforces the operation/stage allowlists, positive generation, expiry, and composite primary key.';
 
 COMMENT ON COLUMN "journey_saved_resources"."resource_id" IS 'PLACE -> catalog_place_identity.id for every public canonical tourism place (hanok, stay, cafe, experience, market, attraction); ODII_STORY -> audio_odii_stories.id only for standalone replay. Enforced by application eligibility port.';
 
@@ -860,6 +879,8 @@ ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("spot_id") REFERENCES "aud
 ALTER TABLE "insights_target_place_links" ADD FOREIGN KEY ("target_id") REFERENCES "insights_tourism_targets" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "discovery_runs" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "discovery_run_commands" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "discovery_proposals" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
