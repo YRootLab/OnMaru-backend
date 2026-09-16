@@ -1,0 +1,446 @@
+{
+  "$defs": {
+    "DatasetIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "caseCount": {
+          "minimum": 1,
+          "title": "Casecount",
+          "type": "integer"
+        },
+        "goldSha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Goldsha256",
+          "type": "string"
+        },
+        "inputSha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Inputsha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "inputSha256",
+        "goldSha256",
+        "caseCount"
+      ],
+      "title": "DatasetIdentity",
+      "type": "object"
+    },
+    "EvalMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "claimSupport": {
+          "$ref": "#/$defs/RatioMetric"
+        },
+        "evidenceIdPrecision": {
+          "$ref": "#/$defs/RatioMetric"
+        },
+        "latencyP95Ms": {
+          "minimum": 0,
+          "title": "Latencyp95Ms",
+          "type": "integer"
+        },
+        "maxCostMicros": {
+          "minimum": 0,
+          "title": "Maxcostmicros",
+          "type": "integer"
+        },
+        "meanCostMicros": {
+          "minimum": 0,
+          "title": "Meancostmicros",
+          "type": "integer"
+        },
+        "ndcgAt3": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ndcgat3",
+          "type": "number"
+        },
+        "retrievalRecallAt5": {
+          "$ref": "#/$defs/RatioMetric"
+        },
+        "safety": {
+          "$ref": "#/$defs/SafetyMetric"
+        }
+      },
+      "required": [
+        "retrievalRecallAt5",
+        "ndcgAt3",
+        "evidenceIdPrecision",
+        "claimSupport",
+        "safety",
+        "latencyP95Ms",
+        "meanCostMicros",
+        "maxCostMicros"
+      ],
+      "title": "EvalMetrics",
+      "type": "object"
+    },
+    "GateResult": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": [
+            "quality",
+            "safety",
+            "latency",
+            "cost",
+            "determinism"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "observed": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "title": "Observed",
+          "type": "object"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "thresholds": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "title": "Thresholds",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "passed",
+        "observed",
+        "thresholds"
+      ],
+      "title": "GateResult",
+      "type": "object"
+    },
+    "RatioMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "denominator": {
+          "minimum": 0,
+          "title": "Denominator",
+          "type": "integer"
+        },
+        "numerator": {
+          "minimum": 0,
+          "title": "Numerator",
+          "type": "integer"
+        },
+        "value": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "numerator",
+        "denominator",
+        "value"
+      ],
+      "title": "RatioMetric",
+      "type": "object"
+    },
+    "ReportComparison": {
+      "additionalProperties": false,
+      "properties": {
+        "compatible": {
+          "title": "Compatible",
+          "type": "boolean"
+        },
+        "metricDeltas": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "title": "Metricdeltas",
+          "type": "object"
+        }
+      },
+      "required": [
+        "compatible",
+        "metricDeltas"
+      ],
+      "title": "ReportComparison",
+      "type": "object"
+    },
+    "SafetyMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "passingCases": {
+          "minimum": 0,
+          "title": "Passingcases",
+          "type": "integer"
+        },
+        "totalCases": {
+          "minimum": 1,
+          "title": "Totalcases",
+          "type": "integer"
+        },
+        "value": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Value",
+          "type": "number"
+        },
+        "violations": {
+          "minimum": 0,
+          "title": "Violations",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "passingCases",
+        "totalCases",
+        "violations",
+        "value"
+      ],
+      "title": "SafetyMetric",
+      "type": "object"
+    },
+    "VersionPins": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "minLength": 1,
+          "title": "Dataset",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "prompt": {
+          "minLength": 1,
+          "title": "Prompt",
+          "type": "string"
+        },
+        "ranking": {
+          "minLength": 1,
+          "title": "Ranking",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "prompt",
+        "ranking",
+        "dataset"
+      ],
+      "title": "VersionPins",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "cost"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "determinism"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "latency"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "quality"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "safety"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    }
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "gates": {
+          "items": {
+            "properties": {
+              "passed": {
+                "const": true
+              }
+            },
+            "required": [
+              "passed"
+            ]
+          }
+        },
+        "overallPassed": {
+          "const": true
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "passed": {
+                "const": false
+              }
+            },
+            "required": [
+              "passed"
+            ]
+          },
+          "minContains": 1
+        },
+        "overallPassed": {
+          "const": false
+        }
+      }
+    }
+  ],
+  "properties": {
+    "comparison": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReportComparison"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "dataset": {
+      "$ref": "#/$defs/DatasetIdentity"
+    },
+    "gates": {
+      "items": {
+        "$ref": "#/$defs/GateResult"
+      },
+      "maxItems": 5,
+      "minItems": 5,
+      "title": "Gates",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "metrics": {
+      "$ref": "#/$defs/EvalMetrics"
+    },
+    "overallPassed": {
+      "title": "Overallpassed",
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "const": "1.1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "versions": {
+      "$ref": "#/$defs/VersionPins"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "versions",
+    "dataset",
+    "metrics",
+    "gates",
+    "overallPassed"
+  ],
+  "title": "EvalReport",
+  "type": "object"
+}
