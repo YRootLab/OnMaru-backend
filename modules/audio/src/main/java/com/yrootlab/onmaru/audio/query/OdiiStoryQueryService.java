@@ -2,6 +2,9 @@ package com.yrootlab.onmaru.audio.query;
 
 import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLinkQuery;
 import com.yrootlab.onmaru.audio.sync.AudioStatus;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagExtractor;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagSource;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -16,6 +19,7 @@ public final class OdiiStoryQueryService {
     private static final String FALLBACK_LANGUAGE = "ko-KR";
     private static final Pattern LANGUAGE_PATTERN = Pattern.compile("^[a-z]{2}(-[A-Z]{2})?$");
     private static final Pattern STORY_ID_PATTERN = Pattern.compile("^odii-story-[a-z0-9-]{3,80}$");
+    private static final int MAX_CONTENT_TAGS = 7;
     private static final Comparator<OdiiStoryProjection> ORDER = Comparator
             .comparing(OdiiStoryProjection::publishedAt).reversed()
             .thenComparing(OdiiStoryProjection::storyId);
@@ -25,6 +29,7 @@ public final class OdiiStoryQueryService {
     private final ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery;
     private final OdiiPublicAudioUrlPolicy audioUrlPolicy;
     private final OdiiStoryCursorCodec cursorCodec;
+    private final ContentTagPipeline contentTagPipeline;
 
     public OdiiStoryQueryService(
             OdiiStoryQueryStore store,
@@ -32,11 +37,34 @@ public final class OdiiStoryQueryService {
             ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery,
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
             OdiiStoryCursorCodec cursorCodec) {
+        this(store, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
+                ContentTagPipeline.defaultPipeline());
+    }
+
+    public OdiiStoryQueryService(
+            OdiiStoryQueryStore store,
+            OdiiSavedStateLookup savedStateLookup,
+            ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery,
+            OdiiPublicAudioUrlPolicy audioUrlPolicy,
+            OdiiStoryCursorCodec cursorCodec,
+            ContentTagExtractor contentTagExtractor) {
+        this(store, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
+                ContentTagPipeline.of(contentTagExtractor));
+    }
+
+    public OdiiStoryQueryService(
+            OdiiStoryQueryStore store,
+            OdiiSavedStateLookup savedStateLookup,
+            ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery,
+            OdiiPublicAudioUrlPolicy audioUrlPolicy,
+            OdiiStoryCursorCodec cursorCodec,
+            ContentTagPipeline contentTagPipeline) {
         this.store = store;
         this.savedStateLookup = savedStateLookup;
         this.approvedPlaceLinkQuery = approvedPlaceLinkQuery;
         this.audioUrlPolicy = audioUrlPolicy;
         this.cursorCodec = cursorCodec;
+        this.contentTagPipeline = contentTagPipeline;
     }
 
     public OdiiStoryPage list(OdiiStoryQuery query) {
@@ -194,7 +222,22 @@ public final class OdiiStoryQueryService {
                 approvedPlaceLinkQuery.findApprovedPlace(story.spotId(), effectiveMemberId)
                         .map(link -> link.place().placeId())
                         .orElse(null),
+                contentTags(story),
                 savedStateLookup.savedBy(effectiveMemberId, story.storyId()));
+    }
+
+    private List<String> contentTags(OdiiStoryProjection story) {
+        if (!story.contentTags().isEmpty()) {
+            return story.contentTags();
+        }
+        var transcriptText = story.transcript().stream()
+                .map(OdiiTranscriptLine::text)
+                .toList();
+        return contentTagPipeline.generate(ContentTagSource.of(
+                story.title(),
+                story.category(),
+                story.audioTitle(),
+                transcriptText), MAX_CONTENT_TAGS).publicLabels();
     }
 
     private String publicImageUrl(String imageUrl) {

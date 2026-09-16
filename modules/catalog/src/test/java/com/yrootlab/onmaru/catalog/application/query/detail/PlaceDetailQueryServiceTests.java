@@ -37,6 +37,7 @@ class PlaceDetailQueryServiceTests {
             assertThat(place.address()).isNull();
             assertThat(place.coordinates()).isNull();
             assertThat(place.images()).isEmpty();
+            assertThat(place.contentTags()).contains("미상 한옥");
             assertThat(place.savedByMe()).isTrue();
         });
     }
@@ -83,6 +84,7 @@ class PlaceDetailQueryServiceTests {
             assertThat(hanok.mapCard().savedByMe()).isTrue();
             assertThat(hanok.odiiLinkedCard()).isNotNull();
             assertThat(hanok.odiiLinkedCard().placeId()).isEqualTo("p-jeonju-hanok-village");
+            assertThat(hanok.contentTags()).containsSubsequence("한옥 골목", "공예 체험", "야간 산책");
         });
     }
 

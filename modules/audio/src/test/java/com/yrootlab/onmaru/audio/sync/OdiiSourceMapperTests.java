@@ -20,6 +20,7 @@ class OdiiSourceMapperTests {
         assertThat(korean.story().identity()).isNotEqualTo(english.story().identity());
         assertThat(korean.story().identity().stid()).isEqualTo(english.story().identity().stid());
         assertThat(korean.story().transcriptProvenance()).isEqualTo(TranscriptProvenance.OFFICIAL);
+        assertThat(korean.story().contentTags()).contains("한옥마을");
     }
 
     @Test

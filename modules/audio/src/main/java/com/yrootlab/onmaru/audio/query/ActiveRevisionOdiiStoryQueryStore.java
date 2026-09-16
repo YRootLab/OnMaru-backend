@@ -78,6 +78,7 @@ public final class ActiveRevisionOdiiStoryQueryStore implements OdiiStoryQuerySt
                 story.audioUrl(),
                 transcriptStatus,
                 transcript,
+                story.contentTags(),
                 story.sourceModifiedAt(),
                 story.status(),
                 spot.status());

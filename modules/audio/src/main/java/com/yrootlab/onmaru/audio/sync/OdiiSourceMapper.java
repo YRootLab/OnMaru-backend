@@ -1,5 +1,10 @@
 package com.yrootlab.onmaru.audio.sync;
 
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagExtractor;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipelineResult;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagSource;
+
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -10,6 +15,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Set;
 
 public final class OdiiSourceMapper {
@@ -17,6 +23,21 @@ public final class OdiiSourceMapper {
     private static final String PROVIDER = "KTO_ODII";
     private static final Set<String> SUPPORTED_LANGUAGES = Set.of("ko", "en", "ja", "zh-CN", "zh-TW");
     private static final DateTimeFormatter PROVIDER_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final int MAX_CONTENT_TAGS = 7;
+
+    private final ContentTagPipeline contentTagPipeline;
+
+    public OdiiSourceMapper() {
+        this(ContentTagPipeline.defaultPipeline());
+    }
+
+    public OdiiSourceMapper(ContentTagExtractor contentTagExtractor) {
+        this(ContentTagPipeline.of(contentTagExtractor));
+    }
+
+    public OdiiSourceMapper(ContentTagPipeline contentTagPipeline) {
+        this.contentTagPipeline = contentTagPipeline;
+    }
 
     public OdiiMappedStory map(OdiiSourceStory source) {
         String language = required(source.langCode(), "langCode");
@@ -55,6 +76,7 @@ public final class OdiiSourceMapper {
                 AudioStatus.ACTIVE,
                 hash(spotIdentity, sourceTitle, longitude, latitude, modifiedAt)
         );
+        var contentTagResult = contentTags(sourceTitle, storyTitle, script);
         var story = new OdiiStoryVersion(
                 storyIdentity,
                 spotIdentity,
@@ -66,9 +88,22 @@ public final class OdiiSourceMapper {
                 duration,
                 modifiedAt,
                 AudioStatus.ACTIVE,
+                contentTagResult.publicLabels(),
+                contentTagResult.qualityReport(),
                 hash(storyIdentity, spotIdentity, storyTitle, script, audioUrl, imageUrl, duration, modifiedAt)
         );
         return new OdiiMappedStory(spot, story);
+    }
+
+    private ContentTagPipelineResult contentTags(
+            String sourceTitle,
+            String storyTitle,
+            String script) {
+        return contentTagPipeline.generate(ContentTagSource.of(
+                storyTitle,
+                null,
+                sourceTitle,
+                script == null ? List.of() : List.of(script)), MAX_CONTENT_TAGS);
     }
 
     private String required(String value, String field) {

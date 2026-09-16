@@ -211,6 +211,31 @@ CREATE TABLE "catalog_hanok_detail_versions" (
   PRIMARY KEY ("revision_id", "place_id")
 );
 
+CREATE TABLE "catalog_place_content_tag_versions" (
+  "revision_id" varchar(36) NOT NULL,
+  "place_id" varchar(36) NOT NULL,
+  "position" int NOT NULL,
+  "label" varchar NOT NULL,
+  "score" numeric NOT NULL,
+  "source" varchar(32) NOT NULL,
+  "algorithm_version" varchar NOT NULL,
+  "source_hash" varchar NOT NULL,
+  "generated_at" timestamp NOT NULL,
+  PRIMARY KEY ("revision_id", "place_id", "position")
+);
+
+CREATE TABLE "content_tag_overrides" (
+  "id" varchar(36) PRIMARY KEY,
+  "target_type" varchar(32) NOT NULL,
+  "target_id" varchar(36) NOT NULL,
+  "label" varchar NOT NULL,
+  "action" varchar(32) NOT NULL,
+  "reason" text,
+  "created_by" varchar(36),
+  "created_at" timestamp NOT NULL,
+  "expires_at" timestamp
+);
+
 CREATE TABLE "audio_odii_spots" (
   "id" varchar(36) PRIMARY KEY,
   "provider" varchar NOT NULL,
@@ -272,6 +297,19 @@ CREATE TABLE "audio_place_odii_links" (
   "confidence" numeric,
   "verified_at" timestamp,
   PRIMARY KEY ("place_id", "spot_id")
+);
+
+CREATE TABLE "audio_story_content_tag_versions" (
+  "revision_id" varchar(36) NOT NULL,
+  "story_id" varchar(36) NOT NULL,
+  "position" int NOT NULL,
+  "label" varchar NOT NULL,
+  "score" numeric NOT NULL,
+  "source" varchar(32) NOT NULL,
+  "algorithm_version" varchar NOT NULL,
+  "source_hash" varchar NOT NULL,
+  "generated_at" timestamp NOT NULL,
+  PRIMARY KEY ("revision_id", "story_id", "position")
 );
 
 CREATE TABLE "insights_visitor_observations" (
@@ -603,6 +641,12 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
+
+
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -705,6 +749,8 @@ ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("place_id") REFEREN
 
 ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("source_ref_id") REFERENCES "catalog_place_sources" ("id");
 
+ALTER TABLE "catalog_place_content_tag_versions" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id");
+
 ALTER TABLE "audio_odii_stories" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id");
 
 ALTER TABLE "audio_spot_versions" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id");
@@ -716,6 +762,8 @@ ALTER TABLE "audio_story_versions" ADD FOREIGN KEY ("spot_id") REFERENCES "audio
 ALTER TABLE "audio_subtitle_lines" ADD FOREIGN KEY ("story_id") REFERENCES "audio_odii_stories" ("id");
 
 ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id");
+
+ALTER TABLE "audio_story_content_tag_versions" ADD FOREIGN KEY ("revision_id", "story_id") REFERENCES "audio_story_versions" ("revision_id", "story_id");
 
 ALTER TABLE "insights_target_place_links" ADD FOREIGN KEY ("target_id") REFERENCES "insights_tourism_targets" ("id");
 

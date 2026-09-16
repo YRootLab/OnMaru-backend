@@ -12,5 +12,10 @@ public record CanonicalPlaceDetail(
         CoordinatesProjection coordinates,
         List<ImageProjection> images,
         String description,
+        List<String> contentTags,
         boolean savedByMe) {
+
+    public CanonicalPlaceDetail {
+        contentTags = contentTags == null ? List.of() : List.copyOf(contentTags);
+    }
 }

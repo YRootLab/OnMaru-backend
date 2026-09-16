@@ -21,6 +21,22 @@ CREATE TYPE "catalog_place_status" AS ENUM (
   'DELETED'
 );
 
+CREATE TYPE "content_tag_source" AS ENUM (
+  'GENERATED',
+  'PINNED',
+  'OPERATOR'
+);
+
+CREATE TYPE "content_tag_override_target" AS ENUM (
+  'PLACE',
+  'ODII_STORY'
+);
+
+CREATE TYPE "content_tag_override_action" AS ENUM (
+  'PIN',
+  'HIDE'
+);
+
 CREATE TYPE "audio_status" AS ENUM (
   'ACTIVE',
   'HIDDEN',
@@ -281,6 +297,31 @@ CREATE TABLE "catalog_hanok_detail_versions" (
   PRIMARY KEY ("revision_id", "place_id")
 );
 
+CREATE TABLE "catalog_place_content_tag_versions" (
+  "revision_id" uuid NOT NULL,
+  "place_id" uuid NOT NULL,
+  "position" int NOT NULL,
+  "label" varchar NOT NULL,
+  "score" numeric NOT NULL,
+  "source" content_tag_source NOT NULL,
+  "algorithm_version" varchar NOT NULL,
+  "source_hash" varchar NOT NULL,
+  "generated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("revision_id", "place_id", "position")
+);
+
+CREATE TABLE "content_tag_overrides" (
+  "id" uuid PRIMARY KEY,
+  "target_type" content_tag_override_target NOT NULL,
+  "target_id" uuid NOT NULL,
+  "label" varchar NOT NULL,
+  "action" content_tag_override_action NOT NULL,
+  "reason" text,
+  "created_by" uuid,
+  "created_at" timestamptz NOT NULL,
+  "expires_at" timestamptz
+);
+
 CREATE TABLE "audio_odii_spots" (
   "id" uuid PRIMARY KEY,
   "provider" varchar NOT NULL,
@@ -342,6 +383,19 @@ CREATE TABLE "audio_place_odii_links" (
   "confidence" numeric,
   "verified_at" timestamptz,
   PRIMARY KEY ("place_id", "spot_id")
+);
+
+CREATE TABLE "audio_story_content_tag_versions" (
+  "revision_id" uuid NOT NULL,
+  "story_id" uuid NOT NULL,
+  "position" int NOT NULL,
+  "label" varchar NOT NULL,
+  "score" numeric NOT NULL,
+  "source" content_tag_source NOT NULL,
+  "algorithm_version" varchar NOT NULL,
+  "source_hash" varchar NOT NULL,
+  "generated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("revision_id", "story_id", "position")
 );
 
 CREATE TABLE "insights_visitor_observations" (
@@ -653,6 +707,14 @@ CREATE INDEX ON "catalog_kto_korean_content_versions" ("cat1", "cat2", "cat3");
 
 CREATE INDEX ON "catalog_place_image_versions" ("source_ref_id");
 
+CREATE UNIQUE INDEX ON "catalog_place_content_tag_versions" ("revision_id", "place_id", "label");
+
+CREATE INDEX ON "catalog_place_content_tag_versions" ("label", "revision_id");
+
+CREATE UNIQUE INDEX ON "content_tag_overrides" ("target_type", "target_id", "label", "action");
+
+CREATE INDEX ON "content_tag_overrides" ("target_type", "target_id");
+
 CREATE UNIQUE INDEX ON "audio_odii_spots" ("provider", "tid", "tlid");
 
 CREATE UNIQUE INDEX ON "audio_odii_stories" ("provider", "stid", "stlid");
@@ -664,6 +726,10 @@ CREATE INDEX ON "audio_spot_versions" USING GIST ("location");
 CREATE INDEX ON "audio_story_versions" ("revision_id", "spot_id");
 
 CREATE INDEX ON "audio_place_odii_links" ("spot_id");
+
+CREATE UNIQUE INDEX ON "audio_story_content_tag_versions" ("revision_id", "story_id", "label");
+
+CREATE INDEX ON "audio_story_content_tag_versions" ("label", "revision_id");
 
 CREATE INDEX ON "insights_visitor_observations" ("region_id", "basis_date");
 
@@ -845,6 +911,8 @@ ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("place_id") REFEREN
 
 ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("source_ref_id") REFERENCES "catalog_place_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
+ALTER TABLE "catalog_place_content_tag_versions" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id") DEFERRABLE INITIALLY IMMEDIATE;
+
 ALTER TABLE "audio_odii_stories" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "audio_spot_versions" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id") DEFERRABLE INITIALLY IMMEDIATE;
@@ -856,6 +924,8 @@ ALTER TABLE "audio_story_versions" ADD FOREIGN KEY ("spot_id") REFERENCES "audio
 ALTER TABLE "audio_subtitle_lines" ADD FOREIGN KEY ("story_id") REFERENCES "audio_odii_stories" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "audio_story_content_tag_versions" ADD FOREIGN KEY ("revision_id", "story_id") REFERENCES "audio_story_versions" ("revision_id", "story_id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "insights_target_place_links" ADD FOREIGN KEY ("target_id") REFERENCES "insights_tourism_targets" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

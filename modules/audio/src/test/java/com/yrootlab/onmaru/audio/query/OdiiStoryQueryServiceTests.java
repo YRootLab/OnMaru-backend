@@ -69,6 +69,7 @@ class OdiiStoryQueryServiceTests {
         assertThat(first.languageStatus()).isEqualTo(OdiiLanguageStatus.EXACT);
         assertThat(first.items()).extracting(OdiiStorySummary::storyId)
                 .containsExactly("odii-story-jeonju-hanok-01");
+        assertThat(first.items().getFirst().contentTags()).contains("한옥 골목");
         assertThat(first.items().getFirst().savedByMe()).isTrue();
         assertThat(first.hasMore()).isTrue();
         assertThat(first.nextCursor()).isNotBlank();
@@ -96,6 +97,20 @@ class OdiiStoryQueryServiceTests {
     }
 
     @Test
+    void usesPublishedStoryContentTagsBeforeRuntimeExtraction() {
+        var published = story("odii-story-jeonju-hanok-01", "ko-KR", "한옥/고택", "kr-45-jeonju",
+                Instant.parse("2026-09-15T02:00:00Z"), OdiiTranscriptStatus.OFFICIAL, AudioStatus.ACTIVE)
+                .withContentTags(List.of("검수 태그", "저장 태그"));
+        store.replaceActive(snapshot(REVISION_ONE, published));
+
+        var page = service.list(OdiiStoryQuery.firstPage("ko-KR", 20, Optional.empty()));
+        var detail = service.detail("odii-story-jeonju-hanok-01", "ko-KR", Optional.empty());
+
+        assertThat(page.items().getFirst().contentTags()).containsExactly("검수 태그", "저장 태그");
+        assertThat(detail.story().contentTags()).containsExactly("검수 태그", "저장 태그");
+    }
+
+    @Test
     void preservesOfficialEstimatedAndMissingTranscriptStatus() {
         store.replaceActive(snapshot(REVISION_ONE,
                 story("odii-story-official-01", "ko-KR", "한옥/고택", "kr-45-jeonju",
@@ -112,6 +127,7 @@ class OdiiStoryQueryServiceTests {
         assertThat(official.coverageStatus()).isEqualTo(OdiiCoverageStatus.COMPLETE);
         assertThat(official.transcriptStatus()).isEqualTo(OdiiTranscriptStatus.OFFICIAL);
         assertThat(official.transcript()).hasSize(2);
+        assertThat(official.story().contentTags()).contains("한옥 골목");
         assertThat(estimated.coverageStatus()).isEqualTo(OdiiCoverageStatus.PARTIAL);
         assertThat(estimated.transcriptStatus()).isEqualTo(OdiiTranscriptStatus.ESTIMATED);
         assertThat(estimated.transcript()).hasSize(2);
@@ -332,6 +348,7 @@ class OdiiStoryQueryServiceTests {
                 "https://cdn.onmaru.example/odii/" + storyId + ".mp3",
                 transcriptStatus,
                 transcript,
+                List.of(),
                 publishedAt,
                 storyStatus,
                 spotStatus);
@@ -354,6 +371,7 @@ class OdiiStoryQueryServiceTests {
                 story.audioUrl(),
                 story.transcriptStatus(),
                 transcript,
+                story.contentTags(),
                 story.publishedAt(),
                 story.status(),
                 story.spotStatus());
@@ -374,6 +392,7 @@ class OdiiStoryQueryServiceTests {
                 story.audioUrl(),
                 story.transcriptStatus(),
                 story.transcript(),
+                story.contentTags(),
                 story.publishedAt(),
                 story.status(),
                 story.spotStatus());

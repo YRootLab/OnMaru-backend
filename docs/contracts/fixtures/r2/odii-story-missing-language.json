@@ -37,6 +37,7 @@
           "durationSeconds": 185,
           "imageUrl": "https://cdn.onmaru.example/odii/odii-story-jeonju-hanok-01.jpg",
           "linkedPlaceId": "p-jeonju-hanok-village",
+          "contentTags": ["한옥 골목", "전주 한옥마을", "처마", "담장"],
           "savedByMe": false
         }
       ],

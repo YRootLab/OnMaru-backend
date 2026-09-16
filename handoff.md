@@ -1,5 +1,20 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-17 Issue #208
+
+- 현재 작업 브랜치와 worktree: `feature/208-content-tags`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/content-tags`.
+- 관련 Issue: #208 `[Feat/나중에 시간남으면] Keyword Extraction / Keyphrase Extraction 활용해서 내용에 키워드를 추출해서 관리해보자`.
+- 구현 범위: 한국관광공사/Odii 제공 태그가 아니라 OnMaru 자체 `contentTags`를 추가했다. 장소/한옥 상세는 이름·카테고리·description·highlights, Odii는 title·audioTitle·category·transcript lines에서 LLM 없이 추출한다.
+- 알고리즘/pipeline: `modules:catalog`의 `ContentTagExtractor`가 한국어/영문 토큰 정규화, 1~2 gram 후보, 빈도/위치/co-occurrence 성격 점수, 관광 도메인 phrase boost, 불용어 제거를 적용한다. `ContentTagPipeline`이 source hash, 자동 generic/filler 제거, 예외용 PIN/HIDE override, 품질 리포트, 최대 7개 제한을 표준 flow로 묶는다.
+- 운영 튜닝: stopword/generic phrase/domain phrase/generic label은 `modules/catalog/src/main/resources/content-tags/*.txt`로 분리했다. `ContentTagQualityPolicy` 기준은 `EMPTY_RESULT`, `LOW_CONFIDENCE`, `GENERIC_HEAVY`를 내부 관측성 신호로 만든다.
+- Odii sync: `OdiiSourceMapper`가 sync mapping 단계에서 `OdiiStoryVersion.contentTags`와 `contentTagQualityReport`를 저장하고, `OdiiRevisionSyncService`가 `OdiiSyncResult.contentTagQuality`로 revision 단위 품질 요약을 집계한다. 이 값은 FE 공개 API에 노출하지 않는다.
+- API 계약: `GET /api/v1/places/{placeId}`와 `GET /api/v1/hanoks/{placeId}`의 body, `GET /api/v1/odii/stories`의 `items[]`, `GET /api/v1/odii/stories/{storyId}`의 `story`에 required `contentTags: string[]`가 추가됐다. 값에는 `#`을 포함하지 않는다.
+- DB/schema: V009 migration으로 `catalog_place_content_tag_versions`, `audio_story_content_tag_versions`, `content_tag_overrides`를 추가했고 DBML/Azimutt artifacts와 migration registry를 갱신했다.
+- 문서/FE 전달: `docs/contracts/openapi/r1.openapi.yaml`, `docs/contracts/openapi/r2-map-audio-insights.openapi.yaml`, 관련 fixture, `docs/toFE/content-tags.md`, `docs/toFE/README.md`, 설계/계획 문서 `docs/superpowers/specs/2026-09-16-content-tags-design.md`, `docs/superpowers/specs/2026-09-16-content-tags-pipeline-hardening-design.md`, `docs/superpowers/plans/2026-09-16-content-tags.md`, `docs/superpowers/plans/2026-09-16-content-tags-pipeline-hardening.md`를 갱신했다.
+- 작업 로그: `troubleshooting-worklog/26.09.16 content-tags-hardening.md`에 기존 부족점, 고도화 이유, pipeline, sync 품질 요약, lexicon resource 분리를 자세히 기록했다.
+- 검증: `./gradlew :modules:catalog:test :modules:audio:test --no-daemon`, `./gradlew :apps:spring-api:test --tests '*PlaceDetailWebBoundaryTests' --tests '*OdiiStoryWebBoundaryTests' --tests '*SavedOdiiResourceWebBoundaryTests' --no-daemon`, `node --test scripts/test/migration-policy.test.mjs`, `bash scripts/verify-contracts`, `git diff --check` 통과. `verify-contracts`의 LibreSSL warning은 로컬 Python 환경 warning이며 계약/fixture 검증은 성공했다.
+- 남은 후속: DB에서 `content_tag_overrides`를 읽는 adapter, catalog/audio 실제 persistence adapter 저장 연결, 관리자 override API, 검색 ranking boost, 태그 클릭/필터 API, 품질 dashboard는 별도 Issue로 분리하는 것이 좋다.
+
 ## Current Session Quick Handoff - 2026-09-16 Issue #101
 
 - 현재 작업 브랜치와 worktree: `feature/101-exploration-intake`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-101-exploration-intake`.

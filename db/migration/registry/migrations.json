@@ -77,6 +77,15 @@
       "checksum": "d06-v008-20260915",
       "sha256": "c419acd48def3a6a9a331de0b78a589bd965ae99407a2b5e56b79a1130a92788",
       "description": "Odii audio spot, story, version, subtitle, and place link schema"
+    },
+    {
+      "version": "013",
+      "reservedFor": "CONTENT_TAGS",
+      "issueNumber": 208,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V013__content_tag_projection_schema.sql",
+      "checksum": "content-tags-v013-20260917",
+      "sha256": "5080fa0f6f6bb798b7f12765564b34fdcfb2725e502208b1594aa75c4172b171",
+      "description": "Content tag projection storage and operator override schema"
     }
   ]
 }
