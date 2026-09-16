@@ -44,17 +44,16 @@
 - 검증: eval 21개와 production proposal validator 42개, FastAPI 전체 125 passed·1 opt-in live smoke skipped, Ruff/mypy, Node 37개, contract validator 9개, planning/Odii, offline 5 gates·schema/byte 재현성, Gradle 전체 41 tasks를 통과했다.
 - 다음 단계: `develop` 대상 PR의 `verify` CI와 최소 1명 approval을 확인한다. Merge 후 #111 상태를 조회하고 `develop` 대상 auto-close가 적용되지 않으면 정책에 따라 검증 근거를 남긴 뒤 수동 close 여부를 조정한다.
 
-## Current Session Quick Handoff - 2026-09-16 Issue #103
+## Current Session Quick Handoff - 2026-09-16 Issue #113
 
-- 현재 작업 브랜치와 worktree: `fix/103-atomic-active-snapshot`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/fix-103-atomic-snapshot`.
-- 관련 Issue: #103 `[A03] Odii story·음원·대본 공개 API 구현`; PR #204 병합 후 감사에서 revision ID와 snapshot의 비원자 read 경쟁 조건을 재현해 Issue를 다시 열었다.
-- 보완 PR: #207 `fix(audio): active revision snapshot 원자성 보장`, base `develop`, head `fix/103-atomic-active-snapshot`.
-- 원인: `ActiveRevisionOdiiStoryQueryStore`가 `activeRevision`과 `activeSnapshot`을 따로 읽어 두 호출 사이 publish가 완료되면 이전 revision ID와 새 snapshot을 조합할 수 있었다. 첫 페이지 cursor가 이전 revision에 묶이고 본문은 새 revision 기준이 되어 다음 페이지가 즉시 `CURSOR_EXPIRED`가 될 수 있었다.
-- 수정: `AudioRevisionStore`가 revision ID와 defensive-copy snapshot을 단일 `ActiveAudioRevision` value로 반환하고, in-memory store가 하나의 synchronized read로 구성하며 공개 query adapter는 이 원자 API만 사용한다.
-- 회귀 테스트: `ActiveRevisionOdiiStoryQueryStoreTests.keepsRevisionAndSnapshotFromTheSameAtomicPublicationRead`가 publish interleave를 결정적으로 모사한다.
-- 검증: PR #207의 `verify` CI는 성공했다. 로컬 검증은 `./gradlew :modules:audio:test --tests '*ActiveRevisionOdiiStoryQueryStoreTests' --no-daemon --max-workers=1`, `./gradlew :modules:audio:test --no-daemon --max-workers=1`, `node scripts/print-branch-issue.mjs`, `git diff --check`를 통과했다.
-- 다음 단계: 독립 review와 최소 1명 approval을 확인한 뒤 PR #207을 `develop`에 병합한다. 병합 후 #103 상태를 조회하고, `develop` 대상 auto-close가 적용되지 않으면 병합 PR과 검증 근거를 comment로 남긴 뒤 수동 close한다. #113은 #103이 다시 Closed일 때 시작한다.
+- 현재 작업 브랜치와 worktree: `feature/113-odii-saved-resource`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-113-odii-saved-resource`.
+- 관련 Issue: #113 `[I06] Odii story 저장과 saved-resource 목록 구현`; 모든 dependency #77/#103/#86/#87/#132는 Closed이며 작업 시작 시 열린 중복 PR이 없었다.
+- 구현: 회원 전용 Odii PUT/DELETE desired state와 type별 300개 상한, `type` 필수 saved-resource 목록, 외부 비노출 UUID row ID 기반 `(savedAt DESC, id DESC)` actor-bound signed cursor, Catalog/Audio current-public hydration을 추가했다. 중복 PUT은 최초 row ID와 `savedAt`을 유지한다.
+- 보안/정책: auth·CSRF·private `no-store` 경계를 유지하고, 다른 actor cursor는 404로 숨긴다. hidden/deleted story는 저장 404 및 목록 제외, raw provider ID와 내부 row ID는 응답하지 않으며 ODII 저장은 PLACE 저장을 만들지 않는다. Audio/Place current source 부재는 PUT/목록에서 공통 503으로 fail-closed한다.
+- DB: V006가 이미 `ODII_STORY` enum, actor/type/resource 유니크 제약과 목록 인덱스를 제공하므로 migration과 schema 문서 변경은 필요하지 않았다.
+- 테스트: `SavedOdiiResourceWebBoundaryTests`가 저장/삭제 멱등성, actor/type cursor binding, current hydration, source unavailable 503과 보안 경계를 검증한다. 최신 develop 병합 후 `./gradlew :apps:spring-api:test --no-daemon --stacktrace`, `./gradlew :modules:journey:test --no-daemon`, contract pytest, `bash scripts/verify-contracts`, branch parser, `git diff --check`가 통과했다.
+- 다음 단계: 변경 push 후 `develop` 대상 PR #210의 CI와 최소 1명 approval을 확인한다. approval 전에는 merge하지 않는다.
 
 ## Cleanup Note
 
-- 2026-09-16에 오래된 다른 Issue의 `Current Session Quick Handoff` 블록을 제거했다. 완료되었거나 별도 worktree/PR의 과거 상태였고, 현재 #103 fix 재시작에는 필요하지 않았다.
+- 2026-09-16에 오래된 다른 Issue의 `Current Session Quick Handoff` 블록을 제거했다. 완료되었거나 별도 worktree/PR의 과거 상태였고, 현재 #113 재시작에는 필요하지 않았다.

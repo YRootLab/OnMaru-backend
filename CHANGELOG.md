@@ -5,6 +5,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 ## Unreleased
 
 - Issue #109의 PostgreSQL 기반 run 상태 머신, CAS terminal 전이, durable command replay와 active run 제약을 추가했다.
+- Issue #113의 회원 전용 Odii story 저장·삭제와 type별 current-public saved-resource 목록, actor-bound signed cursor를 추가했다.
 - Issue #101의 guest/member Exploration 생성·조회·turn intake, 소유권 은닉과 지역 clarification fast-path를 추가했다.
 - Issue #103의 active Odii story 목록·상세 조회, 언어 fallback, 자막 provenance, 안전한 media URL 정책, 원자 published revision snapshot과 승인된 canonical place 연결을 추가했다.
 - Issue #111의 deterministic AI held-out 평가, 품질·근거·안전·p95·비용 gate와 비교 가능한 report schema를 추가했다.
