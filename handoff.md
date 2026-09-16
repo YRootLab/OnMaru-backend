@@ -9,6 +9,7 @@
 - 관측성: run snapshot route는 기존 `CorrelationFilter` telemetry에 `http.route`, status code, request id가 기록되는 것을 boundary test로 고정했다.
 - 계약: Journey OpenAPI `RunSnapshot`에 status/outcome/stage/clarification 조합 oneOf invariant와 `RunClarification` 필수 필드 schema를 추가했다. `ExplorationSnapshot`에는 `unavailableRefs`를 required 필드로 추가하고 queued run 조회, other actor 404, unavailable ref fixture를 필수 journey fixture에 포함했다.
 - 검증: TDD RED에서 신규 Spring boundary 테스트가 endpoint/hydration/unavailable 미구현으로 실패함을 확인한 뒤 구현했다. 독립 리뷰 지적으로 `COMPLETED`의 non-null stage와 빈 clarification이 schema를 통과하는 구멍을 막고 negative invariant sample을 validator에 추가했다. 이후 `python3 scripts/test/validate-journey-contract.py`, `bash scripts/verify-contracts`, `./gradlew :modules:journey:test :apps:spring-api:test`, `git diff --check`, branch parser `115`가 통과했다. 로컬 Python 3.9 계약 검증은 urllib3 LibreSSL 경고를 출력하지만 exit code 0으로 완료됐다.
+- PR: #215 `feat(journey): Exploration run snapshot 복구 조회 구현` (`develop` 대상, `Closes #115`). CI와 approval 전에는 merge하지 않는다.
 
 ## Current Session Quick Handoff - 2026-09-16 Issue #109
 
