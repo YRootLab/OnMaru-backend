@@ -29,7 +29,7 @@ printf '%s\n' 'synthetic-backup-key-32-bytes-minimum-value' > "$work_dir/backup-
 printf '%s\n' 'synthetic-ledger-key-32-bytes-minimum-value' > "$work_dir/ledger-key"
 chmod 644 "$work_dir/backup-key" "$work_dir/ledger-key"
 
-docker build -t "$image" "$root/infra/backup"
+docker build --pull=false -t "$image" "$root/infra/backup"
 docker network create "$network" >/dev/null
 
 docker run -d \

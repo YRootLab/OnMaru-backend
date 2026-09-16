@@ -102,6 +102,7 @@ describe('PostgreSQL backup and restore drill', () => {
     assert.match(drill, /--platform/);
     assert.match(drill, /postgis\/postgis:17-3\.5-alpine/);
     assert.match(drill, /PostGIS_Version/);
+    assert.match(drill, /docker build --pull=false/);
     assert.match(drill, /PostgreSQL init process complete/);
     assert.match(drill, /dropdb/);
     assert.match(drill, /--template=template0/);
