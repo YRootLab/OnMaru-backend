@@ -1,5 +1,16 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #106
+
+- 현재 작업 브랜치와 worktree: `feature/106-corpus-manifest-sync`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-106-corpus-manifest-sync`.
+- 관련 Issue: #106 `[AI07] Revision-pinned corpus export·manifest sync 구현`; blocked-by #74/#95/#96은 모두 Closed였다.
+- 구현 범위: Spring internal corpus export scaffold와 FastAPI corpus pull/stage/ACK service를 추가했다. Spring은 immutable revision publish, canonical JSON 기반 manifest/document hash, tombstone manifest entry, revision-pinned document fetch, ACK endpoint와 manifest hash 검증을 제공한다. FastAPI는 duplicate pull insert 0, partial fetch reject, hash mismatch reject, out-of-order manifest rollback 방지, complete activation tombstone 적용을 처리한다.
+- 계약 문서: `docs/contracts/openapi/internal-ai.yaml`에 corpus manifest/document/ACK private contract를 추가했다.
+- 작업 로그: `troubleshooting-worklog/26.09.16 corpus-manifest-sync.md`.
+- 독립 리뷰 보완: ACK endpoint 누락, Spring controller 응답 shape와 OpenAPI 불일치, Spring/FastAPI hash canonicalization 불일치, store-null service split 문제를 수정했다. Spring/Python 양쪽에 같은 document/manifest hash literal 회귀 테스트를 추가했다.
+- 검증: focused Spring corpus tests, Spring app 전체 테스트, Gradle 전체 `test` 41 tasks, FastAPI 전체 pytest 185 passed/1 skipped, corpus Ruff/mypy, contract validation, `scripts/verify-contracts`, `git diff --check`, branch parser `106`을 통과했다. 첫 `./gradlew test`는 Gradle result binary `NoSuchFileException`으로 실패했으나 `:apps:spring-api:cleanTest :apps:spring-api:test` 성공 후 전체 `./gradlew test`를 재실행해 성공했다. contract 검증 중 Python 3.9/LibreSSL `urllib3 NotOpenSSLWarning`은 출력됐지만 실패는 아니다.
+- 다음 단계: PR 생성 전 work log cleanup과 Issue #106 AC를 다시 대조한다.
+
 ## Current Session Quick Handoff - 2026-09-16 Issue #101
 
 - 현재 작업 브랜치와 worktree: `feature/101-exploration-intake`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-101-exploration-intake`.
