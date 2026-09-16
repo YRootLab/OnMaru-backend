@@ -28,4 +28,4 @@ curl http://localhost:8001/ready
 
 ## 현재 범위
 
-현재 서비스는 외부 모델이나 DB에 연결하지 않는다. Gemini adapter, 내부 서비스 인증, guardrail과 RAG 의존성은 각 후속 Issue가 계약과 버전을 정한 뒤 추가한다.
+Gemini adapter는 opt-in composition에서만 외부 모델에 연결한다. 기본 health runtime은 외부 호출을 만들지 않으며, 설정과 제한된 smoke 절차는 [`docs/ai/gemini-provider-adapter.md`](../docs/ai/gemini-provider-adapter.md)를 따른다. DB와 RAG 연결은 각 후속 Issue가 계약과 버전을 정한 뒤 추가한다.
