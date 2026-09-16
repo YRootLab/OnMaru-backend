@@ -2,6 +2,9 @@ package com.yrootlab.onmaru.security.oauth.kakao;
 
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
+import com.yrootlab.onmaru.identity.guest.GuestCredentialService;
+import com.yrootlab.onmaru.identity.guest.GuestGrantService;
+import com.yrootlab.onmaru.identity.guest.InMemoryGuestOwnershipStore;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.OAuthLoginService;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
@@ -34,6 +37,33 @@ public class KakaoOAuthConfiguration {
             SecretProvider secretProvider,
             Clock clock) {
         return new MemberLifecycleService(
+                store,
+                new TokenHasher(secretProvider.get("oauth.client-secret").current()),
+                clock);
+    }
+
+    @Bean
+    InMemoryGuestOwnershipStore guestOwnershipStore() {
+        return new InMemoryGuestOwnershipStore();
+    }
+
+    @Bean
+    GuestCredentialService guestCredentialService(
+            InMemoryGuestOwnershipStore store,
+            SecretProvider secretProvider,
+            Clock clock) {
+        return new GuestCredentialService(
+                store,
+                new TokenHasher(secretProvider.get("oauth.client-secret").current()),
+                clock);
+    }
+
+    @Bean
+    GuestGrantService guestGrantService(
+            InMemoryGuestOwnershipStore store,
+            SecretProvider secretProvider,
+            Clock clock) {
+        return new GuestGrantService(
                 store,
                 new TokenHasher(secretProvider.get("oauth.client-secret").current()),
                 clock);
