@@ -259,6 +259,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-sdk" },
@@ -267,7 +268,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
@@ -276,6 +276,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.116,<1.0" },
+    { name = "httpx", specifier = ">=0.28,<1.0" },
     { name = "opentelemetry-api", specifier = ">=1.37,<2.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.37,<2.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.37,<2.0" },
@@ -284,7 +285,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.28,<1.0" },
     { name = "mypy", specifier = ">=1.17,<2.0" },
     { name = "pytest", specifier = ">=8.4,<10.0" },
     { name = "ruff", specifier = ">=0.12,<1.0" },
