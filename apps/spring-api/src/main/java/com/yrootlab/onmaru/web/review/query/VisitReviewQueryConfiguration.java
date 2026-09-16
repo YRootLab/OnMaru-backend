@@ -6,6 +6,7 @@ import com.yrootlab.onmaru.community.command.review.VisitReviewPlace;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlaceLookup;
 import com.yrootlab.onmaru.community.like.VisitReviewLikeService;
 import com.yrootlab.onmaru.community.moderation.InMemoryReviewReportStore;
+import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
 import com.yrootlab.onmaru.community.moderation.ReviewReportIdGenerator;
 import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
@@ -67,6 +68,14 @@ class VisitReviewQueryConfiguration {
                 sequentialUuidGenerator(900),
                 sequentialUuidGenerator(1900),
                 clock);
+    }
+
+    @Bean
+    ModerationQueueService moderationQueueService(
+            InMemoryVisitReviewStore reviewStore,
+            InMemoryReviewReportStore reportStore,
+            Clock clock) {
+        return new ModerationQueueService(reviewStore, reportStore, clock);
     }
 
     @Bean

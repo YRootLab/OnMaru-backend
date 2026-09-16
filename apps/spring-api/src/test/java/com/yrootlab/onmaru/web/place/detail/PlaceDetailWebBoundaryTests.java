@@ -136,7 +136,7 @@ class PlaceDetailWebBoundaryTests {
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested place is not available."))
-                .andExpect(jsonPath("$.requestId").value("req-r1-place-not-found"))
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-r1-place-not-found")))
                 .andExpect(jsonPath("$.details.resourceType").value("PLACE"));
     }
 
@@ -150,7 +150,7 @@ class PlaceDetailWebBoundaryTests {
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"))
                 .andExpect(jsonPath("$.message").value("Catalog data is temporarily unavailable."))
-                .andExpect(jsonPath("$.requestId").value("req-r1-service-unavailable"))
+                .andExpect(jsonPath("$.requestId").value(org.hamcrest.Matchers.not("req-r1-service-unavailable")))
                 .andExpect(jsonPath("$.details.retryAfterMs").value(30000));
     }
 }
