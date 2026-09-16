@@ -16,6 +16,7 @@ public final class InternalAiRequestHeadersFactory {
         headers.put("Authorization", "Bearer " + tokenSigner.sign(request));
         headers.put("X-Request-Id", request.requestId());
         headers.put("X-Run-Id", request.runId());
+        headers.put("X-Revision", request.revision());
         headers.put("traceparent", traceparent(request.traceId()));
         return headers;
     }

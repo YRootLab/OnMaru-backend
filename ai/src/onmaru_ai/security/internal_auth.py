@@ -8,10 +8,11 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from onmaru_ai.config.secrets import SecretProvider
 from onmaru_ai.observability.correlation import correlation_from
@@ -38,6 +39,15 @@ class InternalAuthError(ValueError):
         self.status_code = status_code
 
 
+class JourneyProposalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["internal.ai.v1"] = Field(alias="schemaVersion")
+    request_id: str = Field(alias="requestId", min_length=1, max_length=128)
+    run_id: str = Field(alias="runId", min_length=1, max_length=128)
+    candidate_count: int = Field(alias="candidateCount", ge=0, le=12)
+
+
 def install_internal_auth(app: FastAPI, secret_provider: SecretProvider) -> None:
     @app.post(
         "/internal/v1/journey/proposals",
@@ -47,19 +57,37 @@ def install_internal_auth(app: FastAPI, secret_provider: SecretProvider) -> None
     async def create_journey_proposal(
         request: Request,
         authorization: str = Header(default=""),
-    ) -> dict[str, str] | JSONResponse:
+    ) -> dict[str, object] | JSONResponse:
         try:
             validate_internal_token(authorization, secret_provider)
         except HTTPException as exception:
             return JSONResponse(status_code=exception.status_code, content=exception.detail)
         context = correlation_from(request)
+        try:
+            body = JourneyProposalRequest.model_validate(await request.json())
+        except (ValueError, ValidationError):
+            return _contract_error()
+        if body.run_id != context.run_id or body.request_id != context.request_id:
+            return _contract_error()
+        candidate_count = body.candidate_count
+        selected_count = min(candidate_count, 3)
         return {
             "schemaVersion": "internal.ai.v1",
-            "status": "accepted",
-            "requestId": context.request_id,
             "runId": context.run_id,
-            "traceId": context.trace_id,
+            "orderedRefs": [f"place:{index:03d}" for index in range(1, selected_count + 1)],
+            "outcome": "PROPOSAL" if selected_count else "NO_RESULTS",
         }
+
+
+def _contract_error() -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={
+            "schemaVersion": "internal.ai.v1",
+            "code": "INTERNAL_AI_CONTRACT_INVALID",
+            "message": "INTERNAL_AI_CONTRACT_INVALID",
+        },
+    )
 
 
 def validate_internal_token(

@@ -34,7 +34,7 @@ flowchart LR
 
 Spring core depends only on its consumer-owned `ProposalPort`; it does not import a Gemini SDK, LangChain, FastAPI DTO, or provider model name. The FastAPI service exposes one internal versioned contract and owns `LLMProviderAdapter`. `GeminiAdapter`, a deterministic fixture fake, and a future provider adapter implement the same interface. Gemini API migrations, model retirement, JSON mode changes, tokenizer changes, and SDK replacement stay inside the adapter.
 
-`POST /internal/v1/journey-proposals` is service-to-service only. It is not a browser endpoint and accepts only a short-lived Spring service token whose audience is FastAPI, expiry is within the run deadline, and `jti` has not been replayed. It receives a deadline and trace context, never a browser credential. FastAPI has no Spring business-schema credential and no authority to read a wider catalog, change an exploration, consume a quota, or persist a user-visible board. Its separate `ai` schema credential, when RAG is enabled, is limited to FastAPI corpus/index tables.
+`POST /internal/v1/journey/proposals` is service-to-service only. It is not a browser endpoint and accepts only a short-lived Spring service token whose audience is FastAPI, expiry is within the run deadline, and `jti` has not been replayed. It receives a deadline and trace context, never a browser credential. FastAPI has no Spring business-schema credential and no authority to read a wider catalog, change an exploration, consume a quota, or persist a user-visible board. Its separate `ai` schema credential, when RAG is enabled, is limited to FastAPI corpus/index tables.
 
 The adapter uses a provider's structured JSON output capability, not model-selected function calls. A function call would require the application to execute model-selected work; that is unnecessary and expands the attack surface here. When RAG is approved, FastAPI alone ingests Spring's revision-pinned corpus export and its read-only `EvidenceRetriever` enforces the request allowlist; it cannot fetch URLs or call provider tools.
 
@@ -85,40 +85,27 @@ The existing baseline algorithm remains the source of candidates and the non-AI 
 
 ## Provider-neutral proposal contract
 
-The internal request and response are JSON-schema versioned independently from provider SDK models. FastAPI validates the request with Pydantic; Spring validates the response again before applying it.
+The internal request and response are JSON-schema versioned independently from provider SDK models. FastAPI validates the request with Pydantic after service-token authentication; Spring validates the response again before applying it.
 
 ```ts
 type JourneyProposalRequest = {
-  contractVersion: '1.0';
+  schemaVersion: 'internal.ai.v1';
   requestId: string;
-  traceId: string;
-  deadlineAt: string;
-  promptVersion: 'journey-proposal-v1';
-  intent: JourneyIntent;
-  pinnedRefs: PlaceRef[];
-  candidates: {
-    ref: PlaceRef;
-    title: string;
-    category: string;
-    evidence: { id: string; text: string; revisionId: string }[];
-  }[];
+  runId: string;
+  candidateCount: number; // 0..12
 };
 
 type JourneyProposalResponse = {
-  contractVersion: '1.0';
-  outcome: 'PROPOSE_BOARD' | 'ASK_CLARIFICATION' | 'NO_RESULTS';
+  schemaVersion: 'internal.ai.v1';
+  runId: string;
+  outcome: 'PROPOSAL' | 'INITIAL_BOARD' | 'NO_RESULTS';
   orderedRefs: PlaceRef[];
-  reasons: {
-    ref: PlaceRef;
-    evidenceIds: string[];
-    summary: string;
-  }[];
-  clarification: Clarification | null;
-  provider: { adapterVersion: string; modelAlias: string };
 };
 ```
 
-`PROPOSE_BOARD` has one to three unique `orderedRefs`, each drawn from the request candidates or valid pins; every reason references one or more evidence IDs belonging to the same reference. `ASK_CLARIFICATION` and `NO_RESULTS` have no ordered references or reasons. The model cannot return free-form markdown, executable markup, tool calls, URLs, new category values, or a user-facing error message.
+The J03 baseline contract currently sends only bounded correlation and candidate cardinality. It deliberately does not send raw browser query, member ID, guest token, session material, saved-list data, or exact private location to FastAPI. The response has at most three `orderedRefs`, and Spring still owns final validation, fallback, and persistence.
+
+The richer provider proposal contract with evidence reasons, pins/exclusions, proposal action, and state-version handling is reserved for the later proposal workflow and must not be mixed into this worker baseline. The model cannot return free-form markdown, executable markup, tool calls, URLs, new category values, or a user-facing error message.
 
 FastAPI rejects malformed or schema-invalid provider output as `AI_INVALID_RESPONSE`. Spring then rechecks cardinality, IDs, evidence ownership and revision, current publication eligibility, pin/exclude state, exploration version, actor validity, and deadline before atomically saving a proposal. Any mismatch fails the run; it is never repaired by a hidden second prompt.
 
