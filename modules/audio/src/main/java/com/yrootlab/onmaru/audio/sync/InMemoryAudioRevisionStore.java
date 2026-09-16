@@ -150,6 +150,14 @@ public final class InMemoryAudioRevisionStore implements AudioRevisionStore {
         return activeSnapshot.copy();
     }
 
+    @Override
+    public synchronized ActiveAudioRevision activePublishedRevision(String dataset) {
+        if (!this.dataset.equals(dataset)) {
+            throw new IllegalArgumentException("unknown dataset: " + dataset);
+        }
+        return new ActiveAudioRevision(activeRevision, activeSnapshot);
+    }
+
     public synchronized SourceWatermark watermark() {
         return watermark;
     }
