@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #116의 Journey run SSE stage/terminal/heartbeat/replay/reset, auth close와 원인별 telemetry를 추가했다.
 - Issue #115의 Exploration/run snapshot 복구 조회, current public board hydration, unavailableRefs와 run invariant 계약 검증을 추가했다.
 - Issue #140의 지도·후기·Odii·찜 runtime/OpenAPI/fixture 통합 E2E 출시 gate를 추가했다.
 - Issue #106의 revision-pinned corpus manifest/document export, FastAPI pull/ACK idempotency, hash mismatch·out-of-order rollback 방지를 추가했다.

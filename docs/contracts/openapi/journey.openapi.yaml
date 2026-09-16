@@ -105,8 +105,7 @@ paths:
           required: false
           schema: { type: string, pattern: '^[1-9][0-9]*$' }
       responses:
-        '200': { description: text/event-stream; event schema is a sibling JSON Schema, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { text/event-stream: { schema: { type: string } } } }
-        '401': { $ref: '#/components/responses/Error' }
+        '200': { description: text/event-stream; event schema is a sibling JSON Schema. Auth expiry may close with auth_closed/data 0 instead of JSON, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { text/event-stream: { schema: { type: string } } } }
         '404': { $ref: '#/components/responses/Error' }
   /explorations/{explorationId}/runs/{runId}/cancel:
     post:

@@ -7,7 +7,8 @@
     {"$ref": "#/$defs/stage"},
     {"$ref": "#/$defs/terminal"},
     {"$ref": "#/$defs/heartbeat"},
-    {"$ref": "#/$defs/reset"}
+    {"$ref": "#/$defs/reset"},
+    {"$ref": "#/$defs/authClosed"}
   ],
   "$defs": {
     "stage": {
@@ -16,7 +17,7 @@
       "properties": {
         "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
         "event": {"const": "run.stage"},
-        "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId", "sequence", "status", "stage"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}, "sequence": {"type": "integer", "minimum": 1}, "status": {"enum": ["QUEUED", "RUNNING"]}, "stage": {"enum": ["INTERPRETING", "RETRIEVING", "VALIDATING", "PERSISTING"]}}}
+        "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId", "sequence", "status", "stage"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}, "sequence": {"type": "integer", "minimum": 1}, "status": {"enum": ["QUEUED", "RUNNING"]}, "stage": {"enum": ["INTERPRETING", "RETRIEVING", "VALIDATING", "PERSISTING", null]}}}
       }
     },
     "terminal": {
@@ -34,7 +35,7 @@
       "properties": {
         "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
         "event": {"const": "heartbeat"},
-        "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId", "sequence"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}, "sequence": {"type": "integer", "minimum": 1}}}
+        "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId", "sequence"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}, "sequence": {"type": "integer", "minimum": 0}}}
       }
     },
     "reset": {
@@ -43,6 +44,14 @@
       "properties": {
         "event": {"const": "reset"},
         "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}}}
+      }
+    },
+    "authClosed": {
+      "type": "object", "additionalProperties": false,
+      "required": ["event", "data"],
+      "properties": {
+        "event": {"const": "auth_closed"},
+        "data": {"const": 0}
       }
     }
   }
