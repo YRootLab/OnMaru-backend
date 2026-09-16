@@ -17,4 +17,8 @@ public interface AudioRevisionStore extends PublicationStore {
     void failStage(UUID revisionId, String failureCode);
 
     long stagedItemCount(UUID revisionId);
+
+    UUID activeRevision(String dataset);
+
+    AudioRevisionSnapshot activeSnapshot();
 }
