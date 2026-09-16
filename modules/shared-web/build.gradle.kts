@@ -1,5 +1,5 @@
 plugins {
-    `java-library`
+    id("onmaru.java-library-conventions")
     alias(libs.plugins.spring.dependency.management)
 }
 
@@ -12,8 +12,4 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-tasks.withType<Test> {
-    useJUnitPlatform()
 }
