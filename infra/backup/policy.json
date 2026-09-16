@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "backup": {
+    "format": "POSTGRES_CUSTOM_LOGICAL_FULL",
+    "scheduleUtc": "0 17 * * *",
+    "retentionDays": 7,
+    "plainTextRetention": "NONE"
+  },
+  "encryption": {
+    "required": true,
+    "algorithm": "GPG_AES256",
+    "keySource": "MOUNTED_SECRET_FILE"
+  },
+  "storage": {
+    "separateFromApplicationDatabase": true,
+    "requiredClass": "ISOLATED_ENCRYPTED_BACKUP_STORAGE"
+  },
+  "credentials": {
+    "backupRole": "onmaru_backup",
+    "restoreTargetRole": "EPHEMERAL_RESTORE_OWNER",
+    "sharedWithRuntime": false
+  },
+  "recovery": {
+    "rpoTargetSeconds": 86400,
+    "rtoTargetSeconds": 14400,
+    "deletionReexposureTarget": 0
+  },
+  "pitr": {
+    "status": "UNAVAILABLE_UNTIL_HOSTING_SELECTED",
+    "requiredEvidence": [
+      "providerRecoveryId",
+      "targetTimestamp",
+      "walRetention",
+      "isolatedTargetFingerprint",
+      "integritySuiteResult"
+    ]
+  }
+}

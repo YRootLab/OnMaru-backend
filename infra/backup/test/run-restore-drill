@@ -1,0 +1,252 @@
+#!/bin/sh
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname "$0")/../../.." && pwd)
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/onmaru-restore-drill.XXXXXX")
+evidence_dir=${ONMARU_DRILL_EVIDENCE_DIR:-$work_dir/evidence}
+run_id="${$}-$(date +%s)"
+image="onmaru-backup-drill:$run_id"
+network="onmaru-restore-$run_id"
+source_container="onmaru-source-$run_id"
+target_container="onmaru-target-$run_id"
+database=onmaru_drill
+postgis_platform=${ONMARU_POSTGIS_PLATFORM:-linux/amd64}
+postgres_password=drill-postgres-password
+backup_password=drill-backup-password
+member_id=11111111-1111-1111-1111-111111111111
+
+cleanup() {
+  docker rm -f "$source_container" "$target_container" >/dev/null 2>&1 || true
+  docker network rm "$network" >/dev/null 2>&1 || true
+  docker image rm "$image" >/dev/null 2>&1 || true
+  rm -rf "$work_dir"
+}
+trap cleanup EXIT HUP INT TERM
+
+mkdir -p "$work_dir/backups" "$evidence_dir"
+chmod 777 "$work_dir" "$work_dir/backups" "$evidence_dir"
+printf '%s\n' 'synthetic-backup-key-32-bytes-minimum-value' > "$work_dir/backup-key"
+printf '%s\n' 'synthetic-ledger-key-32-bytes-minimum-value' > "$work_dir/ledger-key"
+chmod 644 "$work_dir/backup-key" "$work_dir/ledger-key"
+
+docker build --pull=false -t "$image" "$root/infra/backup"
+docker network create "$network" >/dev/null
+
+docker run -d \
+  --platform "$postgis_platform" \
+  --name "$source_container" \
+  --network "$network" \
+  -e POSTGRES_DB="$database" \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD="$postgres_password" \
+  postgis/postgis:17-3.5-alpine >/dev/null
+
+docker run -d \
+  --platform "$postgis_platform" \
+  --name "$target_container" \
+  --network "$network" \
+  -e POSTGRES_DB="$database" \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD="$postgres_password" \
+  postgis/postgis:17-3.5-alpine >/dev/null
+
+for container in "$source_container" "$target_container"; do
+  attempts=0
+  until docker logs "$container" 2>&1 \
+    | grep -q 'PostgreSQL init process complete'; do
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge 60 ]; then
+      echo "PostgreSQL initialization did not complete: $container" >&2
+      exit 1
+    fi
+    sleep 1
+  done
+
+  attempts=0
+  until docker exec "$container" \
+    psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$database" \
+      -c 'SELECT PostGIS_Version()' >/dev/null 2>&1; do
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge 60 ]; then
+      echo "PostgreSQL/PostGIS container did not become ready: $container" >&2
+      exit 1
+    fi
+    sleep 1
+  done
+done
+
+docker exec "$target_container" \
+  dropdb --force -U postgres "$database"
+docker exec "$target_container" \
+  createdb -U postgres --template=template0 "$database"
+
+for migration in "$root"/apps/spring-api/src/main/resources/db/migration/baseline/V*.sql; do
+  docker exec -i "$source_container" \
+    psql -X -v ON_ERROR_STOP=1 -U postgres -d "$database" < "$migration" >/dev/null
+done
+
+docker exec -i "$source_container" \
+  psql -X -v ON_ERROR_STOP=1 -U postgres -d "$database" >/dev/null <<SQL
+CREATE ROLE onmaru_backup_login LOGIN PASSWORD '$backup_password';
+GRANT onmaru_backup TO onmaru_backup_login;
+
+INSERT INTO onmaru.identity_members (id, status, created_at)
+VALUES ('$member_id', 'ACTIVE', CURRENT_TIMESTAMP - interval '1 hour');
+INSERT INTO onmaru.identity_sessions (
+  token_hash, member_id, created_at, last_seen_at, absolute_expires_at
+) VALUES (
+  repeat('a', 64), '$member_id',
+  CURRENT_TIMESTAMP - interval '1 hour',
+  CURRENT_TIMESTAMP - interval '1 minute',
+  CURRENT_TIMESTAMP + interval '1 day'
+);
+INSERT INTO onmaru.catalog_place_identity (id, created_at)
+VALUES ('22222222-2222-2222-2222-222222222222', CURRENT_TIMESTAMP - interval '1 day');
+INSERT INTO onmaru.discovery_explorations (
+  id, owner_member_id, state_version, board, pinned_refs, excluded_refs,
+  created_at, updated_at
+) VALUES (
+  '33333333-3333-3333-3333-333333333333', '$member_id', 1,
+  '{"cards":[]}'::jsonb, '[]'::jsonb, '[]'::jsonb,
+  CURRENT_TIMESTAMP - interval '30 minutes', CURRENT_TIMESTAMP - interval '30 minutes'
+);
+INSERT INTO onmaru.discovery_runs (
+  id, exploration_id, actor_key, base_version, status, created_at,
+  deadline_at, generation, engine
+) VALUES (
+  '44444444-4444-4444-4444-444444444444',
+  '33333333-3333-3333-3333-333333333333',
+  'actor:restore-drill', 1, 'RUNNING', CURRENT_TIMESTAMP - interval '1 minute',
+  CURRENT_TIMESTAMP + interval '1 hour', 1, 'BASELINE'
+);
+INSERT INTO onmaru.journey_saved_journeys (
+  id, member_id, source_exploration_id, source_version, saved_at,
+  title, snapshot, snapshot_hash
+) VALUES (
+  '55555555-5555-5555-5555-555555555555', '$member_id',
+  '33333333-3333-3333-3333-333333333333', 1, CURRENT_TIMESTAMP,
+  'restore drill saved journey', '{"cards":[]}'::jsonb, repeat('b', 64)
+);
+INSERT INTO onmaru.community_visit_reviews (
+  id, member_id, place_id, text, status, created_at
+) VALUES (
+  '66666666-6666-6666-6666-666666666666', '$member_id',
+  '22222222-2222-2222-2222-222222222222',
+  'restore drill review', 'PUBLISHED', CURRENT_TIMESTAMP
+);
+SQL
+
+docker run --rm \
+  --network "$network" \
+  -v "$work_dir:/work" \
+  -e PGHOST="$source_container" \
+  -e PGDATABASE="$database" \
+  -e PGUSER=onmaru_backup_login \
+  -e PGPASSWORD="$backup_password" \
+  -e ONMARU_BACKUP_OUTPUT_DIR=/work/backups \
+  -e ONMARU_BACKUP_KEY_FILE=/work/backup-key \
+  -e ONMARU_SOURCE_REVISION="$(git -C "$root" rev-parse HEAD)" \
+  "$image" create-backup >/dev/null
+
+artifact=$(find "$work_dir/backups" -type f -name 'onmaru-*.tar.gpg' -print -quit)
+if [ -z "$artifact" ] || [ ! -f "$artifact.sha256" ]; then
+  echo "encrypted backup artifact was not created" >&2
+  exit 1
+fi
+if find "$work_dir/backups" -type f ! -name '*.gpg' ! -name '*.sha256' | grep -q .; then
+  echo "plaintext backup material escaped the temporary workspace" >&2
+  exit 1
+fi
+
+printf '%s\t%s\n' "$member_id" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+  > "$work_dir/deletion-ledger.tsv"
+docker run --rm \
+  -v "$work_dir:/work" \
+  "$image" sh -c '
+    export GNUPGHOME=/tmp/onmaru-ledger-gnupg
+    mkdir -p "$GNUPGHOME"
+    chmod 700 "$GNUPGHOME"
+    gpg --batch --yes --pinentry-mode loopback \
+      --passphrase-file /work/ledger-key \
+      --symmetric --cipher-algo AES256 \
+      --output /work/deletion-ledger.tsv.gpg \
+      /work/deletion-ledger.tsv
+    cd /work
+    sha256sum deletion-ledger.tsv.gpg > deletion-ledger.tsv.gpg.sha256
+  '
+rm "$work_dir/deletion-ledger.tsv"
+
+artifact_name=$(basename "$artifact")
+run_restore() {
+  docker run --rm \
+    --network "$network" \
+    -v "$work_dir:/work" \
+    -v "$evidence_dir:/evidence" \
+    -e PGHOST="$target_container" \
+    -e PGDATABASE="$database" \
+    -e PGUSER=postgres \
+    -e PGPASSWORD="$postgres_password" \
+    -e ONMARU_BACKUP_ARTIFACT="/work/backups/$artifact_name" \
+    -e ONMARU_BACKUP_KEY_FILE=/work/backup-key \
+    -e ONMARU_DELETION_LEDGER_ARTIFACT=/work/deletion-ledger.tsv.gpg \
+    -e ONMARU_DELETION_LEDGER_KEY_FILE=/work/ledger-key \
+    -e ONMARU_RESTORE_EVIDENCE_DIR=/evidence \
+    -e ONMARU_RESTORE_CONFIRM=isolated-target \
+    "$image" restore-drill
+}
+
+docker run --rm \
+  -v "$work_dir:/work" \
+  -e ONMARU_ARTIFACT_NAME="$artifact_name" \
+  "$image" sh -c '
+    set -eu
+    sidecar="/work/backups/$ONMARU_ARTIFACT_NAME.sha256"
+    mv "$sidecar" "$sidecar.valid"
+    artifact_digest=$(awk "NR == 1 { print \$1 }" "$sidecar.valid")
+    printf "%s  %s\n" "$artifact_digest" "different-artifact.tar.gpg" > "$sidecar"
+  '
+if run_restore >/dev/null 2>&1; then
+  echo "checksum sidecar accepted a different artifact name" >&2
+  exit 1
+fi
+docker run --rm \
+  -v "$work_dir:/work" \
+  -e ONMARU_ARTIFACT_NAME="$artifact_name" \
+  "$image" sh -c '
+    set -eu
+    sidecar="/work/backups/$ONMARU_ARTIFACT_NAME.sha256"
+    rm "$sidecar"
+    mv "$sidecar.valid" "$sidecar"
+  '
+
+docker exec "$target_container" \
+  psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$database" \
+    -c 'CREATE TABLE public.preexisting_data (id bigint PRIMARY KEY)' >/dev/null
+if run_restore >/dev/null 2>&1; then
+  echo "restore accepted a non-empty user schema" >&2
+  exit 1
+fi
+docker exec "$target_container" dropdb --force -U postgres "$database"
+docker exec "$target_container" createdb -U postgres --template=template0 "$database"
+
+run_restore >/dev/null
+
+evidence=$(find "$evidence_dir" -type f -name 'restore-*.json' -print -quit)
+if [ -z "$evidence" ]; then
+  echo "restore evidence was not created" >&2
+  exit 1
+fi
+
+jq -e '
+  .result == "PASS"
+  and .recoveryMode == "LOGICAL_FULL"
+  and .rpoSeconds <= .targets.rpoSeconds
+  and .rtoSeconds <= .targets.rtoSeconds
+  and .integrity.countMismatches == 0
+  and .integrity.unvalidatedForeignKeys == 0
+  and .integrity.invalidSavedSnapshotHashes == 0
+  and .integrity.deletionLedgerEntries == 1
+  and .integrity.deletionReexposureCount == 0
+' "$evidence" >/dev/null
+
+cat "$evidence"
