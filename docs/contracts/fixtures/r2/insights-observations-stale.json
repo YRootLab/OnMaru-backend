@@ -1,14 +1,14 @@
 {
-  "name": "insights-observations-normal",
-  "description": "Tourism observation response carries metric, unit, and coverage for each observation.",
+  "name": "insights-observations-stale",
+  "description": "Tourism observation response exposes stale coverage instead of masking old data as complete.",
   "request": {
     "method": "GET",
     "path": "/api/v1/insights/observations",
     "query": {
       "regionCode": "kr-45-jeonju",
       "metric": "VISITOR_COUNT",
-      "from": "2026-09-14",
-      "to": "2026-09-14"
+      "from": "2026-09-07",
+      "to": "2026-09-07"
     }
   },
   "response": {
@@ -16,23 +16,23 @@
     "schema": "ObservationPage",
     "body": {
       "schemaVersion": "1.2",
-      "coverageStatus": "COMPLETE",
+      "coverageStatus": "STALE",
       "generatedAt": "2026-09-14T08:35:00Z",
       "items": [
         {
-          "observationId": "obs-kr-45-jeonju-2026-09-14-visitors",
+          "observationId": "obs-kr-45-jeonju-2026-09-07-visitors-stale",
           "region": {
             "regionCode": "kr-45-jeonju",
             "name": "전북 전주시",
             "level": "CITY",
             "parentRegionCode": "kr-45"
           },
-          "observedDate": "2026-09-14",
+          "observedDate": "2026-09-07",
           "metric": "VISITOR_COUNT",
-          "value": 18240,
+          "value": 17320,
           "unit": "persons",
           "spatialLevel": "SIGUNGU",
-          "coverageStatus": "COMPLETE"
+          "coverageStatus": "STALE"
         }
       ]
     }

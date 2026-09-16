@@ -55,6 +55,32 @@ class InsightsQueryServiceTests {
     }
 
     @Test
+    void reportsStaleObservationCoverageWithoutMaskingFreshness() {
+        store.save(new Observation(
+                "obs-stale",
+                region(),
+                LocalDate.parse("2026-09-07"),
+                "VISITOR_COUNT",
+                17320L,
+                "persons",
+                "SIGUNGU",
+                "STALE"
+        ));
+
+        ObservationPage page = service.listObservations(
+                "kr-45-jeonju",
+                "VISITOR_COUNT",
+                LocalDate.parse("2026-09-07"),
+                LocalDate.parse("2026-09-07"));
+
+        assertThat(page.coverageStatus()).isEqualTo("STALE");
+        assertThat(page.items()).singleElement().satisfies(item -> {
+            assertThat(item.value()).isEqualTo(17320L);
+            assertThat(item.coverageStatus()).isEqualTo("STALE");
+        });
+    }
+
+    @Test
     void returnsHeatmapSpotsWithCoverageStatus() {
         store.save(new HeatSpot(
                 "heat-p-jeonju-hanok-village-2026-09-14",
