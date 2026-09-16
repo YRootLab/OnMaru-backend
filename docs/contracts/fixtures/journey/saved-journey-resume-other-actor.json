@@ -1,0 +1,12 @@
+{
+  "name": "saved-journey-resume-other-actor",
+  "description": "다른 actor가 저장 여정을 재개하려 하면 존재를 숨기고 404를 반환한다.",
+  "given": {"ownerActorId": "11111111-1111-4111-8111-111111111111", "requestActorId": "22222222-2222-4222-8222-222222222222"},
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/saved-journeys/e6111111-1111-4111-8111-111111111111/resume",
+    "headers": {"Idempotency-Key": "e7111111-1111-4111-8111-111111111111", "X-CSRF-TOKEN": "csrf-fixture-token-123456"},
+    "body": {}
+  },
+  "response": {"status": 404, "schema": "Error", "body": {"schemaVersion": "1.2", "code": "NOT_FOUND", "message": "저장 여정을 찾을 수 없습니다.", "requestId": "req-resume-other-actor", "details": {}}}
+}
