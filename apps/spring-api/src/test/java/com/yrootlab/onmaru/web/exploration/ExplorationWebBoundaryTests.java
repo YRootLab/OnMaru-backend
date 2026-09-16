@@ -51,6 +51,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = OnMaruApplication.class, properties = "onmaru.secrets.source=fake")
@@ -70,6 +71,12 @@ class ExplorationWebBoundaryTests {
 
     @Autowired
     private InMemoryExplorationRunDispatcher runDispatcher;
+
+    @Autowired
+    private ExplorationService explorationService;
+
+    @Autowired
+    private InMemoryJourneyRunEventStream runEventStream;
 
     @Autowired
     private InMemoryIdentityStore identityStore;
@@ -93,9 +100,6 @@ class ExplorationWebBoundaryTests {
     private MeterRegistry meterRegistry;
 
     @Autowired
-    private ExplorationService explorationService;
-
-    @Autowired
     private InMemoryPlaceDetailStore placeDetailStore;
 
     @Autowired
@@ -111,6 +115,7 @@ class ExplorationWebBoundaryTests {
     void setUp() {
         explorationStore.clear();
         runDispatcher.clear();
+        runEventStream.clear();
         identityStore.clear();
         guestCredentialService.clear();
         var guest = guestCredentialService.issue();
@@ -703,6 +708,145 @@ class ExplorationWebBoundaryTests {
 
         assertThat(explorationStore.turnCount(explorationId)).isEqualTo(beforeTurns);
         assertThat(runDispatcher.dispatchCount()).isZero();
+    }
+
+    @Test
+    void runEventsReplaysStageAndTerminalFramesThenCloses() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var tree = objectMapper.readTree(created);
+        var explorationId = UUID.fromString(tree.path("explorationId").asText());
+        var runId = UUID.fromString(tree.path("runId").asText());
+        var eventsUrl = tree.path("eventsUrl").asText();
+
+        explorationService.claimRun(explorationId, runId, "INTERPRETING");
+        explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
+
+        var body = mockMvc.perform(get(eventsUrl).cookie(guestCookie(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "text/event-stream;charset=UTF-8"))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body).contains("retry:15000");
+        assertThat(body).contains("event:run.stage");
+        assertThat(body).contains("\"schemaVersion\":\"1.2\"");
+        assertThat(body).contains("\"runId\":\"" + runId + "\"");
+        assertThat(body).contains("\"status\":\"QUEUED\"");
+        assertThat(body).contains("\"status\":\"RUNNING\"");
+        assertThat(body).contains("event:run.terminal");
+        assertThat(body).contains("\"outcome\":\"INITIAL_BOARD\"");
+        assertThat(body).doesNotContain("event:heartbeat");
+        assertThat(telemetrySink.events()).anySatisfy(event -> assertThat(event.attributes())
+                .containsEntry("http.route", "/api/v1/explorations/{explorationId}/runs/{runId}/events")
+                .containsEntry("http.response.status_code", "200"));
+        assertThat(telemetrySink.events()).anySatisfy(event -> {
+            assertThat(event.name()).isEqualTo("journey.sse.replayed");
+            assertThat(event.attributes())
+                    .containsEntry("run.id", runId.toString())
+                    .containsEntry("event.count", "3")
+                    .containsEntry("reset", "false")
+                    .containsEntry("terminal.close", "true");
+        });
+    }
+
+    @Test
+    void runEventsHonorsLastEventIdAndReportsReplayTelemetry() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var tree = objectMapper.readTree(created);
+        var explorationId = UUID.fromString(tree.path("explorationId").asText());
+        var runId = UUID.fromString(tree.path("runId").asText());
+        var eventsUrl = tree.path("eventsUrl").asText();
+
+        explorationService.claimRun(explorationId, runId, "INTERPRETING");
+        explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
+
+        var body = mockMvc.perform(get(eventsUrl)
+                        .cookie(guestCookie(ownerToken))
+                        .header("Last-Event-ID", "1"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body).doesNotContain("\"status\":\"QUEUED\"");
+        assertThat(body).contains("\"status\":\"RUNNING\"");
+        assertThat(body).contains("event:run.terminal");
+        assertThat(body).contains("id:2");
+        assertThat(body).contains("id:3");
+        assertThat(telemetrySink.events()).anySatisfy(event -> {
+            assertThat(event.name()).isEqualTo("journey.sse.replayed");
+            assertThat(event.attributes())
+                    .containsEntry("run.id", runId.toString())
+                    .containsEntry("last.event.id", "1")
+                    .containsEntry("event.count", "2")
+                    .containsEntry("reset", "false");
+        });
+    }
+
+    @Test
+    void runEventsDeliversTerminalPublishedAfterStreamOpens() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var tree = objectMapper.readTree(created);
+        var explorationId = UUID.fromString(tree.path("explorationId").asText());
+        var runId = UUID.fromString(tree.path("runId").asText());
+        var eventsUrl = tree.path("eventsUrl").asText();
+
+        var result = mockMvc.perform(get(eventsUrl).cookie(guestCookie(ownerToken)))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
+
+        var body = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body).contains("event:run.stage");
+        assertThat(body).contains("\"status\":\"QUEUED\"");
+        assertThat(body).contains("event:run.terminal");
+        assertThat(body).contains("\"outcome\":\"INITIAL_BOARD\"");
+    }
+
+    @Test
+    void runEventsReturnsResetAndReportsTelemetryWhenLastEventIdMissesBuffer() throws Exception {
+        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var tree = objectMapper.readTree(created);
+        var runId = UUID.fromString(tree.path("runId").asText());
+        var eventsUrl = tree.path("eventsUrl").asText();
+
+        var body = mockMvc.perform(get(eventsUrl)
+                        .cookie(guestCookie(ownerToken))
+                        .header("Last-Event-ID", "0"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body).doesNotContain("id:");
+        assertThat(body).contains("event:reset");
+        assertThat(body).contains("\"runId\":\"" + runId + "\"");
+        assertThat(telemetrySink.events()).anySatisfy(event -> {
+            assertThat(event.name()).isEqualTo("journey.sse.reset");
+            assertThat(event.attributes())
+                    .containsEntry("run.id", runId.toString())
+                    .containsEntry("last.event.id", "0");
+        });
+    }
+
+    @Test
+    void runEventsWithoutValidActorClosesWithZeroDataAuthFrame() throws Exception {
+        var body = mockMvc.perform(get("/api/v1/explorations/{explorationId}/runs/{runId}/events",
+                        UUID.randomUUID(), UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "text/event-stream;charset=UTF-8"))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body).isEqualTo("""
+                event:auth_closed
+                data:0
+
+                """);
+        assertThat(telemetrySink.events()).anySatisfy(event -> {
+            assertThat(event.name()).isEqualTo("journey.sse.auth_closed");
+            assertThat(event.attributes()).containsEntry("reason", "AUTH_REQUIRED");
+        });
     }
 
     private byte[] createGuestExploration(String guestToken, String regionCode) throws Exception {

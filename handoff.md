@@ -15,6 +15,18 @@
 - 남은 리스크: cancel 반환 경로는 웹에 연결됐지만, worker/FastAPI 완료 콜백이나 sweeper가 Spring에 terminal 완료를 통지하는 API는 아직 없다. 해당 lifecycle 경로가 생기면 `AdmissionService.releaseActive`를 같은 lock order로 호출하도록 연결해야 한다.
 - 최신 develop 병합: #197의 `V010__a02_odii_production_persistence.sql`와 충돌해 #117 audit migration을 `V011__j09_admission_audit.sql`로 승격했다. `web -> persistence` ArchUnit cycle은 JDBC admission bean을 `persistence.operations.AdmissionPersistenceConfiguration`으로 이동해 해소했다.
 
+## Current Session Quick Handoff - 2026-09-16 Issue #116
+
+- 현재 작업 브랜치와 worktree: `feature/116-sse-stage-terminal-heartbeat-replay-reset`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j05-sse-stage-terminal-heartbeat-replay-reset`.
+- 관련 Issue: #116 `[J05] SSE stage·terminal·heartbeat·replay/reset 구현`; blocked-by #109/#87은 시작 시점에 모두 Closed였다.
+- 구현 범위: `modules/journey/events`에 run별 단조 sequence 기반 bounded in-memory replay buffer를 추가하고, `ExplorationService`가 create/turn/claim/terminal 전환을 SSE event sink로 발행하도록 연결했다.
+- Spring API: `GET /api/v1/explorations/{explorationId}/runs/{runId}/events`를 `text/event-stream;charset=UTF-8`, `Cache-Control: no-store`로 제공한다. 정상 frame은 `run.stage`, `run.terminal`, `heartbeat`, `reset` 계약을 따르고, 인증 없는 SSE 연결은 private data 없이 `event: auth_closed` / `data: 0`으로 닫는다. 열린 SSE 연결은 `SseEmitter` subscriber로 후속 stage/terminal event를 받고 15초 heartbeat를 예약한다.
+- Run snapshot: `GET /api/v1/explorations/{explorationId}/runs/{runId}`를 추가해 `RunAccepted.runUrl`과 reset/terminal 후 복구 경로를 맞췄다.
+- 계약 보정: `docs/contracts/schemas/journey-sse-event.schema.json`의 `run.stage.data.stage`가 QUEUED 상태의 `null` stage를 허용하도록 수정했다. REST prose의 “QUEUED는 stage=null” 설명과 맞춘 변경이다.
+- 관측성: SSE endpoint도 기존 `CorrelationFilter`의 `http.server.request` telemetry를 타며, web boundary test에서 route/status 기록을 확인한다. 추가로 `JourneySseTelemetryEvent`를 Spring event로 publish하고 `observability` listener가 `journey.sse.replayed`, `journey.sse.reset`, `journey.sse.auth_closed`를 기록한다. 의존 방향은 `observability -> web event`로 유지해 ArchUnit cycle을 피했다.
+- 추가 테스트: 웹 endpoint의 `Last-Event-ID` replay, buffer miss reset, auth close telemetry, terminal close telemetry, 열린 stream 이후 terminal 전달, restart/empty-buffer reset, terminal idempotency를 추가했다.
+- 독립 리뷰 보완: finite string SSE를 `SseEmitter` live stream으로 교체했고, Last-Event-ID+empty buffer reset, auth_closed schema/OpenAPI, duplicate terminal event, missing runUrl endpoint 지적을 보완했다. 추가 re-review의 replay/subscribe gap은 buffer `open(...)`에서 replay와 subscription 등록을 같은 lock 안에서 수행하도록 막았고, heartbeat는 새 sequence를 소비하지 않도록 조정했다.
+- 검증: focused RED/GREEN 후 `./gradlew :modules:journey:test`, `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.web.exploration.ExplorationWebBoundaryTests'`, `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.architecture.ModuleBoundaryArchUnitTests.productionModulesStayAcyclic'`, `bash scripts/verify-contracts`, `git diff --check`, `./gradlew test`, `node scripts/print-branch-issue.mjs` → `116` 통과.
 ## Current Session Quick Handoff - 2026-09-16 Issue #140
 
 - 현재 작업 브랜치와 worktree: `feature/140-r2-contract-e2e`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-140-r2-contract-e2e`.
