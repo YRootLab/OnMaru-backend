@@ -1,6 +1,6 @@
 # VisitReview moderation operations
 
-VisitReview moderation is the operating process that decides whether a public short review remains visible. It is not automated sentiment scoring and it does not allow an operator to edit the database directly. The public report API and auditable state model are defined in [Public REST API](../contracts/rest-api.md) and `community` DBML.
+VisitReview moderation is the operating process that decides whether a public short review remains visible. It is not automated sentiment scoring and it does not allow an operator to edit the database directly. The public report API and auditable state model are defined in [Public REST API](../contracts/rest-api.md) and `community` DBML. Queue access, alert response, disposition, and synthetic verification follow the [moderation queue 운영 runbook](runbooks/moderation.md).
 
 ## State and authority
 

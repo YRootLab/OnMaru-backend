@@ -13,6 +13,7 @@ Spring API와 FastAPI AI service는 같은 naming 규칙을 사용한다.
 | `gemini.api-key` | `ONMARU_SECRET_GEMINI_API_KEY_CURRENT` | `ONMARU_SECRET_GEMINI_API_KEY_PREVIOUS` |
 | `oauth.client-secret` | `ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT` | `ONMARU_SECRET_OAUTH_CLIENT_SECRET_PREVIOUS` |
 | `otlp.exporter-token` | `ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT` | `ONMARU_SECRET_OTLP_EXPORTER_TOKEN_PREVIOUS` |
+| `moderation.operator-token` | `ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT` | `ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_PREVIOUS` |
 
 `*_CURRENT`는 environment provider를 사용하는 런타임에서 필수다. `*_PREVIOUS`는 rotation overlap window 동안만 둔다.
 

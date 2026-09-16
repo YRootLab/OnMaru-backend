@@ -31,6 +31,13 @@ public final class VisitReviewModerationService {
     }
 
     public ReviewReportReceipt report(UUID reporterMemberId, UUID reviewId, CreateReviewReportCommand command) {
+        return reportStore.executeAtomically(() -> reportAtomically(reporterMemberId, reviewId, command));
+    }
+
+    private ReviewReportReceipt reportAtomically(
+            UUID reporterMemberId,
+            UUID reviewId,
+            CreateReviewReportCommand command) {
         if (command == null || command.reason() == null) {
             throw new ReviewReportInvalidException();
         }
@@ -54,12 +61,44 @@ public final class VisitReviewModerationService {
             String actorRef,
             VisitReviewStatus nextStatus,
             ModerationReason reason) {
+        return reportStore.executeAtomically(() -> {
+            ModerationAction action = transition(
+                    reviewId,
+                    ModerationActorType.OPERATOR,
+                    actorRef,
+                    nextStatus,
+                    reason);
+            reportStore.closeOpenReports(
+                    reviewId,
+                    nextStatus == VisitReviewStatus.PUBLISHED
+                            ? ReviewReportStatus.DISMISSED
+                            : ReviewReportStatus.RESOLVED);
+            return action;
+        });
+    }
+
+    public ModerationAction hideHighRiskPii(UUID reviewId, String detectorRef) {
+        return reportStore.executeAtomically(() -> transition(
+                reviewId,
+                ModerationActorType.SYSTEM,
+                detectorRef,
+                VisitReviewStatus.HIDDEN,
+                ModerationReason.PII_HIGH_RISK));
+    }
+
+    private ModerationAction transition(
+            UUID reviewId,
+            ModerationActorType actorType,
+            String actorRef,
+            VisitReviewStatus nextStatus,
+            ModerationReason reason) {
         if (actorRef == null || actorRef.isBlank() || nextStatus == null || reason == null) {
             throw new ModerationTransitionInvalidException();
         }
         var previousStatus = new AtomicReference<VisitReviewStatus>();
         var updated = reviewStore.update(reviewId, current -> {
-            if (current.status() == nextStatus) {
+            if (current.status() == nextStatus
+                    && !isSameStatusDisposition(actorType, nextStatus, reason)) {
                 throw new ModerationTransitionInvalidException();
             }
             previousStatus.set(current.status());
@@ -79,7 +118,7 @@ public final class VisitReviewModerationService {
         var action = new ModerationAction(
                 actionIdGenerator.generate(),
                 reviewId,
-                ModerationActorType.OPERATOR,
+                actorType,
                 actorRef,
                 previousStatus.get(),
                 updated.status(),
@@ -87,6 +126,17 @@ public final class VisitReviewModerationService {
                 clock.instant());
         reportStore.addAudit(action);
         return action;
+    }
+
+    private boolean isSameStatusDisposition(
+            ModerationActorType actorType,
+            VisitReviewStatus nextStatus,
+            ModerationReason reason) {
+        if (actorType != ModerationActorType.OPERATOR) {
+            return false;
+        }
+        return (nextStatus == VisitReviewStatus.PUBLISHED && reason == ModerationReason.FALSE_POSITIVE)
+                || (nextStatus == VisitReviewStatus.HIDDEN && reason != ModerationReason.FALSE_POSITIVE);
     }
 
     public List<ReviewReport> openReports() {
