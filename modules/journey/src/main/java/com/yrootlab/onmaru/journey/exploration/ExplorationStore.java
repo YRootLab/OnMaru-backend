@@ -15,4 +15,13 @@ public interface ExplorationStore {
     void appendTurn(UUID explorationId, StoredExplorationTurn turn);
 
     void update(ExplorationState state);
+
+    ExplorationRun claimRun(UUID explorationId, UUID runId, Instant startedAt, String stage);
+
+    ExplorationRun finishRun(
+            UUID explorationId,
+            UUID runId,
+            ExplorationRunStatus terminalStatus,
+            ExplorationRunOutcome outcome,
+            Instant finishedAt);
 }

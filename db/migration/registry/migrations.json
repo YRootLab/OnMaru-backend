@@ -77,6 +77,15 @@
       "checksum": "d06-v008-20260915",
       "sha256": "c419acd48def3a6a9a331de0b78a589bd965ae99407a2b5e56b79a1130a92788",
       "description": "Odii audio spot, story, version, subtitle, and place link schema"
+    },
+    {
+      "version": "009",
+      "reservedFor": "J02",
+      "issueNumber": 109,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V009__j02_durable_run_commands.sql",
+      "checksum": "j02-v009-20260916",
+      "sha256": "24d9a7ca47cb0f56e80f76b7955b258fd70580fd4203f94f147e2db1ff6b661a",
+      "description": "Durable journey run command idempotency receipts and state constraints"
     }
   ]
 }

@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.web.exploration;
 
 import com.yrootlab.onmaru.journey.exploration.ExplorationInputInvalidException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationNotFoundException;
+import com.yrootlab.onmaru.journey.exploration.ExplorationActiveRunException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationInputRejectedException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationTurnConflictException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationVersionConflictException;
@@ -83,6 +84,16 @@ final class ExplorationExceptionHandler {
                 HttpStatus.CONFLICT,
                 ApiErrorCode.IDEMPOTENCY_CONFLICT.name(),
                 ApiErrorCode.IDEMPOTENCY_CONFLICT.message(),
+                request,
+                Map.of());
+    }
+
+    @ExceptionHandler(ExplorationActiveRunException.class)
+    ResponseEntity<ApiErrorResponse> activeRun(HttpServletRequest request) {
+        return error(
+                HttpStatus.CONFLICT,
+                "ACTIVE_RUN",
+                "Exploration already has an active run.",
                 request,
                 Map.of());
     }

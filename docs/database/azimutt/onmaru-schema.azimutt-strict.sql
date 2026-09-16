@@ -346,6 +346,21 @@ CREATE TABLE "discovery_runs" (
   "engine" varchar NOT NULL
 );
 
+CREATE TABLE "discovery_run_commands" (
+  "actor_key" varchar NOT NULL,
+  "operation" varchar NOT NULL,
+  "command_key" varchar(36) NOT NULL,
+  "request_hash" varchar NOT NULL,
+  "run_id" varchar(36) NOT NULL,
+  "result_status" varchar(32) NOT NULL,
+  "result_stage" varchar,
+  "result_outcome" varchar,
+  "result_generation" int NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "expires_at" timestamp NOT NULL,
+  PRIMARY KEY ("actor_key", "operation", "command_key")
+);
+
 CREATE TABLE "discovery_proposals" (
   "id" varchar(36) PRIMARY KEY,
   "run_id" varchar(36) UNIQUE NOT NULL,
@@ -603,9 +618,12 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
+
+COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The executable migration enforces the operation/stage allowlists, positive generation, expiry, and composite primary key.';
 
 
 
@@ -720,6 +738,8 @@ ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("spot_id") REFERENCES "aud
 ALTER TABLE "insights_target_place_links" ADD FOREIGN KEY ("target_id") REFERENCES "insights_tourism_targets" ("id");
 
 ALTER TABLE "discovery_runs" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id");
+
+ALTER TABLE "discovery_run_commands" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
 
 ALTER TABLE "discovery_proposals" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
 
