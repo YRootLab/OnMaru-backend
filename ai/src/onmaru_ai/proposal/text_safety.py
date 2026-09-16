@@ -2,16 +2,11 @@ from __future__ import annotations
 
 import re
 
-_KNOWN_URI_SCHEME = re.compile(
-    r"(?<![a-z0-9+.-])"
-    r"(?:javascript|vbscript|data|file|tel|sms|mailto|https?|ftps?|sftp|ssh|wss?|"
-    r"blob|urn|geo|intent):",
-    re.IGNORECASE,
+_ASCII_SCHEME_TOKEN = re.compile(
+    r"(?<![a-zA-Z0-9+.-])(?P<label>[a-zA-Z][a-zA-Z0-9+.-]*):"
 )
-_IMMEDIATE_PAYLOAD_URI_SCHEME = re.compile(
-    r"(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:(?!\s)",
-    re.IGNORECASE,
-)
+_PROSE_LABELS = frozenset({"Reason", "Data", "File", "Intent", "Geo"})
+_URI_STRUCTURE = re.compile(r"[/?:#@+()=]")
 _UNSAFE_PROPOSAL_TEXT = re.compile(
     r"//|www\.|"
     r"(?:[^\W_][\w-]*\.)+[^\W_\d][\w-]*(?:[/:?#]|\b)|"
@@ -23,10 +18,20 @@ _UNSAFE_PROPOSAL_TEXT = re.compile(
 )
 
 
+def _is_allowed_prose_label(match: re.Match[str], value: str) -> bool:
+    remainder = value[match.end() :]
+    if match.group("label") not in _PROSE_LABELS:
+        return False
+    if not remainder or not remainder[0].isspace() or "\n" in remainder or "\r" in remainder:
+        return False
+    payload = remainder.strip()
+    return bool(payload) and _URI_STRUCTURE.search(payload) is None
+
+
 def _contains_uri_scheme(value: str) -> bool:
-    return (
-        _KNOWN_URI_SCHEME.search(value) is not None
-        or _IMMEDIATE_PAYLOAD_URI_SCHEME.search(value) is not None
+    return any(
+        not _is_allowed_prose_label(match, value)
+        for match in _ASCII_SCHEME_TOKEN.finditer(value)
     )
 
 
