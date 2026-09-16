@@ -308,6 +308,9 @@ CREATE TABLE "audio_spot_versions" (
   "location" geography,
   "status" audio_status NOT NULL,
   "hash" varchar NOT NULL,
+  "source_modified_at" timestamptz,
+  "observed" boolean NOT NULL DEFAULT true,
+  "missing_observations" int NOT NULL DEFAULT 0,
   PRIMARY KEY ("revision_id", "spot_id")
 );
 
@@ -322,7 +325,20 @@ CREATE TABLE "audio_story_versions" (
   "duration_seconds" int,
   "status" audio_status NOT NULL,
   "hash" varchar NOT NULL,
+  "transcript_provenance" varchar NOT NULL,
+  "source_modified_at" timestamptz,
+  "observed" boolean NOT NULL DEFAULT true,
+  "missing_observations" int NOT NULL DEFAULT 0,
   PRIMARY KEY ("revision_id", "story_id")
+);
+
+CREATE TABLE "audio_revision_stages" (
+  "revision_id" uuid PRIMARY KEY,
+  "ready" boolean NOT NULL DEFAULT false,
+  "row_count" bigint NOT NULL DEFAULT 0,
+  "empty_full_sync_reviewed" boolean NOT NULL DEFAULT false,
+  "failure_code" varchar,
+  "tombstone_count" bigint NOT NULL DEFAULT 0
 );
 
 CREATE TABLE "audio_subtitle_lines" (
@@ -340,6 +356,7 @@ CREATE TABLE "audio_place_odii_links" (
   "spot_id" uuid NOT NULL,
   "match_method" varchar NOT NULL,
   "confidence" numeric,
+  "review_status" varchar NOT NULL DEFAULT 'APPROVED',
   "verified_at" timestamptz,
   PRIMARY KEY ("place_id", "spot_id")
 );
@@ -689,6 +706,7 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -724,6 +742,8 @@ ALTER TABLE "community_review_likes" ADD FOREIGN KEY ("member_id") REFERENCES "i
 ALTER TABLE "community_review_reports" ADD FOREIGN KEY ("reporter_member_id") REFERENCES "identity_members" ("id");
 
 ALTER TABLE "audio_place_odii_links" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
+
+ALTER TABLE "audio_revision_stages" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
 
 ALTER TABLE "insights_visitor_observations" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
 
