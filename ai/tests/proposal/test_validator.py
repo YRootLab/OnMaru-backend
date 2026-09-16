@@ -205,6 +205,24 @@ def test_rejects_markup_url_and_control_character_variants(unsafe_summary: str) 
     ("target", "unsafe_text"),
     [
         ("summary", "tel:+821012345678"),
+        ("summary", "안내tel:+821012345678"),
+        ("summary", "이동javascript:alert(1)"),
+        ("summary", "javascript: alert(1)"),
+        ("summary", "tel: +821012345678"),
+        ("summary", "javascript:\nalert(1)"),
+        ("summary", "Reason:javascript:alert(1)"),
+        ("summary", "about: blank"),
+        ("summary", "gopher: selector"),
+        ("summary", "market: details?id=app"),
+        ("summary", "content: item/42"),
+        ("summary", "geo: reviewed region only."),
+        ("summary", "Reason: /path"),
+        ("summary", "Data: key=value"),
+        ("summary", "File:\nunavailable."),
+        ("summary", "Intent: javascript: alert(1)"),
+        ("summary", "Reason:\u0085---"),
+        ("summary", "Reason:\u2028---"),
+        ("summary", "Reason:\u2029---"),
         ("question", "geo:37.1,127.1"),
         ("label", "sms:+821012345678"),
         ("summary", "//192.0.2.1/path"),
@@ -240,6 +258,31 @@ def test_rejects_generic_uri_and_markdown_in_every_generated_text_field(
         }
 
     rejection(payload, ProposalRejectionCode.UNSAFE_TEXT)
+
+
+@pytest.mark.parametrize(
+    "safe_summary",
+    [
+        "안내 문장은 검수된 근거만 설명합니다.",
+        "This itinerary uses reviewed evidence only.",
+        "tel 표시는 일반 영문 토큰일 뿐 URI가 아닙니다.",
+        "Version 1.2 is stable.",
+        "평점은 4.5입니다.",
+        "약 1.5km 떨어져 있습니다.",
+        "Reason: reviewed evidence only.",
+        "Data: reviewed evidence only.",
+        "File: unavailable.",
+        "Intent: visit a quiet place.",
+        "Geo: reviewed region only.",
+    ],
+)
+def test_accepts_plain_text_without_uri_scheme_delimiter(safe_summary: str) -> None:
+    payload = board_payload()
+    payload["reasons"][0]["summary"] = safe_summary
+
+    proposal = ProposalValidator().validate(payload, scope())
+
+    assert proposal.reasons[0].summary == safe_summary
 
 
 def test_clarification_cannot_introduce_a_region_reference() -> None:

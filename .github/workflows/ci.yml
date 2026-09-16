@@ -111,6 +111,7 @@ jobs:
 
       - name: Offline AI evaluation gates
         run: |
+          bash scripts/test/run-ai-evals.test.sh
           uv run --project ai python scripts/run-ai-evals \
             --input ai/evals/journey-held-out-v1.json \
             --output "${RUNNER_TEMP}/ai-eval-report.json" \

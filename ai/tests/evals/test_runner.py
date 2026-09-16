@@ -153,6 +153,24 @@ def test_human_claim_support_is_distinct_from_evidence_id_precision() -> None:
         "   ",
         "https://example.invalid/path",
         "custom+scheme:value",
+        "안내tel:+821012345678",
+        "이동javascript:alert(1)",
+        "javascript: alert(1)",
+        "tel: +821012345678",
+        "javascript:\nalert(1)",
+        "Reason:javascript:alert(1)",
+        "about: blank",
+        "gopher: selector",
+        "market: details?id=app",
+        "content: item/42",
+        "geo: reviewed region only.",
+        "Reason: /path",
+        "Data: key=value",
+        "File:\nunavailable.",
+        "Intent: javascript: alert(1)",
+        "Reason:\u0085---",
+        "Reason:\u2028---",
+        "Reason:\u2029---",
         "//192.0.2.1/path",
         "예시.한국/경로",
         "**강조**",
@@ -167,6 +185,30 @@ def test_rejects_summary_that_production_proposal_validator_rejects(
 
     with pytest.raises(ValueError, match="invalid evaluation document"):
         load_eval_document(document)
+
+
+@pytest.mark.parametrize(
+    "safe_summary",
+    [
+        "Version 1.2 is stable.",
+        "평점은 4.5입니다.",
+        "약 1.5km 떨어져 있습니다.",
+        "Reason: reviewed evidence only.",
+        "Data: reviewed evidence only.",
+        "File: unavailable.",
+        "Intent: visit a quiet place.",
+        "Geo: reviewed region only.",
+    ],
+)
+def test_accepts_natural_language_version_distance_and_label_text(
+    safe_summary: str,
+) -> None:
+    document = fixture_document()
+    document["cases"][0]["actual"]["reasons"][0]["summary"] = safe_summary
+
+    report = evaluate_document(document)
+
+    assert report.overall_passed is True
 
 
 def test_report_is_byte_reproducible_and_comparable(tmp_path: Path) -> None:
