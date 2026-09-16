@@ -1,5 +1,16 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #111
+
+- 현재 작업 브랜치와 worktree: `feature/111-ai-eval-harness`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-111-ai-eval-harness`.
+- 관련 Issue: #111 `[AI06] AI 품질·안전·비용·latency 평가 harness 구축`; blocked-by #105는 Closed이고 담당자·열린 중복 PR은 없다.
+- 구현 범위: model·prompt·ranking·dataset version을 고정한 synthetic held-out seed, recall@5·nDCG@3·evidence faithfulness·allowlist/pin/exclude/outcome safety·p95·평균/단건 비용 gate를 추가했다.
+- 재현 계약: canonical input SHA-256, 분자·분모, 관측값·threshold, gate 결과를 closed JSON report에 기록한다. 실행 시각을 제외해 같은 fixture는 byte-identical report를 만들고, `--compare`는 호환 여부와 metric delta를 같은 schema로 반환한다.
+- 실행·CI: `scripts/run-ai-evals`가 offline report를 생성하고 실패 gate가 있으면 종료 코드 1을 반환한다. CI는 5개 gate와 runtime JSON Schema drift를 검사한다.
+- 범위 경계: 현재 4건은 harness 검증용 synthetic seed이며 60건 사람 이중 검수 gold set 또는 실제 모델 출시 승인을 의미하지 않는다. RAG 비교·activation은 #119가 소유한다.
+- 검증: 신규 eval 7개, FastAPI 전체 111 passed·1 opt-in live smoke skipped, Ruff/mypy, Node 37개, contract validator 9개, planning/Odii, offline 5 gates·schema drift, Gradle 전체 41 tasks를 통과했다.
+- 다음 단계: `develop` 대상 PR의 `verify` CI와 최소 1명 approval을 확인한다. Merge 후 #111 상태를 조회하고 `develop` 대상 auto-close가 적용되지 않으면 정책에 따라 검증 근거를 남긴 뒤 수동 close 여부를 조정한다.
+
 ## Current Session Quick Handoff - 2026-09-16 Issue #94
 
 - 현재 작업 브랜치와 worktree: `feature/94-postgres-restore-drill`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-94-postgres-restore-drill`.
