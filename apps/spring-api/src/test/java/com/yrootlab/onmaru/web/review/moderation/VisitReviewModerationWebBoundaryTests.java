@@ -106,12 +106,36 @@ class VisitReviewModerationWebBoundaryTests {
                         .content("{\"nextStatus\":\"HIDDEN\",\"reason\":\"PII_HIGH_RISK\"}")
                         .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
                         .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Authorization", "Bearer fake-moderation-operator-token-current")
                         .header("X-OnMaru-Operator", "operator-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.actorRef").value("operator-1"))
                 .andExpect(jsonPath("$.previousStatus").value("PUBLISHED"))
                 .andExpect(jsonPath("$.nextStatus").value("HIDDEN"))
                 .andExpect(jsonPath("$.reason").value("PII_HIGH_RISK"));
+    }
+
+    @Test
+    void operatorHeaderAloneIsUnauthorizedAndInvalidBearerIsForbidden() throws Exception {
+        var request = post("/api/v1/operations/moderation/visit-reviews/{reviewId}", REVIEW_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nextStatus\":\"HIDDEN\",\"reason\":\"PII_HIGH_RISK\"}")
+                .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                .header("X-CSRF-TOKEN", "csrf-token")
+                .header("X-OnMaru-Operator", "operator-1");
+        mockMvc.perform(request)
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
+
+        mockMvc.perform(post("/api/v1/operations/moderation/visit-reviews/{reviewId}", REVIEW_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nextStatus\":\"HIDDEN\",\"reason\":\"PII_HIGH_RISK\"}")
+                        .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Authorization", "Bearer wrong")
+                        .header("X-OnMaru-Operator", "operator-1"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("OPERATOR_FORBIDDEN"));
     }
 
     private org.springframework.test.web.servlet.ResultActions report(
