@@ -1,5 +1,18 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #101
+
+- 현재 작업 브랜치와 worktree: `feature/101-exploration-intake`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-101-exploration-intake`.
+- 관련 Issue: #101 `[J01] Exploration 생성·조회·turn intake와 소유권 구현`; blocked-by #70/#77/#87/#92/#134/#136은 모두 Closed이고 시작 시 담당자·열린 중복 PR은 없었다.
+- 구현 범위: guest/member actor-scoped Exploration 생성·조회·turn intake, valid raw turn persistence, clientTurnId replay, stateVersion 검증, OpenAPI 1.2 `RunAccepted`/snapshot 응답을 추가했다.
+- 보안 경계: `/auth/csrf`가 server-registered 24시간 opaque guest credential을 발급하고 raw token은 cookie에만 둔다. credential 없음/미등록은 401, 타 actor 접근은 404, member guest grant를 지원하며 private response는 no-store다.
+- intake 경계: privacy/safety/scope 422와 structural 400 validation은 exploration·원문 turn·dispatch를 만들지 않는다. create/turn은 shared idempotency store로 replay/conflict를 구분하고 baseVersion 누락을 거절한다.
+- AI 경계: 지역이 없으면 dispatcher를 호출하지 않고 terminal `CLARIFICATION_REQUIRED/REGION_MISSING`을 저장한다. 지역이 있으면 #109가 이어받을 `ExplorationRunDispatcher`로 queued run을 전달한다.
+- 작업 로그: `troubleshooting-worklog/26.09.16 j01-exploration-intake.md`.
+- 독립 리뷰: raw input policy 누락, Idempotency-Key 미적용, 미등록 guest cookie 신뢰, baseVersion 기본값 승인, 비계약 오류 code를 보완했다. null replay와 canonical clarification answer도 함께 교정했다.
+- 최종 검증: 격리된 Gradle home 전체 Java 41 tasks, FastAPI Ruff·mypy와 pytest 62 passed/1 live skip, Node 35 tests, planning/Odii fixture, 전체 contract/generated artifact, branch parser `101`, `git diff --check`가 통과했다.
+- 다음 단계: 최신 `origin/develop`을 병합하고 commit·push한 뒤 `develop` 대상 PR을 만든다. 필수 CI와 approval 전에는 merge하지 않는다.
+
 ## Current Session Quick Handoff - 2026-09-15 Issue #134
 
 - 현재 작업 브랜치와 worktree: `docs/134-journey-actions-saved-contract`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j11-journey-contracts`.

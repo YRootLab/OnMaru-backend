@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.identity.guest;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class InMemoryGuestOwnershipStore implements GuestOwnershipStore {
@@ -39,12 +40,30 @@ public final class InMemoryGuestOwnershipStore implements GuestOwnershipStore {
         return grant != null && grant.memberId().equals(memberId) && grant.expiresAt().isAfter(now);
     }
 
-    void saveGuest(UUID guestId, String tokenHash, Instant expiresAt) {
+    @Override
+    public synchronized void saveGuest(UUID guestId, String tokenHash, Instant expiresAt) {
         guests.put(guestId, new GuestRecord(guestId, tokenHash, expiresAt));
     }
 
-    void saveGuestExploration(UUID explorationId, UUID guestId, Instant expiresAt) {
+    @Override
+    public synchronized Optional<UUID> findActiveGuest(String tokenHash, Instant now) {
+        return guests.values().stream()
+                .filter(guest -> guest.tokenHash().equals(tokenHash))
+                .filter(guest -> guest.expiresAt().isAfter(now))
+                .map(GuestRecord::id)
+                .findFirst();
+    }
+
+    @Override
+    public synchronized void saveGuestExploration(UUID explorationId, UUID guestId, Instant expiresAt) {
         explorations.put(explorationId, new GuestExplorationRecord(explorationId, guestId, expiresAt));
+    }
+
+    @Override
+    public synchronized void clearGuests() {
+        guests.clear();
+        explorations.clear();
+        grantsByExploration.clear();
     }
 
     void saveMemberGrant(UUID memberId, UUID explorationId, Instant expiresAt) {
