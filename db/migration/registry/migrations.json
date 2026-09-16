@@ -86,6 +86,15 @@
       "checksum": "j02-v009-20260916",
       "sha256": "24d9a7ca47cb0f56e80f76b7955b258fd70580fd4203f94f147e2db1ff6b661a",
       "description": "Durable journey run command idempotency receipts and state constraints"
+    },
+    {
+      "version": "010",
+      "reservedFor": "J09",
+      "issueNumber": 117,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V010__j09_admission_audit.sql",
+      "checksum": "j09-v010-20260916",
+      "sha256": "c11abe418d27da8b62e1dd4768782de546e9ab82e60a157f958984d93d65f6af",
+      "description": "Guest/member AI daily quota admission audit"
     }
   ]
 }

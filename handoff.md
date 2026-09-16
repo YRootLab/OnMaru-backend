@@ -1,5 +1,19 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-16 Issue #117
+
+- 현재 작업 브랜치와 worktree: `feature/117-guest-member-ai-quota-admission`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j09-guest-member-ai-quota-admission`.
+- 관련 Issue: #117 `[J09] Guest·member AI 일일 quota와 admission 구현`; blocked-by #109/#86은 모두 Closed이고 시작 시 열린 중복 PR은 없었다.
+- 구현 범위: `journey.ai` admission을 게스트 2회/회원 5회 KST 일일 quota로 추가했다. 기존 `login.start` 1분 IP admission과 공존하도록 `OperationBudget`에 operation별 window를 확장했다.
+- KST 경계: `Duration.ofDays(1)` admission window는 Asia/Seoul 자정 기준으로 계산하고, KST 23:59:59 거절은 `retryAfter=1s`, 00:00:00에는 새 window로 리셋된다.
+- 웹 경계: `/api/v1/explorations`와 turn 생성은 실제 새 AI run이 생길 요청만 preview validation 후 `admitActive`로 quota와 active slot을 함께 점유한다. safety/privacy/scope/validation 거절, baseline clarification, idempotent replay는 quota를 소모하지 않는다. 생성 도중 예외가 나면 점유한 active slot은 즉시 반환한다.
+- 429 응답: quota 초과는 `RATE_LIMITED` envelope와 `Retry-After` header로 반환한다. baseline clarification/degraded 응답과 분리된 exception path를 사용한다.
+- 영속화: `JdbcAdmissionStore`가 `operations_admission` row를 `SELECT ... FOR UPDATE`로 잠그고 counter/active_count update와 `operations_admission_audit` insert를 같은 transaction에서 commit한다. Spring은 `DataSource`가 있으면 JDBC store, 없으면 in-memory fallback을 사용한다.
+- active slot: `AdmissionService.admitActive`는 quota와 activeLimit를 함께 확인한다. active slot 거절은 `ACTIVE_LIMIT` reason으로 반환하고 daily consumed를 증가시키지 않는다. `POST /api/v1/explorations/{explorationId}/runs/{runId}/cancel`은 소유권과 latest run을 확인한 뒤 active 상태였던 run의 slot을 idempotent하게 반환한다.
+- 관측성: journey AI admission 결정은 `journey_ai_admission_decision` structured log로 operation, actorType, allowed, retryAfterMs를 남긴다. Micrometer counter는 `onmaru.admission.decisions`와 `onmaru.admission.releases`에 operation, subjectType, decision, reason tag를 기록한다. DB audit은 operation, subjectType, decision, reason, limit, consumedAfter, activeAfter, retryAfterMs를 시도별로 남긴다.
+- 검증: `./gradlew test`, `./gradlew :modules:operations:test --tests com.yrootlab.onmaru.operations.admission.AdmissionServiceTests :modules:journey:test`, `./gradlew :apps:spring-api:test --tests com.yrootlab.onmaru.web.exploration.ExplorationWebBoundaryTests --tests com.yrootlab.onmaru.web.admission.AdmissionWebBoundaryTests`, `./gradlew :apps:spring-api:test --tests com.yrootlab.onmaru.testing.postgres.DatabaseMigrationContractTests`, `./gradlew :apps:spring-api:test --rerun-tasks --tests com.yrootlab.onmaru.testing.postgres.JdbcAdmissionStoreTests --tests com.yrootlab.onmaru.testing.postgres.OperationsMigrationTests --tests com.yrootlab.onmaru.testing.postgres.FlywayMigrationBaselineTests`, `bash scripts/verify-contracts`, `node --test scripts/test/migration-policy.test.mjs`, `git diff --check` 통과.
+- 남은 리스크: cancel 반환 경로는 웹에 연결됐지만, worker/FastAPI 완료 콜백이나 sweeper가 Spring에 terminal 완료를 통지하는 API는 아직 없다. 해당 lifecycle 경로가 생기면 `AdmissionService.releaseActive`를 같은 lock order로 호출하도록 연결해야 한다.
+
 ## Current Session Quick Handoff - 2026-09-16 Issue #109
 
 - 현재 작업 브랜치와 worktree: `feature/109-durable-run`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-109-durable-run`.

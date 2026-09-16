@@ -5,14 +5,26 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yrootlab.onmaru.journey.exploration.CreateExplorationCommand;
 import com.yrootlab.onmaru.journey.exploration.CreateExplorationTurnCommand;
+import com.yrootlab.onmaru.journey.exploration.ExplorationActor;
+import com.yrootlab.onmaru.journey.exploration.ExplorationActorType;
 import com.yrootlab.onmaru.journey.exploration.ExplorationInputInvalidException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationInputRejectedException;
+import com.yrootlab.onmaru.journey.exploration.ExplorationNotFoundException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationService;
+import com.yrootlab.onmaru.journey.exploration.ExplorationSnapshot;
+import com.yrootlab.onmaru.journey.exploration.ExplorationRunStatus;
+import com.yrootlab.onmaru.operations.admission.AdmissionPolicy;
+import com.yrootlab.onmaru.operations.admission.AdmissionRequest;
+import com.yrootlab.onmaru.operations.admission.AdmissionService;
+import com.yrootlab.onmaru.operations.admission.AdmissionSubject;
+import com.yrootlab.onmaru.operations.admission.SubjectType;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -24,25 +36,34 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 @RestController
 public final class ExplorationController {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExplorationController.class);
     private static final String SESSION_COOKIE = "__Host-onmaru-session";
+    private static final String JOURNEY_AI_OPERATION = "journey.ai";
 
     private final ExplorationService explorationService;
     private final ExplorationActorResolver actorResolver;
     private final IdempotencyService idempotencyService;
+    private final AdmissionService admissionService;
+    private final AdmissionPolicy admissionPolicy;
 
     ExplorationController(
             ExplorationService explorationService,
             ExplorationActorResolver actorResolver,
-            IdempotencyService idempotencyService) {
+            IdempotencyService idempotencyService,
+            AdmissionService admissionService,
+            AdmissionPolicy admissionPolicy) {
         this.explorationService = explorationService;
         this.actorResolver = actorResolver;
         this.idempotencyService = idempotencyService;
+        this.admissionService = admissionService;
+        this.admissionPolicy = admissionPolicy;
     }
 
     @PostMapping("/api/v1/explorations")
@@ -63,11 +84,23 @@ public final class ExplorationController {
                 "POST",
                 "/api/v1/explorations",
                 IdempotencyFingerprint.sha256("POST", "/api/v1/explorations", "exploration.create", command)), () -> {
-            var snapshot = explorationService.create(resolved.actor(), command);
-            actorResolver.linkExploration(resolved, snapshot.explorationId());
-            return IdempotentResponse.accepted(RunAcceptedResponse.from(snapshot));
+            var admitted = false;
+            if (explorationService.willCreateAiRun(resolved.actor(), command)) {
+                admitAiRun(resolved.actor());
+                admitted = true;
+            }
+            try {
+                var snapshot = explorationService.create(resolved.actor(), command);
+                actorResolver.linkExploration(resolved, snapshot.explorationId());
+                return IdempotentResponse.accepted(RunAcceptedResponse.from(snapshot));
+            } catch (RuntimeException exception) {
+                if (admitted) {
+                    releaseAiRun(resolved.actor());
+                }
+                throw exception;
+            }
         });
-        return accepted(response);
+        return runAccepted(response);
     }
 
     @GetMapping("/api/v1/explorations/{explorationId}")
@@ -108,10 +141,92 @@ public final class ExplorationController {
                 "POST",
                 path,
                 IdempotencyFingerprint.sha256("POST", path, "exploration.turn", command)), () -> {
-            var snapshot = explorationService.createTurn(actor, explorationId, command);
-            return IdempotentResponse.accepted(RunAcceptedResponse.from(snapshot));
+            var admitted = false;
+            if (explorationService.willCreateTurnAiRun(actor, explorationId, command)) {
+                admitAiRun(actor);
+                admitted = true;
+            }
+            try {
+                var snapshot = explorationService.createTurn(actor, explorationId, command);
+                return IdempotentResponse.accepted(RunAcceptedResponse.from(snapshot));
+            } catch (RuntimeException exception) {
+                if (admitted) {
+                    releaseAiRun(actor);
+                }
+                throw exception;
+            }
         });
-        return accepted(response);
+        return runAccepted(response);
+    }
+
+    @PostMapping("/api/v1/explorations/{explorationId}/runs/{runId}/cancel")
+    ResponseEntity<ExplorationResponse.RunResponse> cancelRun(
+            @PathVariable UUID explorationId,
+            @PathVariable UUID runId,
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
+        if (body != null && !body.isEmpty()) {
+            throw new ExplorationInputInvalidException("body");
+        }
+        var key = IdempotencyKey.fromHeader(idempotencyKey);
+        var actor = actorResolver.resolve(sessionToken, guestToken).actor();
+        var before = explorationService.get(actor, explorationId);
+        if (!before.run().id().equals(runId)) {
+            throw new ExplorationNotFoundException();
+        }
+        var path = "/api/v1/explorations/" + explorationId + "/runs/" + runId + "/cancel";
+        var response = idempotencyService.execute(new IdempotencyCommand(
+                key.value(),
+                actor.type() + ":" + actor.subject(),
+                "POST",
+                path,
+                IdempotencyFingerprint.sha256("POST", path, "run.cancel", runId)), () -> {
+            var cancelled = explorationService.cancelRun(explorationId, runId);
+            if (isActive(before)) {
+                releaseAiRun(actor);
+            }
+            return IdempotentResponse.ok(ExplorationResponse.RunResponse.from(new ExplorationSnapshot(
+                    explorationId,
+                    before.stateVersion(),
+                    before.regionCode(),
+                    cancelled,
+                    cancelled.createdAt())));
+        });
+        return run(response);
+    }
+
+    private void admitAiRun(ExplorationActor actor) {
+        var decision = admissionService.admitActive(new AdmissionRequest(
+                JOURNEY_AI_OPERATION,
+                new AdmissionSubject(subjectType(actor.type()), actor.subject())
+        ), admissionPolicy);
+        LOGGER.atInfo()
+                .addKeyValue("operation", JOURNEY_AI_OPERATION)
+                .addKeyValue("actorType", actor.type().name())
+                .addKeyValue("allowed", decision.allowed())
+                .addKeyValue("retryAfterMs", decision.retryAfter().toMillis())
+                .log("journey_ai_admission_decision");
+        if (!decision.allowed()) {
+            throw new ExplorationQuotaExceededException(decision.retryAfter());
+        }
+    }
+
+    private void releaseAiRun(ExplorationActor actor) {
+        admissionService.releaseActive(new AdmissionRequest(
+                JOURNEY_AI_OPERATION,
+                new AdmissionSubject(subjectType(actor.type()), actor.subject())
+        ), admissionPolicy);
+    }
+
+    private boolean isActive(ExplorationSnapshot snapshot) {
+        return snapshot.run().status() == ExplorationRunStatus.QUEUED
+                || snapshot.run().status() == ExplorationRunStatus.RUNNING;
+    }
+
+    private SubjectType subjectType(ExplorationActorType actorType) {
+        return actorType == ExplorationActorType.MEMBER ? SubjectType.MEMBER : SubjectType.GUEST;
     }
 
     private String regionCode(ClarificationAnswer answer) {
@@ -142,10 +257,16 @@ public final class ExplorationController {
         return null;
     }
 
-    private ResponseEntity<RunAcceptedResponse> accepted(IdempotentResponse response) {
+    private ResponseEntity<RunAcceptedResponse> runAccepted(IdempotentResponse response) {
         return ResponseEntity.status(response.status())
                 .cacheControl(CacheControl.noStore())
                 .body((RunAcceptedResponse) response.body());
+    }
+
+    private ResponseEntity<ExplorationResponse.RunResponse> run(IdempotentResponse response) {
+        return ResponseEntity.status(response.status())
+                .cacheControl(CacheControl.noStore())
+                .body((ExplorationResponse.RunResponse) response.body());
     }
 
     private void rejectUnknownFields(StrictRequest body) {

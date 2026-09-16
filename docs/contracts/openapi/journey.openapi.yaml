@@ -215,11 +215,15 @@ components:
   responses:
     Error:
       description: Error envelope
-      headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }
+      headers:
+        Cache-Control: { $ref: '#/components/headers/NoStore' }
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
   headers:
     NoStore:
       schema: { type: string, const: no-store }
+    RetryAfter:
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
   schemas:
     CreateExplorationRequest:
       type: object
