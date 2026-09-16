@@ -177,21 +177,44 @@ docker run --rm \
 rm "$work_dir/deletion-ledger.tsv"
 
 artifact_name=$(basename "$artifact")
-docker run --rm \
-  --network "$network" \
-  -v "$work_dir:/work" \
-  -v "$evidence_dir:/evidence" \
-  -e PGHOST="$target_container" \
-  -e PGDATABASE="$database" \
-  -e PGUSER=postgres \
-  -e PGPASSWORD="$postgres_password" \
-  -e ONMARU_BACKUP_ARTIFACT="/work/backups/$artifact_name" \
-  -e ONMARU_BACKUP_KEY_FILE=/work/backup-key \
-  -e ONMARU_DELETION_LEDGER_ARTIFACT=/work/deletion-ledger.tsv.gpg \
-  -e ONMARU_DELETION_LEDGER_KEY_FILE=/work/ledger-key \
-  -e ONMARU_RESTORE_EVIDENCE_DIR=/evidence \
-  -e ONMARU_RESTORE_CONFIRM=isolated-target \
-  "$image" restore-drill >/dev/null
+run_restore() {
+  docker run --rm \
+    --network "$network" \
+    -v "$work_dir:/work" \
+    -v "$evidence_dir:/evidence" \
+    -e PGHOST="$target_container" \
+    -e PGDATABASE="$database" \
+    -e PGUSER=postgres \
+    -e PGPASSWORD="$postgres_password" \
+    -e ONMARU_BACKUP_ARTIFACT="/work/backups/$artifact_name" \
+    -e ONMARU_BACKUP_KEY_FILE=/work/backup-key \
+    -e ONMARU_DELETION_LEDGER_ARTIFACT=/work/deletion-ledger.tsv.gpg \
+    -e ONMARU_DELETION_LEDGER_KEY_FILE=/work/ledger-key \
+    -e ONMARU_RESTORE_EVIDENCE_DIR=/evidence \
+    -e ONMARU_RESTORE_CONFIRM=isolated-target \
+    "$image" restore-drill
+}
+
+cp "$artifact.sha256" "$artifact.sha256.valid"
+artifact_digest=$(awk 'NR == 1 { print $1 }' "$artifact.sha256")
+printf '%s  %s\n' "$artifact_digest" 'different-artifact.tar.gpg' > "$artifact.sha256"
+if run_restore >/dev/null 2>&1; then
+  echo "checksum sidecar accepted a different artifact name" >&2
+  exit 1
+fi
+mv "$artifact.sha256.valid" "$artifact.sha256"
+
+docker exec "$target_container" \
+  psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$database" \
+    -c 'CREATE TABLE public.preexisting_data (id bigint PRIMARY KEY)' >/dev/null
+if run_restore >/dev/null 2>&1; then
+  echo "restore accepted a non-empty user schema" >&2
+  exit 1
+fi
+docker exec "$target_container" dropdb --force -U postgres "$database"
+docker exec "$target_container" createdb -U postgres --template=template0 "$database"
+
+run_restore >/dev/null
 
 evidence=$(find "$evidence_dir" -type f -name 'restore-*.json' -print -quit)
 if [ -z "$evidence" ]; then

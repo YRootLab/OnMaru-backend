@@ -10,6 +10,33 @@ require_env() {
   fi
 }
 
+verify_artifact_checksum() {
+  artifact="$1"
+  sidecar="$artifact.sha256"
+  artifact_name=$(basename "$artifact")
+
+  if [ "$(awk 'END { print NR }' "$sidecar")" -ne 1 ]; then
+    echo "checksum sidecar must contain exactly one entry: $artifact_name" >&2
+    return 1
+  fi
+
+  expected_digest=$(awk 'NR == 1 { print $1 }' "$sidecar")
+  expected_name=$(awk 'NR == 1 { sub(/^[^[:space:]]+[[:space:]]+\**/, ""); print }' "$sidecar")
+  if ! printf '%s\n' "$expected_digest" | grep -Eq '^[0-9A-Fa-f]{64}$' \
+    || [ "$expected_name" != "$artifact_name" ]; then
+    echo "checksum sidecar is not bound to artifact: $artifact_name" >&2
+    return 1
+  fi
+
+  actual_digest=$(sha256sum "$artifact" | awk '{ print $1 }')
+  if [ "$actual_digest" != "$expected_digest" ]; then
+    echo "checksum mismatch for artifact: $artifact_name" >&2
+    return 1
+  fi
+
+  printf '%s\n' "$actual_digest"
+}
+
 for name in PGHOST PGDATABASE PGUSER PGPASSWORD \
   ONMARU_BACKUP_ARTIFACT ONMARU_BACKUP_KEY_FILE \
   ONMARU_DELETION_LEDGER_ARTIFACT ONMARU_DELETION_LEDGER_KEY_FILE \
@@ -55,19 +82,8 @@ chmod 700 "$gnupg_home"
 restore_started_epoch=$(date +%s)
 restore_started_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
-artifact_dir=$(dirname "$ONMARU_BACKUP_ARTIFACT")
-artifact_name=$(basename "$ONMARU_BACKUP_ARTIFACT")
-(
-  cd "$artifact_dir"
-  sha256sum -c "$artifact_name.sha256"
-)
-
-ledger_dir=$(dirname "$ONMARU_DELETION_LEDGER_ARTIFACT")
-ledger_name=$(basename "$ONMARU_DELETION_LEDGER_ARTIFACT")
-(
-  cd "$ledger_dir"
-  sha256sum -c "$ledger_name.sha256"
-)
+artifact_sha=$(verify_artifact_checksum "$ONMARU_BACKUP_ARTIFACT")
+verify_artifact_checksum "$ONMARU_DELETION_LEDGER_ARTIFACT" >/dev/null
 
 GNUPGHOME="$gnupg_home" gpg \
   --batch \
@@ -110,7 +126,22 @@ if [ "$source_fingerprint" = "$target_fingerprint" ]; then
 fi
 
 target_table_count=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
-  "SELECT count(*) FROM information_schema.tables WHERE table_schema IN ('onmaru', 'onmaru_registry')")
+  "SELECT count(*)
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+      AND n.nspname NOT LIKE 'pg_toast%'
+      AND n.nspname NOT LIKE 'pg_temp_%'
+      AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+      AND NOT EXISTS (
+        SELECT 1
+          FROM pg_depend d
+          JOIN pg_extension e ON e.oid = d.refobjid
+         WHERE d.classid = 'pg_class'::regclass
+           AND d.objid = c.oid
+           AND d.refclassid = 'pg_extension'::regclass
+           AND d.deptype = 'e'
+      )")
 if [ "$target_table_count" -ne 0 ]; then
   echo "restore target must be a new empty database" >&2
   exit 2
@@ -153,7 +184,6 @@ invalid_saved_hashes=$(printf '%s' "$integrity_json" | jq -er '.invalidSavedSnap
 deletion_reexposure=$(printf '%s' "$integrity_json" | jq -er '.deletionReexposureCount')
 migration_version=$(printf '%s' "$integrity_json" | jq -er '.migrationVersion')
 ledger_entries=$(printf '%s' "$integrity_json" | jq -er '.deletionLedgerEntries')
-artifact_sha=$(cut -d ' ' -f 1 "$ONMARU_BACKUP_ARTIFACT.sha256")
 
 result=PASS
 if [ "$rpo_seconds" -gt "$rpo_target" ] \

@@ -40,6 +40,9 @@ describe('PostgreSQL backup and restore drill', () => {
 
     assert.match(createBackup, /pg_dump/);
     assert.match(createBackup, /--format=custom/);
+    assert.match(createBackup, /pg_export_snapshot\(\)/);
+    assert.match(createBackup, /--snapshot="\$snapshot_id"/);
+    assert.match(createBackup, /SET TRANSACTION SNAPSHOT :'snapshot_id'/);
     assert.match(createBackup, /gpg[\s\S]+--symmetric/);
     assert.match(createBackup, /--passphrase-file/);
     assert.match(createBackup, /ONMARU_BACKUP_KEY_FILE/);
@@ -50,6 +53,13 @@ describe('PostgreSQL backup and restore drill', () => {
     assert.match(restoreDrill, /ONMARU_RESTORE_CONFIRM/);
     assert.match(restoreDrill, /isolated-target/);
     assert.match(restoreDrill, /sourceFingerprint/);
+    assert.match(restoreDrill, /verify_artifact_checksum/);
+    assert.match(restoreDrill, /actual_digest/);
+    assert.match(restoreDrill, /expected_name/);
+    assert.match(restoreDrill, /pg_class/);
+    assert.match(restoreDrill, /pg_namespace/);
+    assert.match(restoreDrill, /pg_extension/);
+    assert.match(restoreDrill, /c\.relkind IN \('r', 'p', 'v', 'm', 'S', 'f'\)/);
     assert.match(restoreDrill, /pg_restore[\s\S]+--exit-on-error/);
     assert.match(restoreDrill, /replay-deletion-ledger\.sql/);
     assert.match(restoreDrill, /integrity\.sql/);
@@ -60,7 +70,7 @@ describe('PostgreSQL backup and restore drill', () => {
     assert.match(restoreDrill, /rtoSeconds/);
     assert.ok(
       restoreDrill.indexOf('restore_started_epoch=')
-        < restoreDrill.indexOf('sha256sum -c'),
+        < restoreDrill.indexOf('artifact_sha=$(verify_artifact_checksum'),
       'RTO measurement must include checksum verification and decryption',
     );
 
@@ -98,6 +108,8 @@ describe('PostgreSQL backup and restore drill', () => {
     assert.match(drill, /onmaru_backup_login/);
     assert.match(drill, /create-backup/);
     assert.match(drill, /restore-drill/);
+    assert.match(drill, /checksum sidecar accepted a different artifact name/);
+    assert.match(drill, /restore accepted a non-empty user schema/);
     assert.match(drill, /\.tar\.gpg/);
     assert.match(
       drill,

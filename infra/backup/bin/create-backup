@@ -42,8 +42,13 @@ retention_days=${ONMARU_BACKUP_RETENTION_DAYS:-7}
 source_revision=${ONMARU_SOURCE_REVISION:-unknown}
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/onmaru-backup.XXXXXX")
 gnupg_home="$tmp_dir/gnupg"
+snapshot_pid=
 
 cleanup() {
+  if [ -n "$snapshot_pid" ]; then
+    kill "$snapshot_pid" >/dev/null 2>&1 || true
+    wait "$snapshot_pid" >/dev/null 2>&1 || true
+  fi
   rm -rf "$tmp_dir"
 }
 trap cleanup EXIT HUP INT TERM
@@ -58,15 +63,59 @@ captured_epoch=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
 captured_at=$(psql -X -qAt -v ON_ERROR_STOP=1 -c \
   "SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')")
 
+snapshot_id_file="$tmp_dir/snapshot-id"
+snapshot_release="$tmp_dir/snapshot-release"
+mkfifo "$snapshot_release"
+psql -X -qAt -v ON_ERROR_STOP=1 <<SQL &
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+\o $snapshot_id_file
+SELECT pg_export_snapshot();
+\o
+\! cat "$snapshot_release" >/dev/null
+COMMIT;
+SQL
+snapshot_pid=$!
+
+snapshot_attempts=0
+while [ ! -s "$snapshot_id_file" ]; do
+  if ! kill -0 "$snapshot_pid" >/dev/null 2>&1; then
+    wait "$snapshot_pid" || true
+    echo "failed to export backup snapshot" >&2
+    exit 1
+  fi
+  snapshot_attempts=$((snapshot_attempts + 1))
+  if [ "$snapshot_attempts" -ge 100 ]; then
+    echo "timed out exporting backup snapshot" >&2
+    exit 1
+  fi
+  sleep 0.1
+done
+
+snapshot_id=$(tr -d '[:space:]' < "$snapshot_id_file")
+if ! printf '%s\n' "$snapshot_id" | grep -Eq '^[0-9A-Fa-f-]+$'; then
+  echo "database returned an invalid exported snapshot identifier" >&2
+  exit 1
+fi
+
 pg_dump \
   --format=custom \
   --no-owner \
   --no-privileges \
+  --snapshot="$snapshot_id" \
   --file="$tmp_dir/database.dump" \
   "$PGDATABASE"
 
-psql -X -qAt -v ON_ERROR_STOP=1 -f "$sql_dir/critical-counts.sql" \
-  > "$tmp_dir/critical-counts.tsv"
+psql -X -qAt -v ON_ERROR_STOP=1 -v snapshot_id="$snapshot_id" \
+  > "$tmp_dir/critical-counts.tsv" <<SQL
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+SET TRANSACTION SNAPSHOT :'snapshot_id';
+\i $sql_dir/critical-counts.sql
+COMMIT;
+SQL
+
+printf 'release\n' > "$snapshot_release"
+wait "$snapshot_pid"
+snapshot_pid=
 
 jq -n \
   --arg capturedAt "$captured_at" \
