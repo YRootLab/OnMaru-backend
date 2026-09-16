@@ -83,10 +83,10 @@
         "name": {
           "enum": [
             "quality",
-            "evidenceFaithfulness",
             "safety",
             "latency",
-            "cost"
+            "cost",
+            "determinism"
           ],
           "title": "Name",
           "type": "string"
@@ -259,6 +259,139 @@
     }
   },
   "additionalProperties": false,
+  "allOf": [
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "cost"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "determinism"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "latency"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "quality"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "name": {
+                "const": "safety"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "maxContains": 1,
+          "minContains": 1
+        }
+      }
+    }
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "gates": {
+          "items": {
+            "properties": {
+              "passed": {
+                "const": true
+              }
+            },
+            "required": [
+              "passed"
+            ]
+          }
+        },
+        "overallPassed": {
+          "const": true
+        }
+      }
+    },
+    {
+      "properties": {
+        "gates": {
+          "contains": {
+            "properties": {
+              "passed": {
+                "const": false
+              }
+            },
+            "required": [
+              "passed"
+            ]
+          },
+          "minContains": 1
+        },
+        "overallPassed": {
+          "const": false
+        }
+      }
+    }
+  ],
   "properties": {
     "comparison": {
       "anyOf": [
@@ -278,8 +411,11 @@
       "items": {
         "$ref": "#/$defs/GateResult"
       },
+      "maxItems": 5,
+      "minItems": 5,
       "title": "Gates",
-      "type": "array"
+      "type": "array",
+      "uniqueItems": true
     },
     "metrics": {
       "$ref": "#/$defs/EvalMetrics"

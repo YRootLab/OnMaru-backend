@@ -27,7 +27,8 @@ uv run --project ai python scripts/run-ai-evals \
   --output /tmp/onmaru-ai-eval-report.json
 ```
 
-이전 report와 같은 dataset인지 확인하고 지표 delta를 포함하려면 `--compare`를 사용한다.
+이전 report와 같은 immutable gold인지 확인하고 지표 delta를 포함하려면 `--compare`를 사용한다.
+dataset 표시 이름은 비교 fingerprint에 포함되지 않는다.
 
 ```bash
 uv run --project ai python scripts/run-ai-evals \

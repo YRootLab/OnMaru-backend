@@ -5,6 +5,10 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+from jsonschema import Draft202012Validator
+from pydantic import ValidationError
+
 from onmaru_ai.evals import EvalReport, compare_reports, evaluate_document, load_eval_document
 from onmaru_ai.evals.cli import main
 from onmaru_ai.evals.runner import _ndcg
@@ -55,10 +59,10 @@ def test_scores_fixed_versions_quality_safety_latency_and_cost() -> None:
     assert report.metrics.max_cost_micros == 400
     assert {gate.name: gate.passed for gate in report.gates} == {
         "quality": True,
-        "evidenceFaithfulness": True,
         "safety": True,
         "latency": True,
         "cost": True,
+        "determinism": True,
     }
     assert report.overall_passed is True
 
@@ -84,7 +88,7 @@ def test_fails_closed_for_unsupported_evidence_constraint_latency_and_cost() -> 
     assert report.metrics.safety.violations >= 2
     assert report.overall_passed is False
     assert {gate.name for gate in report.gates if not gate.passed} == {
-        "evidenceFaithfulness",
+        "quality",
         "safety",
         "latency",
         "cost",
@@ -140,9 +144,29 @@ def test_human_claim_support_is_distinct_from_evidence_id_precision() -> None:
 
     assert report.metrics.evidence_id_precision.value == 1.0
     assert report.metrics.claim_support.value == 0.666667
-    assert {gate.name for gate in report.gates if not gate.passed} == {
-        "evidenceFaithfulness"
-    }
+    assert {gate.name for gate in report.gates if not gate.passed} == {"quality"}
+
+
+@pytest.mark.parametrize(
+    "unsafe_summary",
+    [
+        "   ",
+        "https://example.invalid/path",
+        "custom+scheme:value",
+        "//192.0.2.1/path",
+        "예시.한국/경로",
+        "**강조**",
+        "제목\n---",
+    ],
+)
+def test_rejects_summary_that_production_proposal_validator_rejects(
+    unsafe_summary: str,
+) -> None:
+    document = fixture_document()
+    document["cases"][0]["actual"]["reasons"][0]["summary"] = unsafe_summary
+
+    with pytest.raises(ValueError, match="invalid evaluation document"):
+        load_eval_document(document)
 
 
 def test_report_is_byte_reproducible_and_comparable(tmp_path: Path) -> None:
@@ -212,6 +236,52 @@ def test_comparison_uses_gold_fingerprint_not_model_actual() -> None:
     assert compare_reports(changed_gold_report, baseline).compatible is False
 
 
+def test_dataset_display_name_does_not_change_gold_fingerprint_or_compatibility() -> None:
+    baseline = evaluate_document(fixture_document())
+    renamed = fixture_document()
+    renamed["versions"]["dataset"] = "journey-held-out-renamed"
+
+    renamed_report = evaluate_document(renamed)
+
+    assert renamed_report.dataset.gold_sha256 == baseline.dataset.gold_sha256
+    assert compare_reports(renamed_report, baseline).compatible is True
+
+
+def test_report_rejects_missing_duplicate_or_inconsistent_gate_sets() -> None:
+    payload = evaluate_document(fixture_document()).model_dump(mode="json", by_alias=True)
+    schema_validator = Draft202012Validator(
+        EvalReport.model_json_schema(by_alias=True)
+    )
+
+    empty = deepcopy(payload)
+    empty["gates"] = []
+    missing_gate = deepcopy(payload)
+    missing_gate["gates"] = missing_gate["gates"][:-1]
+    missing_field = deepcopy(payload)
+    del missing_field["gates"]
+    duplicate = deepcopy(payload)
+    duplicate["gates"][-1] = deepcopy(duplicate["gates"][0])
+    wrong_overall = deepcopy(payload)
+    wrong_overall["overallPassed"] = False
+
+    for invalid in (empty, missing_gate, missing_field, duplicate, wrong_overall):
+        with pytest.raises(ValidationError):
+            EvalReport.model_validate(invalid)
+        assert list(schema_validator.iter_errors(invalid))
+
+
+def test_snake_case_wire_keys_are_rejected_with_exit_two(tmp_path: Path) -> None:
+    document = fixture_document()
+    actual = document["cases"][0]["actual"]
+    actual["ordered_refs"] = actual.pop("orderedRefs")
+    input_path = tmp_path / "snake-case.json"
+    output_path = tmp_path / "report.json"
+    input_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+
+    assert main(["--input", str(input_path), "--output", str(output_path)]) == 2
+    assert not output_path.exists()
+
+
 def test_failed_gate_returns_nonzero_and_writes_report(tmp_path: Path) -> None:
     document = fixture_document()
     document["thresholds"]["minNdcgAt3"] = 1.0
@@ -250,3 +320,9 @@ def test_checked_in_report_schema_matches_runtime_contract() -> None:
     checked_in = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 
     assert checked_in == EvalReport.model_json_schema(by_alias=True)
+    gates_schema = checked_in["properties"]["gates"]
+    assert gates_schema["minItems"] == 5
+    assert gates_schema["maxItems"] == 5
+    assert gates_schema["uniqueItems"] is True
+    assert len(checked_in["allOf"]) == 5
+    assert len(checked_in["oneOf"]) == 2

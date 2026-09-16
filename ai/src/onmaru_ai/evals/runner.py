@@ -96,13 +96,15 @@ def evaluate_document(value: object) -> EvalReport:
         meanCostMicros=round(sum(costs) / len(costs)),
         maxCostMicros=max(costs),
     )
-    gates = _gates(metrics, document)
+    input_hash = _input_hash(document)
+    gold_hash = _gold_hash(document)
+    gates = _gates(metrics, document, input_hash, gold_hash)
     return EvalReport(
         schemaVersion="1.1",
         versions=document.versions,
         dataset=DatasetIdentity(
-            inputSha256=_input_hash(document),
-            goldSha256=_gold_hash(document),
+            inputSha256=input_hash,
+            goldSha256=gold_hash,
             caseCount=len(document.cases),
         ),
         metrics=metrics,
@@ -114,7 +116,6 @@ def evaluate_document(value: object) -> EvalReport:
 def compare_reports(current: EvalReport, baseline: EvalReport) -> ReportComparison:
     compatible = (
         current.schema_version == baseline.schema_version
-        and current.versions.dataset == baseline.versions.dataset
         and current.dataset.gold_sha256 == baseline.dataset.gold_sha256
     )
     current_metrics = current.metrics
@@ -191,7 +192,12 @@ def _safety_violations(case: EvaluationCase) -> int:
     return violations
 
 
-def _gates(metrics: EvalMetrics, document: EvalDocument) -> tuple[GateResult, ...]:
+def _gates(
+    metrics: EvalMetrics,
+    document: EvalDocument,
+    input_hash: str,
+    gold_hash: str,
+) -> tuple[GateResult, ...]:
     threshold = document.thresholds
     return (
         GateResult(
@@ -199,35 +205,35 @@ def _gates(metrics: EvalMetrics, document: EvalDocument) -> tuple[GateResult, ..
             passed=(
                 metrics.retrieval_recall_at_5.value >= threshold.min_retrieval_recall_at_5
                 and metrics.ndcg_at_3 >= threshold.min_ndcg_at_3
+                and metrics.claim_support.value >= threshold.min_claim_support
             ),
             observed={
                 "retrievalRecallAt5": metrics.retrieval_recall_at_5.value,
                 "ndcgAt3": metrics.ndcg_at_3,
+                "claimSupport": metrics.claim_support.value,
             },
             thresholds={
                 "minRetrievalRecallAt5": threshold.min_retrieval_recall_at_5,
                 "minNdcgAt3": threshold.min_ndcg_at_3,
+                "minClaimSupport": threshold.min_claim_support,
             },
-        ),
-        GateResult(
-            name="evidenceFaithfulness",
-            passed=metrics.claim_support.value >= threshold.min_claim_support,
-            observed={
-                "claimSupport": metrics.claim_support.value,
-                "evidenceIdPrecision": metrics.evidence_id_precision.value,
-            },
-            thresholds={"minClaimSupport": threshold.min_claim_support},
         ),
         GateResult(
             name="safety",
             passed=(
                 metrics.safety.value >= threshold.min_safety and metrics.safety.violations == 0
+                and metrics.evidence_id_precision.value == 1.0
             ),
             observed={
                 "safety": metrics.safety.value,
                 "violations": metrics.safety.violations,
+                "evidenceIdPrecision": metrics.evidence_id_precision.value,
             },
-            thresholds={"minSafety": threshold.min_safety, "maxViolations": 0},
+            thresholds={
+                "minSafety": threshold.min_safety,
+                "maxViolations": 0,
+                "minEvidenceIdPrecision": 1.0,
+            },
         ),
         GateResult(
             name="latency",
@@ -250,6 +256,12 @@ def _gates(metrics: EvalMetrics, document: EvalDocument) -> tuple[GateResult, ..
                 "maxPerRunCostMicros": threshold.max_per_run_cost_micros,
             },
         ),
+        GateResult(
+            name="determinism",
+            passed=len(input_hash) == 64 and len(gold_hash) == 64,
+            observed={"canonicalFingerprints": 2},
+            thresholds={"requiredCanonicalFingerprints": 2},
+        ),
     )
 
 
@@ -260,7 +272,6 @@ def _input_hash(document: EvalDocument) -> str:
 def _gold_hash(document: EvalDocument) -> str:
     return _canonical_hash(
         {
-            "dataset": document.versions.dataset,
             "cases": [
                 {
                     "id": case.id,

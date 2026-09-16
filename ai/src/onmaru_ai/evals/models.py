@@ -1,14 +1,66 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from onmaru_ai.proposal import ProposalOutcome
+from onmaru_ai.proposal.text_safety import is_safe_proposal_text
+
+_EXPECTED_GATE_NAMES = frozenset(
+    {"quality", "safety", "latency", "cost", "determinism"}
+)
+_REPORT_GATE_SCHEMA_INVARIANTS: dict[str, Any] = {
+    "allOf": [
+        {
+            "properties": {
+                "gates": {
+                    "contains": {
+                        "properties": {"name": {"const": name}},
+                        "required": ["name"],
+                    },
+                    "minContains": 1,
+                    "maxContains": 1,
+                }
+            }
+        }
+        for name in sorted(_EXPECTED_GATE_NAMES)
+    ],
+    "oneOf": [
+        {
+            "properties": {
+                "overallPassed": {"const": True},
+                "gates": {
+                    "items": {
+                        "properties": {"passed": {"const": True}},
+                        "required": ["passed"],
+                    }
+                },
+            }
+        },
+        {
+            "properties": {
+                "overallPassed": {"const": False},
+                "gates": {
+                    "contains": {
+                        "properties": {"passed": {"const": False}},
+                        "required": ["passed"],
+                    },
+                    "minContains": 1,
+                },
+            }
+        },
+    ],
+}
 
 
 class EvalModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        validate_by_alias=True,
+        validate_by_name=False,
+    )
 
 
 class VersionPins(EvalModel):
@@ -69,6 +121,13 @@ class ActualReason(EvalModel):
     evidence_ids: tuple[str, ...] = Field(alias="evidenceIds", min_length=1, max_length=3)
     summary: str = Field(min_length=1, max_length=200)
     human_claim_supported: bool = Field(alias="humanClaimSupported")
+
+    @field_validator("summary")
+    @classmethod
+    def safe_summary(cls, value: str) -> str:
+        if not is_safe_proposal_text(value):
+            raise ValueError("summary must be nonblank plain text without URLs or Markdown")
+        return value
 
 
 class ActualResult(EvalModel):
@@ -147,7 +206,7 @@ class DatasetIdentity(EvalModel):
 
 
 class GateResult(EvalModel):
-    name: Literal["quality", "evidenceFaithfulness", "safety", "latency", "cost"]
+    name: Literal["quality", "safety", "latency", "cost", "determinism"]
     passed: bool
     observed: dict[str, float | int]
     thresholds: dict[str, float | int]
@@ -159,10 +218,25 @@ class ReportComparison(EvalModel):
 
 
 class EvalReport(EvalModel):
+    model_config = ConfigDict(json_schema_extra=_REPORT_GATE_SCHEMA_INVARIANTS)
+
     schema_version: Literal["1.1"] = Field(alias="schemaVersion")
     versions: VersionPins
     dataset: DatasetIdentity
     metrics: EvalMetrics
-    gates: tuple[GateResult, ...]
+    gates: tuple[GateResult, ...] = Field(
+        min_length=5,
+        max_length=5,
+        json_schema_extra={"uniqueItems": True},
+    )
     overall_passed: bool = Field(alias="overallPassed")
     comparison: ReportComparison | None = None
+
+    @model_validator(mode="after")
+    def validate_gate_contract(self) -> EvalReport:
+        gate_names = tuple(gate.name for gate in self.gates)
+        if len(set(gate_names)) != 5 or set(gate_names) != _EXPECTED_GATE_NAMES:
+            raise ValueError("report must contain each required gate exactly once")
+        if self.overall_passed != all(gate.passed for gate in self.gates):
+            raise ValueError("overallPassed must equal the conjunction of gate results")
+        return self

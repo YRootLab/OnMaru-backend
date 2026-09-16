@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
@@ -14,17 +13,9 @@ from .models import (
     ProposeBoard,
     ProviderProposal,
 )
+from .text_safety import is_safe_proposal_text
 
 _PROPOSAL_ADAPTER: TypeAdapter[ProviderProposal] = TypeAdapter(ProviderProposal)
-_UNSAFE_TEXT = re.compile(
-    r"\b[a-z][a-z0-9+.-]*:|//|www\.|"
-    r"(?:[^\W_][\w-]*\.)+[^\W_][\w-]*(?:[/:?#]|\b)|"
-    r"(?:\d{1,3}\.){3}\d{1,3}(?:[/:?#]|\b)|"
-    r"[\[\]<>`#*_]|~~|"
-    r"(?:^|\n)\s{0,3}(?:[-+]\s|\d+[.)]\s|(?:=+|-{2,})\s*(?:\n|$))|"
-    r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]",
-    re.IGNORECASE,
-)
 
 
 class ProposalValidationError(ValueError):
@@ -104,7 +95,7 @@ class ProposalValidator:
 
     @staticmethod
     def _reject_unsafe_text(value: str) -> None:
-        if _UNSAFE_TEXT.search(value):
+        if not is_safe_proposal_text(value):
             raise ProposalValidationError(ProposalRejectionCode.UNSAFE_TEXT)
 
     @staticmethod
