@@ -86,6 +86,15 @@
       "checksum": "j02-v009-20260916",
       "sha256": "24d9a7ca47cb0f56e80f76b7955b258fd70580fd4203f94f147e2db1ff6b661a",
       "description": "Durable journey run command idempotency receipts and state constraints"
+    },
+    {
+      "version": "010",
+      "reservedFor": "A02-FOLLOWUP",
+      "issueNumber": 197,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V010__a02_odii_production_persistence.sql",
+      "checksum": "a02-v010-20260916",
+      "sha256": "29eb68d926af14fb514eadd235679c791894e72d168988703405fadd02b0a0fe",
+      "description": "Odii production revision persistence and atomic place-link approval"
     }
   ]
 }
