@@ -189,7 +189,7 @@ Run: `git fetch origin develop && git merge --no-edit origin/develop`
 
 Run: `./gradlew test --no-daemon && node --test scripts/test/*.test.mjs && node scripts/verify-planning-inputs.mjs && node scripts/validate-odii-fixtures.mjs && python3 -m pytest scripts/test/test_contract_validation.py && bash scripts/verify-contracts && (cd ai && uv run pytest && uv run ruff check && uv run mypy) && git diff --check && node scripts/print-branch-issue.mjs`
 
-- [ ] **Step 4: Commit, push, and create PR**
+- [x] **Step 4: Commit, push, and create PR**
 
 ```bash
 git commit -m "feat(audio): Odii 공개 조회 API 구현"
