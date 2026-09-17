@@ -1,21 +1,19 @@
 # handoff.md
 
-## Current Session Quick Handoff - 2026-09-17 Issue #228
+## Current Session Quick Handoff - 2026-09-17 Issue #126
 
-- 현재 작업 브랜치와 worktree: `docs/228-journey-memory-enrichment`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j08-saved-journey`.
-- 관련 Issue: #228 `[J12] Journey 탐색 thread 저장과 LLM enrichment 계약 설계` (Labels: BE, Feature, priority:P2).
-- 작업 범위:
-  - #124(SavedJourney) 구현 이후, 일회성으로 사라지는 Journey 탐색 turn을 사용자의 탐색 기억(Thread)으로 보존하고, 장소/한옥 카드에 LLM 기반 source-grounded enrichment(설명·추천 이유·스토리 연결)를 제공하기 위한 BE/AI 아키텍처 및 FE 인터페이스 계약을 설계했다.
-  - 마이페이지(저장한 여정 vs 최근 탐색 기억 vs 월간 타임라인)와 홈/탐색 화면 간의 데이터 책임 경계를 명확히 분리했다.
-- 산출물:
-  - 설계 문서: `docs/superpowers/specs/2026-09-17-journey-memory-enrichment-design.md`
-  - FE 전달 문서: `docs/toFE/journey-memory-enrichment.md`
-  - 기획/이슈 트래킹 문서 동기화: `docs/planning/github-issues/README.md`, `docs/planning/github-issues/agent-execution-guide.md`, `docs/planning/github-issues/issue-tree.json`, `docs/planning/work-graph.json`
-- 핵심 설계 결정:
-  - 개인정보 및 탈퇴 연동: raw turn query는 회원 탈퇴 시 #125 Deletion Ledger를 통해 물리 삭제되며, 30일 비활성 게스트 thread는 TTL purge 정책을 적용한다.
-  - Grounding & Hallucination 방지: LLM enrichment는 Catalog, Hanok, Odii, VisitReview, Region Insight, Internal Corpus의 허용된 Source Ref만 참조하며, 근거가 부족하면 `INSUFFICIENT_EVIDENCE`로 fail-closed 처리한다.
-  - FE 자율성: FE가 UI 렌더링 레이아웃을 자유롭게 결정할 수 있도록 enriched DTO(reason summary, source tags, story highlights)와 availability 상태만 표준 응답으로 제공한다.
-- 검증: `git diff --check`, `bash scripts/verify-contracts`, `node scripts/print-branch-issue.mjs` (`228` 출력) 통과.
-- 다음 단계:
-  - PR 생성 전 work log 및 Issue #228 AC 최종 확인.
-  - `develop` 브랜치 대상 PR 생성 후 리뷰 및 merge.
+- 현재 작업 브랜치와 worktree: `feature/126-timeline-read-model`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/i07-read-model`.
+- 관련 Issue: #126 `[I07] 내 월간 활동 타임라인 read model 구현`; blocked-by #108/#113/#124/#118/#132는 모두 Closed임을 확인했다.
+- 구현 범위:
+  - `modules/journey/src/main/java/com/yrootlab/onmaru/journey/timeline`: 도메인 프로젝션 서비스 `MemberTimelineService`, 이벤트 타입 `TimelineItemType`(4종: `SAVED_PLACE`, `SAVED_ODII_STORY`, `SAVED_JOURNEY`, `WROTE_VISIT_REVIEW`), `TimelineTarget`, 일자별 그룹 `TimelineDayGroup`, 커서 `TimelineCursor` 및 포트(`TimelinePlaceLookup`, `TimelineOdiiStoryLookup`, `TimelineVisitReviewSource`).
+  - `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/me/timeline`: `GET /api/v1/me/timeline` 웹 컨트롤러, 어댑터(`PlaceDetailTimelineAdapter`, `OdiiStoryTimelineAdapter`, `VisitReviewTimelineAdapter`), 10분 TTL 서명 커서 코덱 `MemberTimelineCursorCodec` 및 스프링 빈 설정 `MemberTimelineConfiguration`.
+- 보안/정책: 세션 쿠키(`__Host-onmaru-session`) 기반 인증 필수(미인증 시 `401 AUTH_REQUIRED`), 타 회원 커서 은닉(`404 NOT_FOUND`), `Cache-Control: no-store` 적용, 비공개/삭제 리소스는 목록에서 제외하고 `unavailableCount`로만 집계하여 stale 데이터 유출 방지.
+- 관측성: SLF4J Key-Value 구조화 로깅(`member.id`, `month`, `limit`, `timeline.group_count`, `timeline.unavailable_count`, `timeline.has_more`).
+- 테스트 및 검증:
+  - 도메인 단위 테스트: `MemberTimelineServiceTests` (KST 월 경계, 4종 이벤트 정렬, 비공개 리소스 집계, 타인 데이터 격리, 커서 페이지네이션).
+  - 웹 경계 통합 테스트: `MemberTimelineWebBoundaryTests` (401 인증, 정상 200, 400 validation, 410 만료 커서, 404 타인 커서, 400 변조 커서, no-store 헤더).
+  - 아키텍처/ArchUnit: `ModuleBoundaryArchUnitTests` (순환 의존성 없음, 모듈 경계 준수).
+  - 계약 검증: `validate-identity-saved-contract.py`, `validate-r1-contract.py`, `test_contract_validation.py` 통과.
+  - Node 스크립트 및 기획 입력 검증: `node --test scripts/test/*.test.mjs`, `node scripts/verify-planning-inputs.mjs`, `node scripts/validate-odii-fixtures.mjs` 통과.
+  - 전체 프로젝트 검증: Gradle 전체 53 tasks 통과 (`./gradlew test --no-daemon`), `node scripts/print-branch-issue.mjs` 출력 `126`, `git diff --check` 통과.
+- 다음 단계: PR #231 merge 후 Issue #126 상태 확인 및 필요 시 수동 close.
