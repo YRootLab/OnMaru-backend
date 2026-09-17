@@ -1,0 +1,42 @@
+{
+  "scenarioId": "CHAOS-005",
+  "title": "Late AI Async Callback Race Condition & Stale State Defense Drill",
+  "description": "타임아웃 또는 사용자 취소로 이미 CLOSED/CANCELLED 처리된 Journey Run에 대해 뒤늦게 도착한 AI 비동기 응답 콜백이 기존 상태를 덮어쓰지 못하도록 락과 상태 머신으로 차단(Stale Write = 0)하는지 검증",
+  "faultInjections": [
+    {
+      "step": 1,
+      "type": "USER_ACTION_OR_TIMEOUT_CANCELLATION",
+      "action": "CANCEL_RUN",
+      "targetRunId": "run-chaos-9901",
+      "transitionTo": "CANCELLED"
+    },
+    {
+      "step": 2,
+      "type": "INJECT_DELAYED_CALLBACK",
+      "targetEndpoint": "/api/v1/internal/journey/runs/run-chaos-9901/callback",
+      "delaySeconds": 6,
+      "callbackPayload": {
+        "status": "COMPLETED",
+        "generatedProposal": { "title": "Stale Outdated Proposal" }
+      }
+    }
+  ],
+  "verificationAssertions": [
+    {
+      "name": "Callback Rejection Assertion",
+      "expectedCallbackResponse": {
+        "httpStatus": 409,
+        "errorCode": "STALE_RUN_STATE",
+        "message": "Run is already in terminal state CANCELLED"
+      }
+    },
+    {
+      "name": "Database Integrity & Zero Stale Write Check",
+      "check": {
+        "databaseRunStatus": "CANCELLED",
+        "proposalOverwritten": false,
+        "staleWriteCount": 0
+      }
+    }
+  ]
+}
