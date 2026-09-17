@@ -107,7 +107,8 @@ public final class SavedJourneyController {
         } catch (SavedJourneyNotFoundException exception) {
             return notFound(request);
         } catch (ExplorationActiveRunException exception) {
-            return conflict(request, "ACTIVE_RUN", "Active run is still in progress.", Map.of());
+            var details = exception.runId() == null ? Map.<String, Object>of() : Map.<String, Object>of("runId", exception.runId().toString());
+            return conflict(request, "ACTIVE_RUN", "Active run is still in progress.", details);
         } catch (SavedJourneyLimitExceededException exception) {
             return conflict(request, "SAVE_LIMIT", "Saved journey limit exceeded.", Map.of("limit", exception.limit()));
         } catch (SavedJourneyInputInvalidException | IllegalArgumentException exception) {

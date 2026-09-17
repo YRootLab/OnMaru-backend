@@ -79,13 +79,17 @@ final class ExplorationExceptionHandler {
                 "VERSION_CONFLICT",
                 "Exploration state version is stale.",
                 request,
-                Map.of("currentVersion", exception.currentVersion()));
+                Map.of(
+                        "expectedVersion", exception.currentVersion(),
+                        "currentVersion", exception.currentVersion()));
     }
 
     @ExceptionHandler(JourneyActionVersionConflictException.class)
     ResponseEntity<ApiErrorResponse> actionVersionConflict(JourneyActionVersionConflictException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, "VERSION_CONFLICT", "Exploration state version is stale.", request,
-                Map.of("currentVersion", exception.currentVersion()));
+                Map.of(
+                        "expectedVersion", exception.currentVersion(),
+                        "currentVersion", exception.currentVersion()));
     }
 
     @ExceptionHandler(PinnedResourceActionException.class)
@@ -110,14 +114,27 @@ final class ExplorationExceptionHandler {
                 Map.of());
     }
 
+    @ExceptionHandler(com.yrootlab.onmaru.web.common.idempotency.IdempotencyConflictException.class)
+    ResponseEntity<ApiErrorResponse> idempotencyConflict(HttpServletRequest request) {
+        return error(
+                HttpStatus.CONFLICT,
+                ApiErrorCode.IDEMPOTENCY_CONFLICT.name(),
+                ApiErrorCode.IDEMPOTENCY_CONFLICT.message(),
+                request,
+                Map.of());
+    }
+
     @ExceptionHandler(ExplorationActiveRunException.class)
-    ResponseEntity<ApiErrorResponse> activeRun(HttpServletRequest request) {
+    ResponseEntity<ApiErrorResponse> activeRun(
+            ExplorationActiveRunException exception,
+            HttpServletRequest request) {
+        var details = exception.runId() == null ? Map.<String, Object>of() : Map.<String, Object>of("runId", exception.runId().toString());
         return error(
                 HttpStatus.CONFLICT,
                 "ACTIVE_RUN",
                 "Exploration already has an active run.",
                 request,
-                Map.of());
+                details);
     }
 
     @ExceptionHandler(ExplorationQuotaExceededException.class)
