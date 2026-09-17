@@ -1,5 +1,17 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-17 Issue #125
+
+- 현재 작업 브랜치와 worktree: `feature/125-o08-retention-cleanup-ledger`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/o08-ttl-revision-gc-cleanup-ledger`.
+- 관련 Issue: #125 `[O08] TTL·revision GC·회원 탈퇴 cleanup·복원 삭제 ledger 구현`; blocked-by #93/#121/#85/#95는 모두 Closed임을 확인했다.
+- 구현 범위: `modules:operations`에 retention cleanup 도메인 서비스/정책/result/observer/store port를 추가하고, `adapters:persistence-jdbc`에 PostgreSQL cleanup store를 구현했다. cleanup은 expired session/guest/proposal/run, inactive unreferenced dataset revision, 탈퇴 요청 member의 saved resource/journey를 batch-size로 제한해 처리한다.
+- DB 변경: `V015__o08_retention_cleanup_ledger.sql`이 `operations_retention_deletion_ledger`와 cleanup 후보 인덱스를 추가했다. ledger는 `(resource_type, resource_id, reason)` unique index로 replay-safe이며, `identity_deletion_ledger`가 REQUESTED/COMPLETED인 member의 `journey_saved_resources`/`journey_saved_journeys` late write를 trigger로 차단한다.
+- 관측성: Spring `scheduling.retention` wiring을 추가했다. `TelemetryRetentionCleanupObserver`는 `operations.retention.cleanup.completed` 이벤트에 category별 count와 ledger count만 기록하고 resource/member id는 남기지 않는다. `RetentionCleanupJob`은 실패 시 structured error log를 남긴다.
+- 테스트/TDD: domain fake clock test, migration/Testcontainers schema·late-write test, JDBC batch/restart safety integration test, Spring configuration/telemetry test를 RED-GREEN으로 추가했다.
+- 검증: `./gradlew :modules:operations:test --tests '*RetentionCleanupServiceTests' :apps:spring-api:test --tests '*RetentionCleanup*'`, `./gradlew :apps:spring-api:test --tests '*DatabaseMigrationContractTests.migratesEmptyDatabaseToLatestBaseline' --tests '*DatabaseMigrationContractTests.upgradesPreviousBaselineToLatestWithoutLosingRows'`, `./gradlew test`, `node scripts/test/migration-policy.test.mjs`, `bash scripts/verify-contracts`, `git diff --check` 통과. `verify-contracts`의 LibreSSL/urllib3 문구는 기존 로컬 Python 경고이며 검증은 성공했다.
+- 참고: 브랜치명을 `feature/125-o08-retention-cleanup-ledger`로 정리했고 `node scripts/print-branch-issue.mjs`가 `125`를 출력했다.
+- 다음 단계: PR 생성 전 work log cleanup과 Issue #125 AC를 다시 대조한다.
+
 ## Current Session Quick Handoff - 2026-09-17 Issue #121
 
 - 현재 작업 브랜치와 worktree: `feature/121-journey-cancel`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-121-journey-cancel`.

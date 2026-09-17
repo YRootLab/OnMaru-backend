@@ -122,6 +122,15 @@
       "checksum": "j07-v014-20260917",
       "sha256": "a44c077ebf93b5384471873937c536bf50ec392c49e7d5b0faa422e87c8c1328",
       "description": "Journey run cancellation, lease expiry, and deadline sweeper"
+    },
+    {
+      "version": "015",
+      "reservedFor": "O08",
+      "issueNumber": 125,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V015__o08_retention_cleanup_ledger.sql",
+      "checksum": "o08-v015-20260917",
+      "sha256": "0ac59c96c810f057fa528562896397ff5a1332e3f11c145a875ca83287d9c638",
+      "description": "TTL cleanup, revision GC, member deletion cleanup, and replayable deletion ledger"
     }
   ]
 }

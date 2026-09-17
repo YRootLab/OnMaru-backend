@@ -15,6 +15,11 @@
 // discovery_runs와 discovery_run_commands에 있다.
 // command receipt와 run mutation은 같은 PostgreSQL transaction에서 commit되어야 하며,
 // run snapshot이 SSE보다 우선하는 정답이다.
+// Retention cleanup ledger와 late saved write 차단은 V015 Flyway migration을
+// 기준으로 한다. operations_retention_deletion_ledger는 resource_type,
+// resource_id, reason unique index로 replay-safe 삭제 기록을 남기고,
+// identity_deletion_ledger가 REQUESTED/COMPLETED인 member의 saved resource와
+// saved journey write는 trigger에서 거절한다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 
