@@ -8,7 +8,7 @@
     {"id":"TD","title":"Track D — 인증·개인 저장","children":["I01","I02","I03","I04","I05","I06","I07"]},
     {"id":"TE","title":"Track E — 후기·지도·Odii","children":["M01","M02","M03","M04","M05","M06","M07","M08","M09","A01","A02","A03","A04"]},
     {"id":"TF","title":"Track F — FastAPI AI 서버","children":["AI01","AI02","AI03","AI04","AI05","AI06","AI07","AI08","AI09"]},
-    {"id":"TG","title":"Track G — 여정 실행","children":["J01","J02","J03","J04","J05","J06","J07","J08","J09","J10","J11"]},
+    {"id":"TG","title":"Track G — 여정 실행","children":["J01","J02","J03","J04","J05","J06","J07","J08","J09","J10","J11","J12"]},
     {"id":"TH","title":"Track H — 운영·출시","children":["O01","O02","O03","O04","O05","O06","O07","O08","O09"]}
   ],
   "state_rules": {

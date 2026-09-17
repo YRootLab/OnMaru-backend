@@ -121,6 +121,7 @@
 | J09 | P2 | 8 | Guest·member AI 일일 quota와 admission 구현 | J02, I01 |
 | J10 | P2 | 11 | Journey REST·SSE·FastAPI 전체 계약 E2E 게이트 | J05, J06, J07, J08, J09, AI06, F05 |
 | J11 | P2 | 2 | Journey actions·SavedJourney OpenAPI·fixture 완성 | F07, F09 |
+| J12 | P2 | 11 | Journey 탐색 thread 저장과 LLM enrichment 계약 설계 | J08, AI06, F09 |
 
 ### Track H — 운영·출시
 
@@ -149,7 +150,7 @@
 - Wave 8: M04, M05, AI09, J03, J04, J05, J09
 - Wave 9: M08, J06, J07
 - Wave 10: M09, J08, O08
-- Wave 11: I07, J10
+- Wave 11: I07, J10, J12
 - Wave 12: O05, O06
 - Wave 13: O09
 
@@ -257,6 +258,7 @@ flowchart LR
   subgraph Wave11
     I07["I07: 내 월간 활동 타임라인 read model 구현"]
     J10["J10: Journey REST·SSE·FastAPI 전체 계약 E2E 게이트"]
+    J12["J12: Journey 탐색 thread 저장과 LLM enrichment 계약 설계"]
   end
   subgraph Wave12
     O05["O05: API·DB·SSE 부하·성능 예산 검증"]
@@ -448,6 +450,9 @@ flowchart LR
   F05 --> J10
   F07 --> J11
   F09 --> J11
+  J08 --> J12
+  AI06 --> J12
+  F09 --> J12
   F01 --> O01
   F03 --> O01
   O01 --> O02
