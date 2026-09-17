@@ -107,7 +107,7 @@ public final class ExplorationService {
         }
         var state = ownedState(actor, explorationId);
         if (state.latestRun().isActive()) {
-            throw new ExplorationActiveRunException();
+            throw new ExplorationActiveRunException(state.latestRun().id());
         }
         var current = actionStates.computeIfAbsent(explorationId, ignored -> JourneyActionState.empty(state.stateVersion()));
         var result = actionService.apply(current, baseVersion, action);
@@ -157,7 +157,7 @@ public final class ExplorationService {
         }
         validateClarificationAnswer(state, command.clarificationId());
         if (state.latestRun().isActive()) {
-            throw new ExplorationActiveRunException();
+            throw new ExplorationActiveRunException(state.latestRun().id());
         }
         var query = intakePolicy.validateTurn(validatedQuery);
         var regionCode = normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode());
@@ -193,7 +193,7 @@ public final class ExplorationService {
         }
         validateClarificationAnswer(state, command.clarificationId());
         if (state.latestRun().isActive()) {
-            throw new ExplorationActiveRunException();
+            throw new ExplorationActiveRunException(state.latestRun().id());
         }
         var query = intakePolicy.validateTurn(validateQuery(command.query()));
         var regionCode = normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode());

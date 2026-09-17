@@ -1,5 +1,30 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-17 Issue #127
+
+- 현재 작업 브랜치와 worktree: `feature/127-journey-contract-e2e-gate`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/127-journey`.
+- 관련 Issue: #127 `[J10] Journey REST·SSE·FastAPI 전체 계약 E2E 게이트`; blocked-by #124/#125/#126/#140은 모두 Closed임을 확인했다.
+- 구현 범위:
+  - `testing/e2e/journey/contract-gate.json` E2E manifest 정의 (6개 시나리오, 33개 커버리지 태그).
+  - `scripts/test/validate-journey-e2e-gate.py` manifest 검증 스크립트 작성 및 `scripts/verify-contracts`에 연결.
+  - `docs/operations/release-evidence/journey/README.md` 출시 증거 문서 작성.
+  - `JourneyContractE2ETests.java` Spring MockMvc 기반 6개 종합 E2E 런타임 시나리오 구현:
+    1. `guest-clarification-resolution`: Missing region -> clarification -> answer resolution (turn intake).
+    2. `board-interaction-and-versioning`: Proposal accept/reject/custom, action execution, optimistic lock/versioning conflict.
+    3. `sse-stream-lifecycle`: Event sequence replay, buffer overflow reset, anonymous `auth_closed`.
+    4. `run-concurrency-and-cancellation`: Active run intake block (409), durable run cancellation.
+    5. `ai-degraded-and-quota-admission`: AI fallback/clarification proposal fallback, daily quota admission rate-limiting (429).
+    6. `saved-journey-persistence-and-resume`: Exploration snapshot save, owner-scoped detail/resume with unavailable ref filtering.
+  - `ExplorationExceptionHandler` / `SavedJourneyController`: `IdempotencyConflictException`, `VERSION_CONFLICT` (expected/current version details), `ExplorationActiveRunException` (runId details), `Cache-Control: no-store` 보강.
+- 검증 결과:
+  - `node scripts/print-branch-issue.mjs` -> `127` 출력 확인.
+  - `arch -arm64 bash scripts/verify-contracts` -> R1, R2, Identity, Journey, Azimutt, E2E gate 전체 통과 (`validated Journey E2E gate: 6 runtime scenarios`).
+  - `node --test scripts/test/*.test.mjs` -> 39 passed.
+  - `uv run --project ai pytest` (206 passed), `ruff check` (pass), `mypy` (49 files pass).
+  - `./gradlew test` -> BUILD SUCCESSFUL in 4m 58s (53 tasks, Testcontainers DB 포함 전체 통과).
+  - `git diff --check` -> 공백/포맷 이슈 0건.
+- 다음 단계: `develop` 대상 Pull Request 생성 및 CI 검증 확인.
+
 ## Current Session Quick Handoff - 2026-09-17 Issue #125
 
 - 현재 작업 브랜치와 worktree: `feature/125-o08-retention-cleanup-ledger`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/o08-ttl-revision-gc-cleanup-ledger`.

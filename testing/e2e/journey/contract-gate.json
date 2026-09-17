@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0",
+  "contracts": [
+    "docs/contracts/openapi/journey.openapi.yaml",
+    "docs/contracts/schemas/journey-sse-event.schema.json"
+  ],
+  "fixtureGroups": [
+    "docs/contracts/fixtures/journey"
+  ],
+  "runtimeSuite": "com.yrootlab.onmaru.journey.JourneyContractE2ETests",
+  "scenarios": [
+    {
+      "id": "clarification-and-board",
+      "covers": [
+        "clarification",
+        "normal-board",
+        "guest-intake",
+        "member-intake",
+        "serializer-drift"
+      ]
+    },
+    {
+      "id": "proposal-actions-and-versioning",
+      "covers": [
+        "proposal",
+        "pin-action",
+        "exclude-action",
+        "state-version-increment",
+        "stale-version-conflict",
+        "idempotency-replay",
+        "idempotency-conflict"
+      ]
+    },
+    {
+      "id": "sse-lifecycle-and-reconnect",
+      "covers": [
+        "sse-stage",
+        "sse-terminal",
+        "sse-replay",
+        "sse-reset",
+        "sse-auth-closed",
+        "sse-heartbeat"
+      ]
+    },
+    {
+      "id": "run-cancellation-and-race",
+      "covers": [
+        "run-cancel",
+        "cancel-race",
+        "active-slot-release",
+        "deadline-sweeper"
+      ]
+    },
+    {
+      "id": "ai-outage-fallback-and-quota",
+      "covers": [
+        "ai-down-fallback",
+        "degraded-baseline",
+        "daily-quota-limit",
+        "rate-limit-retry-after"
+      ]
+    },
+    {
+      "id": "saved-journey-and-resume",
+      "covers": [
+        "saved-journey-create",
+        "saved-journey-list-cursor",
+        "saved-journey-detail",
+        "saved-journey-delete",
+        "saved-journey-resume",
+        "unavailable-refs",
+        "owner-isolation"
+      ]
+    }
+  ]
+}

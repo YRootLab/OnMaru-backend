@@ -37,7 +37,7 @@ public final class SavedJourneyService {
         var exploration = explorations.get(command.actor(), command.explorationId());
         var run = exploration.run();
         if (run != null && (run.status() == ExplorationRunStatus.QUEUED || run.status() == ExplorationRunStatus.RUNNING)) {
-            throw new ExplorationActiveRunException();
+            throw new ExplorationActiveRunException(run.id());
         }
         if (exploration.stateVersion() != command.baseVersion()) {
             throw new SavedJourneyInputInvalidException("baseVersion");
