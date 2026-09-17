@@ -21,7 +21,7 @@
 | [#56 Track D — 인증·개인 저장](https://github.com/YRootLab/OnMaru-backend/issues/56) | 7개 Leaf의 진행·검증·merge 상태를 관리하며 코드를 직접 구현하지 않는다. |
 | [#57 Track E — 후기·지도·Odii](https://github.com/YRootLab/OnMaru-backend/issues/57) | 13개 Leaf의 진행·검증·merge 상태를 관리하며 코드를 직접 구현하지 않는다. |
 | [#58 Track F — FastAPI AI 서버](https://github.com/YRootLab/OnMaru-backend/issues/58) | 9개 Leaf의 진행·검증·merge 상태를 관리하며 코드를 직접 구현하지 않는다. |
-| [#59 Track G — 여정 실행](https://github.com/YRootLab/OnMaru-backend/issues/59) | 11개 Leaf의 진행·검증·merge 상태를 관리하며 코드를 직접 구현하지 않는다. |
+| [#59 Track G — 여정 실행](https://github.com/YRootLab/OnMaru-backend/issues/59) | 12개 Leaf의 진행·검증·merge 상태를 관리하며 코드를 직접 구현하지 않는다. |
 | [#60 Track H — 운영·출시](https://github.com/YRootLab/OnMaru-backend/issues/60) | 9개 Leaf의 진행·검증·merge 상태를 관리하며 코드를 직접 구현하지 않는다. |
 
 ## Track A — 기반·계약·개발환경
@@ -129,6 +129,7 @@
 | [#117 J09 — Guest·member AI 일일 quota와 admission 구현](https://github.com/YRootLab/OnMaru-backend/issues/117) | P2/W8 | KST 일일 한도와 동시 run admission을 원자 적용한다. | quota counter, KST boundary, retryAfter, concurrent admission, usage audit | fake clock concurrency tests |
 | [#127 J10 — Journey REST·SSE·FastAPI 전체 계약 E2E 게이트](https://github.com/YRootLab/OnMaru-backend/issues/127) | P2/W11 | 두 runtime에서 초기 탐색·수정·복구·저장 흐름을 증명한다. | clarification, board, proposal, reconnect/reset, cancel, quota/fallback, save/resume | Spring+FastAPI+Postgres E2E |
 | [#134 J11 — Journey actions·SavedJourney OpenAPI·fixture 완성](https://github.com/YRootLab/OnMaru-backend/issues/134) | P2/W2 | 여정의 모든 public command·snapshot·saved journey 계약을 구현 전에 기계 판독 가능하게 완성한다. | actions, proposal/version errors, saved journey create/list/detail/resume/delete, shared snapshot schema and fixtures | OpenAPI validator, JSON Schema and scenario fixture tests |
+| [#228 J12 — Journey 탐색 thread 저장과 LLM enrichment 계약 설계](https://github.com/YRootLab/OnMaru-backend/issues/228) | P2/W11 | 사용자 탐색 대화·검색 기록을 영구 보존하고 장소/한옥 카드의 LLM enrichment 계약과 정책을 정의한다. | JourneyThread 저장 정책, 최근 탐색 read model, enrichment DTO, evidence/source 정책, FE handoff | 문서 self-review와 FE handoff 검토 |
 
 ## Track H — 운영·출시
 
@@ -188,7 +189,7 @@
 - Wave 8: [AI09 #119](https://github.com/YRootLab/OnMaru-backend/issues/119), [J03 #114](https://github.com/YRootLab/OnMaru-backend/issues/114), [J04 #115](https://github.com/YRootLab/OnMaru-backend/issues/115), [J05 #116](https://github.com/YRootLab/OnMaru-backend/issues/116), [J09 #117](https://github.com/YRootLab/OnMaru-backend/issues/117)
 - Wave 9: [J06 #120](https://github.com/YRootLab/OnMaru-backend/issues/120), [J07 #121](https://github.com/YRootLab/OnMaru-backend/issues/121)
 - Wave 10: [J08 #124](https://github.com/YRootLab/OnMaru-backend/issues/124), [O08 #125](https://github.com/YRootLab/OnMaru-backend/issues/125)
-- Wave 11: [J10 #127](https://github.com/YRootLab/OnMaru-backend/issues/127)
+- Wave 11: [J10 #127](https://github.com/YRootLab/OnMaru-backend/issues/127), [J12 #228](https://github.com/YRootLab/OnMaru-backend/issues/228)
 - Wave 12: [O05 #128](https://github.com/YRootLab/OnMaru-backend/issues/128), [O06 #129](https://github.com/YRootLab/OnMaru-backend/issues/129)
 - Wave 13: [O09 #130](https://github.com/YRootLab/OnMaru-backend/issues/130)
 
@@ -212,7 +213,7 @@
 
 - FastAPI Baseline: `AI01 → AI02/AI04 → AI03 → AI05 → AI06`
 - Optional RAG: `AI07 → AI08 → AI09`; 평가 gate 미달이면 비활성 상태로 종료한다.
-- Journey: `J11 → J01 → J02 → J03/J04/J05/J09 → J06/J07 → J08 → J10`
+- Journey: `J11 → J01 → J02 → J03/J04/J05/J09 → J06/J07 → J08 → J10`, `J08/AI06/F09 → J12`
 - Operations: `O01 → O02`, `O03 → O04/O07`, 이후 `O08 → O05/O06 → O09`
 
 ## 최초 병렬 착수 묶음
@@ -249,4 +250,3 @@
 - [요구사항 추적표](requirements-map.md)
 - [GitHub 발행 번호 Manifest](publication.json)
 - [Backend 기획 진입점](../README.md)
-

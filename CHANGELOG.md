@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #228의 Journey 탐색 thread 기억 보존·LLM enrichment 계약 설계 및 FE 전달 문서를 추가했다.
 - Issue #125의 TTL cleanup, revision GC, 회원 탈퇴 saved-data 정리, replay-safe deletion ledger와 late saved write 차단을 추가했다.
 - Issue #124의 Saved journey 생성·목록·상세·재개·삭제 API, owner-scoped 404, cursor 목록, unavailableRefs 재개 응답과 구조화 로그를 추가했다.
 - Issue #121의 Journey run cancel, 20초 deadline, lease expiry sweeper, durable REST cancel bridge와 재시작 orphan 회수 검증을 추가했다.
