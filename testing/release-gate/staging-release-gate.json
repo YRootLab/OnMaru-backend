@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "name": "OnMaru Backend Staging Release Gate & Operational Acceptance",
+  "description": "프로덕션 배포 전 필수 기능, 보안, 성능, 데이터 무결성, 관측성, 재해 복구, 롤백 절차의 검증 증적을 종합 평가하는 최종 릴리스 게이트",
+  "gates": [
+    {
+      "id": "GATE-01-R1-CATALOG",
+      "track": "Track C (R1)",
+      "title": "R1 한옥 카탈로그·공공데이터 LKG 동기화 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/release-evidence/r1/README.md",
+      "verificationCommand": "node --test scripts/test/tourapi-fixtures.test.mjs",
+      "requirements": [
+        "TourAPI 공공데이터 응답 파싱 및 정규화 완료",
+        "API 키 및 민감정보 유출 차단(Redaction)",
+        "LKG(Last-Known-Good) 원자적 리비전 게시"
+      ]
+    },
+    {
+      "id": "GATE-02-R2-MEDIA-SAVED",
+      "track": "Track E (R2)",
+      "title": "R2 지도·후기·Odii 오디오·찜 통합 계약 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/release-evidence/r2/README.md",
+      "verificationCommand": "node --test scripts/test/odii-fixture-validation.test.mjs",
+      "requirements": [
+        "Odii 오디오/대본 연동 및 R2 스토리지 계약 일치",
+        "사용자 찜/저장/후기 접근 제어 및 소유권 격리",
+        "미디어 캐시 및 스트리밍 fallback 검증"
+      ]
+    },
+    {
+      "id": "GATE-03-R3-JOURNEY-AI",
+      "track": "Track G (R3)",
+      "title": "R3 AI 여정 탐색·실시간 SSE·상태 머신 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/release-evidence/journey/README.md",
+      "verificationCommand": "python3 scripts/test/validate-journey-e2e-gate.py",
+      "requirements": [
+        "Journey REST API 및 OpenAPI 3.1 스펙 일치",
+        "SSE 생명주기(Heartbeat, Replay, Snapshot Reset) 정상 동작",
+        "FastAPI AI 연동 및 Deterministic Baseline Fallback 보장",
+        "CAS 기반 동시성 경합 및 Stale Write 0건"
+      ]
+    },
+    {
+      "id": "GATE-04-SECURITY-SECRET",
+      "track": "Track D (Security & Auth)",
+      "title": "보안 경계·세션 인증·시크릿 로테이션 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/runbooks/secrets.md",
+      "verificationCommand": "node --test scripts/test/planning-inputs-verifier.test.mjs",
+      "requirements": [
+        "API 엔드포인트 인증 경계(Guest/Member/Admin) 분리",
+        "시크릿 로깅 및 에러 응답 내 PII 마스킹 완료",
+        "CORS, CSP, Rate Limit 헤더 준수"
+      ]
+    },
+    {
+      "id": "GATE-05-DATA-PERSISTENCE-RESTORE",
+      "track": "Track D / H (Database)",
+      "title": "Flyway 마이그레이션 및 PostgreSQL PITR 복구 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/runbooks/restore.md",
+      "verificationCommand": "node --test scripts/test/backup-restore-drill.test.mjs scripts/test/migration-policy.test.mjs",
+      "requirements": [
+        "Flyway 마이그레이션 체크섬 및 버전 일치",
+        "암호화 백업 생성 및 격리 환경 2-DB 복구 리허설 통과",
+        "RTO < 30분, RPO < 5분 목표 충족"
+      ]
+    },
+    {
+      "id": "GATE-06-LOAD-PERFORMANCE",
+      "track": "Track H (Operations)",
+      "title": "부하 및 성능 예산(Performance Budget) 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/performance/2026-09-performance-budget-baseline.md",
+      "verificationCommand": "node --test scripts/test/performance-budget.test.mjs",
+      "requirements": [
+        "한옥 검색 API p99 < 150ms",
+        "여정 SSE 스트림 연결 지연 < 200ms",
+        "후기 집계 쿼리 < 2000ms 타임아웃 예산 충족"
+      ]
+    },
+    {
+      "id": "GATE-07-CHAOS-RESILIENCE",
+      "track": "Track H (Operations)",
+      "title": "장애 격리·Fallback·Degraded Mode 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/runbooks/degraded-mode.md",
+      "verificationCommand": "node --test scripts/test/degraded-mode.test.mjs",
+      "requirements": [
+        "TourAPI 다운 시 LKG 서빙 무중단",
+        "FastAPI 다운 시 Baseline 추천 100% Fallback",
+        "Late AI Callback에 대한 Stale Write 0건 차단"
+      ]
+    },
+    {
+      "id": "GATE-08-OBSERVABILITY-ALERT",
+      "track": "Track H (Operations)",
+      "title": "Grafana 관측성 대시보드 및 Alert 알림 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/release-evidence/grafana-o02-checklist.md",
+      "verificationCommand": "node --test scripts/test/grafana-observability.test.mjs",
+      "requirements": [
+        "Spring & FastAPI OpenTelemetry 분산 트레이싱 수집",
+        "MVP 운영 대시보드 패널 100% 구성",
+        "Critical/Warning 알림 라우팅 및 Resolve 발송 검증"
+      ]
+    },
+    {
+      "id": "GATE-09-DEPLOY-ROLLBACK",
+      "track": "Track H (Operations)",
+      "title": "Staging 컨테이너 배포 및 무중단 롤백 게이트",
+      "status": "PASSED",
+      "evidencePath": "docs/operations/runtime-and-reliability.md",
+      "verificationCommand": "node --test scripts/test/deploy-pipeline.test.mjs",
+      "requirements": [
+        "최소 권한 멀티스테이지 Dockerfile 빌드",
+        "DB 마이그레이션 선행 -> 서비스 배포 -> Smoke Test 파이프라인",
+        "배포 실패 시 자동 롤백 트리거 검증"
+      ]
+    }
+  ]
+}
