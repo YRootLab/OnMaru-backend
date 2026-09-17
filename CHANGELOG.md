@@ -5,6 +5,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 ## Unreleased
 
 - Issue #121의 Journey run cancel, 20초 deadline, lease expiry sweeper, durable REST cancel bridge와 재시작 orphan 회수 검증을 추가했다.
+- Issue #119의 Optional RAG activation gate, corpus revision pinned rollback/activation 기록, fail-closed retrieval 연결을 추가했다.
 - Issue #216의 얇은 Gradle convention plugin과 Spring module dependency direction 문서를 추가했다.
 - Issue #117의 guest/member Journey AI KST 일일 quota, active admission, 영속 audit, 429 Retry-After, cancel slot 반환과 경쟁 검증을 추가했다.
 - Issue #116의 Journey run SSE stage/terminal/heartbeat/replay/reset, auth close와 원인별 telemetry를 추가했다.

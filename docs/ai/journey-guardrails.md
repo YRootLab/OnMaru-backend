@@ -93,6 +93,8 @@ type JourneyProposalRequest = {
   requestId: string;
   runId: string;
   candidateCount: number; // 0..12
+  useRag?: boolean;
+  corpusRevisionId?: string; // required only when useRag is true
 };
 
 type JourneyProposalResponse = {
@@ -100,10 +102,11 @@ type JourneyProposalResponse = {
   runId: string;
   outcome: 'PROPOSAL' | 'INITIAL_BOARD' | 'NO_RESULTS';
   orderedRefs: PlaceRef[];
+  ragEvidenceRefs?: string[]; // present only when optional RAG was requested
 };
 ```
 
-The J03 baseline contract currently sends only bounded correlation and candidate cardinality. It deliberately does not send raw browser query, member ID, guest token, session material, saved-list data, or exact private location to FastAPI. The response has at most three `orderedRefs`, and Spring still owns final validation, fallback, and persistence.
+The J03 baseline contract sends bounded correlation, candidate cardinality, and optional revision-pinned RAG activation fields. It deliberately does not send raw browser query, member ID, guest token, session material, saved-list data, or exact private location to FastAPI. If `useRag` is requested without an activation decision for the same `corpusRevisionId`, FastAPI returns no RAG evidence and performs zero retrieval calls. The response has at most three `orderedRefs`, and Spring still owns final validation, fallback, and persistence.
 
 The richer provider proposal contract with evidence reasons, pins/exclusions, proposal action, and state-version handling is reserved for the later proposal workflow and must not be mixed into this worker baseline. The model cannot return free-form markdown, executable markup, tool calls, URLs, new category values, or a user-facing error message.
 

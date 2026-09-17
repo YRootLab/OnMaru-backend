@@ -199,6 +199,15 @@ components:
           type: integer
           minimum: 0
           maximum: 12
+        useRag:
+          type: boolean
+          default: false
+          description: Optional RAG activation request. FastAPI must fail closed unless the revision has an activation decision.
+        corpusRevisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Revision-pinned corpus identifier required when useRag is true.
     InternalJourneyProposalResponse:
       type: object
       additionalProperties: false
@@ -228,6 +237,13 @@ components:
             - PROPOSAL
             - INITIAL_BOARD
             - NO_RESULTS
+        ragEvidenceRefs:
+          type: array
+          description: Present only when optional RAG was requested; empty when the activation gate is closed.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
     InternalError:
       type: object
       additionalProperties: false
