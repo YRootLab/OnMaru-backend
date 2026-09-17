@@ -46,6 +46,7 @@ Table discovery_runs [headercolor: #EDC948] {
   clarification jsonb
   created_at timestamptz [not null]
   deadline_at timestamptz [not null]
+  lease_expires_at timestamptz [note: 'RUNNING worker lease; sweeper terminalizes expired leases']
   started_at timestamptz
   generation int [not null]
   error_code varchar

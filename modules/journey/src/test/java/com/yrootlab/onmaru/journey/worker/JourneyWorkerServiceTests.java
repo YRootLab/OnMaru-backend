@@ -157,7 +157,20 @@ class JourneyWorkerServiceTests {
 
         @Override
         public Optional<JourneyRunSnapshot> find(UUID runId, String actorKey) {
-            return Optional.empty();
+            return Optional.of(new JourneyRunSnapshot(
+                    runId,
+                    EXPLORATION_ID,
+                    actorKey,
+                    1,
+                    JourneyRunStatus.RUNNING,
+                    JourneyRunStage.RETRIEVING,
+                    null,
+                    NOW,
+                    NOW.plusSeconds(20),
+                    NOW.plusSeconds(1),
+                    2,
+                    null,
+                    "LLM"));
         }
 
         private RunCommandResult result(JourneyRunStatus status, JourneyRunStage stage, int generation) {

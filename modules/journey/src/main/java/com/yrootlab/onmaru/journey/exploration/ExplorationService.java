@@ -18,7 +18,7 @@ public final class ExplorationService {
 
     private static final int MAX_QUERY_LENGTH = 1000;
     private static final int MAX_REGION_CODE_LENGTH = 32;
-    private static final Duration RUN_BUDGET = Duration.ofSeconds(30);
+    private static final Duration RUN_BUDGET = Duration.ofSeconds(20);
     private static final Pattern REGION_CODE = Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*$");
     private static final Set<String> RUN_STAGES = Set.of("INTERPRETING", "RETRIEVING", "VALIDATING", "PERSISTING");
 

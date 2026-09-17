@@ -1,10 +1,12 @@
 package com.yrootlab.onmaru.journey.run;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
 public final class JourneyRunService {
 
+    private static final Duration RUN_DEADLINE = Duration.ofSeconds(20);
     private final JourneyRunStore store;
 
     public JourneyRunService(JourneyRunStore store) {
@@ -16,7 +18,7 @@ public final class JourneyRunService {
         if (command.runId() == null || command.explorationId() == null || command.baseVersion() < 0
                 || command.engine() == null || command.engine().isBlank()
                 || command.createdAt() == null || command.deadlineAt() == null
-                || !command.deadlineAt().isAfter(command.createdAt())) {
+                || !RUN_DEADLINE.equals(Duration.between(command.createdAt(), command.deadlineAt()))) {
             throw new IllegalArgumentException("run create command is invalid");
         }
         return store.create(command);

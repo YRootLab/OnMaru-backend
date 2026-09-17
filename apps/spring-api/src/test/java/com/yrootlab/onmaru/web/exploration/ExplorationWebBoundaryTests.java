@@ -13,10 +13,21 @@ import com.yrootlab.onmaru.identity.oauth.TokenHasher;
 import com.yrootlab.onmaru.identity.guest.GuestCredentialService;
 import com.yrootlab.onmaru.identity.guest.GuestGrantClaimCommand;
 import com.yrootlab.onmaru.identity.guest.GuestGrantService;
+import com.yrootlab.onmaru.journey.cancellation.CancelJourneyRunCommand;
+import com.yrootlab.onmaru.journey.cancellation.JourneyRunCancellationService;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRunOutcome;
 import com.yrootlab.onmaru.journey.exploration.ExplorationService;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationRunDispatcher;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationStore;
+import com.yrootlab.onmaru.journey.run.AdvanceRunStageCommand;
+import com.yrootlab.onmaru.journey.run.ClaimRunCommand;
+import com.yrootlab.onmaru.journey.run.CreateRunCommand;
+import com.yrootlab.onmaru.journey.run.FinishRunCommand;
+import com.yrootlab.onmaru.journey.run.JourneyRunSnapshot;
+import com.yrootlab.onmaru.journey.run.JourneyRunStage;
+import com.yrootlab.onmaru.journey.run.JourneyRunStatus;
+import com.yrootlab.onmaru.journey.run.JourneyRunStore;
+import com.yrootlab.onmaru.journey.run.RunCommandResult;
 import com.yrootlab.onmaru.observability.InMemoryTelemetrySink;
 import com.yrootlab.onmaru.operations.admission.AdmissionPolicy;
 import com.yrootlab.onmaru.operations.admission.AdmissionRequest;
@@ -39,8 +50,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -105,6 +119,9 @@ class ExplorationWebBoundaryTests {
     @Autowired
     private InMemoryTelemetrySink telemetrySink;
 
+    @Autowired
+    private RecordingJourneyRunStore durableRunStore;
+
     private final TokenHasher hasher = new TokenHasher("fake-oauth-client-secret-current");
     private UUID guestId;
     private String guestToken;
@@ -118,6 +135,7 @@ class ExplorationWebBoundaryTests {
         runEventStream.clear();
         identityStore.clear();
         guestCredentialService.clear();
+        durableRunStore.clear();
         var guest = guestCredentialService.issue();
         guestId = guest.guestId();
         guestToken = guest.rawToken();
@@ -276,6 +294,30 @@ class ExplorationWebBoundaryTests {
 
         assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isTrue();
         admissionService.releaseActive(subject, admissionPolicy);
+    }
+
+    @Test
+    void cancelRunCancelsDurableRunForSameActorAndRun() throws Exception {
+        var created = createGuestExploration(guestToken, "kr-45-jeonju");
+        var root = objectMapper.readTree(created);
+        var explorationId = root.path("explorationId").asText();
+        var runId = root.path("runId").asText();
+
+        mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+        assertThat(durableRunStore.cancellations()).singleElement().satisfies(command -> {
+            assertThat(command.actorKey()).isEqualTo("GUEST:" + guestId);
+            assertThat(command.runId()).isEqualTo(UUID.fromString(runId));
+            assertThat(command.requestHash()).isNotBlank();
+            assertThat(command.cancelledAt()).isNotNull();
+        });
     }
 
     @Test
@@ -980,6 +1022,80 @@ class ExplorationWebBoundaryTests {
         @Primary
         InMemoryTelemetrySink inMemoryTelemetrySink() {
             return new InMemoryTelemetrySink();
+        }
+
+        @Bean
+        RecordingJourneyRunStore recordingJourneyRunStore() {
+            return new RecordingJourneyRunStore();
+        }
+
+        @Bean
+        JourneyRunCancellationService journeyRunCancellationService(RecordingJourneyRunStore store) {
+            return new JourneyRunCancellationService(store);
+        }
+    }
+
+    static final class RecordingJourneyRunStore implements JourneyRunStore {
+
+        private final List<CancelJourneyRunCommand> cancellations = new ArrayList<>();
+
+        @Override
+        public RunCommandResult create(CreateRunCommand command) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public RunCommandResult claim(ClaimRunCommand command) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public RunCommandResult advance(AdvanceRunStageCommand command) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public RunCommandResult finish(FinishRunCommand command) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public synchronized RunCommandResult cancel(CancelJourneyRunCommand command) {
+            cancellations.add(command);
+            return new RunCommandResult(
+                    new com.yrootlab.onmaru.journey.run.RunCommandReceipt(
+                            command.runId(),
+                            JourneyRunStatus.CANCELLED,
+                            null,
+                            null,
+                            2),
+                    false);
+        }
+
+        @Override
+        public Optional<JourneyRunSnapshot> find(UUID runId, String actorKey) {
+            return Optional.of(new JourneyRunSnapshot(
+                    runId,
+                    UUID.randomUUID(),
+                    actorKey,
+                    0,
+                    JourneyRunStatus.CANCELLED,
+                    (JourneyRunStage) null,
+                    null,
+                    Instant.parse("2026-09-16T00:00:00Z"),
+                    Instant.parse("2026-09-16T00:00:20Z"),
+                    null,
+                    2,
+                    null,
+                    "LLM"));
+        }
+
+        synchronized List<CancelJourneyRunCommand> cancellations() {
+            return List.copyOf(cancellations);
+        }
+
+        synchronized void clear() {
+            cancellations.clear();
         }
     }
 }
