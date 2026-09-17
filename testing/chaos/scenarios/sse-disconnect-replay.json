@@ -1,0 +1,42 @@
+{
+  "scenarioId": "CHAOS-004",
+  "title": "Journey SSE Stream Disconnection & Snapshot Replay Drill",
+  "description": "SSE 실시간 스트림 연결 강제 단절 후 클라이언트의 Last-Event-ID 기반 재연결 및 Snapshot Reset 복구 메커니즘 검증",
+  "faultInjections": [
+    {
+      "step": 1,
+      "type": "SOCKET_FORCE_CLOSE",
+      "targetSubscription": "journey-run-stream-7788",
+      "disconnectAfterEventIndex": 3
+    }
+  ],
+  "verificationAssertions": [
+    {
+      "name": "Reconnection with Last-Event-ID",
+      "request": {
+        "headers": {
+          "Last-Event-ID": "evt-003"
+        }
+      },
+      "expectedStreamResponse": {
+        "replayedEvents": [
+          { "eventId": "evt-004", "eventType": "STAGE_CHANGED" },
+          { "eventId": "evt-005", "eventType": "RUN_COMPLETED" }
+        ],
+        "noDuplicateEvents": true
+      }
+    },
+    {
+      "name": "Buffer Expired Reconnection with Snapshot Reset",
+      "request": {
+        "headers": {
+          "Last-Event-ID": "evt-expired-001"
+        }
+      },
+      "expectedStreamResponse": {
+        "firstEvent": "SNAPSHOT_RESET",
+        "snapshotPayloadContainsLatestRunState": true
+      }
+    }
+  ]
+}

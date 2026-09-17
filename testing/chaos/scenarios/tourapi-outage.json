@@ -1,0 +1,53 @@
+{
+  "scenarioId": "CHAOS-001",
+  "title": "TourAPI Provider Rate Limiting & Service Outage Drill",
+  "description": "한국관광공사 TourAPI 공공데이터 제공자의 일일 쿼터 소진(429) 또는 서버 장애(500/503) 상황에서 읽기 API 무중단 유지 및 LKG(Last-Known-Good) 데이터셋 격리 검증",
+  "faultInjections": [
+    {
+      "step": 1,
+      "type": "HTTP_STATUS_INJECTION",
+      "targetUrlPattern": "https://apis.data.go.kr/B551011/KorService1/*",
+      "injectedStatusCode": 429,
+      "injectedPayload": {
+        "response": {
+          "header": {
+            "resultCode": "99",
+            "resultMsg": "LIMITED NUMBER OF SERVICE CALLS EXCEEDED"
+          }
+        }
+      }
+    },
+    {
+      "step": 2,
+      "type": "CIRCUIT_BREAKER_TRIP",
+      "targetClient": "TourApiSyncClient",
+      "action": "TRIP_TO_OPEN",
+      "cooldownDurationSeconds": 300
+    }
+  ],
+  "verificationAssertions": [
+    {
+      "name": "Public Hanok Search Query Availability",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/hanoks?keyword=전주&page=1&size=10"
+      },
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "X-Dataset-Revision": "LKG-CURRENT"
+      },
+      "expectedBodyAssertions": {
+        "itemsNotEmpty": true,
+        "isServedFromLkg": true
+      }
+    },
+    {
+      "name": "Sync Scheduler Quarantine & Non-Blocking State",
+      "check": {
+        "syncJobStatus": "QUARANTINED_OR_BACKOFF",
+        "activeDatasetRevisionUntouched": true,
+        "databaseIntegrity": "CORRUPTION_FREE"
+      }
+    }
+  ]
+}
