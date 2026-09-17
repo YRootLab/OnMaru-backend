@@ -1,5 +1,17 @@
 # handoff.md
 
+## Current Session Quick Handoff - 2026-09-17 Issue #124
+
+- 현재 작업 브랜치와 worktree: `feature/124-saved-journey`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j08-saved-journey`.
+- 관련 Issue: #124 `[J08] Saved journey 생성·목록·상세·재개·삭제 구현`; blocked-by #120/#86/#87/#134는 모두 Closed임을 확인했고, 현재 Issue #124는 Open이다.
+- 구현 범위: `modules/journey/src/main/java/com/yrootlab/onmaru/journey/savedjourney`에 SavedJourney domain service/store/model을 추가했다. 동일 member/source exploration/source version 저장은 기존 saved journey를 반환하고, active run 저장은 `ACTIVE_RUN` conflict 경로로 막는다.
+- API 범위: `apps/spring-api/src/main/java/com/yrootlab/onmaru/web/savedjourney`에 `POST /api/v1/saved-journeys`, `GET /api/v1/saved-journeys`, `GET /api/v1/saved-journeys/{id}`, `DELETE /api/v1/saved-journeys/{id}`, `POST /api/v1/saved-journeys/{id}/resume`를 추가했다. 응답은 private `Cache-Control: no-store`와 기존 member session/auth/idempotency 경계를 따른다.
+- 소유권/재개: 본인 목록·상세·삭제만 허용하고 다른 member의 saved journey는 404로 숨긴다. resume은 현재 공개 availability를 다시 확인해 unavailable ref를 분리하고, 전부 unavailable이면 board 없는 `stateVersion=0` exploration 응답을 반환한다.
+- 관측성: create/delete/resume command 경계에서 `saved_journey_create`, `saved_journey_delete`, `saved_journey_resume` structured log를 남긴다. resume은 unavailable count를 함께 기록한다.
+- 테스트: `SavedJourneyServiceTests`가 중복 저장, active run 차단, owner scoped get/delete/list, cursor pagination, unavailable-only resume을 검증한다. `SavedJourneyWebBoundaryTests`가 create/list/detail/delete owner boundary와 resume unavailable response를 검증한다.
+- 검증: TDD RED는 domain 타입 부재 compile failure와 web bean 부재/context failure로 확인했고, 구현 후 `./gradlew :modules:journey:test :apps:spring-api:test`가 `BUILD SUCCESSFUL in 4m 21s`로 통과했다.
+- 남은 리스크/후속: 현재 구현은 기존 Exploration scaffold가 full board snapshot을 도메인에 보관하지 않는 한계 때문에 saved board 응답을 canonical ref 중심의 minimal snapshot으로 구성한다. 실제 JDBC saved_journeys persistence adapter, contract fixture runtime drift gate, saved journey 기반 월간 timeline read model 연결은 후속 Issue #126/#127 또는 persistence 후속 작업에서 이어가는 것이 좋다.
+
 ## Current Session Quick Handoff - 2026-09-17 Issue #121
 
 - 현재 작업 브랜치와 worktree: `feature/121-journey-cancel`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/issue-121-journey-cancel`.
