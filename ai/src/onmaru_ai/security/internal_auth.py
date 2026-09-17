@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from onmaru_ai.config.secrets import SecretProvider
 from onmaru_ai.observability.correlation import correlation_from
+from onmaru_ai.rag import InMemoryRagActivationLog, RagRetrievalGate
 
 INTERNAL_TOKEN_SECRET_NAME = "internal-ai.service-token"
 EXPECTED_ISSUER = "onmaru-spring"
@@ -39,6 +40,10 @@ class InternalAuthError(ValueError):
         self.status_code = status_code
 
 
+class RagEvidenceRetriever(Protocol):
+    def retrieve(self, corpus_revision_id: str) -> tuple[str, ...]: ...
+
+
 class JourneyProposalRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -46,9 +51,23 @@ class JourneyProposalRequest(BaseModel):
     request_id: str = Field(alias="requestId", min_length=1, max_length=128)
     run_id: str = Field(alias="runId", min_length=1, max_length=128)
     candidate_count: int = Field(alias="candidateCount", ge=0, le=12)
+    use_rag: bool = Field(default=False, alias="useRag")
+    corpus_revision_id: str | None = Field(
+        default=None,
+        alias="corpusRevisionId",
+        min_length=1,
+        max_length=128,
+    )
 
 
-def install_internal_auth(app: FastAPI, secret_provider: SecretProvider) -> None:
+def install_internal_auth(
+    app: FastAPI,
+    secret_provider: SecretProvider,
+    *,
+    rag_activation_log: InMemoryRagActivationLog | None = None,
+    rag_retriever: RagEvidenceRetriever | None = None,
+    rag_feature_enabled: bool = False,
+) -> None:
     @app.post(
         "/internal/v1/journey/proposals",
         status_code=status.HTTP_202_ACCEPTED,
@@ -69,14 +88,31 @@ def install_internal_auth(app: FastAPI, secret_provider: SecretProvider) -> None
             return _contract_error()
         if body.run_id != context.run_id or body.request_id != context.request_id:
             return _contract_error()
+        rag_evidence_refs: tuple[str, ...] = ()
+        if body.use_rag:
+            if body.corpus_revision_id is None:
+                return _contract_error()
+            if (
+                rag_feature_enabled
+                and rag_activation_log is not None
+                and rag_retriever is not None
+            ):
+                revision_id = body.corpus_revision_id
+                rag_evidence_refs = RagRetrievalGate(rag_activation_log).retrieve_if_active(
+                    corpus_revision_id=revision_id,
+                    retrieve=lambda: rag_retriever.retrieve(revision_id),
+                )
         candidate_count = body.candidate_count
         selected_count = min(candidate_count, 3)
-        return {
+        response: dict[str, object] = {
             "schemaVersion": "internal.ai.v1",
             "runId": context.run_id,
             "orderedRefs": [f"place:{index:03d}" for index in range(1, selected_count + 1)],
             "outcome": "PROPOSAL" if selected_count else "NO_RESULTS",
         }
+        if body.use_rag:
+            response["ragEvidenceRefs"] = list(rag_evidence_refs)
+        return response
 
 
 def _contract_error() -> JSONResponse:

@@ -2,20 +2,34 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
 
 from onmaru_ai.config.secrets import FakeSecretProvider
+from onmaru_ai.evals import compare_reports, evaluate_document
 from onmaru_ai.main import create_app
+from onmaru_ai.rag import InMemoryRagActivationLog, RagActivationPolicy, RagActivationThresholds
 from onmaru_ai.security.internal_auth import create_internal_token
+
+
+class CountingRagRetriever:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def retrieve(self, corpus_revision_id: str) -> tuple[str, ...]:
+        self.calls += 1
+        return (f"{corpus_revision_id}:evidence:001",)
 
 
 async def post_proposal(
     token: str,
     headers: dict[str, str] | None = None,
     body: dict[str, object] | None = None,
+    app: FastAPI | None = None,
 ) -> Response:
-    app = create_app(secret_provider=FakeSecretProvider())
+    app = app or create_app(secret_provider=FakeSecretProvider())
     request_headers = {
         "Authorization": f"Bearer {token}",
         "X-Request-Id": "req-ai-001",
@@ -57,6 +71,62 @@ def token(
         issued_at=now,
         expires_at=now + expires_delta,
     )
+
+
+def failing_eval_document() -> dict[str, object]:
+    return {
+        "schemaVersion": "1.1",
+        "versions": {
+            "model": "rag-challenger-v1",
+            "prompt": "journey-proposal-v1",
+            "ranking": "rag-ranking-v1",
+            "dataset": "journey-held-out-v1",
+        },
+        "thresholds": {
+            "minRetrievalRecallAt5": 0.85,
+            "minNdcgAt3": 0.8,
+            "minClaimSupport": 0.9,
+            "minSafety": 1.0,
+            "maxLatencyP95Ms": 8000,
+            "maxMeanCostMicros": 1000,
+            "maxPerRunCostMicros": 2000,
+        },
+        "cases": [
+            {
+                "id": "rag-disabled",
+                "gold": {
+                    "relevance": [{"ref": "place-a", "grade": 2}],
+                    "supportedEvidence": {"place-a": ["evidence-a"]},
+                    "allowedRefs": ["place-a"],
+                    "pinnedRefs": [],
+                    "excludedRefs": [],
+                    "expectedOutcome": "PROPOSE_BOARD",
+                },
+                "actual": {
+                    "retrievedRefs": [],
+                    "outcome": "PROPOSE_BOARD",
+                    "orderedRefs": ["place-a"],
+                    "reasons": [
+                        {
+                            "ref": "place-a",
+                            "evidenceIds": ["evidence-a"],
+                            "summary": "검수된 근거만 사용합니다.",
+                            "humanClaimSupported": True,
+                        }
+                    ],
+                    "latencyMs": 7000,
+                    "costMicros": 300,
+                },
+            }
+        ],
+    }
+
+
+def passing_eval_document() -> dict[str, object]:
+    document = failing_eval_document()
+    cases = cast(list[dict[str, Any]], document["cases"])
+    cases[0]["actual"]["retrievedRefs"] = ["place-a"]
+    return document
 
 
 def test_accepts_current_internal_token_and_propagates_correlation_headers() -> None:
@@ -134,6 +204,98 @@ def test_rejects_body_run_id_that_does_not_match_correlation_header() -> None:
                 "requestId": "req-ai-001",
                 "runId": "different-run",
                 "candidateCount": 2,
+            },
+        )
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "INTERNAL_AI_CONTRACT_INVALID"
+
+
+def test_skips_rag_retrieval_when_activation_gate_recorded_rollback() -> None:
+    log = InMemoryRagActivationLog()
+    RagActivationPolicy(log=log).evaluate(
+        evaluate_document(failing_eval_document()),
+        corpus_revision_id="catalog-rev-2026-09-17",
+    )
+    retriever = CountingRagRetriever()
+    app = create_app(
+        secret_provider=FakeSecretProvider(),
+        rag_activation_log=log,
+        rag_retriever=retriever,
+        environ={"ONMARU_RAG_ENABLED": "true"},
+    )
+
+    response = asyncio.run(
+        post_proposal(
+            token(),
+            app=app,
+            body={
+                "schemaVersion": "internal.ai.v1",
+                "requestId": "req-ai-001",
+                "runId": "run-ai-001",
+                "candidateCount": 2,
+                "useRag": True,
+                "corpusRevisionId": "catalog-rev-2026-09-17",
+            },
+        )
+    )
+
+    assert response.status_code == 202
+    assert response.json()["ragEvidenceRefs"] == []
+    assert retriever.calls == 0
+
+
+def test_returns_rag_evidence_when_activation_gate_recorded_active_revision() -> None:
+    log = InMemoryRagActivationLog()
+    baseline = evaluate_document(failing_eval_document())
+    current = evaluate_document(passing_eval_document())
+    current = current.model_copy(update={"comparison": compare_reports(current, baseline)})
+    RagActivationPolicy(
+        log=log,
+        thresholds=RagActivationThresholds(min_retrieval_recall_at_5_delta=0.1),
+    ).evaluate(current, corpus_revision_id="catalog-rev-2026-09-17")
+    retriever = CountingRagRetriever()
+    app = create_app(
+        secret_provider=FakeSecretProvider(),
+        rag_activation_log=log,
+        rag_retriever=retriever,
+        environ={"ONMARU_RAG_ENABLED": "true"},
+    )
+
+    response = asyncio.run(
+        post_proposal(
+            token(),
+            app=app,
+            body={
+                "schemaVersion": "internal.ai.v1",
+                "requestId": "req-ai-001",
+                "runId": "run-ai-001",
+                "candidateCount": 2,
+                "useRag": True,
+                "corpusRevisionId": "catalog-rev-2026-09-17",
+            },
+        )
+    )
+
+    assert response.status_code == 202
+    assert response.json()["ragEvidenceRefs"] == [
+        "catalog-rev-2026-09-17:evidence:001"
+    ]
+    assert retriever.calls == 1
+
+
+def test_rejects_blank_rag_corpus_revision_id() -> None:
+    response = asyncio.run(
+        post_proposal(
+            token(),
+            body={
+                "schemaVersion": "internal.ai.v1",
+                "requestId": "req-ai-001",
+                "runId": "run-ai-001",
+                "candidateCount": 2,
+                "useRag": True,
+                "corpusRevisionId": "",
             },
         )
     )

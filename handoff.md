@@ -12,6 +12,16 @@
 - 참고: 브랜치명을 `feature/125-o08-retention-cleanup-ledger`로 정리했고 `node scripts/print-branch-issue.mjs`가 `125`를 출력했다.
 - 다음 단계: PR 생성 전 work log cleanup과 Issue #125 AC를 다시 대조한다.
 
+## Current Session Quick Handoff - 2026-09-17 Issue #119
+
+- 현재 작업 브랜치와 worktree: `feature/119-optional-rag-activation-gate`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/ai09-optional-rag-activation-gate`.
+- 관련 Issue: #119 `[AI09] Optional RAG 비교 평가·activation gate 구현`; blocked-by #111/#112는 모두 Closed임을 확인했다.
+- 구현 범위: FastAPI AI에 `onmaru_ai.rag.activation`을 추가해 offline eval report와 baseline comparison을 기준으로 RAG `ACTIVATE`/`ROLLBACK` decision을 corpus revision에 고정 기록한다. eval gate 실패, baseline comparison 부재/불일치, 유의미한 품질 gain 부족, feature flag off는 모두 fail-closed다.
+- proposal E2E 연결: 내부 `POST /internal/v1/journey/proposals`가 optional `useRag`/`corpusRevisionId`를 받으며, activation log가 해당 revision을 활성화한 경우에만 주입된 retriever를 호출한다. rollback 상태에서는 `ragEvidenceRefs: []`를 반환하고 RAG 호출은 0회다.
+- 관측성/logging: activation decision마다 `rag.activation.decision` 로그에 action, reason, corpus revision, gold fingerprint, enabled 상태를 남긴다. secret·본문·질문 텍스트는 기록하지 않는다.
+- 검증: TDD RED/GREEN으로 `tests/rag/test_activation.py`, `tests/test_internal_auth.py::test_skips_rag_retrieval_when_activation_gate_recorded_rollback`를 추가했다. 현재 `uv run pytest`, `uv run ruff check src tests`, `uv run mypy` 통과.
+- 다음 단계: PR 전 `git diff --check`, 필요 시 repository 전체 contract/Gradle 영향 여부를 점검하고 #119 AC와 PR body를 대조한다.
+
 ## Current Session Quick Handoff - 2026-09-17 Issue #124
 
 - 현재 작업 브랜치와 worktree: `feature/124-saved-journey`, `/Users/yangseunghyeon/orca/workspaces/OnMaruBE/j08-saved-journey`.
