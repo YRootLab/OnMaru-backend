@@ -76,6 +76,7 @@ application-secret.properties
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+.mcp.json
 *.swp
 *.swo
 *~

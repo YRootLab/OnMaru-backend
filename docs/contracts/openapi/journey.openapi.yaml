@@ -207,6 +207,7 @@ components:
     ExplorationId: { name: explorationId, in: path, required: true, schema: { type: string, format: uuid } }
     RunId: { name: runId, in: path, required: true, schema: { type: string, format: uuid } }
     SavedJourneyId: { name: savedJourneyId, in: path, required: true, schema: { type: string, format: uuid } }
+    ThreadId: { name: threadId, in: path, required: true, schema: { type: string, format: uuid } }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
     CsrfToken: { name: X-CSRF-TOKEN, in: header, required: true, schema: { type: string, minLength: 16, maxLength: 256 } }
     Limit: { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
@@ -652,6 +653,61 @@ components:
         schemaVersion: { type: string, const: '1.2' }
         exploration: { $ref: '#/components/schemas/ExplorationSnapshot' }
         unavailableRefs: { type: array, items: { $ref: '#/components/schemas/PlaceRef' }, uniqueItems: true }
+    JourneyThreadPage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, items, nextCursor, hasMore]
+      properties:
+        schemaVersion: { type: string, const: '1.2' }
+        items: { type: array, items: { $ref: '#/components/schemas/JourneyThreadSummary' } }
+        nextCursor: { type: [string, 'null'] }
+        hasMore: { type: boolean }
+    JourneyThreadSummary:
+      type: object
+      additionalProperties: false
+      required: [threadId, explorationId, title, candidateCount, pinnedCount, updatedAt]
+      properties:
+        threadId: { type: string, format: uuid }
+        explorationId: { type: string, format: uuid }
+        title: { type: string }
+        lastUserQueryPreview: { type: [string, 'null'] }
+        lastOutcome: { type: [string, 'null'] }
+        latestRunStatus: { type: [string, 'null'] }
+        savedJourneyId: { type: [string, 'null'], format: uuid }
+        candidateCount: { type: integer, minimum: 0 }
+        pinnedCount: { type: integer, minimum: 0 }
+        updatedAt: { type: string, format: date-time }
+    JourneyThreadDetail:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, threadId, explorationId, title, pinnedCount, candidateCount, createdAt, updatedAt, turnHistory, snapshotUrl]
+      properties:
+        schemaVersion: { type: string, const: '1.2' }
+        threadId: { type: string, format: uuid }
+        explorationId: { type: string, format: uuid }
+        title: { type: string }
+        lastUserQueryPreview: { type: [string, 'null'] }
+        lastOutcome: { type: [string, 'null'] }
+        latestRunStatus: { type: [string, 'null'] }
+        savedJourneyId: { type: [string, 'null'], format: uuid }
+        pinnedCount: { type: integer, minimum: 0 }
+        candidateCount: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        turnHistory: { type: array, items: { $ref: '#/components/schemas/JourneyTurnMemory' } }
+        snapshotUrl: { type: string }
+    JourneyTurnMemory:
+      type: object
+      additionalProperties: false
+      required: [turnId, actorType, redactedQuery, redactionFlags, createdAt]
+      properties:
+        turnId: { type: string, format: uuid }
+        actorType: { type: string, enum: [MEMBER, GUEST] }
+        redactedQuery: { type: string }
+        redactionFlags: { type: array, items: { type: string } }
+        runId: { type: [string, 'null'], format: uuid }
+        outcome: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
     Error:
       type: object
       additionalProperties: false
