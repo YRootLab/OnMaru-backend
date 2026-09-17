@@ -1,4 +1,4 @@
--- onmaru-checksum: j07-v012-20260917
+-- onmaru-checksum: j07-v014-20260917
 -- Issue: #121 J07 Run cancel, deadline, and sweeper.
 
 ALTER TABLE onmaru.discovery_runs
@@ -20,7 +20,7 @@ INSERT INTO onmaru_registry.migration_version_reservations (
     issue_number,
     description
 ) VALUES (
-    '012',
+    '014',
     'J07',
     121,
     'Journey run cancellation, lease expiry, and deadline sweeper'

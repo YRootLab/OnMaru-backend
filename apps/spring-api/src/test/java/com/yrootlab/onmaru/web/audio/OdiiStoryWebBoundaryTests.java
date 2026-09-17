@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -94,6 +95,7 @@ class OdiiStoryWebBoundaryTests {
                 .andExpect(jsonPath("$.items[0].coordinates.lat").value(35.817632))
                 .andExpect(jsonPath("$.items[0].durationSeconds").value(185))
                 .andExpect(jsonPath("$.items[0].linkedPlaceId").value("p-jeonju-hanok-village"))
+                .andExpect(jsonPath("$.items[0].contentTags", hasItem("한옥 골목")))
                 .andExpect(jsonPath("$.items[0].savedByMe").value(false))
                 .andExpect(jsonPath("$.items[0].spotId").doesNotExist())
                 .andExpect(jsonPath("$.items[0].stid").doesNotExist())
@@ -106,6 +108,7 @@ class OdiiStoryWebBoundaryTests {
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.transcriptStatus").value("OFFICIAL"))
                 .andExpect(jsonPath("$.story.storyId").value("odii-story-jeonju-hanok-01"))
+                .andExpect(jsonPath("$.story.contentTags", hasItem("한옥 골목")))
                 .andExpect(jsonPath("$.audioUrl")
                         .value("https://cdn.onmaru.example/odii/odii-story-jeonju-hanok-01.mp3"))
                 .andExpect(jsonPath("$.transcript[1].startSecond").value(12.5))
@@ -244,6 +247,7 @@ class OdiiStoryWebBoundaryTests {
                 "https://cdn.onmaru.example/odii/" + storyId + ".mp3",
                 transcriptStatus,
                 transcript,
+                List.of(),
                 Instant.parse("2026-09-15T02:00:00Z"),
                 status,
                 status);

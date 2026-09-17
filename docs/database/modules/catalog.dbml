@@ -16,6 +16,22 @@ Enum catalog_place_status {
   DELETED
 }
 
+Enum content_tag_source {
+  GENERATED
+  PINNED
+  OPERATOR
+}
+
+Enum content_tag_override_target {
+  PLACE
+  ODII_STORY
+}
+
+Enum content_tag_override_action {
+  PIN
+  HIDE
+}
+
 Table catalog_regions [headercolor: #59A14F] {
   id uuid [pk]
   parent_id uuid
@@ -223,6 +239,41 @@ Table catalog_hanok_detail_versions [headercolor: #59A14F] {
   }
 }
 
+Table catalog_place_content_tag_versions [headercolor: #59A14F] {
+  revision_id uuid [not null]
+  place_id uuid [not null]
+  position int [not null]
+  label varchar [not null]
+  score numeric [not null]
+  source content_tag_source [not null]
+  algorithm_version varchar [not null]
+  source_hash varchar [not null]
+  generated_at timestamptz [not null]
+
+  Indexes {
+    (revision_id, place_id, position) [pk]
+    (revision_id, place_id, label) [unique]
+    (label, revision_id)
+  }
+}
+
+Table content_tag_overrides [headercolor: #59A14F] {
+  id uuid [pk]
+  target_type content_tag_override_target [not null]
+  target_id uuid [not null]
+  label varchar [not null]
+  action content_tag_override_action [not null]
+  reason text
+  created_by uuid
+  created_at timestamptz [not null]
+  expires_at timestamptz
+
+  Indexes {
+    (target_type, target_id, label, action) [unique]
+    (target_type, target_id)
+  }
+}
+
 TableGroup catalog [color: #59A14F, note: 'Canonical places, administrative regions, Korean TourAPI source versions, images, and published dataset pointers.'] {
   catalog_regions
   catalog_region_source_codes
@@ -237,6 +288,8 @@ TableGroup catalog [color: #59A14F, note: 'Canonical places, administrative regi
   catalog_kto_korean_info_versions
   catalog_place_image_versions
   catalog_hanok_detail_versions
+  catalog_place_content_tag_versions
+  content_tag_overrides
 }
 
 Ref: catalog_regions.parent_id >? catalog_regions.id
@@ -261,3 +314,4 @@ Ref: catalog_place_image_versions.source_ref_id > catalog_place_sources.id
 Ref: catalog_hanok_detail_versions.revision_id > catalog_dataset_revisions.id
 Ref: catalog_hanok_detail_versions.place_id > catalog_place_identity.id
 Ref: catalog_hanok_detail_versions.source_ref_id > catalog_place_sources.id
+Ref: catalog_place_content_tag_versions.(revision_id, place_id) > catalog_place_versions.(revision_id, place_id)

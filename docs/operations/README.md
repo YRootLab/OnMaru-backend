@@ -3,6 +3,7 @@
 수집 dataset의 원자 게시, run 복구, timeout, retry, 관측성과 운영 검증 조건을 다룬다. 운영 환경이 이미 구축됐다는 뜻은 아니다.
 
 - [Runtime and reliability](runtime-and-reliability.md): sync lease/fence/LKG, journey run lifecycle, 실패·복구·관측성
+- [Content tags](content-tags.md): 자체 추출 태그 lexicon 튜닝, 품질 경고, 검증 기준
 - [VisitReview moderation](moderation.md): 신고 triage, 고위험 임시 숨김, SLA, Grafana alert, operator drill
 - [Secret loading runbook](runbooks/secrets.md): server-only secret loading, rotation overlap, log redaction drill
 - [PostgreSQL restore runbook](runbooks/restore.md): encrypted full backup, isolated restore, deletion ledger replay, RPO/RTO evidence

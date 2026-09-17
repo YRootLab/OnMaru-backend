@@ -198,6 +198,8 @@ public final class InMemoryAudioRevisionStore implements AudioRevisionStore {
         return new OdiiStoryVersion(
                 story.identity(), story.spotIdentity(), story.title(), null, TranscriptProvenance.MISSING,
                 null, null, null, story.sourceModifiedAt(), AudioStatus.DELETED,
+                story.contentTags(),
+                story.contentTagQualityReport(),
                 "deleted:" + story.contentHash());
     }
 

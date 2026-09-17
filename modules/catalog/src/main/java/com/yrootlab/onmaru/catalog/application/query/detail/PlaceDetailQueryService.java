@@ -1,5 +1,9 @@
 package com.yrootlab.onmaru.catalog.application.query.detail;
 
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagExtractor;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagSource;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -7,13 +11,30 @@ import java.util.UUID;
 public final class PlaceDetailQueryService {
 
     private static final String SCHEMA_VERSION = "1.2";
+    private static final int MAX_CONTENT_TAGS = 7;
 
     private final PlaceDetailStore store;
     private final SavedPlaceStateLookup savedPlaceStateLookup;
+    private final ContentTagPipeline contentTagPipeline;
 
     public PlaceDetailQueryService(PlaceDetailStore store, SavedPlaceStateLookup savedPlaceStateLookup) {
+        this(store, savedPlaceStateLookup, ContentTagPipeline.defaultPipeline());
+    }
+
+    public PlaceDetailQueryService(
+            PlaceDetailStore store,
+            SavedPlaceStateLookup savedPlaceStateLookup,
+            ContentTagExtractor contentTagExtractor) {
+        this(store, savedPlaceStateLookup, ContentTagPipeline.of(contentTagExtractor));
+    }
+
+    public PlaceDetailQueryService(
+            PlaceDetailStore store,
+            SavedPlaceStateLookup savedPlaceStateLookup,
+            ContentTagPipeline contentTagPipeline) {
         this.store = store;
         this.savedPlaceStateLookup = savedPlaceStateLookup;
+        this.contentTagPipeline = contentTagPipeline;
     }
 
     public Optional<CanonicalPlaceDetail> findCanonicalPlace(String placeId, Optional<UUID> memberId) {
@@ -28,6 +49,7 @@ public final class PlaceDetailQueryService {
                         projection.coordinates(),
                         projection.images(),
                         projection.description(),
+                        contentTags(projection),
                         savedPlaceStateLookup.savedBy(memberId, projection.placeId())));
     }
 
@@ -49,6 +71,7 @@ public final class PlaceDetailQueryService {
                             projection.images(),
                             projection.description(),
                             projection.highlights(),
+                            contentTags(projection),
                             savedByMe,
                             mapCard,
                             odiiCard);
@@ -69,5 +92,16 @@ public final class PlaceDetailQueryService {
                 projection.region().name(),
                 projection.images().stream().findFirst().map(ImageProjection::url).orElse(null),
                 savedByMe);
+    }
+
+    private List<String> contentTags(PlaceProjection projection) {
+        if (!projection.contentTags().isEmpty()) {
+            return projection.contentTags();
+        }
+        return contentTagPipeline.generate(ContentTagSource.of(
+                projection.name(),
+                projection.category(),
+                projection.description(),
+                projection.highlights()), MAX_CONTENT_TAGS).publicLabels();
     }
 }

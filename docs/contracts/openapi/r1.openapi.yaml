@@ -311,6 +311,16 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+    ContentTags:
+      type: array
+      maxItems: 7
+      items:
+        type: string
+        minLength: 1
+        maxLength: 24
+      description: >
+        OnMaru가 장소 상세 설명과 하이라이트에서 LLM 없이 추출한 콘텐츠 이해용 태그.
+        값에는 # 문자를 포함하지 않으며, FE가 해시태그 칩으로 렌더링할 수 있다.
     HanokCard:
       type: object
       additionalProperties: false
@@ -380,6 +390,7 @@ components:
         - images
         - description
         - highlights
+        - contentTags
         - savedByMe
         - mapCard
         - odiiLinkedCard
@@ -419,6 +430,8 @@ components:
             type: string
             minLength: 1
             maxLength: 80
+        contentTags:
+          $ref: '#/components/schemas/ContentTags'
         savedByMe:
           type: boolean
         mapCard:
@@ -499,6 +512,7 @@ components:
         - coordinates
         - images
         - description
+        - contentTags
         - savedByMe
       properties:
         schemaVersion:
@@ -531,6 +545,8 @@ components:
           type: string
           minLength: 1
           maxLength: 2000
+        contentTags:
+          $ref: '#/components/schemas/ContentTags'
         savedByMe:
           type: boolean
     SavedPlaceState:

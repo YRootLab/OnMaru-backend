@@ -62,7 +62,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("012");
+                    """)).isEqualTo("014");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM information_schema.tables
@@ -103,7 +103,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("012");
+                    """)).isEqualTo("014");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM onmaru.community_visit_reviews

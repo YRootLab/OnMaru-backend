@@ -49,6 +49,7 @@ public final class OdiiRevisionSyncService {
                 command.dataset(), command.expectedActiveRevisionId(), clock.instant());
         Instant latestModifiedAt = null;
         String latestExternalId = null;
+        var mappedStories = new java.util.ArrayList<OdiiStoryVersion>();
         try {
             for (String language : command.languages()) {
                 int pageNumber = 1;
@@ -57,6 +58,7 @@ public final class OdiiRevisionSyncService {
                     var mapped = page.stories().stream().map(mapper::map).toList();
                     store.stage(stage.revisionId(), mapped);
                     for (OdiiMappedStory story : mapped) {
+                        mappedStories.add(story.story());
                         Instant modifiedAt = story.story().sourceModifiedAt();
                         if (latestModifiedAt == null || modifiedAt.isAfter(latestModifiedAt)) {
                             latestModifiedAt = modifiedAt;
@@ -92,11 +94,13 @@ public final class OdiiRevisionSyncService {
                 watermark,
                 completion.tombstoneCount()
         ));
+        var tagQuality = OdiiContentTagQualitySummary.from(mappedStories);
         var result = OdiiSyncResult.publication(
                 stage.revisionId(),
                 store.stagedItemCount(stage.revisionId()),
                 completion.tombstoneCount(),
-                publication.status()
+                publication.status(),
+                tagQuality
         );
         observer.completed(command.dataset(), result);
         return result;

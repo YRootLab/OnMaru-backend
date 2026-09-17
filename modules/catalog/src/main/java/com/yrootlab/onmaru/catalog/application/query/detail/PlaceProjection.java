@@ -12,9 +12,16 @@ public record PlaceProjection(
         List<ImageProjection> images,
         String description,
         List<String> highlights,
+        List<String> contentTags,
         String odiiLinkedResourceId,
         PlaceProjectionStatus status,
         boolean ambiguousMapping) {
+
+    public PlaceProjection {
+        images = images == null ? List.of() : List.copyOf(images);
+        highlights = highlights == null ? List.of() : List.copyOf(highlights);
+        contentTags = contentTags == null ? List.of() : List.copyOf(contentTags);
+    }
 
     public static PlaceProjection publicPlace(
             String placeId,
@@ -27,6 +34,32 @@ public record PlaceProjection(
             String description,
             List<String> highlights,
             String odiiLinkedResourceId) {
+        return publicPlace(
+                placeId,
+                name,
+                category,
+                region,
+                address,
+                coordinates,
+                images,
+                description,
+                highlights,
+                List.of(),
+                odiiLinkedResourceId);
+    }
+
+    public static PlaceProjection publicPlace(
+            String placeId,
+            String name,
+            String category,
+            RegionProjection region,
+            String address,
+            CoordinatesProjection coordinates,
+            List<ImageProjection> images,
+            String description,
+            List<String> highlights,
+            List<String> contentTags,
+            String odiiLinkedResourceId) {
         return new PlaceProjection(
                 placeId,
                 name,
@@ -37,6 +70,7 @@ public record PlaceProjection(
                 List.copyOf(images),
                 description,
                 List.copyOf(highlights),
+                List.copyOf(contentTags),
                 odiiLinkedResourceId,
                 PlaceProjectionStatus.PUBLIC,
                 false);
@@ -67,6 +101,7 @@ public record PlaceProjection(
                 null,
                 List.of(),
                 "",
+                List.of(),
                 List.of(),
                 null,
                 status,

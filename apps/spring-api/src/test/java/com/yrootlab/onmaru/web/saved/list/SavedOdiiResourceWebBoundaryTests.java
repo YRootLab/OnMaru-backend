@@ -350,6 +350,7 @@ class SavedOdiiResourceWebBoundaryTests {
                 "https://cdn.onmaru.example/odii/" + storyId + ".mp3",
                 OdiiTranscriptStatus.OFFICIAL,
                 List.of(new OdiiTranscriptLine(0, 0, "공개 대본")),
+                List.of(),
                 publishedAt,
                 status,
                 status);

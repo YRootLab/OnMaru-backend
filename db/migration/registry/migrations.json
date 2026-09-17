@@ -106,12 +106,21 @@
       "description": "Guest/member AI daily quota admission audit"
     },
     {
-      "version": "012",
+      "version": "013",
+      "reservedFor": "CONTENT_TAGS",
+      "issueNumber": 208,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V013__content_tag_projection_schema.sql",
+      "checksum": "content-tags-v013-20260917",
+      "sha256": "5080fa0f6f6bb798b7f12765564b34fdcfb2725e502208b1594aa75c4172b171",
+      "description": "Content tag projection storage and operator override schema"
+    },
+    {
+      "version": "014",
       "reservedFor": "J07",
       "issueNumber": 121,
-      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V012__j07_run_cancellation_sweeper.sql",
-      "checksum": "j07-v012-20260917",
-      "sha256": "1948f5f817a0c6dfe6c2156c2ee3117849fda4cfc85bd4404ab73cf66554fd9d",
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V014__j07_run_cancellation_sweeper.sql",
+      "checksum": "j07-v014-20260917",
+      "sha256": "a44c077ebf93b5384471873937c536bf50ec392c49e7d5b0faa422e87c8c1328",
       "description": "Journey run cancellation, lease expiry, and deadline sweeper"
     }
   ]

@@ -29,6 +29,7 @@
         }
       ],
       "description": "한옥, 지도, Odii 연결 화면이 같은 canonical 장소로 읽는 공개 관광 장소입니다.",
+      "contentTags": ["전주 한옥마을", "한옥 골목", "공예 체험", "야간 산책"],
       "savedByMe": true
     }
   },

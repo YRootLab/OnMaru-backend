@@ -21,6 +21,7 @@ import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -89,6 +90,7 @@ class PlaceDetailWebBoundaryTests {
                 .andExpect(jsonPath("$.region.regionCode").value("kr-45-jeonju"))
                 .andExpect(jsonPath("$.coordinates.lat").value(35.8151))
                 .andExpect(jsonPath("$.images[0].url").value("https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg"))
+                .andExpect(jsonPath("$.contentTags", hasItem("한옥 골목")))
                 .andExpect(jsonPath("$.savedByMe").value(true));
     }
 
@@ -101,6 +103,7 @@ class PlaceDetailWebBoundaryTests {
                 .andExpect(jsonPath("$.placeId").value("p-jeonju-hanok-village"))
                 .andExpect(jsonPath("$.category").value("HANOK"))
                 .andExpect(jsonPath("$.savedByMe").value(true))
+                .andExpect(jsonPath("$.contentTags", hasItem("한옥 골목")))
                 .andExpect(jsonPath("$.mapCard.placeId").value("p-jeonju-hanok-village"))
                 .andExpect(jsonPath("$.mapCard.savedByMe").value(true))
                 .andExpect(jsonPath("$.odiiLinkedCard.placeId").value("p-jeonju-hanok-village"));

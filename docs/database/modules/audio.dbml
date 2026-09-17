@@ -109,6 +109,24 @@ Table audio_place_odii_links [headercolor: #F28E2B] {
   }
 }
 
+Table audio_story_content_tag_versions [headercolor: #F28E2B] {
+  revision_id uuid [not null]
+  story_id uuid [not null]
+  position int [not null]
+  label varchar [not null]
+  score numeric [not null]
+  source content_tag_source [not null]
+  algorithm_version varchar [not null]
+  source_hash varchar [not null]
+  generated_at timestamptz [not null]
+
+  Indexes {
+    (revision_id, story_id, position) [pk]
+    (revision_id, story_id, label) [unique]
+    (label, revision_id)
+  }
+}
+
 TableGroup audio [color: #F28E2B, note: 'KTO Odii stable identities, versioned story content, subtitle lines, and verified place-to-Odii links.'] {
   audio_odii_spots
   audio_odii_stories
@@ -116,6 +134,7 @@ TableGroup audio [color: #F28E2B, note: 'KTO Odii stable identities, versioned s
   audio_story_versions
   audio_subtitle_lines
   audio_place_odii_links
+  audio_story_content_tag_versions
   audio_revision_stages
 }
 
@@ -125,3 +144,4 @@ Ref: audio_story_versions.story_id > audio_odii_stories.id
 Ref: audio_story_versions.spot_id > audio_odii_spots.id
 Ref: audio_subtitle_lines.story_id > audio_odii_stories.id
 Ref: audio_place_odii_links.spot_id > audio_odii_spots.id
+Ref: audio_story_content_tag_versions.(revision_id, story_id) > audio_story_versions.(revision_id, story_id)
