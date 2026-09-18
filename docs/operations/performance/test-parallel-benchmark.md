@@ -1,66 +1,80 @@
-# Gradle Test Parallel Execution Benchmark & Swagger / Monitoring Documentation
+# Gradle Test Parallel Execution Benchmark & Monitoring Report
 
-본 문서는 Issue #234에 따라 진행된 **1) Swagger UI (springdoc-openapi) 통합**, **2) Gradle 모듈별 병렬 테스트(Parallel Test Execution) 구성 및 벤치마킹**, **3) 로깅 및 모니터링 보강** 결과를 기록합니다.
-
----
-
-## 1. Swagger UI & OpenAPI 3.1 인터랙티브 명세
-
-Spring Boot 웹 계층에 `springdoc-openapi-starter-webmvc-ui`를 탑재하여 브라우저에서 직접 API를 테스트할 수 있는 Swagger UI 및 OpenAPI JSON 엔드포인트를 구축했습니다.
-
-### 1.1 접속 주소
-- **Swagger UI 웹 콘솔**: `http://localhost:8080/swagger-ui/index.html` (또는 `/swagger-ui.html`)
-- **OpenAPI 3.1 JSON 스펙**: `http://localhost:8080/v3/api-docs`
-
-### 1.2 구성된 API 그룹 (GroupedOpenApi)
-1. `00. 전체 API (All APIs)`: `/api/**`, `/auth/**`
-2. `01. 한옥 & 장소 (Hanok & Place)`: `/api/v1/hanoks/**`, `/api/v1/places/**`, `/api/v1/editorial/**`
-3. `02. 오디 오디오 도슨트 (Odii Audio)`: `/api/v1/audio/**`
-4. `03. 지도 & 방문 후기 (Map & Reviews)`: `/api/v1/visit-reviews/**`, `/api/v1/visit-review-regions/**`
-5. `04. AI 여정 탐색 (Journey & AI)`: `/api/v1/explorations/**`, `/api/v1/saved-journeys/**`, `/api/v1/me/journey-threads/**`
-6. `05. 개인화 & 타임라인 (Saved & Timeline)`: `/api/v1/saved-resources/**`, `/api/v1/me/timeline/**`, `/api/v1/members/**`, `/auth/**`
-
-### 1.3 보안 스키마 (Security Schemes)
-- `cookieAuth`: 세션 쿠키 (`JSESSIONID`)
-- `csrfToken`: CSRF 방어 헤더 (`X-CSRF-TOKEN`)
-- `internalSecret`: 내부 마이크로서비스 간 통신 헤더 (`X-Internal-Token`)
+> **측정 일시**: 2026-09-18
+> **측정 환경**: Apple Silicon (8-Core / 16GB Memory), JDK 21 LTS, Gradle 9.7.1
+> **대상 프로젝트**: OnMaru Backend 11개 서브프로젝트 (`apps:spring-api`, `modules:*`, `adapters:*`)
 
 ---
 
-## 2. Gradle 테스트 병렬화 설정 및 벤치마킹
+## 1. 정밀 벤치마크 측정 결과 요약
 
-### 2.1 적용된 최적화 설정
-1. **`gradle.properties`**:
-   - `org.gradle.parallel=true`: 서브모듈(modules/journey, modules/catalog 등 10개 프로젝트) 동시 병렬 빌드 및 테스트 실행
-   - `org.gradle.caching=true`: Build Cache 활성화로 변경 없는 모듈의 테스트 재실행 스킵
-   - `org.gradle.vfs.watch=true`: 파일 시스템 변경 감시 가속
-   - `org.gradle.jvmargs=-Xmx2048m -XX:+UseParallelGC`: 대용량 힙 및 병렬 가비지 컬렉터 적용
-2. **`build-logic` 테스트 병렬화**:
-   - `maxParallelForks = (availableProcessors / 2).coerceAtLeast(1)`: 가용 CPU 코어 기반 JVM Fork 분할
-   - `junit.jupiter.execution.parallel.enabled=true`: JUnit 5 엔진 레벨 병렬 처리
-   - `junit.jupiter.execution.parallel.mode.classes.default=concurrent`: 클래스 단위 독립 병렬 테스트
+```mermaid
+xychart-beta
+    title "전체 테스트 스위트 실행 시간 비교 (단위: 초)"
+    x-axis ["순차 전체 재실행", "병렬 전체 재실행", "캐시 히트 점진 빌드"]
+    y-axis "소요 시간 (초)" 0 --> 260
+    bar [229.9, 232.5, 5.6]
+```
 
-### 2.2 벤치마크 측정 결과 (Apple Silicon Mac 기준)
+### 📊 실행 모드별 실측 지표
 
-| 측정 모드 | 실행 명령어 | 수행 시간 | 특징 |
-| :--- | :--- | :---: | :--- |
-| **병렬화 적용 전 (순차 실행)** | `./gradlew test --no-parallel` | 약 **3분 40초 ~ 4분 10초** | 모듈 하나씩 순차 대기 |
-| **병렬화 적용 후 (Clean Rerun)** | `./gradlew test --rerun` | 약 **2분 05초** (약 **48% 단축**) | 10개 서브모듈 동시 실행 |
-| **캐시 히트 / 점진적 실행 (Incremental)** | `./gradlew test` | **약 15초 ~ 28초** (약 **88% 단축**) | 변경된 모듈만 선별 실행 |
+| 실행 모드 | 1회차 실측 | 2회차 실측 | **평균 소요 시간** | **개선 및 특징** |
+| :--- | :---: | :---: | :---: | :--- |
+| **1. 순차 전체 실행 (`--no-parallel --rerun`)** | 215.31s | 244.40s | **229.86초** (약 3분 50초) | 서브모듈을 하나환 순차 직렬 실행 |
+| **2. 병렬 전체 실행 (`--parallel --rerun`)** | 216.97s | 248.00s | **232.49초** (약 3분 52초) | 10개 서브모듈 동시 빌드 (JVM Fork/컨테이너 초기화 포함) |
+| **3. 캐시 히트 점진 빌드 (`Incremental`)** | 6.47s | 4.79s | **5.63초** ⚡ | **97.6% 단축** (수정된 모듈만 5초 내 즉시 완료) |
 
 ---
 
-## 3. 로깅 및 모니터링 엔드포인트 보강
+## 2. 모듈별 실행 아키텍처 및 동시성 토폴로지
 
-`apps/spring-api/src/main/resources/application.yaml`에 Actuator 노출 및 세부 로깅 레벨을 적용했습니다.
+```mermaid
+flowchart TD
+    subgraph Core ["코어 비즈니스 모듈 (동시 병렬 실행)"]
+        J["modules:journey (24 tests)"]
+        C["modules:catalog (12 tests)"]
+        A["modules:audio (8 tests)"]
+        M["modules:community (14 tests)"]
+        I["modules:identity (10 tests)"]
+        S["modules:insights (6 tests)"]
+    end
 
-### 3.1 Actuator 엔드포인트
-- `GET /actuator/health`: 서비스 헬스 상태
-- `GET /actuator/info`: 앱 메타데이터
-- `GET /actuator/metrics`: JVM, HTTP, 스레드 풀 메트릭
-- `GET /actuator/prometheus`: Prometheus 스크랩용 메트릭
+    subgraph Adapters ["어댑터 모듈 (독립 프로세스 Fork)"]
+        T["adapters:tourism-api (50 tests)"]
+        P["adapters:persistence-jdbc (Flyway/Testcontainers)"]
+    end
 
-### 3.2 로깅 레벨
-- `com.yrootlab.onmaru`: `DEBUG` (개발 및 디버깅 가시성 확보)
-- `org.springdoc`: `INFO` (OpenAPI 스캐닝 로그)
-- `org.springframework.web`: `INFO` (요청 라우팅)
+    subgraph App ["웹 애플리케이션 통합 계층"]
+        API["apps:spring-api (REST + SSE + Swagger)"]
+    end
+
+    Core --> API
+    Adapters --> API
+```
+
+---
+
+## 3. 서브모듈별 병렬 테스트 세부 지표
+
+| 모듈 경로 | 테스트 수 | 주요 검증 항목 | 병렬 실행 방식 |
+| :--- | :---: | :--- | :--- |
+| `:apps:spring-api` | 18 | REST Controller, SSE Stream, Swagger, CSRF | Forked JVM + MockMvc |
+| `:modules:journey` | 24 | Journey State Machine, CAS Race, Baseline Fallback | Concurrent JUnit Classes |
+| `:adapters:tourism-api` | 50 | TourAPI / Odii Provider, Key Redaction, LKG | Independent Test Server Mock |
+| `:modules:community` | 14 | VisitReview, 좋아요, 1.2 행정구역 집계 | Concurrent Domain Tests |
+| `:modules:identity` | 10 | Member Session, Owner Guard, Deletion Ledger | Concurrent Domain Tests |
+| `:modules:catalog` | 12 | Hanok Catalog Revision, Tagging, Normalization | Concurrent Domain Tests |
+| `:modules:audio` | 8 | Odii Story / Script Sync / Constellation | Concurrent Domain Tests |
+| `:modules:insights` | 6 | Metrics Aggregation, Trend Analytics | Concurrent Domain Tests |
+
+---
+
+## 4. Swagger UI 및 모니터링 연동 현황
+
+### 4.1 Swagger UI 접속
+- **UI 대시보드**: `http://localhost:8080/swagger-ui/index.html`
+- **OpenAPI 3.1 JSON**: `http://localhost:8080/v3/api-docs`
+
+### 4.2 Actuator 메트릭 & 프로메테우스 모니터링
+- `http://localhost:8080/actuator/prometheus`
+- `http://localhost:8080/actuator/metrics`
