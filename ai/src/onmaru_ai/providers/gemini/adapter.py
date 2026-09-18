@@ -17,6 +17,7 @@ from onmaru_ai.providers.gemini.models import (
     GeminiTransportRequest,
     GeminiTransportResponse,
     GeminiUsage,
+    GroundingChunk,
 )
 from onmaru_ai.providers.gemini.transport import GeminiTransport
 
@@ -54,10 +55,11 @@ class GeminiAdapter:
         response_schema: Mapping[str, Any],
         timeout_seconds: float,
         cancellation_event: asyncio.Event | None = None,
+        enable_search_grounding: bool = False,
     ) -> GeminiResult:
         if timeout_seconds <= 0:
             raise ValueError("Gemini timeout must be positive")
-        request = self._request(prompt, response_schema, timeout_seconds)
+        request = self._request(prompt, response_schema, timeout_seconds, enable_search_grounding)
         usage: GeminiUsage | None = None
         try:
             response = await self._send(request, timeout_seconds, cancellation_event)
@@ -85,14 +87,32 @@ class GeminiAdapter:
         prompt: GeminiPrompt,
         response_schema: Mapping[str, Any],
         timeout_seconds: float,
+        enable_search_grounding: bool = False,
     ) -> GeminiTransportRequest:
         data = json.dumps(
             prompt.data_block, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         )
-        few_shot = (
-            f"<trusted-few-shot>\n{prompt.few_shot_block}\n"
-            "</trusted-few-shot>"
-        )
+        few_shot = f"<trusted-few-shot>\n{prompt.few_shot_block}\n</trusted-few-shot>"
+        body: dict[str, Any] = {
+            "systemInstruction": {"parts": [{"text": prompt.policy_block}]},
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": few_shot},
+                        {"text": f"<untrusted-data>\n{data}\n</untrusted-data>"},
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "maxOutputTokens": self._config.max_output_tokens,
+                "responseMimeType": "application/json",
+                "responseJsonSchema": dict(response_schema),
+            },
+        }
+        if enable_search_grounding:
+            body["tools"] = [{"google_search": {}}]
         return GeminiTransportRequest(
             url=(
                 f"{self._config.endpoint.rstrip('/')}/v1beta/models/"
@@ -102,24 +122,7 @@ class GeminiAdapter:
                 "Content-Type": "application/json",
                 "x-goog-api-key": self._api_key,
             },
-            body={
-                "systemInstruction": {"parts": [{"text": prompt.policy_block}]},
-                "contents": [
-                    {
-                        "role": "user",
-                        "parts": [
-                            {"text": few_shot},
-                            {"text": f"<untrusted-data>\n{data}\n</untrusted-data>"},
-                        ],
-                    }
-                ],
-                "generationConfig": {
-                    "temperature": 0,
-                    "maxOutputTokens": self._config.max_output_tokens,
-                    "responseMimeType": "application/json",
-                    "responseJsonSchema": dict(response_schema),
-                },
-            },
+            body=body,
             timeout_seconds=timeout_seconds,
         )
 
@@ -168,9 +171,7 @@ class GeminiAdapter:
                 with contextlib.suppress(asyncio.CancelledError):
                     await cancellation_task
 
-    def _parse(
-        self, response: GeminiTransportResponse, usage: GeminiUsage | None
-    ) -> GeminiResult:
+    def _parse(self, response: GeminiTransportResponse, usage: GeminiUsage | None) -> GeminiResult:
         if response.status_code == 429:
             raise GeminiProviderError(GeminiFailureCode.AI_QUOTA_EXCEEDED)
         if response.status_code in {408, 504}:
@@ -181,7 +182,8 @@ class GeminiAdapter:
             raise GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE)
 
         try:
-            text = response.body["candidates"][0]["content"]["parts"][0]["text"]
+            candidate = response.body["candidates"][0]
+            text = candidate["content"]["parts"][0]["text"]
             proposal = json.loads(text)
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as error:
             raise GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE) from error
@@ -192,7 +194,36 @@ class GeminiAdapter:
         model_version = response.body.get("modelVersion", self._config.model_name)
         if not isinstance(model_version, str):
             model_version = self._config.model_name
-        return GeminiResult(proposal=proposal, usage=usage, model_version=model_version)
+        return GeminiResult(
+            proposal=proposal,
+            usage=usage,
+            model_version=model_version,
+            grounding_chunks=self._grounding_chunks(candidate),
+        )
+
+    def _grounding_chunks(self, candidate: Any) -> tuple[GroundingChunk, ...]:
+        if not isinstance(candidate, dict):
+            return ()
+        metadata = candidate.get("groundingMetadata")
+        if not isinstance(metadata, dict):
+            return ()
+        chunks = metadata.get("groundingChunks")
+        if not isinstance(chunks, list):
+            return ()
+        result: list[GroundingChunk] = []
+        for chunk in chunks:
+            if not isinstance(chunk, dict):
+                continue
+            web = chunk.get("web")
+            if not isinstance(web, dict):
+                continue
+            uri = web.get("uri")
+            title = web.get("title")
+            if isinstance(uri, str) and uri.strip():
+                result.append(
+                    GroundingChunk(uri=uri, title=title if isinstance(title, str) else "")
+                )
+        return tuple(result)
 
     def _usage_from_response(self, response: GeminiTransportResponse) -> GeminiUsage | None:
         if not isinstance(response.body, dict) or not isinstance(

@@ -130,6 +130,8 @@ def validate_internal_token(
     authorization: str,
     secret_provider: SecretProvider,
     now: Callable[[], datetime] | None = None,
+    *,
+    required_scope: str = REQUIRED_SCOPE,
 ) -> InternalAuthResult:
     if not authorization.startswith("Bearer "):
         raise _http_error("INTERNAL_AUTH_MISSING", status.HTTP_401_UNAUTHORIZED)
@@ -156,7 +158,7 @@ def validate_internal_token(
         raise _http_error("INTERNAL_AUTH_INVALID_ISSUER", status.HTTP_401_UNAUTHORIZED)
     if claims.get("aud") != EXPECTED_AUDIENCE:
         raise _http_error("INTERNAL_AUTH_INVALID_AUDIENCE", status.HTTP_401_UNAUTHORIZED)
-    if claims.get("scope") != REQUIRED_SCOPE:
+    if claims.get("scope") != required_scope:
         raise _http_error("INTERNAL_AUTH_FORBIDDEN_SCOPE", status.HTTP_403_FORBIDDEN)
 
     current_time = int((now or (lambda: datetime.now(UTC)))().timestamp())
