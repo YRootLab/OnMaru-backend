@@ -1,14 +1,13 @@
-# syntax=docker/dockerfile:1.7
-
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /workspace
 
 COPY gradlew gradlew
 COPY gradle gradle
-COPY settings.gradle.kts build.gradle.kts gradle.properties* ./
+COPY settings.gradle.kts build.gradle.kts gradle.properties* settings-gradle.lockfile* ./
+COPY build-logic build-logic
 COPY adapters adapters
 COPY modules modules
-COPY apps/spring-api apps/spring-api
+COPY apps apps
 
 RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew :apps:spring-api:bootJar -x test --no-daemon
