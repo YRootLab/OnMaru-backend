@@ -23,3 +23,4 @@
 | **`/odii`** | `ODII-F002` | `ScriptSyncViewer` | `DATA-ODII-001` | Subtitle Script | `BE-REQ-008` | `src/features/odii-audio/components/ScriptSyncViewer.tsx` |
 | **`/odii`** | `ODII-F003` | `SoundConstellationSection` | `DATA-ODII-002` | Constellation | `BE-REQ-008` | `src/features/odii-audio/components/SoundConstellationSection.tsx` |
 | **`/odii`** | `ODII-F004` | `OdiiQuestionAssistant` | `DATA-ODII-003` | LLM Docent Q&A | `BE-REQ-009` (`POST /api/v1/odii/ask`) | `src/features/odii-audio/components/OdiiQuestionAssistant.tsx` |
+| **`/hanok`** | `HANOK-F005` | `KCultureThemeFeed` | `DATA-HANOK-003` | Screen Hanok (K-Content) | `BE-REQ-010` (`GET /api/v1/hanoks/screen-hanok`) | `src/features/hanok-archive/components/KCultureThemeFeed.tsx` |
