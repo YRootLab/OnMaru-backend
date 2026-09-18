@@ -16,6 +16,13 @@ import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Tag(name = "04. AI 여정 탐색 (Journey & AI)", description = "AI 기반 여행 여정 탐색, 대화 턴, 실시간 SSE 이벤트 스트림, 코스 저장 API")
 @RestController
 public final class JourneyThreadController {
 
@@ -54,10 +62,21 @@ public final class JourneyThreadController {
         this.idempotency = idempotency;
     }
 
+    @Operation(
+            summary = "내 여정 탐색 대화 스레드 히스토리 목록 조회",
+            description = "로그인한 회원이 진행했던 AI 여정 탐색 스레드 목록을 최신순으로 커서 페이징 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "스레드 목록 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/me/journey-threads")
     public ResponseEntity<?> list(
+            @Parameter(description = "조회 개수 (기본값 20)", example = "20")
             @RequestParam(defaultValue = "20") int limit,
+            @Parameter(description = "다음 페이지 커서 토큰")
             @RequestParam(required = false) String cursor,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String session,
             HttpServletRequest request) {
         var member = members.currentMember(session);
@@ -85,9 +104,20 @@ public final class JourneyThreadController {
         }
     }
 
+    @Operation(
+            summary = "여정 탐색 대화 스레드 상세 및 대화 턴 히스토리 조회",
+            description = "스레드 ID를 기반으로 대화 질의 내용, AI 생성 상태, 추천 결과, 턴별 변경 이력을 상세 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "스레드 상세 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "스레드를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/me/journey-threads/{threadId}")
     public ResponseEntity<?> get(
+            @Parameter(description = "스레드 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @PathVariable UUID threadId,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String session,
             HttpServletRequest request) {
         var member = members.currentMember(session);
@@ -112,10 +142,22 @@ public final class JourneyThreadController {
         }
     }
 
+    @Operation(
+            summary = "여정 탐색 대화 스레드 삭제",
+            description = "대화 스레드 기록을 삭제합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "스레드 삭제 완료"),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "스레드를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @DeleteMapping("/api/v1/me/journey-threads/{threadId}")
     public ResponseEntity<?> delete(
+            @Parameter(description = "스레드 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @PathVariable UUID threadId,
+            @Parameter(description = "멱등성 키", example = "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d")
             @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String session,
             HttpServletRequest request) {
         var member = members.currentMember(session);

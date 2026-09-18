@@ -12,6 +12,13 @@ import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+@Tag(name = "03. 지도 & 방문 후기 (Map & Reviews)", description = "방문 후기 작성, 조회, 좋아요, 신고, 행정구역별 지도 통계 API")
 @RestController
 public final class VisitReviewQueryController {
 
@@ -38,12 +46,26 @@ public final class VisitReviewQueryController {
         this.memberLifecycleService = memberLifecycleService;
     }
 
+    @Operation(
+            summary = "방문 후기 목록 조회 (글로벌/지역 범위)",
+            description = "스코프(ALL, REGION, MY 등)와 행정구역 코드를 지정하여 커서 페이징 방식의 방문 후기 피드를 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "방문 후기 목록 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 스코프 또는 커서", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "후기 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/visit-reviews")
     ResponseEntity<?> listVisitReviews(
+            @Parameter(description = "조회 범위 스코프 (ALL, REGION, MY)", example = "ALL", required = true)
             @RequestParam String scope,
+            @Parameter(description = "행정구역 코드 (스코프가 REGION일 때 필수)", example = "11110")
             @RequestParam(required = false) String regionCode,
+            @Parameter(description = "조회 건수 (기본값 20)", example = "20")
             @RequestParam(required = false, defaultValue = "20") int limit,
+            @Parameter(description = "다음 페이지 커서 토큰")
             @RequestParam(required = false) String cursor,
+            @Parameter(description = "회원 세션 쿠키 (내 좋아요 여부 판별용)", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             HttpServletRequest request) {
         try {
@@ -66,11 +88,24 @@ public final class VisitReviewQueryController {
         }
     }
 
+    @Operation(
+            summary = "특정 장소의 방문 후기 목록 조회",
+            description = "장소 ID(placeId)에 등록된 방문 후기들을 커서 페이징 방식으로 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "장소별 방문 후기 목록 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 요청 또는 커서", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "후기 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/places/{placeId}/visit-reviews")
     ResponseEntity<?> listPlaceVisitReviews(
+            @Parameter(description = "장소 고유 식별자", example = "place-seoul-bukchon-001")
             @PathVariable String placeId,
+            @Parameter(description = "조회 건수 (기본값 20)", example = "20")
             @RequestParam(required = false, defaultValue = "20") int limit,
+            @Parameter(description = "다음 페이지 커서 토큰")
             @RequestParam(required = false) String cursor,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             HttpServletRequest request) {
         try {

@@ -2,6 +2,13 @@ package com.yrootlab.onmaru.web.exploration;
 
 import com.yrootlab.onmaru.journey.events.JourneyRunEvent;
 import com.yrootlab.onmaru.journey.exploration.ExplorationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
@@ -17,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.util.UUID;
 
+@Tag(name = "04. AI 여정 탐색 (Journey & AI)", description = "AI 기반 여행 여정 탐색, 대화 턴, 실시간 SSE 이벤트 스트림, 코스 저장 API")
 @RestController
 final class ExplorationRunEventsController {
 
@@ -38,13 +46,26 @@ final class ExplorationRunEventsController {
         this.eventPublisher = eventPublisher;
     }
 
+    @Operation(
+            summary = "AI 여정 생성 실시간 SSE 이벤트 스트림",
+            description = "AI 여정 생성 과정(토큰 스트리밍, 코스 구성, 제안 생성, 상태 전이)을 Server-Sent Events(text/event-stream)로 실시간 수신합니다. Last-Event-ID 헤더를 통한 재연결 및 유실 이벤트 리플레이를 지원합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "SSE 스트림 연결 수립 (text/event-stream)"),
+            @ApiResponse(responseCode = "404", description = "런 또는 탐색 세션을 찾을 수 없음")
+    })
     @GetMapping(path = "/api/v1/explorations/{explorationId}/runs/{runId}/events",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     ResponseEntity<SseEmitter> events(
+            @Parameter(description = "탐색 세션 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @PathVariable UUID explorationId,
+            @Parameter(description = "AI 실행 런 UUID", example = "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f")
             @PathVariable UUID runId,
+            @Parameter(description = "마지막 수신 이벤트 ID (SSE 재연결 시)", example = "42")
             @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var actor = resolveActor(sessionToken, guestToken);
         var emitter = new SseEmitter(60_000L);

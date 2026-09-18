@@ -12,6 +12,13 @@ import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+@Tag(name = "02. 오디 오디오 도슨트 (Odii Audio)", description = "한국관광공사 오디(Odii) 기반 장소별 오디오 도슨트 해설 및 스크립트 API")
 @RestController
 public final class OdiiStoryController {
 
@@ -38,13 +46,28 @@ public final class OdiiStoryController {
         this.memberLifecycleService = memberLifecycleService;
     }
 
+    @Operation(
+            summary = "오디 오디오 도슨트 스토리 목록 조회",
+            description = "언어, 카테고리, 행정구역 코드를 기반으로 오디 오디오 스토리 목록과 재생 시간, 커서 페이징 결과를 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "오디오 스토리 목록 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 요청 또는 만료된 커서", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "오디 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/odii/stories")
     ResponseEntity<?> listStories(
+            @Parameter(description = "해설 언어 코드 (ko-KR, en-US 등)", example = "ko-KR")
             @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @Parameter(description = "스토리 카테고리", example = "HISTORIC")
             @RequestParam(required = false) String category,
+            @Parameter(description = "행정구역 코드", example = "11110")
             @RequestParam(required = false) String regionCode,
+            @Parameter(description = "조회 건수 (기본값 20)", example = "20")
             @RequestParam(required = false, defaultValue = "20") String limit,
+            @Parameter(description = "다음 페이지 커서 토큰")
             @RequestParam(required = false) String cursor,
+            @Parameter(description = "회원 세션 쿠키 (저장 여부 판별용)", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             HttpServletRequest request) {
         try {
@@ -66,10 +89,22 @@ public final class OdiiStoryController {
         }
     }
 
+    @Operation(
+            summary = "오디 오디오 도슨트 상세 및 스크립트 조회",
+            description = "오디오 스토리 ID를 기반으로 스트리밍 오디오 URL, 전체 자막/스크립트 텍스트, 장소 매핑 정보를 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "오디오 스토리 상세 조회 성공"),
+            @ApiResponse(responseCode = "404", description = "오디오 스토리를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "오디 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/odii/stories/{storyId}")
     ResponseEntity<?> storyDetail(
+            @Parameter(description = "오디 스토리 고유 ID", example = "story-gyeongbokgung-01")
             @PathVariable String storyId,
+            @Parameter(description = "해설 언어 코드", example = "ko-KR")
             @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @Parameter(description = "회원 세션 쿠키 (저장 여부 판별용)", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             HttpServletRequest request) {
         try {

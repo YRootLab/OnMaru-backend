@@ -4,6 +4,13 @@ import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.identity.lifecycle.MemberSessionRequiredException;
 import com.yrootlab.onmaru.identity.lifecycle.MemberSummary;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,6 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.util.Map;
 
+@Tag(name = "05. 개인화 & 타임라인 (Saved & Timeline)", description = "북마크/저장한 장소 및 오디오 도슨트, 내 활동 타임라인 및 회원 프로필 API")
 @RestController
 public final class MemberLifecycleController {
 
@@ -31,8 +39,17 @@ public final class MemberLifecycleController {
         this.lifecycleService = lifecycleService;
     }
 
+    @Operation(
+            summary = "현재 로그인한 내 프로필 조회",
+            description = "세션 쿠키 기반으로 현재 인증된 회원의 ID 및 닉네임 정보를 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "회원 정보 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요")
+    })
     @GetMapping("/api/v1/members/me")
     ResponseEntity<?> currentMember(
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             HttpServletRequest request) {
         return lifecycleService.currentMember(sessionToken)
@@ -42,8 +59,16 @@ public final class MemberLifecycleController {
                 .orElseGet(() -> authRequired(request));
     }
 
+    @Operation(
+            summary = "로그아웃",
+            description = "현재 활성화된 회원 세션을 만료시키고 세션 쿠키를 삭제합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "로그아웃 완료 및 쿠키 파기")
+    })
     @PostMapping("/api/v1/auth/logout")
     ResponseEntity<Void> logout(
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             @RequestBody(required = false) Map<String, Object> ignored) {
         lifecycleService.logout(sessionToken);
@@ -53,8 +78,17 @@ public final class MemberLifecycleController {
                 .build();
     }
 
+    @Operation(
+            summary = "회원 탈퇴 및 계정 삭제 요청",
+            description = "회원 탈퇴를 접수하고 세션을 즉시 만료시키며 비식별화/삭제 프로세스를 시작합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "202", description = "회원 탈퇴 요청 접수 완료"),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요")
+    })
     @DeleteMapping("/api/v1/members/me")
     ResponseEntity<?> deleteCurrentMember(
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             HttpServletRequest request) {
         try {
