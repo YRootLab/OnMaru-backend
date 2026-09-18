@@ -19,6 +19,7 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
     implementation(libs.flyway.core)
     runtimeOnly("io.micrometer:micrometer-registry-otlp")

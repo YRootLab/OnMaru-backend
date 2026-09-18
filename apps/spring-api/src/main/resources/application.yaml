@@ -13,6 +13,17 @@ spring:
     user: ${ONMARU_DB_MIGRATION_USER:}
     password: ${ONMARU_DB_MIGRATION_PASSWORD:}
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+
 onmaru:
   audio:
     dataset: ${ONMARU_AUDIO_DATASET:odii-audio}
@@ -50,7 +61,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info,metrics,prometheus
   endpoint:
     health:
-      show-details: never
+      show-details: when_authorized
+
+logging:
+  level:
+    root: INFO
+    com.yrootlab.onmaru: DEBUG
+    org.springdoc: INFO
+    org.springframework.web: INFO
