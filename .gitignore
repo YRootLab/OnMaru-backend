@@ -105,3 +105,4 @@ Desktop.ini
 # Merge conflict temporary artifacts
 *.orig
 *.rej
+.neon

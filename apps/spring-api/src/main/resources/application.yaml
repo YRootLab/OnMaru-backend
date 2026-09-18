@@ -1,3 +1,6 @@
+server:
+  port: ${PORT:8080}
+
 spring:
   application:
     name: onmaru-spring-api
@@ -10,8 +13,8 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     table: flyway_schema_history
-    user: ${ONMARU_DB_MIGRATION_USER:}
-    password: ${ONMARU_DB_MIGRATION_PASSWORD:}
+    user: ${ONMARU_DB_MIGRATION_USER:${ONMARU_DB_RUNTIME_USER:}}
+    password: ${ONMARU_DB_MIGRATION_PASSWORD:${ONMARU_DB_RUNTIME_PASSWORD:}}
 
 springdoc:
   api-docs:
