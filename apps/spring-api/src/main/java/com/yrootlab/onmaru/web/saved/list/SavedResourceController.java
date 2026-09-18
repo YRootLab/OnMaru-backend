@@ -18,6 +18,13 @@ import com.yrootlab.onmaru.web.common.cursor.CursorExpiredException;
 import com.yrootlab.onmaru.web.common.cursor.CursorInvalidException;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -38,6 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+@Tag(name = "05. 개인화 & 타임라인 (Saved & Timeline)", description = "북마크/저장한 장소 및 오디오 도슨트, 내 활동 타임라인 및 회원 프로필 API")
 @RestController
 public final class SavedResourceController {
 
@@ -71,9 +79,21 @@ public final class SavedResourceController {
         this.cursors = cursors;
     }
 
+    @Operation(
+            summary = "오디 오디오 도슨트 스토리 북마크/저장",
+            description = "특정 오디 오디오 스토리를 내 보관함에 저장(북마크)합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "오디오 스토리 저장 성공"),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "오디오 스토리를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "최대 저장 한도 초과", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @PutMapping("/api/v1/saved-resources/odii-stories/{storyId}")
     ResponseEntity<?> saveOdii(
+            @Parameter(description = "오디 스토리 ID", example = "story-gyeongbokgung-01")
             @PathVariable String storyId,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String session,
             HttpServletRequest request) {
         return members.currentMember(session).<ResponseEntity<?>>map(member -> {
@@ -90,9 +110,19 @@ public final class SavedResourceController {
         }).orElseGet(() -> authRequired(request));
     }
 
+    @Operation(
+            summary = "오디 오디오 도슨트 스토리 북마크/저장 취소",
+            description = "보관함에 저장해 둔 오디 오디오 스토리를 삭제합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "저장 취소 완료"),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @DeleteMapping("/api/v1/saved-resources/odii-stories/{storyId}")
     ResponseEntity<?> deleteOdii(
+            @Parameter(description = "오디 스토리 ID", example = "story-gyeongbokgung-01")
             @PathVariable String storyId,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String session,
             HttpServletRequest request) {
         return members.currentMember(session).<ResponseEntity<?>>map(member -> {
@@ -101,11 +131,24 @@ public final class SavedResourceController {
         }).orElseGet(() -> authRequired(request));
     }
 
+    @Operation(
+            summary = "내가 저장한 리소스 목록 조회 (PLACE / ODII_STORY)",
+            description = "타입(type: PLACE 또는 ODII_STORY)별로 회원이 저장한 리소스 목록을 커서 페이징 방식으로 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "저장 리소스 목록 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 타입 또는 파라미터", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/saved-resources")
     ResponseEntity<?> list(
+            @Parameter(description = "저장 리소스 타입 (PLACE, ODII_STORY)", example = "PLACE", required = true)
             @RequestParam(required = false) String type,
+            @Parameter(description = "조회 개수 (기본값 20, 최대 50)", example = "20")
             @RequestParam(defaultValue = "20") int limit,
+            @Parameter(description = "다음 페이지 커서 토큰")
             @RequestParam(required = false) String cursor,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String session,
             HttpServletRequest request) {
         var member = members.currentMember(session);

@@ -12,6 +12,13 @@ import com.yrootlab.onmaru.web.common.cursor.CursorExpiredException;
 import com.yrootlab.onmaru.web.common.cursor.CursorInvalidException;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +40,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+@Tag(name = "05. 개인화 & 타임라인 (Saved & Timeline)", description = "북마크/저장한 장소 및 오디오 도슨트, 내 활동 타임라인 및 회원 프로필 API")
 @RestController
 public final class MemberTimelineController {
 
@@ -54,11 +62,24 @@ public final class MemberTimelineController {
         this.cursorCodec = Objects.requireNonNull(cursorCodec, "cursorCodec");
     }
 
+    @Operation(
+            summary = "내 활동 타임라인 조회 (월별 그룹화)",
+            description = "특정 월(YYYY-MM)에 발생한 나의 활동(방문 후기 작성, 여정 저장, 장소 찜하기, 오디오 도슨트 청취/북마크)을 일자별 그룹으로 묶어 커서 페이징 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "타임라인 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 월(month) 형식 또는 커서", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/me/timeline")
     ResponseEntity<?> getTimeline(
+            @Parameter(description = "조회 대상 연/월 (YYYY-MM, 미입력 시 이번 달)", example = "2026-09")
             @RequestParam(required = false) String month,
+            @Parameter(description = "조회 건수 (기본값 20, 최대 50)", example = "20")
             @RequestParam(defaultValue = "20") int limit,
+            @Parameter(description = "다음 페이지 커서 토큰")
             @RequestParam(required = false) String cursor,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String session,
             HttpServletRequest request) {
         var member = members.currentMember(session);

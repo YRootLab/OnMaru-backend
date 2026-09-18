@@ -26,6 +26,14 @@ import com.yrootlab.onmaru.operations.admission.AdmissionRequest;
 import com.yrootlab.onmaru.operations.admission.AdmissionService;
 import com.yrootlab.onmaru.operations.admission.AdmissionSubject;
 import com.yrootlab.onmaru.operations.admission.SubjectType;
+import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.ObjectProvider;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
@@ -49,6 +57,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+@Tag(name = "04. AI 여정 탐색 (Journey & AI)", description = "AI 기반 여행 여정 탐색, 대화 턴, 실시간 SSE 이벤트 스트림, 코스 저장 API")
 @RestController
 public final class ExplorationController {
 
@@ -81,11 +90,24 @@ public final class ExplorationController {
         this.cancellationService = cancellationService;
     }
 
+    @Operation(
+            summary = "AI 여정 탐색 세션 생성 (비동기 런 접수)",
+            description = "여행 질의(query), 지역 코드(regionCode)를 전달하여 AI 여정 탐색 세션을 생성하고 비동기 생성 런(Run)을 시작합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "202", description = "여정 생성 런 접수 완료 (SSE 또는 폴링으로 상태 확인)"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 요청 본문", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "429", description = "동시 실행 정원 초과 (Admission Throttled)", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @PostMapping("/api/v1/explorations")
     ResponseEntity<RunAcceptedResponse> create(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "여정 탐색 시작 요청 DTO")
             @RequestBody(required = false) CreateRequest body,
+            @Parameter(description = "멱등성 키", example = "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d")
             @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var key = IdempotencyKey.fromHeader(idempotencyKey);
         var resolved = actorResolver.resolve(sessionToken, guestToken);
@@ -118,10 +140,21 @@ public final class ExplorationController {
         return runAccepted(response);
     }
 
+    @Operation(
+            summary = "AI 여정 탐색 상태 및 스냅샷 조회",
+            description = "탐색 세션 ID를 기반으로 현재 확정된 코스, 제안 목록, 장소 상세 하이드레이션 데이터, 액션 상태를 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "여정 탐색 스냅샷 조회 성공"),
+            @ApiResponse(responseCode = "404", description = "탐색 세션을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/explorations/{explorationId}")
     ResponseEntity<ExplorationResponse> get(
+            @Parameter(description = "탐색 세션 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @PathVariable UUID explorationId,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var actor = actorResolver.resolve(sessionToken, guestToken).actor();
         var snapshot = explorationService.get(actor, explorationId);
@@ -130,12 +163,26 @@ public final class ExplorationController {
                 .body(ExplorationResponse.from(snapshot, snapshotHydrator.hydrate(snapshot), explorationService.actionState(actor, explorationId)));
     }
 
+    @Operation(
+            summary = "여정 수정 액션 적용 (PIN, EXCLUDE, PROPOSAL)",
+            description = "코스 내 장소 고정(PIN), 제외(EXCLUDE), AI 추천 제안 수락/거절(APPLY_PROPOSAL, DISMISS_PROPOSAL) 액션을 적용합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "액션 적용 성공 및 갱신된 스냅샷 반환"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 액션 파라미터", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "베이스 버전 불일치 (CAS 낙관적 락 충돌)", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @PostMapping("/api/v1/explorations/{explorationId}/actions")
     ResponseEntity<ExplorationResponse> applyAction(
+            @Parameter(description = "탐색 세션 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @PathVariable UUID explorationId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "여정 수정 액션 요청 DTO")
             @RequestBody(required = false) ActionRequest body,
+            @Parameter(description = "멱등성 키", example = "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d")
             @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var key = IdempotencyKey.fromHeader(idempotencyKey);
         var actor = actorResolver.resolve(sessionToken, guestToken).actor();
@@ -156,11 +203,23 @@ public final class ExplorationController {
         return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body((ExplorationResponse) response.body());
     }
 
+    @Operation(
+            summary = "AI 실행 런(Run) 단건 상태 조회",
+            description = "비동기로 실행 중인 AI 추천 런(Run)의 현재 진행 상태(QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED)를 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "런 상태 조회 성공"),
+            @ApiResponse(responseCode = "404", description = "런을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @GetMapping("/api/v1/explorations/{explorationId}/runs/{runId}")
     ResponseEntity<ExplorationResponse.RunResponse> getRun(
+            @Parameter(description = "탐색 세션 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @PathVariable UUID explorationId,
+            @Parameter(description = "AI 실행 런 UUID", example = "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f")
             @PathVariable UUID runId,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var actor = actorResolver.resolve(sessionToken, guestToken).actor();
         return ResponseEntity.ok()
@@ -168,12 +227,26 @@ public final class ExplorationController {
                 .body(ExplorationResponse.RunResponse.from(explorationService.getRun(actor, explorationId, runId)));
     }
 
+    @Operation(
+            summary = "AI 대화 턴 추가 (추가 질의/피드백)",
+            description = "기존 여정 탐색 세션에 사용자의 추가 요구사항이나 명확화 응답(clarificationAnswer)을 전달하여 새로운 AI 런을 실행합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "202", description = "대화 턴 런 접수 완료"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 턴 요청 본문", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "429", description = "동시 실행 정원 초과", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @PostMapping("/api/v1/explorations/{explorationId}/turns")
     ResponseEntity<RunAcceptedResponse> createTurn(
+            @Parameter(description = "탐색 세션 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @PathVariable UUID explorationId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "대화 턴 추가 요청 DTO")
             @RequestBody(required = false) CreateTurnRequest body,
+            @Parameter(description = "멱등성 키", example = "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d")
             @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var key = IdempotencyKey.fromHeader(idempotencyKey);
         var actor = actorResolver.resolve(sessionToken, guestToken).actor();
@@ -213,13 +286,27 @@ public final class ExplorationController {
         return runAccepted(response);
     }
 
+    @Operation(
+            summary = "진행 중인 AI 실행 런(Run) 취소",
+            description = "대기열(QUEUED) 또는 실행 중(RUNNING)인 AI 추천 생성을 즉시 취소합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "AI 실행 취소 완료"),
+            @ApiResponse(responseCode = "404", description = "런 또는 탐색 세션을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
     @PostMapping("/api/v1/explorations/{explorationId}/runs/{runId}/cancel")
     ResponseEntity<ExplorationResponse.RunResponse> cancelRun(
+            @Parameter(description = "탐색 세션 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @PathVariable UUID explorationId,
+            @Parameter(description = "AI 실행 런 UUID", example = "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f")
             @PathVariable UUID runId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "빈 JSON 객체")
             @RequestBody(required = false) Map<String, Object> body,
+            @Parameter(description = "멱등성 키", example = "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d")
             @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         if (body != null && !body.isEmpty()) {
             throw new ExplorationInputInvalidException("body");

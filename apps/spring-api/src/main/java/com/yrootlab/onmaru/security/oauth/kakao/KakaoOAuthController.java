@@ -4,6 +4,13 @@ import com.yrootlab.onmaru.identity.oauth.CompleteOAuthLoginCommand;
 import com.yrootlab.onmaru.identity.oauth.OAuthLoginService;
 import com.yrootlab.onmaru.identity.oauth.OAuthProvider;
 import com.yrootlab.onmaru.identity.oauth.StartOAuthLoginCommand;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -21,6 +28,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.UUID;
 
+@Tag(name = "05. 개인화 & 타임라인 (Saved & Timeline)", description = "북마크/저장한 장소 및 오디오 도슨트, 내 활동 타임라인 및 회원 프로필 API")
 @RestController
 public final class KakaoOAuthController {
 
@@ -45,9 +53,18 @@ public final class KakaoOAuthController {
         this.nonceGenerator = nonceGenerator;
     }
 
+    @Operation(
+            summary = "카카오 소셜 로그인 시작 (OAuth2 인가 코드 요청)",
+            description = "PKCE 보안 검증 및 Nonce 쿠키를 설정하고 카카오 로그인 인증 페이지로 302 리다이렉트합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "302", description = "카카오 인증 서버로 리다이렉트")
+    })
     @GetMapping("/auth/kakao/login")
     ResponseEntity<Void> startLogin(
+            @Parameter(description = "로그인 완료 후 이동할 프론트엔드 경로", example = "/discover")
             @RequestParam(defaultValue = "/discover") String returnTo,
+            @Parameter(description = "게스트 탐색 세션과 회원 연동을 위한 탐색 UUID", example = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d")
             @RequestParam(required = false) UUID explorationId) {
         var nonce = nonceGenerator.generate();
         var verifier = nonceGenerator.generate();
@@ -69,12 +86,24 @@ public final class KakaoOAuthController {
         return noStoreRedirect(302, location, nonceCookie(nonce), verifierCookie(verifier));
     }
 
+    @Operation(
+            summary = "카카오 소셜 로그인 콜백 (인가 코드 수신 및 세션 발급)",
+            description = "카카오 인증 서버로부터 수신한 인가 코드를 검증하고 토큰을 교환하여 회원 세션 쿠키(__Host-onmaru-session)를 발급한 뒤 프론트엔드로 303 리다이렉트합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "303", description = "로그인 성공 후 결과 페이지로 리다이렉트")
+    })
     @GetMapping("/auth/kakao/callback")
     ResponseEntity<Void> completeLogin(
+            @Parameter(description = "카카오 인가 코드")
             @RequestParam(required = false) String code,
+            @Parameter(description = "OAuth 상태 토큰 (CSRF 방어용)")
             @RequestParam(required = false) String state,
+            @Parameter(description = "오류 코드 (인증 실패/취소 시)")
             @RequestParam(required = false) String error,
+            @Parameter(description = "브라우저 Nonce 쿠키", hidden = true)
             @org.springframework.web.bind.annotation.CookieValue(name = NONCE_COOKIE, required = false) String browserNonce,
+            @Parameter(description = "PKCE 코드 검증자 쿠키", hidden = true)
             @org.springframework.web.bind.annotation.CookieValue(name = VERIFIER_COOKIE, required = false) String codeVerifier) {
         if (error != null
                 || code == null
