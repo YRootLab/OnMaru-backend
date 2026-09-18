@@ -28,6 +28,8 @@ springdoc:
     display-request-duration: true
 
 onmaru:
+  secrets:
+    source: ${ONMARU_SECRETS_SOURCE:fake}
   audio:
     dataset: ${ONMARU_AUDIO_DATASET:odii-audio}
     category: ${ONMARU_AUDIO_CATEGORY:오디오 관광}
