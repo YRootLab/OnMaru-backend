@@ -68,9 +68,8 @@ def validate_enrichment_payload(payload: EnrichmentPayload) -> EnrichmentPayload
             )
 
     # Validate reviewSummary
-    if (
-        payload.reviewSummary is not None
-        and not validate_evidence_refs(payload.reviewSummary.evidenceRefs)
+    if payload.reviewSummary is not None and not validate_evidence_refs(
+        payload.reviewSummary.evidenceRefs
     ):
         return create_insufficient_evidence_fallback(
             payload.resourceRef,

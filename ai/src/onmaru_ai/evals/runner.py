@@ -136,15 +136,11 @@ def compare_reports(current: EvalReport, baseline: EvalReport) -> ReportComparis
                 current_metrics.claim_support.value - baseline_metrics.claim_support.value
             ),
             "safety": _rounded(current_metrics.safety.value - baseline_metrics.safety.value),
-            "latencyP95Ms": (
-                current_metrics.latency_p95_ms - baseline_metrics.latency_p95_ms
-            ),
+            "latencyP95Ms": (current_metrics.latency_p95_ms - baseline_metrics.latency_p95_ms),
             "meanCostMicros": (
                 current_metrics.mean_cost_micros - baseline_metrics.mean_cost_micros
             ),
-            "maxCostMicros": (
-                current_metrics.max_cost_micros - baseline_metrics.max_cost_micros
-            ),
+            "maxCostMicros": (current_metrics.max_cost_micros - baseline_metrics.max_cost_micros),
         },
     )
 
@@ -157,9 +153,7 @@ def _ndcg(retrieved_refs: tuple[str, ...], grades: Mapping[str, int]) -> float:
 
 
 def _discounted_gain(grades: tuple[int, ...]) -> float:
-    return math.fsum(
-        (2**grade - 1) / math.log2(index + 2) for index, grade in enumerate(grades)
-    )
+    return math.fsum((2**grade - 1) / math.log2(index + 2) for index, grade in enumerate(grades))
 
 
 def _safety_violations(case: EvaluationCase) -> int:
@@ -221,7 +215,8 @@ def _gates(
         GateResult(
             name="safety",
             passed=(
-                metrics.safety.value >= threshold.min_safety and metrics.safety.violations == 0
+                metrics.safety.value >= threshold.min_safety
+                and metrics.safety.violations == 0
                 and metrics.evidence_id_precision.value == 1.0
             ),
             observed={

@@ -44,7 +44,8 @@ async def post_proposal(
         return await client.post(
             "/internal/v1/journey/proposals",
             headers=request_headers,
-            json=body or {
+            json=body
+            or {
                 "schemaVersion": "internal.ai.v1",
                 "requestId": "req-ai-001",
                 "runId": "run-ai-001",
@@ -145,9 +146,7 @@ def test_accepts_current_internal_token_and_propagates_correlation_headers() -> 
 
 
 def test_accepts_previous_internal_token_during_rotation_overlap() -> None:
-    response = asyncio.run(
-        post_proposal(token(secret="fake-internal-ai-service-token-previous"))
-    )
+    response = asyncio.run(post_proposal(token(secret="fake-internal-ai-service-token-previous")))
 
     assert response.status_code == 202
 
@@ -279,9 +278,7 @@ def test_returns_rag_evidence_when_activation_gate_recorded_active_revision() ->
     )
 
     assert response.status_code == 202
-    assert response.json()["ragEvidenceRefs"] == [
-        "catalog-rev-2026-09-17:evidence:001"
-    ]
+    assert response.json()["ragEvidenceRefs"] == ["catalog-rev-2026-09-17:evidence:001"]
     assert retriever.calls == 1
 
 
