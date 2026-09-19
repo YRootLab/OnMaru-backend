@@ -41,7 +41,11 @@ public class OdiiClientConfiguration {
 
     @Bean
     @Profile("production")
-    OdiiHttpClient odiiHttpClient(ObjectMapper objectMapper, OdiiClientProperties properties) {
+    OdiiHttpClient odiiHttpClient(
+            org.springframework.beans.factory.ObjectProvider<ObjectMapper> objectMapperProvider,
+            OdiiClientProperties properties
+    ) {
+        ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new OdiiHttpClient(objectMapper, properties);
     }
 
