@@ -1,0 +1,79 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: onmaru-spring-api
+  datasource:
+    url: ${ONMARU_DB_URL:}
+    username: ${ONMARU_DB_RUNTIME_USER:}
+    password: ${ONMARU_DB_RUNTIME_PASSWORD:}
+  flyway:
+    locations: classpath:db/migration/baseline
+    baseline-on-migrate: true
+    baseline-version: 0
+    table: flyway_schema_history
+    user: ${ONMARU_DB_MIGRATION_USER:${ONMARU_DB_RUNTIME_USER:}}
+    password: ${ONMARU_DB_MIGRATION_PASSWORD:${ONMARU_DB_RUNTIME_PASSWORD:}}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+
+onmaru:
+  secrets:
+    source: ${ONMARU_SECRETS_SOURCE:fake}
+  audio:
+    dataset: ${ONMARU_AUDIO_DATASET:odii-audio}
+    category: ${ONMARU_AUDIO_CATEGORY:오디오 관광}
+    public-hosts: ${ONMARU_AUDIO_PUBLIC_HOSTS:}
+  tourapi:
+    client:
+      connect-timeout: 1s
+      attempt-timeout: 5s
+      page-timeout: 12s
+      retry-count: 2
+  odii:
+    client:
+      connect-timeout: 1s
+      attempt-timeout: 5s
+      page-timeout: 12s
+      retry-count: 2
+    sync:
+      base-uri: ${ONMARU_ODII_BASE_URI:https://apis.data.go.kr/B551011/Odii}
+      mobile-app: ${ONMARU_ODII_MOBILE_APP:OnMaru}
+      keyword: ${ONMARU_ODII_KEYWORD:한옥}
+      page-size: ${ONMARU_ODII_PAGE_SIZE:100}
+
+management:
+  otlp:
+    metrics:
+      export:
+        enabled: ${ONMARU_OTLP_METRICS_ENABLED:false}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/metrics}}
+        headers:
+          Authorization: ${OTEL_EXPORTER_OTLP_HEADERS_AUTHORIZATION:}
+  tracing:
+    sampling:
+      probability: ${ONMARU_TRACE_SAMPLING_PROBABILITY:1.0}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    root: INFO
+    com.yrootlab.onmaru: DEBUG
+    org.springdoc: INFO
+    org.springframework.web: INFO

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "name": "OnMaru Backend Chaos & Resilience Rehearsal Suite",
+  "description": "외부 공급자 장애, AI 백엔드 장애, 네트워크 단절 및 비동기 콜백 경합 시 시스템의 degraded 모드 동작과 복구 안정성을 증명하는 리허설 명세",
+  "rehearsals": [
+    {
+      "id": "CHAOS-001",
+      "target": "TourAPI Provider",
+      "faultType": "SOURCE_DOWN_OR_RATE_LIMITED",
+      "scenarioFile": "testing/chaos/scenarios/tourapi-outage.json",
+      "expectedBehavior": {
+        "mode": "LKG_DATASET_SERVING",
+        "userImpact": "ZERO_DOWNTIME_READS",
+        "description": "TourAPI 429 Too Many Requests 또는 5xx 다운타임 발생 시 직전 검증된 Last-Known-Good(LKG) Dataset Revision에서 즉시 서빙하고 Sync 작업만 재시도 백오프로 격리"
+      },
+      "slaThresholds": {
+        "maxResponseTimeMs": 200,
+        "allowedDataLoss": "0%",
+        "staleDataAccepted": true
+      },
+      "alertMetrics": [
+        "tourapi_client_error_rate_5xx",
+        "tourapi_rate_limit_hits_total",
+        "dataset_revision_lkg_serving_active"
+      ]
+    },
+    {
+      "id": "CHAOS-002",
+      "target": "Odii Audio & Story Provider",
+      "faultType": "MEDIA_PROVIDER_DEGRADED",
+      "scenarioFile": "testing/chaos/scenarios/odii-degraded.json",
+      "expectedBehavior": {
+        "mode": "METADATA_FALLBACK_AUDIO_GRACEFUL",
+        "userImpact": "PARTIAL_FEATURE_AVAILABLE",
+        "description": "Odii 오디오 스토리지(R2/CDN) 또는 API 응답 지연/실패 시 한옥 메타데이터와 대본 텍스트는 정상 제공하고 오디오 스트림에 대해 graceful fallback 메시지 전달"
+      },
+      "slaThresholds": {
+        "maxResponseTimeMs": 300,
+        "audioAvailabilityFallback": true
+      },
+      "alertMetrics": [
+        "odii_provider_request_errors_total",
+        "odii_audio_cache_miss_on_outage_total"
+      ]
+    },
+    {
+      "id": "CHAOS-003",
+      "target": "FastAPI AI Engine",
+      "faultType": "AI_SERVICE_CRASH_OR_TIMEOUT",
+      "scenarioFile": "testing/chaos/scenarios/fastapi-ai-failure.json",
+      "expectedBehavior": {
+        "mode": "DETERMINISTIC_BASELINE_FALLBACK",
+        "userImpact": "RULE_BASED_RECOMMENDATIONS",
+        "description": "FastAPI 응답 시간 초과(>5s) 또는 500 오류 시 Spring Journey Worker가 rule-based/deterministic baseline 추천 결과를 즉시 조합하여 클라이언트에 100% 반환"
+      },
+      "slaThresholds": {
+        "maxFallbackLatencyMs": 150,
+        "minimumPlaceCount": 3,
+        "fallbackSuccessRate": "100%"
+      },
+      "alertMetrics": [
+        "ai_proposal_generation_failures_total",
+        "journey_baseline_fallback_triggered_total",
+        "fastapi_circuit_breaker_state"
+      ]
+    },
+    {
+      "id": "CHAOS-004",
+      "target": "Journey SSE Stream",
+      "faultType": "CONNECTION_DROP_AND_RECONNECT",
+      "scenarioFile": "testing/chaos/scenarios/sse-disconnect-replay.json",
+      "expectedBehavior": {
+        "mode": "SNAPSHOT_AND_REPLAY_RECOVERY",
+        "userImpact": "SEAMLESS_STATE_SYNC",
+        "description": "클라이언트 SSE 연결이 예기치 않게 종료된 후 Last-Event-ID 헤더로 재연결 시 Replay 버퍼에서 누락 이벤트를 즉시 전달하고, 버퍼 만료 시 최신 Snapshot Reset 이벤트 발송"
+      },
+      "slaThresholds": {
+        "replayBufferRetentionSeconds": 60,
+        "maxReconnectSyncLatencyMs": 100,
+        "stateConsistency": "100%"
+      },
+      "alertMetrics": [
+        "sse_active_connections",
+        "sse_reconnect_replay_events_total",
+        "sse_snapshot_reset_events_total"
+      ]
+    },
+    {
+      "id": "CHAOS-005",
+      "target": "Async Run State & Callback",
+      "faultType": "LATE_CALLBACK_AND_DUPLICATE_RACE",
+      "scenarioFile": "testing/chaos/scenarios/late-callback-stale-defense.json",
+      "expectedBehavior": {
+        "mode": "STALE_WRITE_REJECTION",
+        "userImpact": "NO_STATE_CORRUPTION",
+        "description": "이미 사용자 취소 또는 타임아웃 처리된 Run ID에 대해 뒤늦게 도착한 AI 콜백 또는 중복 콜백 요청을 낙관적 락 및 상태 머신에서 거부하여 Stale Write 0건 보장"
+      },
+      "slaThresholds": {
+        "staleWritesPermitted": 0,
+        "idempotencyDeduplicationRate": "100%"
+      },
+      "alertMetrics": [
+        "journey_stale_callback_rejected_total",
+        "journey_run_state_conflict_total"
+      ]
+    }
+  ]
+}

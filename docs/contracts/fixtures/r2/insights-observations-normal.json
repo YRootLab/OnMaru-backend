@@ -1,0 +1,40 @@
+{
+  "name": "insights-observations-normal",
+  "description": "Tourism observation response carries metric, unit, and coverage for each observation.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/insights/observations",
+    "query": {
+      "regionCode": "kr-45-jeonju",
+      "metric": "VISITOR_COUNT",
+      "from": "2026-09-14",
+      "to": "2026-09-14"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "ObservationPage",
+    "body": {
+      "schemaVersion": "1.2",
+      "coverageStatus": "COMPLETE",
+      "generatedAt": "2026-09-14T08:35:00Z",
+      "items": [
+        {
+          "observationId": "obs-kr-45-jeonju-2026-09-14-visitors",
+          "region": {
+            "regionCode": "kr-45-jeonju",
+            "name": "전북 전주시",
+            "level": "CITY",
+            "parentRegionCode": "kr-45"
+          },
+          "observedDate": "2026-09-14",
+          "metric": "VISITOR_COUNT",
+          "value": 18240,
+          "unit": "persons",
+          "spatialLevel": "SIGUNGU",
+          "coverageStatus": "COMPLETE"
+        }
+      ]
+    }
+  }
+}

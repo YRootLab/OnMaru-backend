@@ -1,0 +1,36 @@
+{
+  "scenarioId": "CHAOS-002",
+  "title": "Odii Audio & Story Provider Degradation Drill",
+  "description": "Odii 스토리 API 및 R2 오디오 스토리지 다운/지연 시 메타데이터 안전 제공 및 오디오 플레이어 graceful degraded 처리 검증",
+  "faultInjections": [
+    {
+      "step": 1,
+      "type": "LATENCY_AND_HTTP_ERROR",
+      "targetUrlPattern": "https://apis.data.go.kr/B551011/Odii/*",
+      "latencyMs": 5000,
+      "injectedStatusCode": 503
+    },
+    {
+      "step": 2,
+      "type": "STORAGE_OBJECT_UNAVAILABLE",
+      "targetBucket": "onmaru-odii-audio-cache",
+      "responseCode": 404
+    }
+  ],
+  "verificationAssertions": [
+    {
+      "name": "Hanok Story Script Text Fallback",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/audio/stories/hanok-101"
+      },
+      "expectedStatus": 200,
+      "expectedBodyAssertions": {
+        "titlePresent": true,
+        "scriptContentPresent": true,
+        "audioPlayable": false,
+        "degradedNotice": "AUDIO_TEMPORARILY_UNAVAILABLE"
+      }
+    }
+  ]
+}

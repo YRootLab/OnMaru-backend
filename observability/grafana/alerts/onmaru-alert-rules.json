@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "name": "api-5xx-warning",
+      "severity": "warning",
+      "expr": "sum(rate(http_server_request_errors_total{deployment_environment=\"staging\"}[5m])) / sum(rate(http_server_requests_total{deployment_environment=\"staging\"}[5m])) > 0.05 and sum(rate(http_server_requests_total{deployment_environment=\"staging\"}[5m])) >= 20",
+      "for": "5m",
+      "noSensitiveLabels": true,
+      "annotations": {
+        "environment": "staging",
+        "service": "spring-api",
+        "errorCode": "5xx",
+        "dashboardUrl": "grafana://dashboards/onmaru-mvp-operations",
+        "runbookUrl": "docs/operations/runtime-and-reliability.md#grafana-cloud-관측성과-경보"
+      }
+    },
+    {
+      "name": "sse-reset-warning",
+      "severity": "warning",
+      "expr": "sum(rate(onmaru_sse_reset_count{deployment_environment=\"staging\"}[5m])) > 0.2",
+      "for": "5m",
+      "noSensitiveLabels": true,
+      "annotations": {
+        "environment": "staging",
+        "service": "spring-api",
+        "errorCode": "SSE_RESET_SURGE",
+        "dashboardUrl": "grafana://dashboards/onmaru-mvp-operations",
+        "runbookUrl": "docs/operations/runtime-and-reliability.md#alert와-통지-정책"
+      }
+    },
+    {
+      "name": "sync-age-warning",
+      "severity": "warning",
+      "expr": "max(onmaru_sync_age_seconds{deployment_environment=\"staging\"}) > 129600",
+      "for": "10m",
+      "noSensitiveLabels": true,
+      "annotations": {
+        "environment": "staging",
+        "service": "spring-api",
+        "errorCode": "SYNC_AGE_GT_36H",
+        "dashboardUrl": "grafana://dashboards/onmaru-mvp-operations",
+        "runbookUrl": "docs/operations/runtime-and-reliability.md#alert와-통지-정책"
+      }
+    },
+    {
+      "name": "ai-running-age-critical",
+      "severity": "critical",
+      "expr": "max(onmaru_ai_run_age_seconds{deployment_environment=\"staging\",stage=\"RUNNING\"}) > 21",
+      "for": "1m",
+      "noSensitiveLabels": true,
+      "annotations": {
+        "environment": "staging",
+        "service": "spring-api",
+        "errorCode": "AI_RUNNING_DEADLINE_EXCEEDED",
+        "dashboardUrl": "grafana://dashboards/onmaru-mvp-operations",
+        "runbookUrl": "docs/operations/runtime-and-reliability.md#alert와-통지-정책"
+      }
+    },
+    {
+      "name": "db-pool-wait-critical",
+      "severity": "critical",
+      "expr": "histogram_quantile(0.95, sum(rate(hikaricp_connections_acquire_seconds_bucket{deployment_environment=\"staging\"}[5m])) by (le)) > 0.3",
+      "for": "5m",
+      "noSensitiveLabels": true,
+      "annotations": {
+        "environment": "staging",
+        "service": "spring-api",
+        "errorCode": "DB_POOL_WAIT_P95_GT_300MS",
+        "dashboardUrl": "grafana://dashboards/onmaru-mvp-operations",
+        "runbookUrl": "docs/operations/runtime-and-reliability.md#alert와-통지-정책"
+      }
+    },
+    {
+      "name": "backup-age-critical",
+      "severity": "critical",
+      "expr": "max(onmaru_backup_age_seconds{deployment_environment=\"staging\"}) > 93600",
+      "for": "10m",
+      "noSensitiveLabels": true,
+      "annotations": {
+        "environment": "staging",
+        "service": "postgres",
+        "errorCode": "BACKUP_AGE_GT_26H",
+        "dashboardUrl": "grafana://dashboards/onmaru-mvp-operations",
+        "runbookUrl": "docs/operations/runtime-and-reliability.md#alert와-통지-정책"
+      }
+    },
+    {
+      "name": "moderation-pii-critical",
+      "severity": "critical",
+      "expr": "sum(rate(onmaru_moderation_high_risk_pii_events_total{deployment_environment=\"staging\"}[5m])) > 0",
+      "for": "1m",
+      "noSensitiveLabels": true,
+      "annotations": {
+        "environment": "staging",
+        "service": "spring-api",
+        "errorCode": "MODERATION_PII_HIGH_RISK",
+        "dashboardUrl": "grafana://dashboards/onmaru-mvp-operations",
+        "runbookUrl": "docs/operations/moderation.md"
+      }
+    }
+  ]
+}

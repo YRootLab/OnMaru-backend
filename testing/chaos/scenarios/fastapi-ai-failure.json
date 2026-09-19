@@ -1,0 +1,41 @@
+{
+  "scenarioId": "CHAOS-003",
+  "title": "FastAPI AI Engine Outage & Baseline Fallback Drill",
+  "description": "FastAPI AI 마이크로서비스 비정상 종료 또는 응답 지연 시 Spring Journey Worker가 Deterministic Baseline Ranker로 즉시 전환하여 여정 제안을 정상 완수하는지 검증",
+  "faultInjections": [
+    {
+      "step": 1,
+      "type": "NETWORK_DROP_OR_CRASH",
+      "targetService": "fastapi-ai",
+      "targetEndpoint": "http://127.0.0.1:8001/api/v1/internal/proposals/generate",
+      "simulation": "CONNECTION_REFUSED_OR_TIMEOUT"
+    }
+  ],
+  "verificationAssertions": [
+    {
+      "name": "Journey Exploration Run Baseline Fallback Generation",
+      "action": "TRIGGER_JOURNEY_EXPLORATION",
+      "payload": {
+        "theme": "TRADITIONAL_TEA_AND_REST",
+        "region": "JEONJU",
+        "durationDays": 2
+      },
+      "expectedResult": {
+        "status": "COMPLETED",
+        "recommendationSource": "DETERMINISTIC_BASELINE",
+        "fallbackFlag": true,
+        "itineraryItemsCountMin": 3,
+        "itineraryValid": true
+      }
+    },
+    {
+      "name": "Metrics and Logs Verification",
+      "expectedMetrics": [
+        {
+          "metric": "journey_baseline_fallback_triggered_total",
+          "increment": 1
+        }
+      ]
+    }
+  ]
+}

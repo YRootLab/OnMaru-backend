@@ -1,0 +1,317 @@
+Enum catalog_region_level {
+  SIDO
+  SIGUNGU
+}
+
+Enum catalog_dataset_status {
+  STAGING
+  READY
+  PUBLISHED
+  FAILED
+}
+
+Enum catalog_place_status {
+  ACTIVE
+  HIDDEN
+  DELETED
+}
+
+Enum content_tag_source {
+  GENERATED
+  PINNED
+  OPERATOR
+}
+
+Enum content_tag_override_target {
+  PLACE
+  ODII_STORY
+}
+
+Enum content_tag_override_action {
+  PIN
+  HIDE
+}
+
+Table catalog_regions [headercolor: #59A14F] {
+  id uuid [pk]
+  parent_id uuid
+  code varchar [not null, unique]
+  name varchar [not null]
+  level catalog_region_level [not null]
+  active boolean [not null]
+}
+
+Table catalog_region_source_codes [headercolor: #59A14F] {
+  provider varchar [not null]
+  dataset varchar [not null]
+  source_code varchar [not null]
+  valid_from date [not null]
+  region_id uuid [not null]
+  valid_to date
+
+  Indexes {
+    (provider, dataset, source_code, valid_from) [pk]
+    region_id
+  }
+}
+
+Table catalog_region_boundaries [headercolor: #59A14F] {
+  boundary_revision varchar [not null]
+  region_id uuid [not null]
+  geometry geometry [not null, note: 'PostGIS MultiPolygon(4326)']
+  source_name varchar [not null]
+  rights_note text [not null]
+  observed_at timestamptz [not null]
+
+  Indexes {
+    (boundary_revision, region_id) [pk]
+    geometry [type: gist]
+  }
+}
+
+Table catalog_dataset_revisions [headercolor: #59A14F] {
+  id uuid [pk]
+  dataset varchar [not null]
+  status catalog_dataset_status [not null]
+  base_revision_id uuid
+  source_observed_at timestamptz
+  fetched_at timestamptz [not null]
+  published_at timestamptz
+
+  Indexes {
+    (dataset, id) [unique]
+    (dataset, status)
+  }
+}
+
+Table catalog_active_datasets [headercolor: #59A14F] {
+  dataset varchar [pk]
+  revision_id uuid [not null]
+  activated_at timestamptz [not null]
+}
+
+Table catalog_place_identity [headercolor: #59A14F] {
+  id uuid [pk]
+  created_at timestamptz [not null]
+}
+
+Table catalog_place_sources [headercolor: #59A14F] {
+  id uuid [pk]
+  place_id uuid [not null]
+  provider varchar [not null]
+  dataset varchar [not null]
+  external_id varchar [not null, note: 'KTO Korean contentid, future source id, or normalized source key']
+  language varchar [not null]
+  fetched_at timestamptz [not null]
+  payload_hash varchar
+
+  Indexes {
+    (provider, dataset, external_id, language) [unique]
+    place_id
+  }
+}
+
+Table catalog_place_versions [headercolor: #59A14F] {
+  revision_id uuid [not null]
+  place_id uuid [not null]
+  source_ref_id uuid [not null]
+  region_id uuid
+  name varchar [not null]
+  category varchar [not null]
+  address text
+  location geography [note: 'PostGIS Point(4326)']
+  overview text
+  visit_review_eligible boolean [not null]
+  status catalog_place_status [not null]
+  normalized_hash varchar [not null]
+
+  Indexes {
+    (revision_id, place_id) [pk]
+    region_id
+    location [type: gist]
+    (status, category)
+  }
+}
+
+Table catalog_kto_korean_content_versions [headercolor: #59A14F] {
+  revision_id uuid [not null]
+  source_ref_id uuid [not null]
+  contentid varchar [not null]
+  contenttypeid varchar
+  title varchar [not null]
+  addr1 text
+  addr2 text
+  zipcode varchar
+  areacode varchar
+  sigungucode varchar
+  cat1 varchar
+  cat2 varchar
+  cat3 varchar
+  lcls_systm1 varchar
+  lcls_systm2 varchar
+  lcls_systm3 varchar
+  firstimage text
+  firstimage2 text
+  cpyrht_div_cd varchar
+  mapx numeric
+  mapy numeric
+  mlevel varchar
+  tel varchar
+  createdtime varchar
+  modifiedtime varchar
+  showflag varchar
+  raw_hash varchar [not null]
+
+  Indexes {
+    (revision_id, source_ref_id) [pk]
+    contentid
+    (areacode, sigungucode)
+    (cat1, cat2, cat3)
+  }
+}
+
+Table catalog_kto_korean_intro_versions [headercolor: #59A14F] {
+  revision_id uuid [not null]
+  source_ref_id uuid [not null]
+  heritage1 varchar
+  heritage2 varchar
+  heritage3 varchar
+  infocenter text
+  opendate text
+  restdate text
+  expguide text
+  expagerange text
+  accomcount text
+  useseason text
+  usetime text
+  parking text
+  chkbabycarriage text
+  chkpet text
+  chkcreditcard text
+  raw_hash varchar [not null]
+
+  Indexes {
+    (revision_id, source_ref_id) [pk]
+  }
+}
+
+Table catalog_kto_korean_info_versions [headercolor: #59A14F] {
+  revision_id uuid [not null]
+  source_ref_id uuid [not null]
+  serialnum varchar [not null]
+  infoname varchar
+  infotext text
+  fldgubun varchar
+  raw_hash varchar [not null]
+
+  Indexes {
+    (revision_id, source_ref_id, serialnum) [pk]
+  }
+}
+
+Table catalog_place_image_versions [headercolor: #59A14F] {
+  revision_id uuid [not null]
+  place_id uuid [not null]
+  position int [not null]
+  origin_img_url text [not null]
+  small_image_url text
+  image_name varchar
+  source_ref_id uuid [not null]
+  rights_note text
+
+  Indexes {
+    (revision_id, place_id, position) [pk]
+    source_ref_id
+  }
+}
+
+Table catalog_hanok_detail_versions [headercolor: #59A14F] {
+  revision_id uuid [not null]
+  place_id uuid [not null]
+  type varchar
+  hours text
+  parking text
+  homepage text
+  source_ref_id uuid [not null]
+
+  Indexes {
+    (revision_id, place_id) [pk]
+  }
+}
+
+Table catalog_place_content_tag_versions [headercolor: #59A14F] {
+  revision_id uuid [not null]
+  place_id uuid [not null]
+  position int [not null]
+  label varchar [not null]
+  score numeric [not null]
+  source content_tag_source [not null]
+  algorithm_version varchar [not null]
+  source_hash varchar [not null]
+  generated_at timestamptz [not null]
+
+  Indexes {
+    (revision_id, place_id, position) [pk]
+    (revision_id, place_id, label) [unique]
+    (label, revision_id)
+  }
+}
+
+Table content_tag_overrides [headercolor: #59A14F] {
+  id uuid [pk]
+  target_type content_tag_override_target [not null]
+  target_id uuid [not null]
+  label varchar [not null]
+  action content_tag_override_action [not null]
+  reason text
+  created_by uuid
+  created_at timestamptz [not null]
+  expires_at timestamptz
+
+  Indexes {
+    (target_type, target_id, label, action) [unique]
+    (target_type, target_id)
+  }
+}
+
+TableGroup catalog [color: #59A14F, note: 'Canonical places, administrative regions, Korean TourAPI source versions, images, and published dataset pointers.'] {
+  catalog_regions
+  catalog_region_source_codes
+  catalog_region_boundaries
+  catalog_dataset_revisions
+  catalog_active_datasets
+  catalog_place_identity
+  catalog_place_sources
+  catalog_place_versions
+  catalog_kto_korean_content_versions
+  catalog_kto_korean_intro_versions
+  catalog_kto_korean_info_versions
+  catalog_place_image_versions
+  catalog_hanok_detail_versions
+  catalog_place_content_tag_versions
+  content_tag_overrides
+}
+
+Ref: catalog_regions.parent_id >? catalog_regions.id
+Ref: catalog_region_source_codes.region_id > catalog_regions.id
+Ref: catalog_region_boundaries.region_id > catalog_regions.id
+Ref: catalog_dataset_revisions.base_revision_id >? catalog_dataset_revisions.id
+Ref: catalog_active_datasets.revision_id > catalog_dataset_revisions.id
+Ref: catalog_place_sources.place_id > catalog_place_identity.id
+Ref: catalog_place_versions.revision_id > catalog_dataset_revisions.id
+Ref: catalog_place_versions.place_id > catalog_place_identity.id
+Ref: catalog_place_versions.source_ref_id > catalog_place_sources.id
+Ref: catalog_place_versions.region_id >? catalog_regions.id
+Ref: catalog_kto_korean_content_versions.revision_id > catalog_dataset_revisions.id
+Ref: catalog_kto_korean_content_versions.source_ref_id > catalog_place_sources.id
+Ref: catalog_kto_korean_intro_versions.revision_id > catalog_dataset_revisions.id
+Ref: catalog_kto_korean_intro_versions.source_ref_id > catalog_place_sources.id
+Ref: catalog_kto_korean_info_versions.revision_id > catalog_dataset_revisions.id
+Ref: catalog_kto_korean_info_versions.source_ref_id > catalog_place_sources.id
+Ref: catalog_place_image_versions.revision_id > catalog_dataset_revisions.id
+Ref: catalog_place_image_versions.place_id > catalog_place_identity.id
+Ref: catalog_place_image_versions.source_ref_id > catalog_place_sources.id
+Ref: catalog_hanok_detail_versions.revision_id > catalog_dataset_revisions.id
+Ref: catalog_hanok_detail_versions.place_id > catalog_place_identity.id
+Ref: catalog_hanok_detail_versions.source_ref_id > catalog_place_sources.id
+Ref: catalog_place_content_tag_versions.(revision_id, place_id) > catalog_place_versions.(revision_id, place_id)

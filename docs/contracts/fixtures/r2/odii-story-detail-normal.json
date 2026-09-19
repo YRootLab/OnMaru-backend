@@ -1,0 +1,56 @@
+{
+  "name": "odii-story-detail-normal",
+  "description": "Odii story detail returns playable audio and transcript lines without provider IDs.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/odii/stories/odii-story-jeonju-hanok-01",
+    "query": {
+      "language": "ko-KR"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "OdiiStoryDetail",
+    "body": {
+      "schemaVersion": "1.2",
+      "coverageStatus": "COMPLETE",
+      "language": "ko-KR",
+      "languageStatus": "EXACT",
+      "story": {
+        "storyId": "odii-story-jeonju-hanok-01",
+        "title": "전주의 한옥 골목 이야기",
+        "audioTitle": "전주 한옥마을 산책",
+        "category": "한옥/고택",
+        "region": {
+          "regionCode": "kr-45-jeonju",
+          "name": "전북 전주시",
+          "level": "CITY",
+          "parentRegionCode": "kr-45"
+        },
+        "coordinates": {
+          "lat": 35.817632,
+          "lng": 127.152948
+        },
+        "durationSeconds": 185,
+        "imageUrl": "https://cdn.onmaru.example/odii/odii-story-jeonju-hanok-01.jpg",
+        "linkedPlaceId": "p-jeonju-hanok-village",
+        "contentTags": ["한옥 골목", "전주 한옥마을", "처마", "담장"],
+        "savedByMe": false
+      },
+      "audioUrl": "https://cdn.onmaru.example/odii/odii-story-jeonju-hanok-01.mp3",
+      "transcriptStatus": "OFFICIAL",
+      "transcript": [
+        {
+          "index": 0,
+          "startSecond": 0,
+          "text": "전주 한옥마을의 골목은 오래된 집과 생활의 기억이 함께 남아 있습니다."
+        },
+        {
+          "index": 1,
+          "startSecond": 12.5,
+          "text": "천천히 걸으며 처마와 담장 사이의 소리를 들어보세요."
+        }
+      ]
+    }
+  }
+}

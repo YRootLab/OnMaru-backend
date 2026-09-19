@@ -1,0 +1,42 @@
+{
+  "name": "saved-journey-detail-expired-source",
+  "description": "원본 exploration이 만료되어도 비식별 저장 snapshot은 조회할 수 있다.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/saved-journeys/51111111-1111-4111-8111-111111111111"
+  },
+  "response": {
+    "status": 200,
+    "schema": "SavedJourney",
+    "body": {
+      "savedJourneyId": "51111111-1111-4111-8111-111111111111",
+      "title": "전주 한옥 여행",
+      "sourceExplorationId": null,
+      "sourceVersion": 1,
+      "savedAt": "2026-09-15T12:05:00Z",
+      "candidateCount": 1,
+      "snapshot": {
+        "schemaVersion": "1.2",
+        "board": {
+          "title": "전주 한옥 산책",
+          "summaryRefs": [{"type": "REGION", "id": "region-jeonju"}],
+          "regionRef": {"type": "REGION", "id": "region-jeonju"},
+          "candidates": [{"placeRef": {"type": "PLACE", "id": "place-jeonju-001"}, "reason": "검수된 한옥 문화 근거가 있습니다.", "evidenceRefs": ["evidence-provider-001"], "relationRefs": [], "constraintChecks": []}],
+          "legs": [],
+          "resources": [{"ref": {"type": "PLACE", "id": "place-jeonju-001"}, "title": "전주 한옥마을", "category": "한옥", "regionRef": {"type": "REGION", "id": "region-jeonju"}, "summary": "전주의 한옥 문화 장소", "image": null, "location": null, "sourceRefs": ["odii-story-001"], "unavailableFields": ["image", "location"]}],
+          "relations": [],
+          "evidence": [{"id": "evidence-provider-001", "kind": "PROVIDER_FIELD", "sourceName": "한국관광공사", "sourceUrl": null, "sourceRevision": "dataset-20260915", "summary": "공개 장소와 지역 연결", "asOf": "2026-09-15T00:00:00Z"}]
+        },
+        "pinnedRefs": [],
+        "excludedRefs": [],
+        "execution": {
+          "dataMode": "PUBLIC",
+          "engine": "BASELINE",
+          "rankingVersion": "baseline-v1",
+          "datasetRevision": "dataset-20260915"
+        },
+        "updatedAt": "2026-09-15T12:00:00Z"
+      }
+    }
+  }
+}

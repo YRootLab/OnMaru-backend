@@ -1,0 +1,733 @@
+openapi: 3.1.0
+info:
+  title: OnMaru Identity and Saved Resource API
+  version: 1.2.0-draft
+  description: >-
+    Machine-readable contract for session identity, CSRF, member lifecycle,
+    canonical place saves, Odii story saves, saved-resource pages, and member
+    timeline. This contract is documentation only until implementation issues
+    are completed.
+servers:
+  - url: /api/v1
+tags:
+  - name: Auth
+  - name: Member
+  - name: SavedResource
+  - name: MemberTimeline
+paths:
+  /auth/csrf:
+    get:
+      tags: [Auth]
+      operationId: getCsrfToken
+      summary: Return a CSRF token for unsafe cookie-authenticated requests.
+      responses:
+        '200':
+          description: CSRF token and header name.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+  /auth/kakao/login:
+    get:
+      tags: [Auth]
+      operationId: startKakaoLogin
+      summary: Issue OAuth state and redirect to Kakao authorization.
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^/[A-Za-z0-9/_?=&.-]*$'
+            default: /discover
+        - name: explorationId
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
+      responses:
+        '302':
+          description: Redirect to Kakao authorization endpoint.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Set-Cookie:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/Error'
+  /auth/kakao/callback:
+    get:
+      tags: [Auth]
+      operationId: completeKakaoLogin
+      summary: Complete OAuth callback and redirect back to the browser route.
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 2048
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 512
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+      responses:
+        '303':
+          description: Redirect to returnTo with auth=success or auth=failed.
+          headers:
+            Location:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Set-Cookie:
+              schema:
+                type: string
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Destroy the current member session without deleting guest snapshots.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '204':
+          description: Session destroyed or already absent.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Set-Cookie:
+              schema:
+                type: string
+        '403':
+          $ref: '#/components/responses/Error'
+  /members/me:
+    get:
+      tags: [Member]
+      operationId: getCurrentMember
+      summary: Return the current opaque member identity.
+      responses:
+        '200':
+          description: Current member.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberMe'
+        '401':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Member]
+      operationId: deleteCurrentMember
+      summary: Start asynchronous member deletion and revoke the current token.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '202':
+          description: Deletion accepted.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberDeletingStatus'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /saved-resources/places/{placeId}:
+    put:
+      tags: [SavedResource]
+      operationId: savePlace
+      summary: Save a public canonical tourism place for the current member.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Current saved place state. Repeated PUT returns the same desired state.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedResourceState'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [SavedResource]
+      operationId: deleteSavedPlace
+      summary: Remove saved place state for the current member.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: Removed or already absent.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /saved-resources/odii-stories/{storyId}:
+    put:
+      tags: [SavedResource]
+      operationId: saveOdiiStory
+      summary: Save a public Odii story for the current member.
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Current saved Odii story state.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedResourceState'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [SavedResource]
+      operationId: deleteSavedOdiiStory
+      summary: Remove saved Odii story state for the current member.
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: Removed or already absent.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /saved-resources:
+    get:
+      tags: [SavedResource]
+      operationId: listSavedResources
+      summary: List saved resources for exactly one requested type.
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/SavedResourceType'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Saved resource page.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedResourcePage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /me/timeline:
+    get:
+      tags: [MemberTimeline]
+      operationId: getMemberTimeline
+      summary: Get the current member's monthly activity timeline.
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-[0-9]{2}$'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Monthly timeline.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberTimeline'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    CsrfToken:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 256
+    PlaceId:
+      name: placeId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^p-[a-z0-9-]{3,80}$'
+    StoryId:
+      name: storyId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^odii-story-[a-z0-9-]{3,80}$'
+  responses:
+    Error:
+      description: Error envelope.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    SchemaVersion:
+      type: string
+      const: '1.2'
+    SavedResourceType:
+      type: string
+      enum: [PLACE, ODII_STORY]
+    CsrfTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, token, headerName]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        token:
+          type: string
+          minLength: 16
+          maxLength: 256
+        headerName:
+          type: string
+          const: X-CSRF-TOKEN
+    MemberMe:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, id, displayName]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        id:
+          type: string
+          pattern: '^m-[a-z0-9-]{8,80}$'
+        displayName:
+          type: ['string', 'null']
+          maxLength: 80
+    MemberDeletingStatus:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, status]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        status:
+          type: string
+          const: DELETING
+    SavedResourceState:
+      oneOf:
+        - $ref: '#/components/schemas/SavedPlaceState'
+        - $ref: '#/components/schemas/SavedOdiiStoryState'
+    SavedPlaceState:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, resourceType, resourceId, placeId, savedByMe, savedAt]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        resourceType:
+          type: string
+          const: PLACE
+        resourceId:
+          type: string
+          pattern: '^p-[a-z0-9-]{3,80}$'
+        placeId:
+          type: string
+          pattern: '^p-[a-z0-9-]{3,80}$'
+        savedByMe:
+          type: boolean
+          const: true
+        savedAt:
+          type: string
+          format: date-time
+    SavedOdiiStoryState:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, resourceType, resourceId, storyId, savedByMe, savedAt]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        resourceType:
+          type: string
+          const: ODII_STORY
+        resourceId:
+          type: string
+          pattern: '^odii-story-[a-z0-9-]{3,80}$'
+        storyId:
+          type: string
+          pattern: '^odii-story-[a-z0-9-]{3,80}$'
+        savedByMe:
+          type: boolean
+          const: true
+        savedAt:
+          type: string
+          format: date-time
+    SavedResourcePage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, items, nextCursor, hasMore]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        items:
+          type: array
+          maxItems: 50
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/SavedPlaceSummary'
+              - $ref: '#/components/schemas/SavedOdiiStorySummary'
+        nextCursor:
+          type: ['string', 'null']
+          minLength: 1
+          maxLength: 512
+        hasMore:
+          type: boolean
+    SavedPlaceSummary:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, resourceType, resourceId, placeId, name, category, regionName, thumbnailUrl, savedByMe, savedAt]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        resourceType:
+          type: string
+          const: PLACE
+        resourceId:
+          type: string
+          pattern: '^p-[a-z0-9-]{3,80}$'
+        placeId:
+          type: string
+          pattern: '^p-[a-z0-9-]{3,80}$'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          type: string
+          minLength: 1
+          maxLength: 40
+        regionName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        thumbnailUrl:
+          type: ['string', 'null']
+          format: uri
+        savedByMe:
+          type: boolean
+          const: true
+        savedAt:
+          type: string
+          format: date-time
+    SavedOdiiStorySummary:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, resourceType, resourceId, storyId, spotId, title, placeId, durationSeconds, savedByMe, savedAt]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        resourceType:
+          type: string
+          const: ODII_STORY
+        resourceId:
+          type: string
+          pattern: '^odii-story-[a-z0-9-]{3,80}$'
+        storyId:
+          type: string
+          pattern: '^odii-story-[a-z0-9-]{3,80}$'
+        spotId:
+          type: string
+          pattern: '^odii-spot-[a-z0-9-]{3,80}$'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        placeId:
+          type: ['string', 'null']
+          pattern: '^p-[a-z0-9-]{3,80}$'
+        durationSeconds:
+          type: ['integer', 'null']
+          minimum: 1
+          maximum: 86400
+        savedByMe:
+          type: boolean
+          const: true
+        savedAt:
+          type: string
+          format: date-time
+    MemberTimeline:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, month, groups, nextCursor, hasMore, unavailableCount]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        month:
+          type: string
+          pattern: '^[0-9]{4}-[0-9]{2}$'
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineGroup'
+        nextCursor:
+          type: ['string', 'null']
+          minLength: 1
+          maxLength: 512
+        hasMore:
+          type: boolean
+        unavailableCount:
+          type: integer
+          minimum: 0
+    TimelineGroup:
+      type: object
+      additionalProperties: false
+      required: [date, items]
+      properties:
+        date:
+          type: string
+          format: date
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineItem'
+    TimelineItem:
+      type: object
+      additionalProperties: false
+      required: [id, type, occurredAt, title, subtitle, thumbnailUrl, target]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 120
+        type:
+          type: string
+          enum: [SAVED_PLACE, SAVED_ODII_STORY, SAVED_JOURNEY, WROTE_VISIT_REVIEW]
+        occurredAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        subtitle:
+          type: ['string', 'null']
+          maxLength: 160
+        thumbnailUrl:
+          type: ['string', 'null']
+          format: uri
+        target:
+          oneOf:
+            - $ref: '#/components/schemas/PlaceTimelineTarget'
+            - $ref: '#/components/schemas/OdiiStoryTimelineTarget'
+            - $ref: '#/components/schemas/SavedJourneyTimelineTarget'
+            - $ref: '#/components/schemas/VisitReviewTimelineTarget'
+    PlaceTimelineTarget:
+      type: object
+      additionalProperties: false
+      required: [type, placeId]
+      properties:
+        type:
+          type: string
+          const: PLACE
+        placeId:
+          type: string
+          pattern: '^p-[a-z0-9-]{3,80}$'
+    OdiiStoryTimelineTarget:
+      type: object
+      additionalProperties: false
+      required: [type, storyId, placeId]
+      properties:
+        type:
+          type: string
+          const: ODII_STORY
+        storyId:
+          type: string
+          pattern: '^odii-story-[a-z0-9-]{3,80}$'
+        placeId:
+          type: ['string', 'null']
+          pattern: '^p-[a-z0-9-]{3,80}$'
+    SavedJourneyTimelineTarget:
+      type: object
+      additionalProperties: false
+      required: [type, savedJourneyId]
+      properties:
+        type:
+          type: string
+          const: SAVED_JOURNEY
+        savedJourneyId:
+          type: string
+          pattern: '^sj-[a-z0-9-]{3,80}$'
+    VisitReviewTimelineTarget:
+      type: object
+      additionalProperties: false
+      required: [type, reviewId, placeId]
+      properties:
+        type:
+          type: string
+          const: VISIT_REVIEW
+        reviewId:
+          type: string
+          pattern: '^vr-[a-z0-9-]{3,80}$'
+        placeId:
+          type: string
+          pattern: '^p-[a-z0-9-]{3,80}$'
+    Error:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, code, message, requestId, details]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        code:
+          type: string
+          enum:
+            - AUTH_REQUIRED
+            - CSRF_INVALID
+            - NOT_FOUND
+            - SAVE_LIMIT
+            - VALIDATION_ERROR
+            - CURSOR_EXPIRED
+            - CURSOR_INVALID
+            - SERVICE_UNAVAILABLE
+        message:
+          type: string
+          minLength: 1
+          maxLength: 240
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 120
+        details:
+          type: object
+          additionalProperties: true

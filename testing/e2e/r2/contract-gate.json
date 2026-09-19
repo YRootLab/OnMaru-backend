@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0",
+  "contracts": [
+    "docs/contracts/openapi/r2-map-audio-insights.openapi.yaml",
+    "docs/contracts/openapi/visit-reviews.openapi.json",
+    "docs/contracts/openapi/identity-saved.openapi.yaml"
+  ],
+  "fixtureGroups": [
+    "docs/contracts/fixtures/r2",
+    "docs/contracts/fixtures/identity-saved"
+  ],
+  "runtimeSuite": "com.yrootlab.onmaru.r2.R2ContractE2ETests",
+  "scenarios": [
+    {
+      "id": "public-region-map-insights",
+      "covers": ["normal", "guest", "observation-missing", "observation-stale"]
+    },
+    {
+      "id": "member-review-odii-save",
+      "covers": ["authorization", "csrf", "cursor", "serializer"]
+    },
+    {
+      "id": "moderation-hidden-review",
+      "covers": ["private", "moderation-hidden-text"]
+    },
+    {
+      "id": "source-outage",
+      "covers": ["source-outage", "error-envelope"]
+    }
+  ]
+}

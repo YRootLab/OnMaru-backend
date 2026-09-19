@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec npx \
+  --yes \
+  --package=@types/node@22.20.2 \
+  --package=@dbml/cli@10.1.1 \
+  -- \
+  dbml2sql "$@"

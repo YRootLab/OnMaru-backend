@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.2",
+  "resourceRef": {
+    "type": "PLACE",
+    "id": "p-jeonju-hanok-village"
+  },
+  "coverageStatus": "SUPPORTED",
+  "summary": "전주 한옥마을은 한옥 거리와 전통 문화 체험을 한 번에 살펴보기 좋은 장소입니다.",
+  "whyRecommended": [
+    {
+      "text": "사용자가 요청한 조용한 한옥 산책 조건과 지역 조건을 모두 만족합니다.",
+      "evidenceRefs": [
+        "catalog:p-jeonju-hanok-village",
+        "review:cluster:quiet"
+      ]
+    }
+  ],
+  "bestFor": [
+    {
+      "label": "한옥 입문",
+      "reason": "대표적인 한옥 거리와 문화 공간이 밀집해 있습니다."
+    },
+    {
+      "label": "도보 산책",
+      "reason": "후보 장소 사이 이동 부담이 낮습니다."
+    }
+  ],
+  "visitTips": [
+    {
+      "label": "방문 팁",
+      "text": "사진 촬영 중심이면 낮 시간, 조용한 산책이면 이른 오전을 우선 고려하세요.",
+      "evidenceRefs": [
+        "review:cluster:time"
+      ]
+    }
+  ],
+  "hanokHighlights": [
+    {
+      "label": "기와와 골목",
+      "description": "한옥 지붕선과 골목 밀도를 함께 볼 수 있습니다.",
+      "evidenceRefs": [
+        "catalog:p-jeonju-hanok-village"
+      ]
+    }
+  ],
+  "reviewSummary": {
+    "coverage": "PARTIAL",
+    "reviewCount": 12,
+    "positive": [
+      "거리 분위기와 사진 포인트가 자주 언급됩니다."
+    ],
+    "cautions": [
+      "혼잡 시간대에는 조용한 산책 경험이 약해질 수 있습니다."
+    ],
+    "evidenceRefs": [
+      "review:cluster:atmosphere",
+      "review:cluster:crowd"
+    ]
+  },
+  "tags": [
+    "한옥산책",
+    "전통문화",
+    "사진명소"
+  ],
+  "unknowns": [
+    "실시간 혼잡도는 제공되지 않습니다."
+  ],
+  "presentationHints": {
+    "intentType": "BROWSE",
+    "interestFocus": "HANOK",
+    "answerDepth": "BALANCED",
+    "journeyContext": "FIRST_VISIT",
+    "decisionStage": "DISCOVERING",
+    "primaryMessage": "전주의 대표적인 한옥 거리입니다.",
+    "secondaryMessage": "오전 시간대 방문 시 더 한적합니다.",
+    "recommendedSections": [
+      "summary",
+      "whyRecommended",
+      "visitTips",
+      "hanokHighlights"
+    ]
+  }
+}

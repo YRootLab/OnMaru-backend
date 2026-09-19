@@ -1,0 +1,13 @@
+{
+  "title": "여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다",
+  "slug": "rest-sse-run-lifecycle",
+  "status": "proposed",
+  "locale": "ko",
+  "date": "2026-09-13",
+  "decision_makers": ["사용자"],
+  "related": ["ADR-0002"],
+  "affected_paths": ["docs/contracts/", "docs/operations/", "docs/ai/", "spring/", "ai/"],
+  "tags": ["rest", "sse", "run-lifecycle"],
+  "retrospective": false,
+  "body": "# 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다\n\n## 맥락 및 문제 설명\n\nAI 여정 실행은 비동기이며 browser 연결 단절, executor 지연, provider timeout, cancel-complete race를 처리해야 한다. 지도 후기와 일반 조회는 즉시 JSON API지만 여정은 진행 상태를 보여야 한다. 현재 양방향 협업이나 durable event history 요구는 없다.\n\n## 검토한 대안\n\n1. REST command 후 SSE notification을 보내고 DB run/snapshot을 상태 정답으로 둔다.\n2. REST command 후 주기 polling만 사용한다.\n3. WebSocket 또는 durable event log를 도입한다.\n\n## 결정 결과\n\n선택한 대안: **REST command + SSE notification + authoritative GET snapshot**, 그 이유는 연결 단절 후에도 DB 상태로 복구하면서 polling 지연과 불필요한 양방향 연결 운영을 줄이기 때문이다.\n\n## 결과 및 영향\n\n* 장점: terminal, reset, reconnect, 탭 복귀 시 동일한 run/exploration snapshot을 다시 읽어 FE 상태를 복구할 수 있다.\n* 단점: proxy buffering, heartbeat, reconnect, bounded replay buffer와 admission/deadline/CAS 구현이 필요하다.\n\n## 확인 방법\n\nJourney OpenAPI, SSE JSON Schema, fixture로 replay/reset/auth expiry/cancel race를 FE reducer와 Spring serializer에서 실행한다. DB Testcontainers로 queue timeout, late completion, terminal CAS와 slot 반환을 검증한다.\n\n## 재검토 조건\n\n* SSE 연결 비용이 예산·SLO를 지속적으로 넘는다.\n* 정확한 durable replay, 다중 사용자 공동 편집 또는 양방향 실시간 명령이 제품 요구가 된다."
+}

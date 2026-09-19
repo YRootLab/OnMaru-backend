@@ -1,0 +1,48 @@
+Project onmaru_backend_detail {
+  database_type: 'PostgreSQL'
+  Note: 'OnMaru proposed backend ERD. Documentation-first repository: no executable migrations or JPA entities exist yet. Physical PostgreSQL schema is public; logical modules are represented with table name prefixes and TableGroup colors.'
+}
+
+use * from './modules/identity'
+use * from './modules/catalog'
+use * from './modules/audio'
+use * from './modules/insights'
+use * from './modules/discovery'
+use * from './modules/journey'
+use * from './modules/community'
+use * from './modules/operations'
+use * from './modules/ai'
+
+// Cross-module relations. Keep these visible because they are the main coupling points.
+Ref: identity_oauth_states.exploration_id >? discovery_explorations.id
+Ref: identity_exploration_grants.exploration_id > discovery_explorations.id
+
+Ref: discovery_explorations.owner_member_id >? identity_members.id
+Ref: discovery_explorations.owner_guest_id >? identity_guests.id
+Ref: discovery_explorations.region_id >? catalog_regions.id
+
+Ref: journey_saved_journeys.member_id > identity_members.id
+Ref: journey_saved_journeys.source_exploration_id >? discovery_explorations.id
+
+Ref: community_visit_reviews.member_id > identity_members.id
+Ref: community_visit_reviews.place_id > catalog_place_identity.id
+Ref: community_review_likes.member_id > identity_members.id
+Ref: community_review_reports.reporter_member_id > identity_members.id
+
+Ref: audio_place_odii_links.place_id > catalog_place_identity.id
+Ref: audio_revision_stages.revision_id > catalog_dataset_revisions.id
+
+Ref: insights_visitor_observations.revision_id > catalog_dataset_revisions.id
+Ref: insights_visitor_observations.region_id > catalog_regions.id
+Ref: insights_tourism_targets.region_id > catalog_regions.id
+Ref: insights_target_place_links.place_id > catalog_place_identity.id
+Ref: insights_concentration_observations.revision_id > catalog_dataset_revisions.id
+Ref: insights_concentration_observations.target_id > insights_tourism_targets.id
+
+Ref: operations_sync_runs.revision_id >? catalog_dataset_revisions.id
+Ref: operations_sync_watermarks.revision_id > catalog_dataset_revisions.id
+
+// Polymorphic application-validated relation:
+// journey_saved_resources.resource_type=PLACE      -> catalog_place_identity.id
+// journey_saved_resources.resource_type=ODII_STORY -> audio_odii_stories.id
+// DBML cannot express this conditional FK as one column without split tables.

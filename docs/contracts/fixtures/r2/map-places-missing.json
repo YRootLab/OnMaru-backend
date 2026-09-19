@@ -1,0 +1,25 @@
+{
+  "name": "map-places-missing",
+  "description": "A valid map search with no matched public places returns an empty page with explicit missing coverage.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/places",
+    "query": {
+      "regionCode": "kr-45-muju",
+      "language": "ko-KR",
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "MapPlacePage",
+    "body": {
+      "schemaVersion": "1.2",
+      "coverageStatus": "MISSING",
+      "language": "ko-KR",
+      "items": [],
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}

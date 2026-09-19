@@ -1,0 +1,25 @@
+{
+  "name": "insights-coverage-missing",
+  "description": "Regions without public observation coverage still return a stable empty heatmap response.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/insights/heatmap",
+    "query": {
+      "regionCode": "kr-45-muju",
+      "date": "2026-09-14",
+      "metric": "CONGESTION_SCORE"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "HeatmapResponse",
+    "body": {
+      "schemaVersion": "1.2",
+      "coverageStatus": "MISSING",
+      "metric": "CONGESTION_SCORE",
+      "observedDate": "2026-09-14",
+      "generatedAt": "2026-09-14T08:35:00Z",
+      "spots": []
+    }
+  }
+}

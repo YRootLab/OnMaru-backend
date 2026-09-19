@@ -1,0 +1,22 @@
+{
+  "name": "save-place-auth-required",
+  "description": "Guests cannot write server-side saved place state.",
+  "request": {
+    "method": "PUT",
+    "path": "/api/v1/saved-resources/places/p-jeonju-hanok-village",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    }
+  },
+  "response": {
+    "status": 401,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "AUTH_REQUIRED",
+      "message": "Authentication is required to save this place.",
+      "requestId": "req-save-place-auth",
+      "details": {}
+    }
+  }
+}

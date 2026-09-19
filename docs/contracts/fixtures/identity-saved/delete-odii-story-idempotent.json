@@ -1,0 +1,17 @@
+{
+  "name": "delete-odii-story-idempotent",
+  "description": "Deleting an already absent Odii story save still succeeds.",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/v1/saved-resources/odii-stories/odii-story-jeonju-01",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    }
+  },
+  "response": {
+    "status": 204,
+    "headers": {
+      "Cache-Control": "no-store"
+    }
+  }
+}

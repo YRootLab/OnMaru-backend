@@ -1,0 +1,24 @@
+{
+  "name": "timeline-unavailable",
+  "description": "Unavailable saved resources are not exposed as stale cards and are counted for the month.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/me/timeline",
+    "query": {
+      "month": "2026-09",
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "MemberTimeline",
+    "body": {
+      "schemaVersion": "1.2",
+      "month": "2026-09",
+      "groups": [],
+      "nextCursor": null,
+      "hasMore": false,
+      "unavailableCount": 1
+    }
+  }
+}

@@ -1,0 +1,765 @@
+openapi: 3.1.0
+info:
+  title: OnMaru R1 Hanok and Place API
+  version: 1.2.0-draft
+  description: >-
+    Machine-readable R1 contract for hanok discovery, canonical place detail,
+    saved tourism places, and member timeline. This contract is documentation
+    only until the related endpoint implementation issues are completed.
+servers:
+  - url: /api/v1
+tags:
+  - name: Hanok
+  - name: Place
+  - name: SavedResource
+  - name: MemberTimeline
+paths:
+  /hanoks:
+    get:
+      tags: [Hanok]
+      operationId: listHanoks
+      summary: List public hanok places with keyset cursor pagination.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - name: regionCode
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/HanokCategory'
+      responses:
+        '200':
+          description: Hanok list page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HanokListResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /hanoks/monthly:
+    get:
+      tags: [Hanok]
+      operationId: getMonthlyHanokEdition
+      summary: Get the editorial monthly hanok edition.
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-[0-9]{2}$'
+      responses:
+        '200':
+          description: Monthly hanok editorial edition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyHanokEditionResponse'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /hanoks/{placeId}:
+    get:
+      tags: [Hanok]
+      operationId: getHanokDetail
+      summary: Get hanok-specific detail for a canonical public place.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+      responses:
+        '200':
+          description: Hanok detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HanokDetail'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /places/{placeId}:
+    get:
+      tags: [Place]
+      operationId: getCanonicalPlaceDetail
+      summary: Get canonical place detail shared by hanok, map, and Odii-linked cards.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+      responses:
+        '200':
+          description: Canonical place detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CanonicalPlaceDetail'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /saved-resources/places/{placeId}:
+    put:
+      tags: [SavedResource]
+      operationId: savePlace
+      summary: Save a public canonical tourism place for the current member.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Current saved place state.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedPlaceState'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [SavedResource]
+      operationId: deleteSavedPlace
+      summary: Remove the saved place state for the current member.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: Removed or already absent.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /saved-resources:
+    get:
+      tags: [SavedResource]
+      operationId: listSavedResources
+      summary: List saved resources of one requested type.
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [PLACE]
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Saved place page.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedResourcePage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+  /me/timeline:
+    get:
+      tags: [MemberTimeline]
+      operationId: getMemberTimeline
+      summary: Get current member's monthly activity timeline.
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-[0-9]{2}$'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Monthly member timeline.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberTimeline'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '410':
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    PlaceId:
+      name: placeId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^p-[a-z0-9-]{3,80}$'
+    CsrfToken:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 256
+  responses:
+    Error:
+      description: Error envelope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    SchemaVersion:
+      type: string
+      const: '1.2'
+    HanokCategory:
+      type: string
+      enum:
+        - HANOK
+        - HANOK_STAY
+        - HANOK_CAFE
+        - HANOK_EXPERIENCE
+        - TRADITIONAL_MARKET
+    PlaceId:
+      type: string
+      pattern: '^p-[a-z0-9-]{3,80}$'
+    Image:
+      type: object
+      additionalProperties: false
+      required: [url, alt]
+      properties:
+        url:
+          type: string
+          format: uri
+        alt:
+          type: string
+          minLength: 1
+          maxLength: 120
+    Coordinates:
+      type: object
+      additionalProperties: false
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          minimum: -180
+          maximum: 180
+    RegionSummary:
+      type: object
+      additionalProperties: false
+      required: [regionCode, name]
+      properties:
+        regionCode:
+          type: string
+          minLength: 1
+          maxLength: 32
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+    ContentTags:
+      type: array
+      maxItems: 7
+      items:
+        type: string
+        minLength: 1
+        maxLength: 24
+      description: >
+        OnMaru가 장소 상세 설명과 하이라이트에서 LLM 없이 추출한 콘텐츠 이해용 태그.
+        값에는 # 문자를 포함하지 않으며, FE가 해시태그 칩으로 렌더링할 수 있다.
+    HanokCard:
+      type: object
+      additionalProperties: false
+      required:
+        - placeId
+        - name
+        - category
+        - regionName
+        - thumbnailUrl
+        - summary
+        - tags
+        - savedByMe
+      properties:
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          $ref: '#/components/schemas/HanokCategory'
+        regionName:
+          type: [string, 'null']
+          maxLength: 80
+        thumbnailUrl:
+          type: [string, 'null']
+          format: uri
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 220
+        tags:
+          type: array
+          maxItems: 6
+          items:
+            type: string
+            minLength: 1
+            maxLength: 24
+        savedByMe:
+          type: boolean
+    HanokListResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, items, nextCursor, hasMore]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HanokCard'
+        nextCursor:
+          type: [string, 'null']
+        hasMore:
+          type: boolean
+    HanokDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - placeId
+        - name
+        - category
+        - region
+        - address
+        - coordinates
+        - images
+        - description
+        - highlights
+        - contentTags
+        - savedByMe
+        - mapCard
+        - odiiLinkedCard
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          $ref: '#/components/schemas/HanokCategory'
+        region:
+          $ref: '#/components/schemas/RegionSummary'
+        address:
+          type: [string, 'null']
+          maxLength: 180
+        coordinates:
+          anyOf:
+            - $ref: '#/components/schemas/Coordinates'
+            - type: 'null'
+        images:
+          type: array
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/Image'
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        highlights:
+          type: array
+          maxItems: 8
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+        contentTags:
+          $ref: '#/components/schemas/ContentTags'
+        savedByMe:
+          type: boolean
+        mapCard:
+          $ref: '#/components/schemas/LinkedPlaceCard'
+        odiiLinkedCard:
+          anyOf:
+            - $ref: '#/components/schemas/LinkedPlaceCard'
+            - type: 'null'
+    MonthlyHanokEditionResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, month, title, subtitle, placements]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        month:
+          type: string
+          pattern: '^[0-9]{4}-[0-9]{2}$'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 80
+        subtitle:
+          type: string
+          minLength: 1
+          maxLength: 160
+        placements:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [slot, reason, place]
+            properties:
+              slot:
+                type: string
+                enum: [HERO, WEEKEND, CAFE, STAY, MARKET, EXPERIENCE]
+              reason:
+                type: string
+                minLength: 1
+                maxLength: 160
+              place:
+                $ref: '#/components/schemas/HanokCard'
+    LinkedPlaceCard:
+      type: object
+      additionalProperties: false
+      required: [placeId, name, category, regionName, thumbnailUrl, savedByMe]
+      properties:
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          type: string
+          minLength: 1
+          maxLength: 60
+        regionName:
+          type: [string, 'null']
+          maxLength: 80
+        thumbnailUrl:
+          type: [string, 'null']
+          format: uri
+        savedByMe:
+          type: boolean
+    CanonicalPlaceDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - placeId
+        - name
+        - category
+        - region
+        - address
+        - coordinates
+        - images
+        - description
+        - contentTags
+        - savedByMe
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          type: string
+          minLength: 1
+          maxLength: 60
+        region:
+          $ref: '#/components/schemas/RegionSummary'
+        address:
+          type: [string, 'null']
+          maxLength: 180
+        coordinates:
+          anyOf:
+            - $ref: '#/components/schemas/Coordinates'
+            - type: 'null'
+        images:
+          type: array
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/Image'
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        contentTags:
+          $ref: '#/components/schemas/ContentTags'
+        savedByMe:
+          type: boolean
+    SavedPlaceState:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, resourceType, resourceId, placeId, savedByMe, savedAt]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        resourceType:
+          type: string
+          const: PLACE
+        resourceId:
+          $ref: '#/components/schemas/PlaceId'
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+        savedByMe:
+          type: boolean
+          const: true
+        savedAt:
+          type: string
+          format: date-time
+    SavedPlaceSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - resourceType
+        - resourceId
+        - placeId
+        - name
+        - category
+        - regionName
+        - thumbnailUrl
+        - savedByMe
+        - savedAt
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        resourceType:
+          type: string
+          const: PLACE
+        resourceId:
+          $ref: '#/components/schemas/PlaceId'
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          type: string
+          minLength: 1
+          maxLength: 60
+        regionName:
+          type: [string, 'null']
+          maxLength: 80
+        thumbnailUrl:
+          type: [string, 'null']
+          format: uri
+        savedByMe:
+          type: boolean
+          const: true
+        savedAt:
+          type: string
+          format: date-time
+    SavedResourcePage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, items, nextCursor, hasMore]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedPlaceSummary'
+        nextCursor:
+          type: [string, 'null']
+        hasMore:
+          type: boolean
+    MemberTimeline:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, month, groups, nextCursor, hasMore, unavailableCount]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        month:
+          type: string
+          pattern: '^[0-9]{4}-[0-9]{2}$'
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineDayGroup'
+        nextCursor:
+          type: [string, 'null']
+        hasMore:
+          type: boolean
+        unavailableCount:
+          type: integer
+          minimum: 0
+    TimelineDayGroup:
+      type: object
+      additionalProperties: false
+      required: [date, items]
+      properties:
+        date:
+          type: string
+          format: date
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineItem'
+    TimelineItem:
+      type: object
+      additionalProperties: false
+      required: [id, type, occurredAt, title, subtitle, thumbnailUrl, target]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 120
+        type:
+          type: string
+          enum: [SAVED_PLACE, SAVED_ODII_STORY, SAVED_JOURNEY, WROTE_VISIT_REVIEW]
+        occurredAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        subtitle:
+          type: [string, 'null']
+          maxLength: 160
+        thumbnailUrl:
+          type: [string, 'null']
+          format: uri
+        target:
+          oneOf:
+            - $ref: '#/components/schemas/TimelinePlaceTarget'
+            - $ref: '#/components/schemas/TimelineOdiiStoryTarget'
+            - $ref: '#/components/schemas/TimelineSavedJourneyTarget'
+            - $ref: '#/components/schemas/TimelineVisitReviewTarget'
+    TimelinePlaceTarget:
+      type: object
+      additionalProperties: false
+      required: [type, placeId]
+      properties:
+        type:
+          type: string
+          const: PLACE
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+    TimelineOdiiStoryTarget:
+      type: object
+      additionalProperties: false
+      required: [type, storyId, placeId]
+      properties:
+        type:
+          type: string
+          const: ODII_STORY
+        storyId:
+          type: string
+          minLength: 1
+          maxLength: 120
+        placeId:
+          anyOf:
+            - $ref: '#/components/schemas/PlaceId'
+            - type: 'null'
+    TimelineSavedJourneyTarget:
+      type: object
+      additionalProperties: false
+      required: [type, savedJourneyId]
+      properties:
+        type:
+          type: string
+          const: SAVED_JOURNEY
+        savedJourneyId:
+          type: string
+          format: uuid
+    TimelineVisitReviewTarget:
+      type: object
+      additionalProperties: false
+      required: [type, reviewId, placeId]
+      properties:
+        type:
+          type: string
+          const: VISIT_REVIEW
+        reviewId:
+          type: string
+          format: uuid
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+    Error:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, code, message, requestId, details]
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+        message:
+          type: string
+          minLength: 1
+          maxLength: 300
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 120
+        details:
+          type: object

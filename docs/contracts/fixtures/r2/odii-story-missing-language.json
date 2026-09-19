@@ -1,0 +1,48 @@
+{
+  "name": "odii-story-missing-language",
+  "description": "When the requested language is unavailable, the API marks fallback language status explicitly.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/odii/stories",
+    "query": {
+      "language": "en-US",
+      "regionCode": "kr-45-jeonju",
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "OdiiStoryPage",
+    "body": {
+      "schemaVersion": "1.2",
+      "coverageStatus": "PARTIAL",
+      "language": "ko-KR",
+      "languageStatus": "FALLBACK",
+      "items": [
+        {
+          "storyId": "odii-story-jeonju-hanok-01",
+          "title": "전주의 한옥 골목 이야기",
+          "audioTitle": "전주 한옥마을 산책",
+          "category": "한옥/고택",
+          "region": {
+            "regionCode": "kr-45-jeonju",
+            "name": "전북 전주시",
+            "level": "CITY",
+            "parentRegionCode": "kr-45"
+          },
+          "coordinates": {
+            "lat": 35.817632,
+            "lng": 127.152948
+          },
+          "durationSeconds": 185,
+          "imageUrl": "https://cdn.onmaru.example/odii/odii-story-jeonju-hanok-01.jpg",
+          "linkedPlaceId": "p-jeonju-hanok-village",
+          "contentTags": ["한옥 골목", "전주 한옥마을", "처마", "담장"],
+          "savedByMe": false
+        }
+      ],
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}

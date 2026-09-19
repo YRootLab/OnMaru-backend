@@ -1,0 +1,46 @@
+{
+  "name": "insights-heatmap-normal",
+  "description": "Heatmap response exposes public concentration values with per-spot coverage status.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/insights/heatmap",
+    "query": {
+      "regionCode": "kr-45-jeonju",
+      "date": "2026-09-14",
+      "metric": "CONGESTION_SCORE"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "HeatmapResponse",
+    "body": {
+      "schemaVersion": "1.2",
+      "coverageStatus": "PARTIAL",
+      "metric": "CONGESTION_SCORE",
+      "observedDate": "2026-09-14",
+      "generatedAt": "2026-09-14T08:35:00Z",
+      "spots": [
+        {
+          "id": "heat-p-jeonju-hanok-village-2026-09-14",
+          "placeId": "p-jeonju-hanok-village",
+          "name": "전주 한옥마을",
+          "region": {
+            "regionCode": "kr-45-jeonju",
+            "name": "전북 전주시",
+            "level": "CITY",
+            "parentRegionCode": "kr-45"
+          },
+          "coordinates": {
+            "lat": 35.8151,
+            "lng": 127.153
+          },
+          "visitorCount": 18240,
+          "congestionScore": 72.4,
+          "congestionLevel": "BUSY",
+          "surgeMultiplier": 1.8,
+          "coverageStatus": "COMPLETE"
+        }
+      ]
+    }
+  }
+}

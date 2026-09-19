@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.2",
+  "resourceRef": {
+    "type": "PLACE",
+    "id": "p-unverified-spot"
+  },
+  "coverageStatus": "INSUFFICIENT_EVIDENCE",
+  "summary": null,
+  "whyRecommended": [],
+  "bestFor": [],
+  "visitTips": [],
+  "hanokHighlights": [],
+  "reviewSummary": null,
+  "tags": [],
+  "unknowns": [
+    "설명 생성에 충분한 근거가 없습니다."
+  ],
+  "presentationHints": null
+}

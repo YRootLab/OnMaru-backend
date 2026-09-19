@@ -1,0 +1,126 @@
+Enum discovery_run_status {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+Enum discovery_proposal_status {
+  PENDING
+  APPLIED
+  DISMISSED
+  INVALIDATED
+}
+
+Table discovery_explorations [headercolor: #EDC948] {
+  id uuid [pk]
+  owner_member_id uuid
+  owner_guest_id uuid
+  state_version int [not null]
+  board jsonb
+  pinned_refs jsonb [not null]
+  excluded_refs jsonb [not null]
+  region_id uuid
+  expires_at timestamptz
+  deleted_at timestamptz
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  Note: 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).'
+
+  Indexes {
+    (owner_member_id, updated_at)
+    (owner_guest_id, updated_at)
+  }
+}
+
+Table discovery_runs [headercolor: #EDC948] {
+  id uuid [pk]
+  exploration_id uuid [not null]
+  actor_key varchar [not null]
+  base_version int [not null]
+  status discovery_run_status [not null]
+  stage varchar
+  outcome varchar
+  clarification jsonb
+  created_at timestamptz [not null]
+  deadline_at timestamptz [not null]
+  lease_expires_at timestamptz [note: 'RUNNING worker lease; sweeper terminalizes expired leases']
+  started_at timestamptz
+  generation int [not null]
+  error_code varchar
+  engine varchar [not null]
+
+  Note: 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.'
+
+  Indexes {
+    exploration_id
+    actor_key
+    deadline_at
+  }
+}
+
+Table discovery_run_commands [headercolor: #EDC948] {
+  actor_key varchar [not null]
+  operation varchar [not null]
+  command_key uuid [not null]
+  request_hash varchar [not null]
+  run_id uuid [not null]
+  result_status discovery_run_status [not null]
+  result_stage varchar
+  result_outcome varchar
+  result_generation int [not null]
+  created_at timestamptz [not null]
+  expires_at timestamptz [not null]
+
+  Note: 'Durable command receipt. The executable migration enforces the operation/stage allowlists, positive generation, expiry, and composite primary key.'
+
+  Indexes {
+    (actor_key, operation, command_key) [pk]
+    expires_at
+  }
+}
+
+Table discovery_proposals [headercolor: #EDC948] {
+  id uuid [pk]
+  run_id uuid [not null, unique]
+  exploration_id uuid [not null]
+  base_version int [not null]
+  ordered_refs jsonb [not null]
+  reasons jsonb [not null]
+  evidence jsonb [not null]
+  expires_at timestamptz [not null]
+  status discovery_proposal_status [not null]
+
+  Indexes {
+    (exploration_id, status)
+  }
+}
+
+Table discovery_turns [headercolor: #EDC948] {
+  id uuid [pk]
+  exploration_id uuid [not null]
+  client_turn_id uuid [not null]
+  query text [not null]
+  created_at timestamptz [not null]
+
+  Indexes {
+    (exploration_id, client_turn_id) [unique]
+    (exploration_id, created_at)
+  }
+}
+
+TableGroup discovery [color: #EDC948, note: 'Natural-language exploration workspace, async runs, proposals, turns, pinned and excluded refs.'] {
+  discovery_explorations
+  discovery_runs
+  discovery_run_commands
+  discovery_proposals
+  discovery_turns
+}
+
+Ref: discovery_runs.exploration_id > discovery_explorations.id
+Ref: discovery_run_commands.run_id > discovery_runs.id
+Ref: discovery_proposals.run_id > discovery_runs.id
+Ref: discovery_proposals.exploration_id > discovery_explorations.id
+Ref: discovery_turns.exploration_id > discovery_explorations.id

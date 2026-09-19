@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onmaru.local/contracts/journey-sse-event.schema.json",
+  "title": "OnMaru parsed journey SSE frame",
+  "description": "The client parses id/event/data from text/event-stream, then validates this envelope. reset has no replay sequence.",
+  "oneOf": [
+    {"$ref": "#/$defs/stage"},
+    {"$ref": "#/$defs/terminal"},
+    {"$ref": "#/$defs/heartbeat"},
+    {"$ref": "#/$defs/reset"},
+    {"$ref": "#/$defs/authClosed"}
+  ],
+  "$defs": {
+    "stage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "event", "data"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "event": {"const": "run.stage"},
+        "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId", "sequence", "status", "stage"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}, "sequence": {"type": "integer", "minimum": 1}, "status": {"enum": ["QUEUED", "RUNNING"]}, "stage": {"enum": ["INTERPRETING", "RETRIEVING", "VALIDATING", "PERSISTING", null]}}}
+      }
+    },
+    "terminal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "event", "data"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "event": {"const": "run.terminal"},
+        "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId", "sequence", "status", "outcome"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}, "sequence": {"type": "integer", "minimum": 1}, "status": {"enum": ["COMPLETED", "FAILED", "CANCELLED"]}, "outcome": {"enum": ["INITIAL_BOARD", "PROPOSAL", "CLARIFICATION_REQUIRED", "NO_RESULTS", null]}, "errorCode": {"type": "string"}}}
+      }
+    },
+    "heartbeat": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "event", "data"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "event": {"const": "heartbeat"},
+        "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId", "sequence"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}, "sequence": {"type": "integer", "minimum": 0}}}
+      }
+    },
+    "reset": {
+      "type": "object", "additionalProperties": false,
+      "required": ["event", "data"],
+      "properties": {
+        "event": {"const": "reset"},
+        "data": {"type": "object", "additionalProperties": false, "required": ["schemaVersion", "runId"], "properties": {"schemaVersion": {"const": "1.2"}, "runId": {"type": "string", "format": "uuid"}}}
+      }
+    },
+    "authClosed": {
+      "type": "object", "additionalProperties": false,
+      "required": ["event", "data"],
+      "properties": {
+        "event": {"const": "auth_closed"},
+        "data": {"const": 0}
+      }
+    }
+  }
+}

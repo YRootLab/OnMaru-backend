@@ -1,0 +1,51 @@
+{
+  "name": "hanok-monthly-normal",
+  "description": "Monthly editorial edition returns curated hanok placements with canonical place IDs.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/hanoks/monthly",
+    "query": {
+      "month": "2026-09"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "MonthlyHanokEditionResponse",
+    "body": {
+      "schemaVersion": "1.2",
+      "month": "2026-09",
+      "title": "9월의 한옥 산책",
+      "subtitle": "선선한 저녁에 걷기 좋은 한옥 장소를 모았습니다.",
+      "placements": [
+        {
+          "slot": "HERO",
+          "reason": "대표 한옥 권역으로 첫 화면에서 소개합니다.",
+          "place": {
+            "placeId": "p-jeonju-hanok-village",
+            "name": "전주 한옥마을",
+            "category": "HANOK",
+            "regionName": "전북 전주시",
+            "thumbnailUrl": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+            "summary": "한옥 골목과 전통 체험을 함께 둘러볼 수 있는 대표 한옥 권역입니다.",
+            "tags": ["한옥", "체험", "산책"],
+            "savedByMe": true
+          }
+        },
+        {
+          "slot": "CAFE",
+          "reason": "한옥 카페를 찾는 사용자를 위한 보조 placement입니다.",
+          "place": {
+            "placeId": "p-bukchon-hanok-cafe",
+            "name": "북촌 한옥 찻집",
+            "category": "HANOK_CAFE",
+            "regionName": "서울 종로구",
+            "thumbnailUrl": null,
+            "summary": "한옥 구조를 보존한 조용한 찻집입니다.",
+            "tags": ["카페", "북촌"],
+            "savedByMe": false
+          }
+        }
+      ]
+    }
+  }
+}

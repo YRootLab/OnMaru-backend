@@ -1,0 +1,147 @@
+Project onmaru_backend_overview {
+  database_type: 'PostgreSQL'
+  Note: 'Level 1 overview. This diagram intentionally keeps only domain anchor tables and cross-domain dependencies.'
+}
+
+Table identity_members [headercolor: #4E79A7] {
+  id uuid [pk]
+  status varchar
+}
+
+Table identity_guests [headercolor: #4E79A7] {
+  id uuid [pk]
+}
+
+Table catalog_regions [headercolor: #59A14F] {
+  id uuid [pk]
+  parent_id uuid
+  code varchar
+}
+
+Table catalog_dataset_revisions [headercolor: #59A14F] {
+  id uuid [pk]
+  dataset varchar
+  status varchar
+}
+
+Table catalog_place_identity [headercolor: #59A14F] {
+  id uuid [pk]
+}
+
+Table audio_odii_stories [headercolor: #F28E2B] {
+  id uuid [pk]
+  spot_id uuid
+}
+
+Table audio_place_odii_links [headercolor: #F28E2B] {
+  place_id uuid [not null]
+  spot_id uuid [not null]
+  review_status varchar [not null]
+}
+
+Table audio_revision_stages [headercolor: #F28E2B] {
+  revision_id uuid [pk]
+  ready boolean [not null]
+}
+
+Table insights_visitor_observations [headercolor: #B07AA1] {
+  revision_id uuid [not null]
+  region_id uuid [not null]
+  basis_date date [not null]
+}
+
+Table discovery_explorations [headercolor: #EDC948] {
+  id uuid [pk]
+  owner_member_id uuid
+  owner_guest_id uuid
+  region_id uuid
+}
+
+Table journey_saved_journeys [headercolor: #76B7B2] {
+  id uuid [pk]
+  member_id uuid [not null]
+  source_exploration_id uuid
+}
+
+Table journey_saved_resources [headercolor: #76B7B2] {
+  id uuid [pk]
+  member_id uuid
+  resource_type varchar
+  resource_id uuid
+}
+
+Table community_visit_reviews [headercolor: #E15759] {
+  id uuid [pk]
+  member_id uuid [not null]
+  place_id uuid [not null]
+}
+
+Table operations_sync_runs [headercolor: #9C755F] {
+  id uuid [pk]
+  dataset varchar
+  revision_id uuid
+}
+
+Table ai_documents [headercolor: #BAB0AC] {
+  document_id uuid [pk]
+  source_ref varchar
+}
+
+TableGroup identity [color: #4E79A7] {
+  identity_members
+  identity_guests
+}
+
+TableGroup catalog [color: #59A14F] {
+  catalog_regions
+  catalog_dataset_revisions
+  catalog_place_identity
+}
+
+TableGroup audio [color: #F28E2B] {
+  audio_odii_stories
+  audio_place_odii_links
+  audio_revision_stages
+}
+
+TableGroup insights [color: #B07AA1] {
+  insights_visitor_observations
+}
+
+TableGroup discovery [color: #EDC948] {
+  discovery_explorations
+}
+
+TableGroup journey [color: #76B7B2] {
+  journey_saved_journeys
+  journey_saved_resources
+}
+
+TableGroup community [color: #E15759] {
+  community_visit_reviews
+}
+
+TableGroup operations [color: #9C755F] {
+  operations_sync_runs
+}
+
+TableGroup ai [color: #BAB0AC] {
+  ai_documents
+}
+
+Ref: catalog_regions.parent_id >? catalog_regions.id
+Ref: audio_place_odii_links.place_id > catalog_place_identity.id
+Ref: audio_revision_stages.revision_id > catalog_dataset_revisions.id
+Ref: discovery_explorations.owner_member_id >? identity_members.id
+Ref: discovery_explorations.owner_guest_id >? identity_guests.id
+Ref: discovery_explorations.region_id >? catalog_regions.id
+Ref: journey_saved_journeys.member_id > identity_members.id
+Ref: journey_saved_journeys.source_exploration_id >? discovery_explorations.id
+Ref: community_visit_reviews.member_id > identity_members.id
+Ref: community_visit_reviews.place_id > catalog_place_identity.id
+Ref: insights_visitor_observations.revision_id > catalog_dataset_revisions.id
+Ref: insights_visitor_observations.region_id > catalog_regions.id
+Ref: operations_sync_runs.revision_id >? catalog_dataset_revisions.id
+
+// journey_saved_resources.resource_id is a polymorphic application-validated pointer:
+// PLACE -> catalog_place_identity.id, ODII_STORY -> audio_odii_stories.id.

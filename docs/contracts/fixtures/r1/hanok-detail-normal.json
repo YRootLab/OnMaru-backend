@@ -1,0 +1,59 @@
+{
+  "name": "hanok-detail-normal",
+  "description": "Hanok detail, map card, and Odii-linked card expose the same canonical placeId.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/hanoks/p-jeonju-hanok-village"
+  },
+  "response": {
+    "status": 200,
+    "schema": "HanokDetail",
+    "body": {
+      "schemaVersion": "1.2",
+      "placeId": "p-jeonju-hanok-village",
+      "name": "전주 한옥마을",
+      "category": "HANOK",
+      "region": {
+        "regionCode": "kr-45-jeonju",
+        "name": "전북 전주시"
+      },
+      "address": "전북 전주시 완산구 기린대로 99",
+      "coordinates": {
+        "lat": 35.8151,
+        "lng": 127.153
+      },
+      "images": [
+        {
+          "url": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+          "alt": "전주 한옥마을 골목"
+        }
+      ],
+      "description": "전통 한옥과 공예, 음식, 산책 코스를 한 번에 경험할 수 있는 공개 관광 장소입니다.",
+      "highlights": ["한옥 골목", "공예 체험", "야간 산책"],
+      "contentTags": ["한옥 골목", "공예 체험", "야간 산책", "전통 한옥"],
+      "savedByMe": true,
+      "mapCard": {
+        "placeId": "p-jeonju-hanok-village",
+        "name": "전주 한옥마을",
+        "category": "한옥",
+        "regionName": "전북 전주시",
+        "thumbnailUrl": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+        "savedByMe": true
+      },
+      "odiiLinkedCard": {
+        "placeId": "p-jeonju-hanok-village",
+        "name": "전주 한옥마을",
+        "category": "한옥",
+        "regionName": "전북 전주시",
+        "thumbnailUrl": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+        "savedByMe": true
+      }
+    }
+  },
+  "sharedPlaceAssertion": {
+    "placeId": "p-jeonju-hanok-village",
+    "hanokCardPlaceId": "p-jeonju-hanok-village",
+    "mapCardPlaceId": "p-jeonju-hanok-village",
+    "odiiLinkedCardPlaceId": "p-jeonju-hanok-village"
+  }
+}

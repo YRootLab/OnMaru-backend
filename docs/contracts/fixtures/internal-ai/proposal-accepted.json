@@ -1,0 +1,17 @@
+{
+  "name": "internal-ai-proposal-accepted",
+  "request": {
+    "method": "POST",
+    "path": "/internal/v1/journey/proposals"
+  },
+  "response": {
+    "status": 202,
+    "schema": "InternalJourneyProposalResponse",
+    "body": {
+      "schemaVersion": "internal.ai.v1",
+      "runId": "run-ai-001",
+      "orderedRefs": ["place:001", "place:002"],
+      "outcome": "PROPOSAL"
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "1.0",
+  "issue": 66,
+  "provider": "한국관광공사 국문 관광정보 서비스_GW",
+  "providerId": "kto-tourapi-korean",
+  "source": {
+    "portal": "공공데이터포털",
+    "datasetId": "15101578",
+    "datasetUrl": "https://www.data.go.kr/data/15101578/openapi.do",
+    "baseUrl": "https://apis.data.go.kr/B551011/KorService2",
+    "format": ["JSON", "XML"],
+    "documentedRevisionDate": "2026-02-26",
+    "observedAt": "2026-09-14T15:35:00+09:00"
+  },
+  "secretPolicy": {
+    "serviceKeyStored": false,
+    "requestUrlStored": false,
+    "redactionToken": "<REDACTED>",
+    "notes": "서비스 키, 원본 query string, 원본 response header의 추적 ID는 저장하지 않는다."
+  },
+  "quota": {
+    "dailyDevelopmentLimit": 1000,
+    "operationLimitSource": "공공데이터포털 상세 페이지의 신청 가능 트래픽: 개발계정 1,000",
+    "operatingTrafficPolicy": "운영계정은 활용사례 등록 후 트래픽 증가 신청 가능",
+    "adapterBudgetRecommendation": {
+      "dailySafetyMarginPercent": 20,
+      "maxDailyCallsBeforeIncrease": 800,
+      "perCredentialConcurrency": 1,
+      "retryPolicyOwner": "Issue #73"
+    },
+    "errorCodes": {
+      "22": "일일 호출 허용량 초과",
+      "23": "초당 호출 허용량 초과"
+    }
+  },
+  "license": {
+    "publicUseAllowed": true,
+    "scope": "이용허락범위 제한 없음",
+    "cost": "무료",
+    "attribution": "한국관광공사 국문 관광정보 서비스_GW",
+    "imageRights": {
+      "cpyrhtDivCdValues": ["Type1", "Type3"],
+      "notice": "사진 자료는 명예훼손, 인격권 침해, 일반 정서에 반하는 용도, 기업 CI/BI 이용 금지. 공공누리 1유형, 3유형 이미지가 제공된다."
+    }
+  },
+  "qualification": {
+    "liveCanonicalBlocked": true,
+    "downstreamIssue": 73,
+    "operationCoverage": [
+      "areaBasedList2",
+      "locationBasedList2",
+      "detailCommon2",
+      "searchKeyword2",
+      "areaCode2"
+    ],
+    "parserRequirements": [
+      "HTTP status와 provider envelope resultCode를 별도로 판정한다.",
+      "HTTP 200이어도 resultCode가 성공 코드가 아니면 provider error로 분류한다.",
+      "body.items.item은 배열, 단일 객체, 또는 빈 문자열이 될 수 있다.",
+      "pageNo는 1부터 시작하며 totalCount와 numOfRows로 마지막 page를 계산한다.",
+      "429와 quota envelope는 retry budget과 Retry-After 유무를 함께 분류한다."
+    ]
+  },
+  "cases": [
+    {
+      "id": "normal-list",
+      "operation": "areaBasedList2",
+      "fixture": "normal-list.json",
+      "purpose": "정상 목록 응답과 list item envelope 고정"
+    },
+    {
+      "id": "location-list",
+      "operation": "locationBasedList2",
+      "fixture": "location-list.json",
+      "purpose": "좌표 기반 공개 장소 목록 응답과 거리 반경 query shape 고정"
+    },
+    {
+      "id": "detail-common",
+      "operation": "detailCommon2",
+      "fixture": "detail-common.json",
+      "purpose": "상세 공통 정보의 공개 가능 필드와 저작권 코드 고정"
+    },
+    {
+      "id": "empty-list",
+      "operation": "searchKeyword2",
+      "fixture": "empty-list.json",
+      "purpose": "결과 없음에서 items가 빈 문자열로 내려오는 변형 고정"
+    },
+    {
+      "id": "last-page",
+      "operation": "areaBasedList2",
+      "fixture": "last-page.json",
+      "purpose": "마지막 page 계산과 잔여 item 수 고정"
+    },
+    {
+      "id": "http-200-error-envelope",
+      "operation": "areaBasedList2",
+      "fixture": "http-200-error-envelope.json",
+      "purpose": "HTTP 200 + provider 오류 envelope를 성공으로 세지 않도록 고정"
+    },
+    {
+      "id": "http-4xx",
+      "operation": "areaCode2",
+      "fixture": "http-4xx.json",
+      "purpose": "서비스 키 누락 또는 권한 오류 분류 고정"
+    },
+    {
+      "id": "http-5xx",
+      "operation": "areaBasedList2",
+      "fixture": "http-5xx.json",
+      "purpose": "GW/기관 장애 retryable 분류 고정"
+    },
+    {
+      "id": "rate-limited-429",
+      "operation": "areaBasedList2",
+      "fixture": "rate-limited-429.json",
+      "purpose": "초당 또는 일일 quota 초과 분류 고정"
+    }
+  ]
+}

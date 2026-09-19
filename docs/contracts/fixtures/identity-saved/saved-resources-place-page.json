@@ -1,0 +1,38 @@
+{
+  "name": "saved-resources-place-page",
+  "description": "Saved PLACE list hydrates current public place projection and never mixes Odii stories.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/saved-resources",
+    "query": {
+      "type": "PLACE",
+      "limit": 20
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "SavedResourcePage",
+    "headers": {
+      "Cache-Control": "no-store"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "items": [
+        {
+          "schemaVersion": "1.2",
+          "resourceType": "PLACE",
+          "resourceId": "p-jeonju-hanok-village",
+          "placeId": "p-jeonju-hanok-village",
+          "name": "전주 한옥마을",
+          "category": "한옥",
+          "regionName": "전북 전주시",
+          "thumbnailUrl": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+          "savedByMe": true,
+          "savedAt": "2026-09-14T08:10:00Z"
+        }
+      ],
+      "nextCursor": "saved.place.2026-09-14T08:10:00Z.p-jeonju-hanok-village",
+      "hasMore": true
+    }
+  }
+}

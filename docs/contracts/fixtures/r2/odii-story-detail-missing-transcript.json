@@ -1,0 +1,45 @@
+{
+  "name": "odii-story-detail-missing-transcript",
+  "description": "A playable Odii story without transcript data reports the missing state explicitly.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/odii/stories/odii-story-missing-transcript-01",
+    "query": {
+      "language": "ko-KR"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "OdiiStoryDetail",
+    "body": {
+      "schemaVersion": "1.2",
+      "coverageStatus": "MISSING",
+      "language": "ko-KR",
+      "languageStatus": "EXACT",
+      "story": {
+        "storyId": "odii-story-missing-transcript-01",
+        "title": "대본이 없는 한옥 이야기",
+        "audioTitle": "한옥마을 소리 산책",
+        "category": "한옥/고택",
+        "region": {
+          "regionCode": "kr-45-jeonju",
+          "name": "전북 전주시",
+          "level": "CITY",
+          "parentRegionCode": "kr-45"
+        },
+        "coordinates": {
+          "lat": 35.817632,
+          "lng": 127.152948
+        },
+        "durationSeconds": 120,
+        "imageUrl": null,
+        "linkedPlaceId": null,
+        "contentTags": ["한옥마을", "소리 산책"],
+        "savedByMe": false
+      },
+      "audioUrl": "https://cdn.onmaru.example/odii/odii-story-missing-transcript-01.mp3",
+      "transcriptStatus": "MISSING",
+      "transcript": []
+    }
+  }
+}

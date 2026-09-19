@@ -1,0 +1,52 @@
+{
+  "contractVersion": "1.2",
+  "purpose": "A public canonical tourism place is saved once and rendered consistently in hanok, map, Odii-linked, and member timeline experiences.",
+  "fixtures": [
+    {
+      "name": "hanok-save-is-map-save",
+      "given": "A signed-in member saves canonical placeId p-hanok-01 from a hanok detail page.",
+      "when": "PUT /api/v1/saved-resources/places/p-hanok-01 succeeds.",
+      "then": [
+        "The response has resourceType PLACE, resourceId p-hanok-01, savedByMe true, and savedAt.",
+        "The hanok card, map place card, and any Odii-linked place card for p-hanok-01 render savedByMe true after their next server read.",
+        "No KTO contentId or provider DTO is stored or returned as the saved resource identity."
+      ]
+    },
+    {
+      "name": "all-public-tourism-place-categories-use-place",
+      "given": "A member saves published canonical places classified as hanok, hanok stay, hanok cafe, hanok experience, traditional market, and tourist attraction.",
+      "then": [
+        "Every supported published category uses the same /saved-resources/places/{placeId} endpoint.",
+        "The member timeline emits SAVED_PLACE items with the current place name, category, region, thumbnail when available, and saved timestamp.",
+        "Unsupported, unpublished, ambiguous, or deleted source rows return NOT_FOUND and create no saved row."
+      ]
+    },
+    {
+      "name": "guest-place-save-intent",
+      "given": "A guest presses the save control on p-hanok-01.",
+      "then": [
+        "The FE asks for login and keeps only a short-lived placeId plus desired saved state intent.",
+        "After a successful Kakao login, the FE sends one PUT only if the place is still public.",
+        "Login cancellation or failure creates no saved resource; local intent is not presented as savedByMe true."
+      ]
+    },
+    {
+      "name": "odii-linked-place-is-primary-save",
+      "given": "An Odii story has a reviewed audio_place_odii_links relation to p-attraction-02.",
+      "then": [
+        "The Odii screen renders the linked tourism place card and its savedByMe state.",
+        "Saving that card writes PLACE p-attraction-02, not the source Odii or provider identifier.",
+        "An ODII_STORY save remains an optional, separate replay action; it does not replace the linked place save."
+      ]
+    },
+    {
+      "name": "timeline-and-unavailable-place",
+      "given": "A member saved p-hanok-01 in September and it is later unpublished or deleted.",
+      "then": [
+        "While public, GET /me/timeline returns a SAVED_PLACE item that can render date, place name, category, region, thumbnail, and a PLACE target.",
+        "After it becomes unavailable, saved-resource lists and timeline items do not expose stale title, image, or a substituted place.",
+        "The relevant month may increment unavailableCount; deleting the save remains idempotent."
+      ]
+    }
+  ]
+}

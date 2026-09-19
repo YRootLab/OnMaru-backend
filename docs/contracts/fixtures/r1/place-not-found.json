@@ -1,0 +1,21 @@
+{
+  "name": "place-not-found",
+  "description": "Unpublished, deleted, or unmapped source rows resolve to public NOT_FOUND.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/places/p-private-or-unmapped"
+  },
+  "response": {
+    "status": 404,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "NOT_FOUND",
+      "message": "The requested place is not available.",
+      "requestId": "req-r1-place-not-found",
+      "details": {
+        "resourceType": "PLACE"
+      }
+    }
+  }
+}

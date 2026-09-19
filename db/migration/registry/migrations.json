@@ -1,0 +1,136 @@
+{
+  "policy": {
+    "ownerIssue": 67,
+    "versionFormat": "V###__description.sql",
+    "checksumMarker": "-- onmaru-checksum: <stable-id>",
+    "rule": "이미 병합된 migration SQL의 내용을 변경하지 않고, 후속 변경은 새 version으로 추가한다."
+  },
+  "migrations": [
+    {
+      "version": "001",
+      "reservedFor": "D01",
+      "issueNumber": 67,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V001__d01_flyway_migration_baseline.sql",
+      "checksum": "d01-v001-20260914",
+      "sha256": "be80e7389c52d8db92345b6e1c77ed6046944d57959059ec738367c512b5781c",
+      "description": "Flyway migration namespace, baseline registry, checksum policy, and database role grants"
+    },
+    {
+      "version": "002",
+      "reservedFor": "D02",
+      "issueNumber": 75,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V002__d02_catalog_revision_schema.sql",
+      "checksum": "d02-v002-20260915",
+      "sha256": "1141a3b8cd0adf25a0afd7510c1ccacfd4a891b2c37c49513b6bfc8333aada50",
+      "description": "Catalog canonical place, source identity, dataset revision, and PostGIS projection schema"
+    },
+    {
+      "version": "003",
+      "reservedFor": "D03",
+      "issueNumber": 76,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V003__d03_identity_session_schema.sql",
+      "checksum": "d03-v003-20260915",
+      "sha256": "c9dd457bbcc94744c809171ebbf7543bfbfc62df24f32341c5bbc44fa268cf62",
+      "description": "Member, OAuth identity, opaque session, guest grant, and deletion ledger schema"
+    },
+    {
+      "version": "004",
+      "reservedFor": "D07",
+      "issueNumber": 80,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V004__d07_sync_operations_schema.sql",
+      "checksum": "d07-v004-20260915",
+      "sha256": "d1bdb774a13c88c43154968cbff3174a6d48ad2ded85ed8a9b27b0597b8f4e61",
+      "description": "Admission counters, sync operations schedules, runs, leases, checkpoints, watermarks, quarantine, and outbox schema"
+    },
+    {
+      "version": "005",
+      "reservedFor": "D09",
+      "issueNumber": 135,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V005__d09_insights_observations_schema.sql",
+      "checksum": "d09-v005-20260915",
+      "sha256": "c38153d46e62fd61196dfd9de734431d1129261a16d082bf57572799a128277f",
+      "description": "Insights visitor observations, tourism targets, target-place links, and concentration observations schema"
+    },
+    {
+      "version": "006",
+      "reservedFor": "D04",
+      "issueNumber": 77,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V006__d04_journey_discovery_schema.sql",
+      "checksum": "d04-v006-20260915",
+      "sha256": "ae1918023160dc08bcfebef0b0788712a4176f154b0598eeb9b6bd607fc5d0f3",
+      "description": "Discovery exploration, run, proposal, turn, saved journey, and saved resource schema"
+    },
+    {
+      "version": "007",
+      "reservedFor": "D05",
+      "issueNumber": 78,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V007__d05_community_review_schema.sql",
+      "checksum": "d05-v007-20260915",
+      "sha256": "885938b98900fed9946eaac36f6c5bc300d8a5ab9571dc5a51028a70362b9152",
+      "description": "Visit review, like, report, and moderation audit schema"
+    },
+    {
+      "version": "008",
+      "reservedFor": "D06",
+      "issueNumber": 79,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V008__d06_odii_audio_schema.sql",
+      "checksum": "d06-v008-20260915",
+      "sha256": "c419acd48def3a6a9a331de0b78a589bd965ae99407a2b5e56b79a1130a92788",
+      "description": "Odii audio spot, story, version, subtitle, and place link schema"
+    },
+    {
+      "version": "009",
+      "reservedFor": "J02",
+      "issueNumber": 109,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V009__j02_durable_run_commands.sql",
+      "checksum": "j02-v009-20260916",
+      "sha256": "24d9a7ca47cb0f56e80f76b7955b258fd70580fd4203f94f147e2db1ff6b661a",
+      "description": "Durable journey run command idempotency receipts and state constraints"
+    },
+    {
+      "version": "010",
+      "reservedFor": "A02-FOLLOWUP",
+      "issueNumber": 197,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V010__a02_odii_production_persistence.sql",
+      "checksum": "a02-v010-20260916",
+      "sha256": "29eb68d926af14fb514eadd235679c791894e72d168988703405fadd02b0a0fe",
+      "description": "Odii production revision persistence and atomic place-link approval"
+    },
+    {
+      "version": "011",
+      "reservedFor": "J09",
+      "issueNumber": 117,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V011__j09_admission_audit.sql",
+      "checksum": "j09-v011-20260916",
+      "sha256": "e73c4068225cea273c951d599dbcec544ef830047f8ed28ee75c9264fa7fcd58",
+      "description": "Guest/member AI daily quota admission audit"
+    },
+    {
+      "version": "013",
+      "reservedFor": "CONTENT_TAGS",
+      "issueNumber": 208,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V013__content_tag_projection_schema.sql",
+      "checksum": "content-tags-v013-20260917",
+      "sha256": "5080fa0f6f6bb798b7f12765564b34fdcfb2725e502208b1594aa75c4172b171",
+      "description": "Content tag projection storage and operator override schema"
+    },
+    {
+      "version": "014",
+      "reservedFor": "J07",
+      "issueNumber": 121,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V014__j07_run_cancellation_sweeper.sql",
+      "checksum": "j07-v014-20260917",
+      "sha256": "a44c077ebf93b5384471873937c536bf50ec392c49e7d5b0faa422e87c8c1328",
+      "description": "Journey run cancellation, lease expiry, and deadline sweeper"
+    },
+    {
+      "version": "015",
+      "reservedFor": "O08",
+      "issueNumber": 125,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V015__o08_retention_cleanup_ledger.sql",
+      "checksum": "o08-v015-20260917",
+      "sha256": "0ac59c96c810f057fa528562896397ff5a1332e3f11c145a875ca83287d9c638",
+      "description": "TTL cleanup, revision GC, member deletion cleanup, and replayable deletion ledger"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+Table ai_documents [headercolor: #BAB0AC] {
+  document_id uuid [not null]
+  revision varchar [not null]
+  content_hash varchar [not null]
+  active boolean [not null]
+  source_type varchar [not null]
+  source_ref varchar [not null, note: 'Stable source identifier from Spring corpus export; not a DB FK']
+  metadata jsonb
+
+  Indexes {
+    (document_id, revision) [pk]
+    (source_type, source_ref)
+  }
+}
+
+Table ai_chunks [headercolor: #BAB0AC] {
+  chunk_id uuid [pk]
+  document_id uuid [not null]
+  revision varchar [not null]
+  position int [not null]
+  text text [not null]
+  offsets jsonb
+
+  Indexes {
+    (document_id, revision, position) [unique]
+  }
+}
+
+Table ai_embeddings [headercolor: #BAB0AC] {
+  chunk_id uuid [not null]
+  embedding_profile_id varchar [not null]
+  vector vector [note: 'FastAPI-managed pgvector index; enabled only after RAG evaluation gate']
+
+  Indexes {
+    (chunk_id, embedding_profile_id) [pk]
+  }
+}
+
+Table ai_corpus_sync_runs [headercolor: #BAB0AC] {
+  id uuid [pk]
+  source_revision varchar [not null]
+  source_manifest_hash varchar [not null]
+  status varchar [not null, note: 'RUNNING, SUCCEEDED, FAILED']
+  started_at timestamptz [not null]
+  finished_at timestamptz
+  error_code varchar
+
+  Indexes {
+    (source_revision, source_manifest_hash) [unique]
+  }
+}
+
+TableGroup ai [color: #BAB0AC, note: 'FastAPI alone owns AI corpus sync, chunking, embedding, retrieval, and migrations in the ai schema. Spring exposes revision-pinned corpus exports but has no ai schema credential.'] {
+  ai_documents
+  ai_chunks
+  ai_embeddings
+  ai_corpus_sync_runs
+}
+
+Ref: ai_chunks.(document_id, revision) > ai_documents.(document_id, revision)
+Ref: ai_embeddings.chunk_id > ai_chunks.chunk_id

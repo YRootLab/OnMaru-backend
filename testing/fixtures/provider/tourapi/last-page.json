@@ -1,0 +1,93 @@
+{
+  "caseId": "last-page",
+  "provider": "kto-tourapi-korean",
+  "operation": "areaBasedList2",
+  "redacted": {
+    "serviceKey": true,
+    "requestUrl": true,
+    "traceHeaders": true
+  },
+  "request": {
+    "serviceKey": "<REDACTED>",
+    "params": {
+      "MobileOS": "ETC",
+      "MobileApp": "OnMaru",
+      "_type": "json",
+      "numOfRows": 20,
+      "pageNo": 2,
+      "contentTypeId": "12",
+      "areaCode": "1",
+      "arrange": "A"
+    }
+  },
+  "observed": {
+    "httpStatus": 200,
+    "contentType": "application/json",
+    "capturedAt": "2026-09-14T15:35:00+09:00"
+  },
+  "body": {
+    "response": {
+      "header": {
+        "resultCode": "0000",
+        "resultMsg": "OK"
+      },
+      "body": {
+        "items": {
+          "item": [
+            {
+              "contentid": "264337",
+              "contenttypeid": "12",
+              "title": "서울 한양도성",
+              "addr1": "서울특별시 종로구",
+              "addr2": "",
+              "areacode": "1",
+              "sigungucode": "23",
+              "cat1": "A02",
+              "cat2": "A0201",
+              "cat3": "A02010100",
+              "createdtime": "20100101120000",
+              "modifiedtime": "20240304120000",
+              "firstimage": "",
+              "firstimage2": "",
+              "cpyrhtDivCd": "Type1",
+              "mapx": "127.008",
+              "mapy": "37.59",
+              "mlevel": "6",
+              "tel": ""
+            },
+            {
+              "contentid": "2752894",
+              "contenttypeid": "12",
+              "title": "돈의문박물관마을",
+              "addr1": "서울특별시 종로구 송월길 14-3",
+              "addr2": "",
+              "areacode": "1",
+              "sigungucode": "23",
+              "cat1": "A02",
+              "cat2": "A0206",
+              "cat3": "A02060100",
+              "createdtime": "20210115120000",
+              "modifiedtime": "20240501120000",
+              "firstimage": "",
+              "firstimage2": "",
+              "cpyrhtDivCd": "Type3",
+              "mapx": "126.968",
+              "mapy": "37.568",
+              "mlevel": "6",
+              "tel": ""
+            }
+          ]
+        },
+        "numOfRows": 20,
+        "pageNo": 2,
+        "totalCount": 22
+      }
+    }
+  },
+  "expected": {
+    "classification": "success-last-page",
+    "retryable": false,
+    "itemShape": "array",
+    "isLastPage": true
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "saved-resources-cursor",
+  "description": "Saved place list is paged by savedAt and canonical place identity.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/saved-resources",
+    "query": {
+      "type": "PLACE",
+      "limit": 1,
+      "cursor": "r1.saved.place.2026-09-14T08:10:00Z.p-jeonju-hanok-village"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "SavedResourcePage",
+    "body": {
+      "schemaVersion": "1.2",
+      "items": [
+        {
+          "schemaVersion": "1.2",
+          "resourceType": "PLACE",
+          "resourceId": "p-gyeongju-gyochon",
+          "placeId": "p-gyeongju-gyochon",
+          "name": "경주 교촌 한옥마을",
+          "category": "한옥",
+          "regionName": "경북 경주시",
+          "thumbnailUrl": "https://cdn.onmaru.example/places/p-gyeongju-gyochon/cover.jpg",
+          "savedByMe": true,
+          "savedAt": "2026-09-13T12:30:00Z"
+        }
+      ],
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}
