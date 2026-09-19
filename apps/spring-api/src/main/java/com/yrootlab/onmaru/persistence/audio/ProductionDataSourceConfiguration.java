@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.persistence.audio;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +17,7 @@ import java.util.logging.Logger;
 
 @Configuration
 @Profile("production")
+@ConditionalOnProperty(name = "spring.datasource.url")
 @EnableConfigurationProperties(ProductionDataSourceConfiguration.DatabaseSettings.class)
 class ProductionDataSourceConfiguration {
 
