@@ -33,53 +33,53 @@
 - During triage, keep a local note, link it to an existing Issue, promote it to a new Issue, or remove it only when completion is verified.
 - Every PR must reference its related Issue. Use auto-close keywords only when merging that PR should actually close the Issue.
 - Before closing an Issue, verify its acceptance criteria and merge state.
-- GitHub auto-close is not sufficient under this Git Flow. The repository default branch is `main`, while normal work PRs merge into `develop`; `Closes #...` may not close Issues until the change reaches the default branch.
+- GitHub auto-close is not sufficient under this Git Flow. The repository default branch is `master`, while normal work PRs merge into `develop`; `Closes #...` may not close Issues until the change reaches the default branch.
 - After a PR into `develop` is merged, explicitly check related Issues with `gh issue view <number> --json state` if the post-merge workflow did not run or did not close them. Close manually only when the acceptance criteria, merged PR, and verification commands all match.
 - When closing manually, leave a comment that names the merged PR, explains why auto-close did not apply, and records the verification commands.
-- Prefer the post-merge Issue Reconcile workflow for this check. It may close only still-open Issues referenced by `Closes/Fixes/Resolves #...` after the PR has actually merged into `develop`, and it must leave a comment explaining the `develop` versus `main` auto-close limitation.
+- Prefer the post-merge Issue Reconcile workflow for this check. It may close only still-open Issues referenced by `Closes/Fixes/Resolves #...` after the PR has actually merged into `develop`, and it must leave a comment explaining the `develop` versus `master` auto-close limitation.
 
 ## Work Logs And Cleanup
 
 - Work branches should include the related Issue number as `feature/<issue-number>-short-name`, `fix/<issue-number>-short-name`, `docs/<issue-number>-short-name`, or `hotfix/<issue-number>-short-name`.
-- Use `node scripts/print-branch-issue.mjs` to parse the current branch and confirm the related Issue before PR creation. Long-lived branches such as `develop`, `main`, and `release/*` intentionally print nothing.
+- Use `node scripts/print-branch-issue.mjs` to parse the current branch and confirm the related Issue before PR creation. Long-lived branches such as `develop`, `master`, and `release/*` intentionally print nothing.
 - Immediately before creating a Pull Request, reconcile branch name, touched files, work logs, related Issues, PR body, and verification results.
 - Immediately before merge, repeat cleanup because review may change scope, follow-ups, or Issue state.
-- Immediately after merge, reconcile GitHub Issue state for every referenced `Closes/Fixes/Resolves #...` line. If the PR merged to `develop` and the Issue remains open, decide whether to close manually or leave it open for a later `main` release, then record the reason in the Issue comment or `handoff.md`.
+- Immediately after merge, reconcile GitHub Issue state for every referenced `Closes/Fixes/Resolves #...` line. If the PR merged to `develop` and the Issue remains open, decide whether to close manually or leave it open for a later `master` release, then record the reason in the Issue comment or `handoff.md`.
 - If an agent harness cannot invoke `cleaning-work-logs`, perform the equivalent scan, classification, approval, and verification manually.
 - Record ad hoc user requests immediately in `handoff.md` when they affect the current session, or `improvements.md` when they are follow-up ideas.
 
 ## Git Flow Branch Policy
 
 - Integration branch: `develop`.
-- Production branch: `main`.
+- Production branch: `master` (repository default branch; the historical `main` branch was retired on 2026-09-19 — CI, Release Please, and Staging Deploy all trigger from `master` now).
 - Work branches: `feature/*`, `fix/*`, and `docs/*` merge into `develop` by Pull Request.
-- Release branches: `release/*` merge into `main` and back into `develop`.
-- Emergency fixes: `hotfix/*` merge into `main` and back into `develop`.
-- Direct pushes to `develop` and `main` are prohibited.
+- Release branches: `release/*` merge into `master` and back into `develop`.
+- Emergency fixes: `hotfix/*` merge into `master` and back into `develop`.
+- Direct pushes to `develop` and `master` are prohibited.
 - Required CI check: `verify` from the `CI` workflow must pass before every merge.
 - Work branch names must carry the Issue number and pass the branch parser contract unless the branch is a long-lived integration, production, release, or externally managed branch.
 - Delete short-lived branches after merge.
-- Create semantic version tags such as `v0.3.2` only from `main`.
+- Create semantic version tags such as `v0.3.2` only from `master`.
 
 ## Release Policy
 
 - Release mode: Release Please release PR.
-- Release source: `main` after a successful release merge.
+- Release source: `master` after a successful release merge.
 - Commit style: Conventional Commits for release note and version inference.
 - Changelog: `CHANGELOG.md`.
 - Release tags: semantic version tags such as `v0.3.2`.
-- Release flow: accumulate feature/fix/docs PRs in `develop`, cut `release/<version>` from `develop`, merge the release branch into `main`, let Release Please create or update release metadata, and merge `main` back into `develop`.
+- Release flow: accumulate feature/fix/docs PRs in `develop`, cut `release/<version>` from `develop`, merge the release branch into `master`, let Release Please create or update release metadata. Release Please currently requires an organization-level Actions setting change to open its PR (see Issue #277).
 - Release workflows must use least-privilege permissions and concurrency controls.
 - Generated artifacts must be rebuilt and verified before release when the project starts generating code, schema, SDKs, or bundles.
 - CI must pass before any tag or GitHub Release is created.
 
 ## GitHub Controls
 
-- Require Pull Requests before merging to `develop` and `main`.
+- Require Pull Requests before merging to `develop` and `master`.
 - Require the `verify` CI status check.
 - Require at least one approval for shared repository changes.
 - Restrict force pushes and protected branch deletion.
-- The GitHub API could not read branch protection for this private repository under the current plan. Treat the workflow checks and documented PR policy as compensating controls until protection can be verified in GitHub settings.
+- The repository was switched from private to public (2026-09-19). `develop` and `master` currently have no branch protection rule configured on GitHub (confirmed via API: `404 Branch not protected`) — tracked in Issue #252. Treat the workflow checks and documented PR policy as compensating controls until protection is configured.
 
 ## Project Harness Lifecycle
 
