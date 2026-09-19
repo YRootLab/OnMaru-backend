@@ -86,9 +86,7 @@ def test_accepts_typed_clarification_and_no_results_without_board_data() -> None
             "clarification": {
                 "reason": "UNSUPPORTED_CONDITION",
                 "question": "실시간 혼잡도 대신 조용한 분위기를 기준으로 찾을까요?",
-                "choices": [
-                    {"id": "quiet", "label": "조용한 분위기", "regionCode": None}
-                ],
+                "choices": [{"id": "quiet", "label": "조용한 분위기", "regionCode": None}],
                 "allowFreeText": False,
             },
         },

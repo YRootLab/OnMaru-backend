@@ -71,13 +71,9 @@ class ProposalValidator:
             self._reject_unsafe_text(reason.summary)
             allowed_evidence = {item.id for item in candidates[reason.ref].evidence}
             if len(set(reason.evidence_ids)) != len(reason.evidence_ids):
-                raise ProposalValidationError(
-                    ProposalRejectionCode.EVIDENCE_OWNERSHIP_MISMATCH
-                )
+                raise ProposalValidationError(ProposalRejectionCode.EVIDENCE_OWNERSHIP_MISMATCH)
             if not set(reason.evidence_ids).issubset(allowed_evidence):
-                raise ProposalValidationError(
-                    ProposalRejectionCode.EVIDENCE_OWNERSHIP_MISMATCH
-                )
+                raise ProposalValidationError(ProposalRejectionCode.EVIDENCE_OWNERSHIP_MISMATCH)
 
     def _validate_clarification(self, proposal: AskClarification) -> None:
         if not proposal.clarification.question.strip():

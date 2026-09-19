@@ -1,2 +1,1 @@
 """Revision-pinned corpus synchronization."""
-

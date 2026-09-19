@@ -9,6 +9,7 @@ from onmaru_ai.providers.gemini.models import (
     GeminiTransportRequest,
     GeminiTransportResponse,
     GeminiUsage,
+    GroundingChunk,
 )
 from onmaru_ai.providers.gemini.transport import GeminiTransport, HttpxGeminiTransport
 
@@ -24,5 +25,6 @@ __all__ = [
     "GeminiTransportRequest",
     "GeminiTransportResponse",
     "GeminiUsage",
+    "GroundingChunk",
     "HttpxGeminiTransport",
 ]

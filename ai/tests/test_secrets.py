@@ -50,8 +50,7 @@ def test_redactor_removes_current_and_previous_secret_values_from_logs() -> None
     )
 
     redacted = redactor.redact(
-        "current=gemini-current-secret previous=gemini-previous-secret "
-        "oauth=oauth-current-secret"
+        "current=gemini-current-secret previous=gemini-previous-secret oauth=oauth-current-secret"
     )
 
     assert redacted == "current=<REDACTED> previous=<REDACTED> oauth=<REDACTED>"

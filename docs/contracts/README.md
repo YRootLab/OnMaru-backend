@@ -3,6 +3,7 @@
 브라우저와 Spring 사이의 공개 계약, 그리고 Spring과 FastAPI 사이에서 유지해야 할 typed boundary를 보조한다. 구현 전에는 계약 초안이며, 실제 endpoint가 아니다.
 
 - [Public REST API](rest-api.md): 여정, 저장, 오류, idempotency, VisitReview 계약
+- [스크린 속 한옥 (K-콘텐츠 연계) API](screen-hanok-api.md): K-드라마·영화·KPOP 촬영지 한옥 목록 조회 계약 (FE `KCultureThemeFeed` 전달용)
 - [Frontend handoff](frontend-handoff.md): FE 반영 범위와 전환 체크리스트
 - [`openapi/journey.openapi.yaml`](openapi/journey.openapi.yaml): AI 여정 REST command/snapshot/SSE와 SavedJourney endpoint OpenAPI 3.1 계약
 - [`fixtures/journey`](fixtures/journey): stateVersion, idempotency, 409 conflict, 비식별 저장·상세·삭제·재개 시나리오 fixture
