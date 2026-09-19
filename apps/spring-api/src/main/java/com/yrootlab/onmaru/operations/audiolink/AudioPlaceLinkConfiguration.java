@@ -16,7 +16,6 @@ import java.time.Clock;
 class AudioPlaceLinkConfiguration {
 
     @Bean
-    @Profile("!production")
     @ConditionalOnMissingBean(AudioPlaceLinkStore.class)
     AudioPlaceLinkStore audioPlaceLinkStore() {
         return new InMemoryAudioPlaceLinkStore();
@@ -29,9 +28,10 @@ class AudioPlaceLinkConfiguration {
 
     @Bean
     AudioPlaceLinkService audioPlaceLinkService(
-            AudioPlaceLinkStore store,
+            org.springframework.beans.factory.ObjectProvider<AudioPlaceLinkStore> storeProvider,
             CanonicalPlaceLinkLookup canonicalPlaceLinkLookup,
             Clock clock) {
+        AudioPlaceLinkStore store = storeProvider.getIfAvailable(InMemoryAudioPlaceLinkStore::new);
         return new AudioPlaceLinkService(store, canonicalPlaceLinkLookup, clock);
     }
 }
