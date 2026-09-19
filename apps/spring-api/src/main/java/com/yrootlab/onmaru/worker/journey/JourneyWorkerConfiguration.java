@@ -23,6 +23,8 @@ import com.yrootlab.onmaru.journey.worker.JourneyWorkerService;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerTelemetry;
 import com.yrootlab.onmaru.persistence.journey.run.JdbcJourneyRunStore;
 import com.yrootlab.onmaru.persistence.journey.worker.JdbcJourneyResultStore;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -91,9 +93,9 @@ class JourneyWorkerConfiguration {
     @Bean
     @ConditionalOnBean(DataSource.class)
     AiProposalClient aiProposalClient(
-            org.springframework.beans.factory.ObjectProvider<ObjectMapper> objectMapperProvider,
+            ObjectProvider<ObjectMapper> objectMapperProvider,
             AiIntegrationProperties properties,
-            InternalAiRequestHeadersFactory headersFactory,
+            @Qualifier("internalAiRequestHeadersFactory") InternalAiRequestHeadersFactory headersFactory,
             JourneyWorkerTelemetry telemetry) {
         ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new HttpAiProposalClient(
