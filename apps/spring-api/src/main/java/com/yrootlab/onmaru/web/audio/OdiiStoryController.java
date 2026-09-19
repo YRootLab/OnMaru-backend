@@ -51,7 +51,7 @@ public final class OdiiStoryController {
             description = "언어, 카테고리, 행정구역 코드를 기반으로 오디 오디오 스토리 목록과 재생 시간, 커서 페이징 결과를 조회합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "오디오 스토리 목록 조회 성공"),
+            @ApiResponse(responseCode = "200", description = "오디오 스토리 목록 조회 성공", content = @Content(schema = @Schema(implementation = com.yrootlab.onmaru.audio.query.OdiiStoryPage.class))),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 요청 또는 만료된 커서", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "503", description = "오디 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
@@ -94,7 +94,7 @@ public final class OdiiStoryController {
             description = "오디오 스토리 ID를 기반으로 스트리밍 오디오 URL, 전체 자막/스크립트 텍스트, 장소 매핑 정보를 조회합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "오디오 스토리 상세 조회 성공"),
+            @ApiResponse(responseCode = "200", description = "오디오 스토리 상세 조회 성공", content = @Content(schema = @Schema(implementation = com.yrootlab.onmaru.audio.query.OdiiStoryDetail.class))),
             @ApiResponse(responseCode = "404", description = "오디오 스토리를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "503", description = "오디 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })

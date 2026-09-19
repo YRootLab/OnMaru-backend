@@ -44,7 +44,7 @@ public final class PlaceDetailController {
             description = "장소 ID(placeId)를 기반으로 기본 정보, 위치 좌표, 개요, 대표 사진, Odii 오디오 매핑 정보를 포함한 상세 정보를 조회합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "장소 상세 조회 성공"),
+            @ApiResponse(responseCode = "200", description = "장소 상세 조회 성공", content = @Content(schema = @Schema(implementation = com.yrootlab.onmaru.catalog.application.query.detail.CanonicalPlaceDetail.class))),
             @ApiResponse(responseCode = "404", description = "장소를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "503", description = "카탈로그 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
@@ -71,7 +71,7 @@ public final class PlaceDetailController {
             description = "한옥 ID를 기반으로 건축 양식, 숙박/체험 정보, 편의시설, 에디토리얼 태그를 포함한 한옥 특화 상세 정보를 조회합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "한옥 상세 조회 성공"),
+            @ApiResponse(responseCode = "200", description = "한옥 상세 조회 성공", content = @Content(schema = @Schema(implementation = com.yrootlab.onmaru.catalog.application.query.detail.HanokDetail.class))),
             @ApiResponse(responseCode = "404", description = "한옥을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "503", description = "카탈로그 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
