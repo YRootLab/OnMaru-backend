@@ -67,7 +67,7 @@ public final class MemberTimelineController {
             description = "특정 월(YYYY-MM)에 발생한 나의 활동(방문 후기 작성, 여정 저장, 장소 찜하기, 오디오 도슨트 청취/북마크)을 일자별 그룹으로 묶어 커서 페이징 조회합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "타임라인 조회 성공"),
+            @ApiResponse(responseCode = "200", description = "타임라인 조회 성공", content = @Content(schema = @Schema(implementation = MemberTimelineResponse.class))),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 월(month) 형식 또는 커서", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })

@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.web.member;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.identity.lifecycle.MemberSessionRequiredException;
 import com.yrootlab.onmaru.identity.lifecycle.MemberSummary;
+import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -44,8 +45,8 @@ public final class MemberLifecycleController {
             description = "세션 쿠키 기반으로 현재 인증된 회원의 ID 및 닉네임 정보를 조회합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "회원 정보 조회 성공"),
-            @ApiResponse(responseCode = "401", description = "로그인 세션 필요")
+            @ApiResponse(responseCode = "200", description = "회원 정보 조회 성공", content = @Content(schema = @Schema(implementation = MemberMeResponse.class))),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
     @GetMapping("/api/v1/members/me")
     ResponseEntity<?> currentMember(
@@ -83,8 +84,8 @@ public final class MemberLifecycleController {
             description = "회원 탈퇴를 접수하고 세션을 즉시 만료시키며 비식별화/삭제 프로세스를 시작합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "202", description = "회원 탈퇴 요청 접수 완료"),
-            @ApiResponse(responseCode = "401", description = "로그인 세션 필요")
+            @ApiResponse(responseCode = "202", description = "회원 탈퇴 요청 접수 완료", content = @Content(schema = @Schema(implementation = MemberDeletingStatusResponse.class))),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
     @DeleteMapping("/api/v1/members/me")
     ResponseEntity<?> deleteCurrentMember(
