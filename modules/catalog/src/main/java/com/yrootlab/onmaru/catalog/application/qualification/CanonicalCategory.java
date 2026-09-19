@@ -5,5 +5,6 @@ public enum CanonicalCategory {
     HANOK_STAY,
     HANOK_CAFE,
     HANOK_EXPERIENCE,
-    TRADITIONAL_MARKET
+    TRADITIONAL_MARKET,
+    HISTORIC_SITE
 }

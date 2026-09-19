@@ -59,7 +59,7 @@ identity application이 소유한 `ExternalIdentityPort.authenticate(callback, l
 
 ## 전국 주제 allowlist와 03:00 KST 수집과 실패 복구
 
-원천은 한국관광공사 데이터 전체를 그대로 공개하는 저장소가 아니다. 전국 데이터를 수집하되 public catalog·AI 후보·Odii 연결 대상으로 게시하는 범위는 `HANOK`, `HANOK_STAY`, `HANOK_CAFE`, `HANOK_EXPERIENCE`, `TRADITIONAL_MARKET`, 그리고 이 주제와 검수된 관계가 있는 `ODII`다. source adapter는 원천 분류 코드와 검수 mapping을 stable canonical category로 기록하고, 매칭하지 못한 행을 추정해 공개하지 않는다. allowlist와 mapping 버전은 dataset revision에 묶어 재현하며, 실제 원천 응답 capture/fixture로 검증하기 전 LIVE_CANONICAL을 활성화하지 않는다.
+원천은 한국관광공사 데이터 전체를 그대로 공개하는 저장소가 아니다. 전국 데이터를 수집하되 public catalog·AI 후보·Odii 연결 대상으로 게시하는 범위는 `HANOK`, `HANOK_STAY`, `HANOK_CAFE`, `HANOK_EXPERIENCE`, `TRADITIONAL_MARKET`, `HISTORIC_SITE`, 그리고 이 주제와 검수된 관계가 있는 `ODII`다. `HISTORIC_SITE`는 TourAPI 역사관광지(contentTypeId 12, cat1 A02, cat2 A0201 — 고궁·성·유적지·사찰·탑·종교성지·묘소 등)를 cat2 단위로 수용한다. allowlist는 exact cat3 매칭이 항상 우선하고, cat3 wildcard 엔트리는 cat2 fallback으로만 동작한다. 예를 들어 `A02010700`은 exact `HANOK`로 남고 경복궁(실 capture `A02010100`)은 `HISTORIC_SITE`로 qualify된다. 자연관광지(A01), 문화시설(14) 등 이 범위 밖 분류는 계속 `UNSUPPORTED_CATEGORY` 격리이며, 박물관·기념관 수용은 cat3 실코드 검증 후 별도 결정한다. source adapter는 원천 분류 코드와 검수 mapping을 stable canonical category로 기록하고, 매칭하지 못한 행을 추정해 공개하지 않는다. allowlist와 mapping 버전(`tourapi-category-allowlist-v2`)은 dataset revision에 묶어 재현하며, 실제 원천 응답 capture/fixture로 검증하기 전 LIVE_CANONICAL을 활성화하지 않는다.
 
 | 테이블 | 키·필드·불변식 |
 |---|---|
