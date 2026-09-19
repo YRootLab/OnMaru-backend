@@ -68,6 +68,7 @@ describe('container and staging release pipeline', () => {
     assert.match(workflow, /concurrency:/);
     assert.match(workflow, /docker\/build-push-action@v6/);
     assert.match(workflow, /aquasecurity\/trivy-action@/);
+    assert.match(workflow, /aquasecurity\/trivy-action@v[0-9]+\.[0-9]+\.[0-9]+/);
     assert.match(workflow, /Dockerfile/);
     assert.match(workflow, /ai\/Dockerfile/);
     assert.match(workflow, /migration-gate:/);
