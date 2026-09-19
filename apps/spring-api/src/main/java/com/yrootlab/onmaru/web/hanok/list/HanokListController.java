@@ -49,7 +49,7 @@ public final class HanokListController {
             description = "키워드, 행정구역 코드, 카테고리(STAY, EXPERIENCE, HISTORIC), 대표 사진 유무를 기반으로 커서 페이징 방식의 한옥 목록을 조회합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "한옥 목록 조회 성공"),
+            @ApiResponse(responseCode = "200", description = "한옥 목록 조회 성공", content = @Content(schema = @Schema(implementation = com.yrootlab.onmaru.catalog.application.query.hanok.HanokListPage.class))),
             @ApiResponse(responseCode = "400", description = "유효하지 않거나 만료된 페이징 커서", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "503", description = "카탈로그 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })

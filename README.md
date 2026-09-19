@@ -66,6 +66,48 @@ UV_OFFLINE=1 uv run pytest
 
 오프라인 보장은 **같은 장비와 사용자 계정의 예열된 캐시**를 전제로 한다. 다른 노트북으로 Git 저장소만 옮기면 캐시가 함께 이동하지 않으므로 인터넷 연결 상태에서 최초 실행을 다시 해야 한다. 후속 Issue에서 새 라이브러리를 추가할 때도 온라인 `check` 또는 `uv sync`를 먼저 실행해야 한다.
 
+## 환경 분리 및 프로파일 전환 가이드 (Local, Develop, Production)
+
+> **💡 iOS 개발 경험이 있는 분들을 위한 매핑 가이드**
+> - **iOS Scheme / Target / Build Configuration (Debug, Staging, Release)** ➡️ Spring Boot의 **`SPRING_PROFILES_ACTIVE`** (`local`, `develop`, `production`) 및 Python의 **`ONMARU_ENV`**
+> - **`Secrets.xcconfig` / Plist / Keychain** ➡️ 환경변수(`ONMARU_SECRET_*`) 및 `.env.local`
+
+| 환경 (Stage) | Spring Profile | Secrets Source | DB / 외부 API 동작 | 용도 |
+|---|---|---|---|---|
+| **Local (기본)** | `local` (default) | `fake` (Mock) | 인메모리 DB, 가짜 외부 API 키로도 오프라인 빌드/테스트 100% 통과 | 로컬 빠른 개발 및 단위/통합 테스트 |
+| **Develop** | `develop` | `ENVIRONMENT` | Neon 개발용 DB, 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
+| **Production** | `production` | `ENVIRONMENT` | Neon Production DB (PostGIS), 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 (Render) |
+
+### 1. 프로파일별 실행 방법
+
+```bash
+# 1) 로컬 개발 (외부 키 없이 빠른 실행)
+./gradlew :apps:spring-api:bootRun
+
+# 2) 개발/스테이징 환경 실행 (로컬 환경변수 또는 .env.local 주입)
+SPRING_PROFILES_ACTIVE=develop ./gradlew :apps:spring-api:bootRun
+
+# 3) 프로덕션 환경 실행 (Render 등의 컨테이너 환경)
+SPRING_PROFILES_ACTIVE=production \
+ONMARU_SECRETS_SOURCE=ENVIRONMENT \
+./gradlew :apps:spring-api:bootRun
+```
+
+### 2. 필수 환경변수 목록 (Production / Develop)
+
+| 환경변수 | 설명 |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | 활성 프로파일 (`production`, `develop`, `local`) |
+| `ONMARU_SECRETS_SOURCE` | 시크릿 소스 (`ENVIRONMENT` 또는 `fake`) |
+| `ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT` | 한국관광공사 소리마루(Odii) 오디오 가이드 서비스키 |
+| `ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT` | 한국관광공사 TourAPI 국문관광정보 서비스키 |
+| `ONMARU_SECRET_GEMINI_API_KEY_CURRENT` | Google Gemini AI API 키 |
+| `ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT` | 쿠키 세션 및 카카오 OAuth 서명 비밀키 |
+| `ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT` | 관측성(OTel) 메트릭 전송 토큰 |
+| `ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT` | 관리자/운영자 API 인증 토큰 (`Bearer` 방식) |
+| `ONMARU_DB_URL` | Neon PostgreSQL 접속 JDBC URL |
+| `ONMARU_DB_RUNTIME_USER` / `PASSWORD` | DB 접속 계정 및 비밀번호 |
+
 ## 문서
 
 백엔드 기획과 구현 기준은 [`docs/README.md`](docs/README.md)에서 시작한다. Spring 실행 세부사항은 [`apps/spring-api/README.md`](apps/spring-api/README.md), FastAPI 실행 세부사항은 [`ai/README.md`](ai/README.md)를 참고한다.
