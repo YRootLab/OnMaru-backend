@@ -291,9 +291,7 @@ def test_dataset_display_name_does_not_change_gold_fingerprint_or_compatibility(
 
 def test_report_rejects_missing_duplicate_or_inconsistent_gate_sets() -> None:
     payload = evaluate_document(fixture_document()).model_dump(mode="json", by_alias=True)
-    schema_validator = Draft202012Validator(
-        EvalReport.model_json_schema(by_alias=True)
-    )
+    schema_validator = Draft202012Validator(EvalReport.model_json_schema(by_alias=True))
 
     empty = deepcopy(payload)
     empty["gates"] = []

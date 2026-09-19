@@ -13,6 +13,8 @@ import com.yrootlab.onmaru.integration.ai.screenhanok.HttpScreenHanokResearchCli
 import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFactory;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenProperties;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenSigner;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -25,6 +27,7 @@ import java.time.Duration;
  * this repository's current MonthlyHanokEdition precedent; JDBC persistence is a known follow-up.
  */
 @Configuration
+@EnableConfigurationProperties(AiIntegrationProperties.class)
 class ScreenHanokConfiguration {
 
     private static final InternalAiTokenProperties TOKEN_PROPERTIES = new InternalAiTokenProperties(
@@ -55,12 +58,13 @@ class ScreenHanokConfiguration {
 
     @Bean
     ScreenHanokResearchPort screenHanokResearchPort(
-            ObjectMapper objectMapper,
+            ObjectProvider<ObjectMapper> objectMapperProvider,
             AiIntegrationProperties aiIntegrationProperties,
             InternalAiRequestHeadersFactory screenHanokRequestHeadersFactory) {
+        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new HttpScreenHanokResearchClient(
                 HttpClient.newBuilder().connectTimeout(aiIntegrationProperties.timeout()).build(),
-                objectMapper,
+                mapper,
                 aiIntegrationProperties.baseUrl(),
                 screenHanokRequestHeadersFactory,
                 aiIntegrationProperties.timeout());

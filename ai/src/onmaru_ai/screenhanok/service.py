@@ -1,15 +1,34 @@
 from __future__ import annotations
 
-from onmaru_ai.providers.gemini.adapter import GeminiAdapter
-from onmaru_ai.providers.gemini.models import GeminiProviderError
+import asyncio
+from collections.abc import Mapping
+from typing import Any, Protocol
+
+from onmaru_ai.providers.gemini.models import (
+    GeminiPrompt,
+    GeminiProviderError,
+    GeminiResult,
+)
 from onmaru_ai.screenhanok.models import ScreenHanokCandidate, ScreenHanokMatch
 from onmaru_ai.screenhanok.prompt import RESPONSE_SCHEMA, build_prompt
 
 REQUEST_TIMEOUT_SECONDS = 20.0
 
 
+class GeminiResearchAdapter(Protocol):
+    async def generate(
+        self,
+        prompt: GeminiPrompt,
+        *,
+        response_schema: Mapping[str, Any],
+        timeout_seconds: float,
+        cancellation_event: asyncio.Event | None = None,
+        enable_search_grounding: bool = False,
+    ) -> GeminiResult: ...
+
+
 class ScreenHanokResearchService:
-    def __init__(self, adapter: GeminiAdapter) -> None:
+    def __init__(self, adapter: GeminiResearchAdapter) -> None:
         self._adapter = adapter
 
     async def research(

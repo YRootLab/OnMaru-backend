@@ -70,9 +70,7 @@ def create_app(
             api_key=gemini_secret.current,
             telemetry_sink=telemetry_sink or create_telemetry_sink(),
         )
-        install_screen_hanok_research(
-            app, provider, ScreenHanokResearchService(gemini_adapter)
-        )
+        install_screen_hanok_research(app, provider, ScreenHanokResearchService(gemini_adapter))
 
     @app.get("/health")
     async def health() -> dict[str, str]:

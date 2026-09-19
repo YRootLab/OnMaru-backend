@@ -92,11 +92,7 @@ def install_internal_auth(
         if body.use_rag:
             if body.corpus_revision_id is None:
                 return _contract_error()
-            if (
-                rag_feature_enabled
-                and rag_activation_log is not None
-                and rag_retriever is not None
-            ):
+            if rag_feature_enabled and rag_activation_log is not None and rag_retriever is not None:
                 revision_id = body.corpus_revision_id
                 rag_evidence_refs = RagRetrievalGate(rag_activation_log).retrieve_if_active(
                     corpus_revision_id=revision_id,

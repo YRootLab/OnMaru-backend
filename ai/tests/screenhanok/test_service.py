@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
+from typing import Any
 
 from onmaru_ai.providers.gemini.models import (
     GeminiFailureCode,
+    GeminiPrompt,
     GeminiProviderError,
     GeminiResult,
     GeminiUsage,
@@ -34,13 +37,13 @@ class FakeAdapter:
 
     async def generate(
         self,
-        prompt,
+        prompt: GeminiPrompt,
         *,
-        response_schema,
-        timeout_seconds,
-        cancellation_event=None,
-        enable_search_grounding=False,
-    ):
+        response_schema: Mapping[str, Any],
+        timeout_seconds: float,
+        cancellation_event: asyncio.Event | None = None,
+        enable_search_grounding: bool = False,
+    ) -> GeminiResult:
         del prompt, response_schema, timeout_seconds, cancellation_event, enable_search_grounding
         if self._error is not None:
             raise self._error

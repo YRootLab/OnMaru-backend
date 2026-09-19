@@ -50,9 +50,7 @@ def passing_rag_report_with_gain() -> EvalReport:
 
     baseline = evaluate_document(baseline_document)
     rag_report = evaluate_document(rag_document)
-    return rag_report.model_copy(
-        update={"comparison": compare_reports(rag_report, baseline)}
-    )
+    return rag_report.model_copy(update={"comparison": compare_reports(rag_report, baseline)})
 
 
 def test_gate_failure_records_revision_pinned_rollback_and_skips_retrieval() -> None:
