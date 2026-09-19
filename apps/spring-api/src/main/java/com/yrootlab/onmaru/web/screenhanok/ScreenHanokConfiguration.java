@@ -14,6 +14,7 @@ import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFacto
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenProperties;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenSigner;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -60,7 +61,7 @@ class ScreenHanokConfiguration {
     ScreenHanokResearchPort screenHanokResearchPort(
             ObjectProvider<ObjectMapper> objectMapperProvider,
             AiIntegrationProperties aiIntegrationProperties,
-            InternalAiRequestHeadersFactory screenHanokRequestHeadersFactory) {
+            @Qualifier("screenHanokRequestHeadersFactory") InternalAiRequestHeadersFactory screenHanokRequestHeadersFactory) {
         ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new HttpScreenHanokResearchClient(
                 HttpClient.newBuilder().connectTimeout(aiIntegrationProperties.timeout()).build(),
