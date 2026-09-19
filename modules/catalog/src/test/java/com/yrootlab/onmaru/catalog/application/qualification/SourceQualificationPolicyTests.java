@@ -30,7 +30,7 @@ class SourceQualificationPolicyTests {
         assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
         assertThat(result.candidate()).isPresent();
         assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.HANOK);
-        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v2");
+        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v3");
         assertThat(result.candidate().orElseThrow().normalizedHash()).hasSize(64);
         assertThat(result.quarantine()).isEmpty();
     }
@@ -84,6 +84,27 @@ class SourceQualificationPolicyTests {
 
         assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
         assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.HISTORIC_SITE);
+        assertThat(result.quarantine()).isEmpty();
+    }
+
+    @Test
+    void qualifiesTraditionalMarketSiblingCategoryUnderCat2WildcardAsTraditionalMarket() {
+        SourceRecord row = row(Map.of(
+                "contentid", "2000501",
+                "contenttypeid", "38",
+                "title", "통인시장",
+                "cat1", "A04",
+                "cat2", "A0401",
+                "cat3", "A04010100",
+                "mapx", "126.970000",
+                "mapy", "37.580000",
+                "modifiedtime", "20260914030100"
+        ));
+
+        QualificationResult result = policy.qualify(row);
+
+        assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
+        assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.TRADITIONAL_MARKET);
         assertThat(result.quarantine()).isEmpty();
     }
 
