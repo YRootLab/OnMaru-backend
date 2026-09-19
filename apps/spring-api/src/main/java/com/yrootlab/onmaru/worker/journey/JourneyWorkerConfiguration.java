@@ -91,10 +91,11 @@ class JourneyWorkerConfiguration {
     @Bean
     @ConditionalOnBean(DataSource.class)
     AiProposalClient aiProposalClient(
-            ObjectMapper objectMapper,
+            org.springframework.beans.factory.ObjectProvider<ObjectMapper> objectMapperProvider,
             AiIntegrationProperties properties,
             InternalAiRequestHeadersFactory headersFactory,
             JourneyWorkerTelemetry telemetry) {
+        ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new HttpAiProposalClient(
                 HttpClient.newBuilder().connectTimeout(properties.timeout()).build(),
                 objectMapper,
