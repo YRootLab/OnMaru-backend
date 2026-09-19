@@ -16,6 +16,7 @@ from onmaru_ai.providers.gemini import (
     GeminiProviderError,
     GeminiTransportRequest,
     GeminiTransportResponse,
+    GroundingChunk,
 )
 
 
@@ -292,3 +293,57 @@ def test_invalid_json_still_records_billed_usage() -> None:
     assert captured.value.code is GeminiFailureCode.AI_INVALID_RESPONSE
     assert sink.events[0].attributes["ai.usage.total_tokens"] == "160"
     assert sink.events[0].attributes["ai.usage.estimated_cost_micros"] == "28"
+
+
+def test_enable_search_grounding_adds_tool_and_parses_grounding_chunks() -> None:
+    transport = FakeTransport(
+        GeminiTransportResponse(
+            status_code=200,
+            body={
+                "candidates": [
+                    {
+                        "content": {"parts": [{"text": '{"matches":[]}'}]},
+                        "groundingMetadata": {
+                            "groundingChunks": [
+                                {"web": {"uri": "https://example.com/a", "title": "기사 A"}},
+                                {"web": {"uri": "https://example.com/b", "title": "기사 B"}},
+                                {"notWeb": {"uri": "ignored"}},
+                            ]
+                        },
+                    }
+                ],
+            },
+        )
+    )
+    sink = InMemoryTelemetrySink()
+    adapter = GeminiAdapter(config(), transport, api_key="secret", telemetry_sink=sink)
+
+    result = asyncio.run(
+        adapter.generate(
+            prompt(),
+            response_schema={"type": "object"},
+            timeout_seconds=3.0,
+            enable_search_grounding=True,
+        )
+    )
+
+    assert transport.requests[0].body["tools"] == [{"google_search": {}}]
+    assert result.grounding_chunks == (
+        GroundingChunk(uri="https://example.com/a", title="기사 A"),
+        GroundingChunk(uri="https://example.com/b", title="기사 B"),
+    )
+
+
+def test_missing_grounding_metadata_yields_empty_chunks() -> None:
+    transport = FakeTransport(
+        GeminiTransportResponse(
+            status_code=200,
+            body={"candidates": [{"content": {"parts": [{"text": '{"matches":[]}'}]}}]},
+        )
+    )
+    sink = InMemoryTelemetrySink()
+    adapter = GeminiAdapter(config(), transport, api_key="secret", telemetry_sink=sink)
+
+    result = run_generate(adapter)
+
+    assert result.grounding_chunks == ()

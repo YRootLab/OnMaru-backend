@@ -7,9 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from onmaru_ai.proposal import ProposalOutcome
 from onmaru_ai.proposal.text_safety import is_safe_proposal_text
 
-_EXPECTED_GATE_NAMES = frozenset(
-    {"quality", "safety", "latency", "cost", "determinism"}
-)
+_EXPECTED_GATE_NAMES = frozenset({"quality", "safety", "latency", "cost", "determinism"})
 _REPORT_GATE_SCHEMA_INVARIANTS: dict[str, Any] = {
     "allOf": [
         {

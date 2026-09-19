@@ -75,7 +75,14 @@ class GeminiUsage:
 
 
 @dataclass(frozen=True)
+class GroundingChunk:
+    uri: str
+    title: str
+
+
+@dataclass(frozen=True)
 class GeminiResult:
     proposal: Mapping[str, Any]
     usage: GeminiUsage
     model_version: str
+    grounding_chunks: tuple[GroundingChunk, ...] = ()

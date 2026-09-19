@@ -22,12 +22,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         document = json.loads(options.input.read_text(encoding="utf-8"))
         report = evaluate_document(document)
         if options.compare is not None:
-            baseline = EvalReport.model_validate_json(
-                options.compare.read_text(encoding="utf-8")
-            )
-            report = report.model_copy(
-                update={"comparison": compare_reports(report, baseline)}
-            )
+            baseline = EvalReport.model_validate_json(options.compare.read_text(encoding="utf-8"))
+            report = report.model_copy(update={"comparison": compare_reports(report, baseline)})
     except (OSError, ValueError, json.JSONDecodeError):
         print("ERROR invalid evaluation input or comparison report", file=sys.stderr)
         return 2
