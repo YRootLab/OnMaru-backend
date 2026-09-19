@@ -30,7 +30,7 @@ class SourceQualificationPolicyTests {
         assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
         assertThat(result.candidate()).isPresent();
         assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.HANOK);
-        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v1");
+        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v2");
         assertThat(result.candidate().orElseThrow().normalizedHash()).hasSize(64);
         assertThat(result.quarantine()).isEmpty();
     }
@@ -64,6 +64,46 @@ class SourceQualificationPolicyTests {
         String laterHash = policy.qualify(laterCapture).candidate().orElseThrow().normalizedHash();
 
         assertThat(laterHash).isEqualTo(baseHash);
+    }
+
+    @Test
+    void qualifiesHistoricTourismSiteUnderCat2WildcardAsHistoricSite() {
+        SourceRecord row = row(Map.of(
+                "contentid", "126508",
+                "contenttypeid", "12",
+                "title", "경복궁",
+                "cat1", "A02",
+                "cat2", "A0201",
+                "cat3", "A02010100",
+                "mapx", "126.976993",
+                "mapy", "37.578822",
+                "modifiedtime", "20260914030100"
+        ));
+
+        QualificationResult result = policy.qualify(row);
+
+        assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
+        assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.HISTORIC_SITE);
+        assertThat(result.quarantine()).isEmpty();
+    }
+
+    @Test
+    void exactCat3EntryTakesPrecedenceOverCat2Wildcard() {
+        SourceRecord row = row(Map.of(
+                "contentid", "126509",
+                "contenttypeid", "12",
+                "title", "한옥 정자",
+                "cat1", "A02",
+                "cat2", "A0201",
+                "cat3", "A02010700",
+                "mapx", "126.984900",
+                "mapy", "37.582604"
+        ));
+
+        QualificationResult result = policy.qualify(row);
+
+        assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
+        assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.HANOK);
     }
 
     @Test
