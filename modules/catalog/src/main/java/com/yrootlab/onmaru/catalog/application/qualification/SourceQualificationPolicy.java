@@ -16,7 +16,7 @@ import static java.util.Map.entry;
 
 public final class SourceQualificationPolicy {
 
-    private static final String ALLOWLIST_VERSION = "tourapi-category-allowlist-v2";
+    private static final String ALLOWLIST_VERSION = "tourapi-category-allowlist-v3";
     private static final Pattern SECRET_FIELD_PATTERN = Pattern.compile(".*(key|token|secret|authorization|cookie|requesturl).*", Pattern.CASE_INSENSITIVE);
     private static final Set<String> VOLATILE_HASH_FIELDS = Set.of("createdtime", "modifiedtime", "dist", "mlevel", "tel");
 
@@ -33,7 +33,8 @@ public final class SourceQualificationPolicy {
                 entry(new CategoryKey("39", "A05", "A0502", "A05020900"), CanonicalCategory.HANOK_CAFE),
                 entry(new CategoryKey("12", "A02", "A0203", "A02030400"), CanonicalCategory.HANOK_EXPERIENCE),
                 entry(new CategoryKey("38", "A04", "A0401", "A04010200"), CanonicalCategory.TRADITIONAL_MARKET),
-                entry(new CategoryKey("12", "A02", "A0201", null), CanonicalCategory.HISTORIC_SITE)
+                entry(new CategoryKey("12", "A02", "A0201", null), CanonicalCategory.HISTORIC_SITE),
+                entry(new CategoryKey("38", "A04", "A0401", null), CanonicalCategory.TRADITIONAL_MARKET)
         ));
     }
 
