@@ -64,10 +64,13 @@ describe('container and staging release pipeline', () => {
     const workflow = read('.github/workflows/deploy.yml');
 
     assert.match(workflow, /workflow_dispatch:/);
+    assert.match(workflow, /branches:\n\s+- master/);
+    assert.doesNotMatch(workflow, /branches:\n(?:\s+- .+\n)*\s+- main/);
     assert.match(workflow, /permissions:\n\s+contents: read\n\s+packages: write\n\s+security-events: write/);
     assert.match(workflow, /concurrency:/);
     assert.match(workflow, /docker\/build-push-action@v6/);
     assert.match(workflow, /aquasecurity\/trivy-action@/);
+    assert.match(workflow, /aquasecurity\/trivy-action@v[0-9]+\.[0-9]+\.[0-9]+/);
     assert.match(workflow, /Dockerfile/);
     assert.match(workflow, /ai\/Dockerfile/);
     assert.match(workflow, /migration-gate:/);
@@ -77,5 +80,15 @@ describe('container and staging release pipeline', () => {
     assert.match(workflow, /curl --fail --silent --show-error/);
     assert.match(workflow, /rollback-on-failure:/);
     assert.match(workflow, /environment:\s+staging/);
+  });
+
+  it('runs release and CI workflows from the master production branch', () => {
+    const releasePlease = read('.github/workflows/release-please.yml');
+    const ci = read('.github/workflows/ci.yml');
+
+    for (const workflow of [releasePlease, ci]) {
+      assert.match(workflow, /branches:\n(?:\s+- develop\n)?\s+- master/);
+      assert.doesNotMatch(workflow, /branches:\n(?:\s+- .+\n)*\s+- main/);
+    }
   });
 });
