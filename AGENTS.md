@@ -77,9 +77,9 @@
 
 - Require Pull Requests before merging to `develop` and `master`.
 - Require the `verify` CI status check.
-- Require at least one approval for shared repository changes.
+- Do not require a minimum number of approving reviews.
 - Restrict force pushes and protected branch deletion.
-- The repository was switched from private to public (2026-09-19). `develop` and `master` currently have no branch protection rule configured on GitHub (confirmed via API: `404 Branch not protected`) — tracked in Issue #252. Treat the workflow checks and documented PR policy as compensating controls until protection is configured.
+- The repository was switched from private to public (2026-09-19). The active `Protect Git Flow Branches` Ruleset applies to `develop`, `master`, and `release/*`, requiring pull requests, the `verify` status check, branch deletion protection, and force-push prevention. Ruleset bypass is disabled, and approving reviews are not required. Issue #252 tracks the configuration and verification.
 
 ## Project Harness Lifecycle
 
