@@ -39,9 +39,9 @@ class TourApiCatalogSourceMapperTests {
                 .put("contentid", "900001")
                 .put("contenttypeid", "12")
                 .put("title", "비허용 관광지")
-                .put("cat1", "A01")
-                .put("cat2", "A0101")
-                .put("cat3", "A01010100")
+                .put("cat1", "A99")
+                .put("cat2", "A9901")
+                .put("cat3", "A99010100")
                 .put("mapx", "126.9")
                 .put("mapy", "37.5")
                 .put("token", "MUST_NOT_SURFACE"));

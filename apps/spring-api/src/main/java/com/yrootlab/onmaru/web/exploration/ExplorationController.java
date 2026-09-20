@@ -99,7 +99,7 @@ public final class ExplorationController {
             @ApiResponse(responseCode = "400", description = "유효하지 않은 요청 본문", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "429", description = "동시 실행 정원 초과 (Admission Throttled)", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
-    @PostMapping("/api/v1/explorations")
+    @PostMapping({"/api/v1/explorations", "/api/journey-curator/explore"})
     ResponseEntity<RunAcceptedResponse> create(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "여정 탐색 시작 요청 DTO")
             @RequestBody(required = false) CreateRequest body,

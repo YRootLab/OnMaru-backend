@@ -131,6 +131,15 @@
       "checksum": "o08-v015-20260917",
       "sha256": "0ac59c96c810f057fa528562896397ff5a1332e3f11c145a875ca83287d9c638",
       "description": "TTL cleanup, revision GC, member deletion cleanup, and replayable deletion ledger"
+    },
+    {
+      "version": "016",
+      "reservedFor": "J10",
+      "issueNumber": 77,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V016__j10_reconcile_missing_discovery_runs.sql",
+      "checksum": "j10-v016-20260920",
+      "sha256": "22aeb5f17ab4715ebfdc55cf42687fea98da9b8474023fbfe021532cf042d576",
+      "description": "Reconcile a missing discovery_runs relation without manual production DDL"
     }
   ]
 }
