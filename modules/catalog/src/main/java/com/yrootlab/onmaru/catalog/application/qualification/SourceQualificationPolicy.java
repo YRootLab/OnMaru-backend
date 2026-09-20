@@ -34,7 +34,9 @@ public final class SourceQualificationPolicy {
                 entry(new CategoryKey("12", "A02", "A0203", "A02030400"), CanonicalCategory.HANOK_EXPERIENCE),
                 entry(new CategoryKey("38", "A04", "A0401", "A04010200"), CanonicalCategory.TRADITIONAL_MARKET),
                 entry(new CategoryKey("12", "A02", "A0201", null), CanonicalCategory.HISTORIC_SITE),
-                entry(new CategoryKey("38", "A04", "A0401", null), CanonicalCategory.TRADITIONAL_MARKET)
+                entry(new CategoryKey("38", "A04", "A0401", null), CanonicalCategory.TRADITIONAL_MARKET),
+                entry(new CategoryKey("12", "A01", null, null), CanonicalCategory.NATURE_SITE),
+                entry(new CategoryKey("12", "A03", null, null), CanonicalCategory.LEISURE_ACTIVITY)
         ));
     }
 
@@ -78,7 +80,10 @@ public final class SourceQualificationPolicy {
             return Optional.of(exact);
         }
         CanonicalCategory cat2Level = allowlist.get(new CategoryKey(key.contentTypeId(), key.cat1(), key.cat2(), null));
-        return Optional.ofNullable(cat2Level);
+        if (cat2Level != null) {
+            return Optional.of(cat2Level);
+        }
+        return Optional.ofNullable(allowlist.get(new CategoryKey(key.contentTypeId(), key.cat1(), null, null)));
     }
 
     private QualificationResult quarantine(SourceRecord row, String errorCode) {
