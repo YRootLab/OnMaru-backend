@@ -11,7 +11,8 @@ RUN uv sync --frozen --no-dev --no-editable
 FROM python:3.12-alpine AS runner
 WORKDIR /app
 
-RUN addgroup -S onmaru \
+RUN apk upgrade --no-cache \
+    && addgroup -S onmaru \
     && adduser -S onmaru -G onmaru
 
 COPY --from=builder --chown=onmaru:onmaru /workspace/ai/.venv /app/.venv

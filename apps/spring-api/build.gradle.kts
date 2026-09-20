@@ -4,6 +4,14 @@ plugins {
     alias(libs.plugins.spring.dependency.management)
 }
 
+dependencyManagement {
+    dependencies {
+        dependency("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")
+        dependency("org.apache.tomcat.embed:tomcat-embed-el:11.0.26")
+        dependency("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.26")
+    }
+}
+
 dependencies {
     implementation(project(":adapters:persistence-jdbc"))
     implementation(project(":adapters:tourism-api"))
@@ -16,6 +24,12 @@ dependencies {
     implementation(project(":modules:journey"))
     implementation(project(":modules:operations"))
     implementation(project(":modules:shared-web"))
+
+    constraints {
+        implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")
+        implementation("org.apache.tomcat.embed:tomcat-embed-el:11.0.26")
+        implementation("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.26")
+    }
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
