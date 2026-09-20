@@ -22,9 +22,9 @@
 | --- | --- | --- |
 | `limit` | number | 1~50, 기본값 20 |
 | `cursor` | string | 다음 페이지 cursor |
-| `category` | string | `HANOK`, `HANOK_CAFE`, `HANOK_EXPERIENCE`, `HISTORIC_SITE`, `NATURE_SITE`, `LEISURE_ACTIVITY`, `TRADITIONAL_MARKET` |
+| `category` | string | `HANOK`, `HANOK_STAY`, `HANOK_CAFE`, `HANOK_EXPERIENCE`, `HISTORIC_SITE`, `NATURE_SITE`, `TRADITIONAL_MARKET`, `CULTURE_ART`, `TRADITIONAL_FOOD`, `GARDEN_ECOLOGY`, `LOCAL_SCENE` |
 | `regionCode` | string | 행정 지역 코드 |
-| `keyword` | string | 장소명·요약 검색 |
+| `keyword` | string | 장소명·요약·태그 검색. `한옥`은 한옥 여행 관련 카테고리까지 확장 검색 |
 | `hasImage` | boolean | 이미지가 있는 카드만 조회 |
 
 응답 예시:

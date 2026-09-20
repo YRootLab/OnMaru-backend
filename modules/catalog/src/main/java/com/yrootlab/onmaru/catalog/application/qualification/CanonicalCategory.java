@@ -8,5 +8,9 @@ public enum CanonicalCategory {
     TRADITIONAL_MARKET,
     HISTORIC_SITE,
     NATURE_SITE,
+    CULTURE_ART,
+    TRADITIONAL_FOOD,
+    GARDEN_ECOLOGY,
+    LOCAL_SCENE,
     LEISURE_ACTIVITY
 }

@@ -55,7 +55,7 @@ class HomeWebBoundaryTests {
                 .andExpect(jsonPath("$.items[0].category").value("HANOK"))
                 .andExpect(jsonPath("$.items[3].category").value("HISTORIC_SITE"))
                 .andExpect(jsonPath("$.items[9].category").value("NATURE_SITE"))
-                .andExpect(jsonPath("$.items[11].category").value("LEISURE_ACTIVITY"))
+                .andExpect(jsonPath("$.items[11].category").value("LOCAL_SCENE"))
                 .andExpect(jsonPath("$.hasMore").value(true));
     }
 
@@ -64,7 +64,7 @@ class HomeWebBoundaryTests {
         mockMvc.perform(get("/api/v1/home/curated-courses").param("limit", "25"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(25))
-                .andExpect(jsonPath("$.hasMore").value(false));
+                .andExpect(jsonPath("$.hasMore").value(true));
     }
 
     @Test
@@ -82,10 +82,32 @@ class HomeWebBoundaryTests {
                 .andExpect(jsonPath("$.items[*].category").value(
                         org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("NATURE_SITE"))));
         mockMvc.perform(get("/api/v1/home/curated-courses")
-                        .param("category", "LEISURE_ACTIVITY"))
+                        .param("category", "CULTURE_ART"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isNotEmpty())
                 .andExpect(jsonPath("$.items[*].category").value(
-                        org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("LEISURE_ACTIVITY"))));
+                        org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("CULTURE_ART"))));
+        mockMvc.perform(get("/api/v1/home/curated-courses")
+                        .param("category", "HANOK_STAY"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isNotEmpty())
+                .andExpect(jsonPath("$.items[*].category").value(
+                        org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("HANOK_STAY"))));
+        mockMvc.perform(get("/api/v1/home/curated-courses")
+                        .param("category", "TRADITIONAL_FOOD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isNotEmpty())
+                .andExpect(jsonPath("$.items[*].category").value(
+                        org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("TRADITIONAL_FOOD"))));
+        mockMvc.perform(get("/api/v1/home/curated-courses")
+                        .param("category", "LOCAL_SCENE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isNotEmpty())
+                .andExpect(jsonPath("$.items[*].category").value(
+                        org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("LOCAL_SCENE"))));
+        mockMvc.perform(get("/api/v1/home/curated-courses")
+                        .param("category", "LEISURE_ACTIVITY"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CURSOR_INVALID"));
     }
 }
