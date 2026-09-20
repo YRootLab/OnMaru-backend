@@ -189,7 +189,11 @@ public final class HomeController {
             return null;
         }
         try {
-            return HanokListCategory.valueOf(category);
+            HanokListCategory parsed = HanokListCategory.valueOf(category);
+            if (parsed == HanokListCategory.LEISURE_ACTIVITY) {
+                throw new HanokCursorInvalidException();
+            }
+            return parsed;
         } catch (IllegalArgumentException exception) {
             throw new HanokCursorInvalidException();
         }

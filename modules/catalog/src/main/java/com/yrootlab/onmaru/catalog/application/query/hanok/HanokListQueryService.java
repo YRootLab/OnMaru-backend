@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public final class HanokListQueryService {
 
@@ -13,6 +14,15 @@ public final class HanokListQueryService {
     private static final String CURSOR_PREFIX = "r1.hanoks.cursor.";
     private static final Instant CURSOR_REFERENCE_NOW = Instant.parse("2026-09-14T08:00:00Z");
     private static final Duration CURSOR_TTL = Duration.ofDays(90);
+    private static final Set<HanokListCategory> HANOK_RELATED_CATEGORIES = Set.of(
+            HanokListCategory.HANOK,
+            HanokListCategory.HANOK_STAY,
+            HanokListCategory.HANOK_CAFE,
+            HanokListCategory.HANOK_EXPERIENCE,
+            HanokListCategory.TRADITIONAL_MARKET,
+            HanokListCategory.CULTURE_ART,
+            HanokListCategory.TRADITIONAL_FOOD,
+            HanokListCategory.LOCAL_SCENE);
 
     private final HanokListStore store;
     private final HanokSavedStateLookup savedStateLookup;
@@ -61,8 +71,14 @@ public final class HanokListQueryService {
         if (normalizedKeyword == null) {
             return true;
         }
+        if (normalizedKeyword.equals("한옥") && HANOK_RELATED_CATEGORIES.contains(projection.category())) {
+            return true;
+        }
         return normalize(projection.name()).contains(normalizedKeyword)
-                || normalize(projection.summary()).contains(normalizedKeyword);
+                || normalize(projection.summary()).contains(normalizedKeyword)
+                || projection.tags().stream()
+                .map(this::normalize)
+                .anyMatch(tag -> tag != null && tag.contains(normalizedKeyword));
     }
 
     private boolean isAfterCursor(HanokListProjection projection, DecodedCursor cursor) {

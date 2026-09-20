@@ -16,7 +16,7 @@ import static java.util.Map.entry;
 
 public final class SourceQualificationPolicy {
 
-    private static final String ALLOWLIST_VERSION = "tourapi-category-allowlist-v3";
+    private static final String ALLOWLIST_VERSION = "tourapi-category-allowlist-v4";
     private static final Pattern SECRET_FIELD_PATTERN = Pattern.compile(".*(key|token|secret|authorization|cookie|requesturl).*", Pattern.CASE_INSENSITIVE);
     private static final Set<String> VOLATILE_HASH_FIELDS = Set.of("createdtime", "modifiedtime", "dist", "mlevel", "tel");
 
@@ -36,6 +36,15 @@ public final class SourceQualificationPolicy {
                 entry(new CategoryKey("12", "A02", "A0201", null), CanonicalCategory.HISTORIC_SITE),
                 entry(new CategoryKey("38", "A04", "A0401", null), CanonicalCategory.TRADITIONAL_MARKET),
                 entry(new CategoryKey("12", "A01", null, null), CanonicalCategory.NATURE_SITE),
+                entry(new CategoryKey("14", "A02", "A0206", "A02060100"), CanonicalCategory.CULTURE_ART),
+                entry(new CategoryKey("14", "A02", "A0206", "A02060200"), CanonicalCategory.CULTURE_ART),
+                entry(new CategoryKey("14", "A02", "A0206", "A02060300"), CanonicalCategory.CULTURE_ART),
+                entry(new CategoryKey("39", "A05", "A0502", "A05020100"), CanonicalCategory.TRADITIONAL_FOOD),
+                entry(new CategoryKey("12", "A01", "A0101", "A01010500"), CanonicalCategory.GARDEN_ECOLOGY),
+                entry(new CategoryKey("12", "A01", "A0101", "A01010600"), CanonicalCategory.GARDEN_ECOLOGY),
+                entry(new CategoryKey("12", "A01", "A0101", "A01010700"), CanonicalCategory.GARDEN_ECOLOGY),
+                entry(new CategoryKey("12", "A02", "A0203", "A02030100"), CanonicalCategory.LOCAL_SCENE),
+                entry(new CategoryKey("12", "A02", "A0203", "A02030200"), CanonicalCategory.LOCAL_SCENE),
                 entry(new CategoryKey("12", "A03", null, null), CanonicalCategory.LEISURE_ACTIVITY)
         ));
     }

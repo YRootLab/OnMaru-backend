@@ -132,7 +132,7 @@ class HanokListConfiguration {
         store.add(card(
                 "p-jeonju-traditional-experience",
                 "전주 전통문화 체험관",
-                HanokListCategory.LEISURE_ACTIVITY,
+                HanokListCategory.LOCAL_SCENE,
                 "kr-45-jeonju",
                 "전북 전주시",
                 null,
@@ -222,7 +222,7 @@ class HanokListConfiguration {
         store.add(card(
                 "p-jeonju-hanji",
                 "전주 한지문화축제 체험",
-                HanokListCategory.LEISURE_ACTIVITY,
+                HanokListCategory.CULTURE_ART,
                 "kr-45-jeonju",
                 "전북 전주시",
                 null,
@@ -232,7 +232,7 @@ class HanokListConfiguration {
         store.add(card(
                 "p-gangneung-dano",
                 "강릉 단오문화관",
-                HanokListCategory.LEISURE_ACTIVITY,
+                HanokListCategory.CULTURE_ART,
                 "kr-42-gangneung",
                 "강원 강릉시",
                 null,
@@ -242,7 +242,7 @@ class HanokListConfiguration {
         store.add(card(
                 "p-boseong-tea",
                 "보성 녹차밭 체험",
-                HanokListCategory.LEISURE_ACTIVITY,
+                HanokListCategory.TRADITIONAL_FOOD,
                 "kr-46-boseong",
                 "전남 보성군",
                 null,
@@ -269,6 +269,16 @@ class HanokListConfiguration {
                 "찜닭과 제례 음식, 지역 상인 문화를 한옥 마을과 함께 경험하는 전통시장입니다.",
                 List.of("시장", "음식", "안동"),
                 Instant.parse("2026-09-12T00:00:00Z")));
+        store.add(card(
+                "p-jeonju-hanok-stay",
+                "전주 한옥스테이",
+                HanokListCategory.HANOK_STAY,
+                "kr-45-jeonju",
+                "전북 전주시",
+                null,
+                "전통 한옥의 구조와 마당을 보존한 숙박 공간에서 하루를 머물 수 있습니다.",
+                List.of("한옥", "숙박", "전주"),
+                Instant.parse("2026-09-11T23:00:00Z")));
         return store;
     }
 

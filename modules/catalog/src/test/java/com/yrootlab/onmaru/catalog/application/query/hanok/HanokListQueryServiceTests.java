@@ -42,6 +42,33 @@ class HanokListQueryServiceTests {
     }
 
     @Test
+    void hanokKeywordIncludesRelatedTraditionalCategories() {
+        var store = new InMemoryHanokListStore();
+        store.add(card("p-hanok-stay", "고택 숙박", HanokListCategory.HANOK_STAY,
+                "kr-45-jeonju", "전북 전주시", Instant.parse("2026-09-14T08:00:00Z"),
+                List.of("고택", "숙박")));
+        store.add(card("p-traditional-food", "전통 음식점", HanokListCategory.TRADITIONAL_FOOD,
+                "kr-45-jeonju", "전북 전주시", Instant.parse("2026-09-14T07:00:00Z"),
+                List.of("한식", "전통음식")));
+        store.add(card("p-modern-tour", "현대 관광지", HanokListCategory.NATURE_SITE,
+                "kr-45-jeonju", "전북 전주시", Instant.parse("2026-09-14T06:00:00Z"),
+                List.of("자연")));
+        var service = new HanokListQueryService(store, (memberId, placeId) -> false);
+
+        HanokListPage page = service.list(new HanokListQuery(
+                "한옥",
+                null,
+                null,
+                false,
+                20,
+                null,
+                Optional.empty()));
+
+        assertThat(page.items()).extracting(HanokCard::placeId)
+                .containsExactly("p-hanok-stay", "p-traditional-food");
+    }
+
+    @Test
     void returnsStableCursorPageByPublishedAtAndPlaceId() {
         var store = new InMemoryHanokListStore();
         store.add(card("p-jeonju-hanok-village", "전주 한옥마을", HanokListCategory.HANOK,
@@ -110,6 +137,17 @@ class HanokListQueryServiceTests {
             String regionCode,
             String regionName,
             Instant publishedAt) {
+        return card(placeId, name, category, regionCode, regionName, publishedAt, List.of("한옥"));
+    }
+
+    private HanokListProjection card(
+            String placeId,
+            String name,
+            HanokListCategory category,
+            String regionCode,
+            String regionName,
+            Instant publishedAt,
+            List<String> tags) {
         return new HanokListProjection(
                 placeId,
                 name,
@@ -118,7 +156,7 @@ class HanokListQueryServiceTests {
                 regionName,
                 null,
                 name + " 요약입니다.",
-                List.of("한옥"),
+                tags,
                 publishedAt,
                 HanokListStatus.PUBLIC);
     }
