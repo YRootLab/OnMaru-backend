@@ -128,7 +128,7 @@ class SourceQualificationPolicyTests {
     }
 
     @Test
-    void quarantinesUnsupportedCategoryWithoutPublicCandidate() {
+    void qualifiesNatureTourismSiteUnderCat2WildcardAsNatureSite() {
         SourceRecord row = row(Map.of(
                 "contentid", "200001",
                 "contenttypeid", "12",
@@ -142,10 +142,29 @@ class SourceQualificationPolicyTests {
 
         QualificationResult result = policy.qualify(row);
 
-        assertThat(result.status()).isEqualTo(QualificationStatus.QUARANTINED);
-        assertThat(result.candidate()).isEmpty();
-        assertThat(result.quarantine()).isPresent();
-        assertThat(result.quarantine().orElseThrow().errorCode()).isEqualTo("UNSUPPORTED_CATEGORY");
+        assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
+        assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.NATURE_SITE);
+        assertThat(result.quarantine()).isEmpty();
+    }
+
+    @Test
+    void qualifiesLeisureActivityUnderCat2WildcardAsLeisureActivity() {
+        SourceRecord row = row(Map.of(
+                "contentid", "300001",
+                "contenttypeid", "12",
+                "title", "전통 체험 마을",
+                "cat1", "A03",
+                "cat2", "A0301",
+                "cat3", "A03010100",
+                "mapx", "127.1",
+                "mapy", "35.8"
+        ));
+
+        QualificationResult result = policy.qualify(row);
+
+        assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
+        assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.LEISURE_ACTIVITY);
+        assertThat(result.quarantine()).isEmpty();
     }
 
     @Test
@@ -181,9 +200,9 @@ class SourceQualificationPolicyTests {
                 entry("contentid", "200001"),
                 entry("contenttypeid", "12"),
                 entry("title", "비허용 일반 관광지"),
-                entry("cat1", "A01"),
-                entry("cat2", "A0101"),
-                entry("cat3", "A01010100"),
+                entry("cat1", "A99"),
+                entry("cat2", "A9901"),
+                entry("cat3", "A99010100"),
                 entry("mapx", "126.9"),
                 entry("mapy", "37.5"),
                 entry("serviceKey", "REAL_PROVIDER_KEY"),
