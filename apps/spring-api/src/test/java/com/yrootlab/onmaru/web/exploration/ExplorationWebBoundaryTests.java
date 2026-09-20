@@ -177,6 +177,24 @@ class ExplorationWebBoundaryTests {
     }
 
     @Test
+    void journeyCuratorAliasUsesTheExplorationCreationContract() throws Exception {
+        mockMvc.perform(post("/api/journey-curator/explore")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "query", "전주 한옥 여행",
+                                "locale", "ko-KR",
+                                "regionCode", "kr-45-jeonju")))
+                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.explorationId", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.runId", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.snapshotUrl", not(emptyOrNullString())));
+    }
+
+    @Test
     void sameGuestCanReadButAnotherActorReceivesNotFound() throws Exception {
         var result = createGuestExploration(ownerToken, "kr-45-jeonju");
         var explorationId = objectMapper.readTree(result).path("explorationId").asText();
