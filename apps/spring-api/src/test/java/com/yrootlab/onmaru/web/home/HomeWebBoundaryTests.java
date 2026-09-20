@@ -53,6 +53,7 @@ class HomeWebBoundaryTests {
         mockMvc.perform(get("/api/v1/home/curated-courses").param("limit", "12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].category").value("HANOK"))
+                .andExpect(jsonPath("$.items[0].thumbnailUrl").doesNotExist())
                 .andExpect(jsonPath("$.items[3].category").value("HISTORIC_SITE"))
                 .andExpect(jsonPath("$.items[9].category").value("NATURE_SITE"))
                 .andExpect(jsonPath("$.items[11].category").value("LOCAL_SCENE"))

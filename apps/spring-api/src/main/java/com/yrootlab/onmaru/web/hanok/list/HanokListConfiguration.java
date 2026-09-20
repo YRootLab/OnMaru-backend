@@ -25,7 +25,7 @@ class HanokListConfiguration {
                 HanokListCategory.HANOK,
                 "kr-45-jeonju",
                 "전북 전주시",
-                "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+                null,
                 "한옥 골목과 전통 체험을 함께 둘러볼 수 있는 대표 한옥 권역입니다.",
                 List.of("한옥", "체험", "산책"),
                 Instant.parse("2026-09-14T09:00:00Z")));
@@ -45,7 +45,7 @@ class HanokListConfiguration {
                 HanokListCategory.HANOK,
                 "kr-47-gyeongju",
                 "경북 경주시",
-                "https://cdn.onmaru.example/places/p-gyeongju-gyochon/cover.jpg",
+                null,
                 "월정교와 함께 둘러보기 좋은 전통 한옥 권역입니다.",
                 List.of("한옥", "경주"),
                 Instant.parse("2026-09-14T07:00:00Z")));
