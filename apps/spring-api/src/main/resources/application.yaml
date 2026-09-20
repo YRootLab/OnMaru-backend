@@ -77,3 +77,12 @@ logging:
     com.yrootlab.onmaru: DEBUG
     org.springdoc: INFO
     org.springframework.web: INFO
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: production
+  flyway:
+    url: ${ONMARU_DB_URL}
