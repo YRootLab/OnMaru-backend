@@ -4,6 +4,14 @@ plugins {
     alias(libs.plugins.spring.dependency.management)
 }
 
+dependencyManagement {
+    dependencies {
+        dependency("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")
+        dependency("org.apache.tomcat.embed:tomcat-embed-el:11.0.26")
+        dependency("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.26")
+    }
+}
+
 dependencies {
     implementation(project(":adapters:persistence-jdbc"))
     implementation(project(":adapters:tourism-api"))
@@ -17,11 +25,17 @@ dependencies {
     implementation(project(":modules:operations"))
     implementation(project(":modules:shared-web"))
 
+    constraints {
+        implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")
+        implementation("org.apache.tomcat.embed:tomcat-embed-el:11.0.26")
+        implementation("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.26")
+    }
+
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-flyway")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
-    implementation(libs.flyway.core)
     runtimeOnly("io.micrometer:micrometer-registry-otlp")
     runtimeOnly("io.opentelemetry:opentelemetry-exporter-otlp")
     runtimeOnly(libs.flyway.postgresql)
