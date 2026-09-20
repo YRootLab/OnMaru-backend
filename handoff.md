@@ -15,3 +15,9 @@
   - 기존 CSRF same-origin 정책은 유지
 - **Verification**: `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.config.LocalDevelopmentCorsConfigurationTests'` (PASS)
 
+- **Active Issue**: #287 Swagger에서 홈 호환 경로 중복 노출 제거
+- **Current Branch**: `fix/287-hide-home-compatibility-paths`
+- **Current State**:
+  - canonical `/api/v1/home/**` 경로만 Swagger/OpenAPI에 노출
+  - 기존 `/api/home/**` 호환 경로는 런타임 동작을 유지하고 OpenAPI에서만 숨김
+- **Verification**: `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.web.swagger.SwaggerEndpointTests' --tests 'com.yrootlab.onmaru.web.home.HomeWebBoundaryTests'` (PASS)
