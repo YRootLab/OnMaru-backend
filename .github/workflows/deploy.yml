@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - master
 
 permissions:
   contents: read
@@ -52,7 +52,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=spring-api
 
       - name: Scan Spring API image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.SPRING_IMAGE }}:${{ github.sha }}
           format: sarif
@@ -78,7 +78,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=ai-service
 
       - name: Scan FastAPI AI image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.AI_IMAGE }}:${{ github.sha }}
           format: sarif
