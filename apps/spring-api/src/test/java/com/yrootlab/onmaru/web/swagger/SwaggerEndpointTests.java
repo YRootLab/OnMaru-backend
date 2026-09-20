@@ -28,7 +28,13 @@ class SwaggerEndpointTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openapi").exists())
                 .andExpect(jsonPath("$.info.title").value("OnMaru Backend REST API"))
-                .andExpect(jsonPath("$.info.version").value("v1.0.0"));
+                .andExpect(jsonPath("$.info.version").value("v1.0.0"))
+                .andExpect(jsonPath("$.paths['/api/v1/home/curated-courses']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/home/popular-regions']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/home/trending-sounds']").exists())
+                .andExpect(jsonPath("$.paths['/api/home/curated-courses']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/home/popular-regions']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/home/trending-sounds']").doesNotExist());
     }
 
     @Test

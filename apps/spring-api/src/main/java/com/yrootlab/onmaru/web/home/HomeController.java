@@ -19,6 +19,7 @@ import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -67,7 +68,7 @@ public final class HomeController {
             @ApiResponse(responseCode = "503", description = "카탈로그 서비스 일시적 이용 불가",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
-    @GetMapping({"/api/v1/home/curated-courses", "/api/home/curated-courses"})
+    @GetMapping("/api/v1/home/curated-courses")
     ResponseEntity<?> curatedCourses(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String regionCode,
@@ -95,13 +96,27 @@ public final class HomeController {
         }
     }
 
+    @Hidden
+    @GetMapping("/api/home/curated-courses")
+    ResponseEntity<?> curatedCoursesCompatibility(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String regionCode,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false, defaultValue = "false") boolean hasImage,
+            @RequestParam(required = false, defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        return curatedCourses(keyword, regionCode, category, hasImage, limit, cursor, sessionToken, request);
+    }
+
     @Operation(summary = "홈 인기 오디오 조회", description = "활성화된 Odii 오디오 스토리를 홈 인기 사운드 카드로 조회합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "인기 오디오 조회 성공"),
             @ApiResponse(responseCode = "503", description = "오디오 서비스 일시적 이용 불가",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
-    @GetMapping({"/api/v1/home/trending-sounds", "/api/home/trending-sounds"})
+    @GetMapping("/api/v1/home/trending-sounds")
     ResponseEntity<?> trendingSounds(
             @RequestParam(required = false, defaultValue = "ko-KR") String language,
             @RequestParam(required = false) String category,
@@ -129,13 +144,26 @@ public final class HomeController {
         }
     }
 
+    @Hidden
+    @GetMapping("/api/home/trending-sounds")
+    ResponseEntity<?> trendingSoundsCompatibility(
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String regionCode,
+            @RequestParam(required = false, defaultValue = "20") String limit,
+            @RequestParam(required = false) String cursor,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        return trendingSounds(language, category, regionCode, limit, cursor, sessionToken, request);
+    }
+
     @Operation(summary = "홈 인기 지역 조회", description = "공개 방문 후기 집계를 기준으로 지역별 인기 지표를 조회합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "인기 지역 조회 성공"),
             @ApiResponse(responseCode = "503", description = "지역 서비스 일시적 이용 불가",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
-    @GetMapping({"/api/v1/home/popular-regions", "/api/home/popular-regions"})
+    @GetMapping("/api/v1/home/popular-regions")
     ResponseEntity<?> popularRegions(
             @Parameter(description = "상위 시/도 지역 코드") @RequestParam(required = false) String parentRegionCode,
             HttpServletRequest request) {
@@ -146,6 +174,14 @@ public final class HomeController {
         } catch (VisitReviewRegionUnavailableException exception) {
             return unavailable(request, "Region data is temporarily unavailable.");
         }
+    }
+
+    @Hidden
+    @GetMapping("/api/home/popular-regions")
+    ResponseEntity<?> popularRegionsCompatibility(
+            @RequestParam(required = false) String parentRegionCode,
+            HttpServletRequest request) {
+        return popularRegions(parentRegionCode, request);
     }
 
     private HanokListCategory parseCategory(String category) {
