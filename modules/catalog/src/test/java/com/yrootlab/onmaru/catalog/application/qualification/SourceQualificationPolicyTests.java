@@ -30,7 +30,7 @@ class SourceQualificationPolicyTests {
         assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
         assertThat(result.candidate()).isPresent();
         assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.HANOK);
-        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v3");
+        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v4");
         assertThat(result.candidate().orElseThrow().normalizedHash()).hasSize(64);
         assertThat(result.quarantine()).isEmpty();
     }
@@ -168,6 +168,28 @@ class SourceQualificationPolicyTests {
     }
 
     @Test
+    void qualifiesOnlyReviewedCultureFoodGardenAndLocalSceneCodes() {
+        assertThat(qualify("14", "A02", "A0206", "A02060100"))
+                .isEqualTo(CanonicalCategory.CULTURE_ART);
+        assertThat(qualify("39", "A05", "A0502", "A05020100"))
+                .isEqualTo(CanonicalCategory.TRADITIONAL_FOOD);
+        assertThat(qualify("12", "A01", "A0101", "A01010700"))
+                .isEqualTo(CanonicalCategory.GARDEN_ECOLOGY);
+        assertThat(qualify("12", "A02", "A0203", "A02030100"))
+                .isEqualTo(CanonicalCategory.LOCAL_SCENE);
+        assertThat(policy.qualify(row(Map.of(
+                "contentid", "unsupported",
+                "contenttypeid", "14",
+                "title", "미검수 문화시설",
+                "cat1", "A02",
+                "cat2", "A0206",
+                "cat3", "A02061000",
+                "mapx", "126.9",
+                "mapy", "37.5"
+        ))).quarantine().orElseThrow().errorCode()).isEqualTo("UNSUPPORTED_CATEGORY");
+    }
+
+    @Test
     void quarantinesMissingOrInvalidCoordinatesWithoutPublicCandidate() {
         SourceRecord missingCoordinates = row(Map.of(
                 "contentid", "126508",
@@ -224,5 +246,18 @@ class SourceQualificationPolicyTests {
 
     private SourceRecord row(Map<String, String> fields) {
         return new SourceRecord("kto-tourapi-korean", "areaBasedList2", fields);
+    }
+
+    private CanonicalCategory qualify(String contentTypeId, String cat1, String cat2, String cat3) {
+        return policy.qualify(row(Map.of(
+                "contentid", cat3,
+                "contenttypeid", contentTypeId,
+                "title", "검수 카테고리",
+                "cat1", cat1,
+                "cat2", cat2,
+                "cat3", cat3,
+                "mapx", "126.9",
+                "mapy", "37.5"
+        ))).candidate().orElseThrow().category();
     }
 }
