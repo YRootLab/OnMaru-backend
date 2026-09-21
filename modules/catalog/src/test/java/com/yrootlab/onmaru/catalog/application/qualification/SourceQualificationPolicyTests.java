@@ -171,6 +171,10 @@ class SourceQualificationPolicyTests {
     void qualifiesOnlyReviewedCultureFoodGardenAndLocalSceneCodes() {
         assertThat(qualify("14", "A02", "A0206", "A02060100"))
                 .isEqualTo(CanonicalCategory.CULTURE_ART);
+        assertThat(qualify("14", "A02", "A0206", "A02060200"))
+                .isEqualTo(CanonicalCategory.CULTURE_ART);
+        assertThat(qualify("14", "A02", "A0206", "A02060300"))
+                .isEqualTo(CanonicalCategory.CULTURE_ART);
         assertThat(qualify("39", "A05", "A0502", "A05020100"))
                 .isEqualTo(CanonicalCategory.TRADITIONAL_FOOD);
         assertThat(qualify("12", "A01", "A0101", "A01010700"))
@@ -187,6 +191,64 @@ class SourceQualificationPolicyTests {
                 "mapx", "126.9",
                 "mapy", "37.5"
         ))).quarantine().orElseThrow().errorCode()).isEqualTo("UNSUPPORTED_CATEGORY");
+    }
+
+    @Test
+    void quarantinesCapturedBookstoreSampleGagabookshopAsConceptMismatch() {
+        // 실 capture 근거: docs/api/tour/tour_korean_info_api.md (contentid 2750143, 가가책방).
+        // A02061000은 서점으로 OnMaru 전통문화·역사 컨셉과 불부합하므로 격리한다.
+        SourceRecord row = row(Map.of(
+                "contentid", "2750143",
+                "contenttypeid", "14",
+                "title", "가가책방",
+                "cat1", "A02",
+                "cat2", "A0206",
+                "cat3", "A02061000",
+                "mapx", "127.1219749520",
+                "mapy", "36.4521187744",
+                "modifiedtime", "20251111151027"
+        ));
+
+        QualificationResult result = policy.qualify(row);
+
+        assertThat(result.status()).isEqualTo(QualificationStatus.QUARANTINED);
+        assertThat(result.candidate()).isEmpty();
+        assertThat(result.quarantine().orElseThrow().errorCode()).isEqualTo("UNSUPPORTED_CATEGORY");
+    }
+
+    @Test
+    void acceptsCapturedMuseumSampleUnderReviewedCultureFacilityCode() {
+        // 실 capture 근거: testing/fixtures/provider/tourapi/last-page.json의
+        // 돈의문박물관마을(contentid 2752894, cat3 A02060100 박물관). 원천 capture는
+        // contentTypeId 12로 기록되지만 allowlist는 검수된 문화시설 타입(14)만 수용하므로,
+        // contentTypeId 14 capture는 CANDIDATE, 12 capture는 격리된다.
+        SourceRecord cultureFacilityType = row(Map.of(
+                "contentid", "2752894",
+                "contenttypeid", "14",
+                "title", "돈의문박물관마을",
+                "cat1", "A02",
+                "cat2", "A0206",
+                "cat3", "A02060100",
+                "mapx", "126.968",
+                "mapy", "37.568"
+        ));
+        SourceRecord tourismSiteType = row(Map.of(
+                "contentid", "2752894",
+                "contenttypeid", "12",
+                "title", "돈의문박물관마을",
+                "cat1", "A02",
+                "cat2", "A0206",
+                "cat3", "A02060100",
+                "mapx", "126.968",
+                "mapy", "37.568"
+        ));
+
+        QualificationResult accepted = policy.qualify(cultureFacilityType);
+        assertThat(accepted.status()).isEqualTo(QualificationStatus.CANDIDATE);
+        assertThat(accepted.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.CULTURE_ART);
+
+        QualificationResult quarantined = policy.qualify(tourismSiteType);
+        assertThat(quarantined.quarantine().orElseThrow().errorCode()).isEqualTo("UNSUPPORTED_CATEGORY");
     }
 
     @Test

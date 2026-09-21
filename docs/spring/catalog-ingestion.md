@@ -61,6 +61,23 @@ identity application이 소유한 `ExternalIdentityPort.authenticate(callback, l
 
 원천은 한국관광공사 데이터 전체를 그대로 공개하는 저장소가 아니다. 전국 데이터를 수집하되 public catalog·AI 후보·Odii 연결 대상으로 게시하는 범위는 `HANOK`, `HANOK_STAY`, `HANOK_CAFE`, `HANOK_EXPERIENCE`, `TRADITIONAL_MARKET`, `HISTORIC_SITE`, `NATURE_SITE`, `CULTURE_ART`, `TRADITIONAL_FOOD`, `GARDEN_ECOLOGY`, `LOCAL_SCENE`, `LEISURE_ACTIVITY`, 그리고 이 주제와 검수된 관계가 있는 `ODII`다. `CULTURE_ART`는 문화시설의 박물관·미술관·전시관 실코드(`contentTypeId 14`, `A02060100`~`A02060300`)만, `TRADITIONAL_FOOD`는 한식 음식점(`contentTypeId 39`, `A05020100`)만, `GARDEN_ECOLOGY`는 자연생태·휴양림·수목원(`contentTypeId 12`, `A01010500`~`A01010700`)만, `LOCAL_SCENE`는 농촌·관광농원 체험(`contentTypeId 12`, `A02030100`~`A02030200`)만 exact cat3로 수용한다. 이 네 범주는 홈 공개 카테고리로 노출하되 `LEISURE_ACTIVITY`는 canonical 후보로만 유지하고 홈 공개 목록에서는 제외한다. `HISTORIC_SITE`는 TourAPI 역사관광지(contentTypeId 12, cat1 A02, cat2 A0201 — 고궁·성·유적지·사찰·탑·종교성지·묘소 등)를, `TRADITIONAL_MARKET`은 TourAPI 전통시장(contentTypeId 38, cat1 A04, cat2 A0401 — 5일장·상설시장·공예/공방 등)을, `NATURE_SITE`는 자연관광지(contentTypeId 12, cat1 A01), `LEISURE_ACTIVITY`는 레저·활동 관광지(contentTypeId 12, cat1 A03)를 각각 cat2 fallback으로 수용한다. allowlist는 exact cat3 매칭이 항상 우선하고, cat3 wildcard 엔트리는 cat2 fallback으로만 동작한다. 예를 들어 `A02010700`은 exact `HANOK`로 남고 경복궁(실 capture `A02010100`)은 `HISTORIC_SITE`로 qualify되며, `A04010200`은 exact `TRADITIONAL_MARKET`로 남고 형제 cat3(`A04010100` 등)도 같은 cat2 fallback으로 `TRADITIONAL_MARKET`으로 qualify된다. 축제·공연(A0207/A0208)은 일정 기반 데이터라 이번 place 중심 allowlist의 범위 밖이며 별도 데이터 모델 설계가 필요하다. 문화시설은 cat2 wildcard로 열지 않고 검수된 박물관·미술관·전시관 실코드만 `CULTURE_ART`로 수용하며, 미검수 cat3는 계속 `UNSUPPORTED_CATEGORY`로 격리한다. source adapter는 원천 분류 코드와 검수 mapping을 stable canonical category로 기록하고, 매칭하지 못한 행을 추정해 공개하지 않는다. allowlist와 mapping 버전(`tourapi-category-allowlist-v4`)은 dataset revision에 묶어 재현하며, 실제 원천 응답 capture/fixture로 검증하기 전 LIVE_CANONICAL을 활성화하지 않는다.
 
+## A0206 문화시설 cat3 실코드 검증 (이슈 #269)
+
+cat2 `A0206`(문화시설)은 박물관·미술관·전시관·문화원·서점 등이 섞인 광범위한 버킷이라 cat2 wildcard로 열지 않고, 검수된 exact cat3만 `CULTURE_ART`로 수용한다.
+
+| 구분 | cat3 | 의미 | 처리 | 근거 |
+|---|---|---|---|---|
+| 채택 | `A02060100` | 박물관 | CULTURE_ART candidate (contentTypeId 14) | 실 capture `contentid 2752894` 돈의문박물관마을 — `testing/fixtures/provider/tourapi/last-page.json` |
+| 채택 | `A02060200` | 기념관 | CULTURE_ART candidate (contentTypeId 14) | 검수 기준 부합 (전통문화·역사 기념 시설) |
+| 채택 | `A02060300` | 전시관 | CULTURE_ART candidate (contentTypeId 14) | 검수 기준 부합 (미술관·전시 시설) |
+| 제외 | `A02061000` | 서점 | UNSUPPORTED_CATEGORY 격리 | 실 capture `contentid 2750143` 가가책방 — `docs/api/tour/tour_korean_info_api.md` |
+| 제외 | 기타 미검수 cat3 | — | UNSUPPORTED_CATEGORY 격리 | 전수 capture 검증 전까지 임의 확장 금지 |
+
+- 채택/제외 판정은 allowlist(`tourapi-category-allowlist-v4`)에 exact cat3 반영으로 귀결되며, 이 검증으로 코드·allowlist·버전 변경은 없다. 회귀 테스트는 `SourceQualificationPolicyTests`의 capture 기반 케이스(가가책방 격리, 돈의문박물관마을 수용, 기념관·전시관 exact 매칭)로 고정한다.
+- 신규 `CanonicalCategory`(MUSEUM/CULTURAL_FACILITY)는 도입하지 않는다. 홈 FE 카테고리 계약(`docs/toFE/home-api-spec.md`, `docs/toFE/home-category-guide.md`)이 이미 `CULTURE_ART`로 고정되어 있고, 문화시설 밖 확장 근거가 아직 없다.
+- 원천 capture 일부는 문화시설 cat3(`A02060100`)가 contentTypeId 12로 기록되는 사례가 있다(돈의문박물관마을 fixture). allowlist는 검수된 문화시설 타입(14)만 수용하며, 이 cross-classification 전수 실태는 TourAPI serviceKey로 전체 cat3 코드표(`GET /categoryCode2?cat2=A0206`)를 capture한 뒤 별도 이슈로 재검토한다. 축제·공연(A0207/A0208)은 이번 범위 밖이다.
+
+
 | 테이블 | 키·필드·불변식 |
 |---|---|
 | operations.sync_schedules | dataset PK,timezone='Asia/Seoul',local_time='03:00',enabled,next_due_at; UTC timestamp로 실행 시각 저장 |
