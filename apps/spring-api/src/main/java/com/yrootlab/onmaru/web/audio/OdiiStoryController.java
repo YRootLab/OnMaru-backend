@@ -12,6 +12,7 @@ import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -116,6 +117,37 @@ public final class OdiiStoryController {
         } catch (OdiiStoryUnavailableException exception) {
             return unavailable(request);
         }
+    }
+
+    @Operation(
+            summary = "오디 오디오 지역 그룹 조회",
+            description = "광역 지역 그룹(서울·경기·인천 등)별 활성 오디오 스토리 수를 조회합니다. \"지도로 듣는 이야기\" 지역 탭에 사용합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "지역 그룹 조회 성공", content = @Content(schema = @Schema(implementation = com.yrootlab.onmaru.audio.query.OdiiRegionGroupsPage.class))),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 언어 코드", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "오디 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    @GetMapping("/api/v1/odii/regions")
+    ResponseEntity<?> regionGroups(
+            @Parameter(description = "해설 언어 코드 (ko-KR, en-US 등)", example = "ko-KR")
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            HttpServletRequest request) {
+        try {
+            return ok(queryService.regionGroups(language));
+        } catch (OdiiStoryInvalidRequestException exception) {
+            return invalidRequest(request, exception.field());
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
+    }
+
+    @Hidden
+    @GetMapping("/api/v1/audio/regions")
+    ResponseEntity<?> regionGroupsCompatibility(
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            HttpServletRequest request) {
+        return regionGroups(language, request);
     }
 
     private ResponseEntity<Object> ok(Object body) {

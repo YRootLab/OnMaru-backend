@@ -106,6 +106,52 @@ public final class OdiiStoryQueryService {
                 hasMore);
     }
 
+    /**
+     * 광역 지역 그룹별 활성 오디오 스토리 수를 조회한다.
+     *
+     * <p>요청 언어와 동일한 스토리가 있으면 그 언어만 세고, 없으면 기본 언어(ko-KR)로
+     * 폴백해 카운트한다. 그룹은 {@link OdiiRegionGroupCatalog}의 선언 순서를 따르고,
+     * 스토리가 없는 그룹은 응답에서 제외한다.</p>
+     */
+    public OdiiRegionGroupsPage regionGroups(String language) {
+        validateLanguage(language);
+        var snapshot = store.activeSnapshot();
+        var eligible = snapshot.stories().stream()
+                .filter(this::isPublicAndPlayable)
+                .toList();
+        var selection = selectLanguage(eligible, language);
+        var deduplicated = deduplicate(selection.stories());
+
+        var counts = new LinkedHashMap<String, Long>();
+        var provinceCodes = new LinkedHashMap<String, java.util.LinkedHashSet<String>>();
+        for (var story : deduplicated) {
+            String label = OdiiRegionGroupCatalog.groupLabel(story.region());
+            counts.merge(label, 1L, Long::sum);
+            String provinceCode = provinceCodeOf(story.region());
+            provinceCodes.computeIfAbsent(label, key -> new java.util.LinkedHashSet<>()).add(provinceCode);
+        }
+
+        var groups = OdiiRegionGroupCatalog.groupOrder().stream()
+                .filter(counts::containsKey)
+                .map(label -> new OdiiRegionGroup(
+                        label,
+                        List.copyOf(provinceCodes.get(label)),
+                        counts.get(label)))
+                .toList();
+        return new OdiiRegionGroupsPage(
+                SCHEMA_VERSION,
+                selection.language(),
+                selection.status(),
+                groups);
+    }
+
+    private String provinceCodeOf(OdiiRegionRef region) {
+        if (region.parentRegionCode() != null && !region.parentRegionCode().isBlank()) {
+            return region.parentRegionCode();
+        }
+        return region.regionCode();
+    }
+
     public OdiiStoryDetail detail(String storyId, String language, Optional<UUID> memberId) {
         validateLanguage(language);
         if (storyId == null || !STORY_ID_PATTERN.matcher(storyId).matches()) {
