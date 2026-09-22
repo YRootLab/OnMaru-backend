@@ -7,7 +7,8 @@
 1. [Feature delta](feature-delta.md): 기존 `docs/specs` 대비 화면·기능 변화와 사용자 경험 규칙
 2. [Content tags](content-tags.md): 관광지·한옥·Odii 자체 추출 태그 필드와 렌더링 규칙
 3. [Integration checklist](integration-checklist.md): 라우트별 API, 상태, fixture, 완료 조건
-4. 기계 계약: [Journey OpenAPI](../contracts/openapi/journey.openapi.yaml), [VisitReview OpenAPI](../contracts/openapi/visit-reviews.openapi.json), [SSE schema](../contracts/schemas/journey-sse-event.schema.json), [SSE fixtures](../contracts/fixtures/journey-sse-fixtures.json), [관광 장소 찜 fixture](../contracts/fixtures/saved-place-fixtures.json)
+4. [Kakao 로그인 연동 가이드](kakao-login-flow.md): 로그인 시작·복귀 감지·credentials·CSRF·로그아웃 전체 플로우
+5. 기계 계약: [Journey OpenAPI](../contracts/openapi/journey.openapi.yaml), [VisitReview OpenAPI](../contracts/openapi/visit-reviews.openapi.json), [SSE schema](../contracts/schemas/journey-sse-event.schema.json), [SSE fixtures](../contracts/fixtures/journey-sse-fixtures.json), [관광 장소 찜 fixture](../contracts/fixtures/saved-place-fixtures.json)
 
 정확한 API 필드와 오류 코드는 [Public REST API](../contracts/rest-api.md)가 정답이다. 이 폴더는 그 계약을 FE 작업 흐름으로 번역하며, 필드가 충돌하면 `docs/contracts`를 따른다.
 
