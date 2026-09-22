@@ -258,7 +258,85 @@ class OdiiStoryQueryServiceTests {
     }
 
     @Test
-    void rejectsInvalidQueryAndPropagatesUnavailableSnapshot() {
+    void groupsActiveStoriesByBroadRegionInCatalogOrder() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyInRegion("odii-story-jeonju-hanok-01", "ko-KR", "kr-45-jeonju", "kr-45", "전북 전주시",
+                        Instant.parse("2026-09-15T02:00:00Z")),
+                storyInRegion("odii-story-gyeongju-01", "ko-KR", "kr-47-gyeongju", "kr-47", "경북 경주시",
+                        Instant.parse("2026-09-15T01:00:00Z")),
+                storyInRegion("odii-story-bukchon-01", "ko-KR", "kr-11-jongno", "kr-11", "서울 종로구",
+                        Instant.parse("2026-09-15T03:00:00Z")),
+                storyInRegion("odii-story-jeonju-hanok-01", "en-US", "kr-45-jeonju", "kr-45", "전북 전주시",
+                        Instant.parse("2026-09-15T02:00:00Z"))));
+
+        var page = service.regionGroups("ko-KR");
+
+        assertThat(page.schemaVersion()).isEqualTo("1.2");
+        assertThat(page.language()).isEqualTo("ko-KR");
+        assertThat(page.languageStatus()).isEqualTo(OdiiLanguageStatus.EXACT);
+        // 숨김 스토리·영어 중복은 카운트에서 제외되고, 카탈로그 선언 순서를 유지한다.
+        assertThat(page.groups())
+                .extracting(OdiiRegionGroup::label)
+                .containsExactly("서울·경기·인천", "경북·대구", "전북");
+        assertThat(page.groups())
+                .filteredOn(group -> group.label().equals("서울·경기·인천"))
+                .first()
+                .satisfies(group -> {
+                    assertThat(group.storyCount()).isEqualTo(1);
+                    assertThat(group.regionCodes()).containsExactly("kr-11");
+                });
+        assertThat(page.groups())
+                .filteredOn(group -> group.label().equals("전북"))
+                .first()
+                .satisfies(group -> {
+                    assertThat(group.storyCount()).isEqualTo(1);
+                    assertThat(group.regionCodes()).containsExactly("kr-45");
+                });
+    }
+
+    @Test
+    void groupsFallBackToKoreanCountsWhenRequestedLanguageIsMissing() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyInRegion("odii-story-jeju-01", "ko-KR", "kr-50-jeju", "kr-50", "제주 제주시",
+                        Instant.parse("2026-09-15T02:00:00Z"))));
+
+        var page = service.regionGroups("fr-FR");
+
+        assertThat(page.language()).isEqualTo("ko-KR");
+        assertThat(page.languageStatus()).isEqualTo(OdiiLanguageStatus.FALLBACK);
+        assertThat(page.groups())
+                .extracting(OdiiRegionGroup::label, OdiiRegionGroup::storyCount)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("제주", 1L));
+    }
+
+    private OdiiStoryProjection storyInRegion(
+            String storyId,
+            String language,
+            String regionCode,
+            String parentRegionCode,
+            String regionName,
+            Instant publishedAt) {
+        return new OdiiStoryProjection(
+                storyId,
+                "odii-spot-" + storyId,
+                language,
+                "전주의 한옥 골목 이야기",
+                "전주 한옥마을 산책",
+                "한옥/고택",
+                new OdiiRegionRef(regionCode, regionName, "CITY", parentRegionCode),
+                new OdiiCoordinates(35.817632, 127.152948),
+                185,
+                "https://cdn.onmaru.example/odii/" + storyId + ".jpg",
+                "https://cdn.onmaru.example/odii/" + storyId + ".mp3",
+                OdiiTranscriptStatus.OFFICIAL,
+                List.of(new OdiiTranscriptLine(0, 0, "첫 번째 대본입니다.")),
+                List.of(),
+                publishedAt,
+                AudioStatus.ACTIVE,
+                AudioStatus.ACTIVE);
+    }
+
+    private void rejectsInvalidQueryAndPropagatesUnavailableSnapshot() {
         store.replaceActive(snapshot(REVISION_ONE));
 
         assertThatThrownBy(() -> service.list(OdiiStoryQuery.firstPage("english", 20, Optional.empty())))
