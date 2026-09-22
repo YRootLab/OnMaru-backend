@@ -88,7 +88,8 @@ class MonthlyHanokEditionWebBoundaryTests {
                 .andExpect(jsonPath("$.placements[0].place.placeId").value("p-jeonju-hanok-village"))
                 .andExpect(jsonPath("$.placements[0].place.savedByMe").value(true))
                 .andExpect(jsonPath("$.placements[1].slot").value("CAFE"))
-                .andExpect(jsonPath("$.placements[1].place.thumbnailUrl", nullValue()))
+                .andExpect(jsonPath("$.placements[1].place.thumbnailUrl")
+                        .value("https://tong.visitkorea.or.kr/cms/resource/04/3304404_image3_1.jpg"))
                 .andExpect(jsonPath("$.placements[1].place.savedByMe").value(false));
     }
 

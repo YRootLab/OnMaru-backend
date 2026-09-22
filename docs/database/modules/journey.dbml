@@ -35,4 +35,35 @@ Table journey_saved_resources [headercolor: #76B7B2] {
 TableGroup journey [color: #76B7B2, note: 'Saved journey snapshots, public canonical tourism place saves, optional standalone Odii story saves, and member timeline read model source rows.'] {
   journey_saved_journeys
   journey_saved_resources
+  journey_saved_places
+  journey_saved_odii_stories
+}
+
+// V017 (#318): 런타임이 실제로 사용하는 찜 영속 테이블.
+// journey_saved_resources.resource_id는 uuid 타입이라 문자열 공개 ID를 수용하지 못하므로
+// 공개 ID 기반의 분리 테이블로 찜을 영속화한다 (런타임 저장 스토어의 원천).
+Table journey_saved_places [headercolor: #76B7B2] {
+  id uuid [pk]
+  member_id uuid [not null]
+  place_id varchar [not null, note: '공개 place ID (예: p-jeonju-hanok-village)']
+  saved_at timestamptz [not null]
+
+  Indexes {
+    (member_id, place_id) [unique]
+    (saved_at, id)
+    (place_id, saved_at)
+  }
+}
+
+Table journey_saved_odii_stories [headercolor: #76B7B2] {
+  id uuid [pk]
+  member_id uuid [not null]
+  story_id varchar [not null, note: '공개 odii story ID (예: odii-story-jeonju-hanok-01)']
+  saved_at timestamptz [not null]
+
+  Indexes {
+    (member_id, story_id) [unique]
+    (saved_at, id)
+    (story_id, saved_at)
+  }
 }

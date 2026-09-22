@@ -145,3 +145,14 @@ Ref: audio_story_versions.spot_id > audio_odii_spots.id
 Ref: audio_subtitle_lines.story_id > audio_odii_stories.id
 Ref: audio_place_odii_links.spot_id > audio_odii_spots.id
 Ref: audio_story_content_tag_versions.(revision_id, story_id) > audio_story_versions.(revision_id, story_id)
+
+// V017 (#318): 이번 주 인기 랭킹(#317)의 재생 이벤트. 저장 수는 journey_saved_odii_stories 집계로 계산한다.
+Table audio_story_play_events {
+  id uuid [pk]
+  story_id varchar [not null, note: '공개 odii story ID']
+  occurred_at timestamptz [not null]
+
+  Indexes {
+    (story_id, occurred_at)
+  }
+}

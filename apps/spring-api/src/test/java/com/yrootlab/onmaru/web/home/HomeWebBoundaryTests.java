@@ -46,6 +46,18 @@ class HomeWebBoundaryTests {
         mockMvc.perform(get("/api/home/popular-regions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"));
+
+        mockMvc.perform(get("/api/v1/home/popular-sounds"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+        mockMvc.perform(get("/api/home/popular-sounds"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+        mockMvc.perform(get("/api/v1/home/popular-sounds").param("window", "month"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.details.field").value("window"));
     }
 
     @Test

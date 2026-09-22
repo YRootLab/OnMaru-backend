@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.web.saved.list;
 import com.yrootlab.onmaru.audio.query.OdiiStoryNotFoundException;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
 import com.yrootlab.onmaru.audio.query.OdiiStoryUnavailableException;
+import com.yrootlab.onmaru.audio.query.OdiiStoryPopularityPort;
 import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailStore;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailUnavailableException;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjectionStatus;
@@ -12,7 +13,7 @@ import com.yrootlab.onmaru.journey.saved.odii.SavedOdiiStoryLimitExceededExcepti
 import com.yrootlab.onmaru.journey.saved.odii.SavedOdiiStoryNotFoundException;
 import com.yrootlab.onmaru.journey.saved.odii.SavedOdiiStoryService;
 import com.yrootlab.onmaru.journey.saved.odii.SavedOdiiStoryStore;
-import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
+import com.yrootlab.onmaru.journey.saved.list.SavedPlaceRecordSource;
 import com.yrootlab.onmaru.journey.saved.place.SavedResourceType;
 import com.yrootlab.onmaru.web.common.cursor.CursorExpiredException;
 import com.yrootlab.onmaru.web.common.cursor.CursorInvalidException;
@@ -37,6 +38,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -57,26 +59,32 @@ public final class SavedResourceController {
     private final MemberLifecycleService members;
     private final SavedOdiiStoryService odiiSaveService;
     private final SavedOdiiStoryStore odiiStore;
-    private final InMemorySavedPlaceStore placeStore;
+    private final SavedPlaceRecordSource placeRecordSource;
     private final OdiiStoryQueryService odiiQueries;
     private final InMemoryPlaceDetailStore placeDetails;
     private final SavedResourceCursorCodec cursors;
+    private final OdiiStoryPopularityPort popularityPort;
+    private final Clock clock;
 
     SavedResourceController(
             MemberLifecycleService members,
             SavedOdiiStoryService odiiSaveService,
             SavedOdiiStoryStore odiiStore,
-            InMemorySavedPlaceStore placeStore,
+            SavedPlaceRecordSource placeRecordSource,
             OdiiStoryQueryService odiiQueries,
             InMemoryPlaceDetailStore placeDetails,
-            SavedResourceCursorCodec cursors) {
+            SavedResourceCursorCodec cursors,
+            OdiiStoryPopularityPort popularityPort,
+            Clock clock) {
         this.members = members;
         this.odiiSaveService = odiiSaveService;
         this.odiiStore = odiiStore;
-        this.placeStore = placeStore;
+        this.placeRecordSource = placeRecordSource;
         this.odiiQueries = odiiQueries;
         this.placeDetails = placeDetails;
         this.cursors = cursors;
+        this.popularityPort = popularityPort;
+        this.clock = clock;
     }
 
     @Operation(
@@ -98,8 +106,10 @@ public final class SavedResourceController {
             HttpServletRequest request) {
         return members.currentMember(session).<ResponseEntity<?>>map(member -> {
             try {
+                var saved = odiiSaveService.save(member.id(), storyId);
+                popularityPort.recordSave(storyId, clock.instant());
                 return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                        .body(odiiSaveService.save(member.id(), storyId));
+                        .body(saved);
             } catch (SavedOdiiStoryNotFoundException exception) {
                 return notFound(request);
             } catch (SavedOdiiStoryLimitExceededException exception) {
@@ -194,7 +204,7 @@ public final class SavedResourceController {
             throw new CursorInvalidException();
         }
         var records = (type == SavedResourceType.PLACE
-                ? placeStore.records(memberId, type)
+                ? placeRecordSource.records(memberId, type)
                 : odiiStore.records(memberId, type)).stream()
                 .filter(record -> !record.savedAt().isAfter(asOf))
                 .sorted(ORDER)

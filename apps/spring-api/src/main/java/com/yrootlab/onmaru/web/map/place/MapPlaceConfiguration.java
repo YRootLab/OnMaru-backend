@@ -9,7 +9,7 @@ import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceQueryServic
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceStatus;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapRegionRef;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapSavedStateLookup;
-import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
+import com.yrootlab.onmaru.journey.saved.place.SavedPlaceStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -45,7 +45,7 @@ class MapPlaceConfiguration {
     }
 
     @Bean
-    MapSavedStateLookup mapSavedStateLookup(InMemorySavedPlaceStore savedPlaceStore) {
+    MapSavedStateLookup mapSavedStateLookup(SavedPlaceStore savedPlaceStore) {
         return (memberId, placeId) -> memberId
                 .map(id -> savedPlaceStore.savedBy(id, placeId))
                 .orElse(false);

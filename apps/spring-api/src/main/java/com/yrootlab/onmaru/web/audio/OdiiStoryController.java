@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.audio.query.OdiiCursorExpiredException;
 import com.yrootlab.onmaru.audio.query.OdiiCursorInvalidException;
 import com.yrootlab.onmaru.audio.query.OdiiStoryInvalidRequestException;
 import com.yrootlab.onmaru.audio.query.OdiiStoryNotFoundException;
+import com.yrootlab.onmaru.audio.query.OdiiStoryPopularityPort;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQuery;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
 import com.yrootlab.onmaru.audio.query.OdiiStoryUnavailableException;
@@ -26,9 +27,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,10 +43,18 @@ public final class OdiiStoryController {
     private static final String SESSION_COOKIE = "__Host-onmaru-session";
 
     private final OdiiStoryQueryService queryService;
+    private final OdiiStoryPopularityPort popularityPort;
+    private final Clock clock;
     private final MemberLifecycleService memberLifecycleService;
 
-    OdiiStoryController(OdiiStoryQueryService queryService, MemberLifecycleService memberLifecycleService) {
+    OdiiStoryController(
+            OdiiStoryQueryService queryService,
+            OdiiStoryPopularityPort popularityPort,
+            Clock clock,
+            MemberLifecycleService memberLifecycleService) {
         this.queryService = queryService;
+        this.popularityPort = popularityPort;
+        this.clock = clock;
         this.memberLifecycleService = memberLifecycleService;
     }
 
@@ -148,6 +159,31 @@ public final class OdiiStoryController {
             @RequestParam(required = false, defaultValue = "ko-KR") String language,
             HttpServletRequest request) {
         return regionGroups(language, request);
+    }
+
+    @Operation(
+            summary = "오디오 스토리 재생 기록",
+            description = "오디오 스토리 재생 시작을 기록한다. 이번 주 인기 랭킹(popular-sounds)의 재생 수 신호로 사용된다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "재생 기록 성공"),
+            @ApiResponse(responseCode = "404", description = "스토리를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "오디오 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    @PostMapping("/api/v1/odii/stories/{storyId}/plays")
+    ResponseEntity<?> recordPlay(
+            @Parameter(description = "오디오 스토리 ID", example = "odii-story-jeonju-hanok-01")
+            @PathVariable String storyId,
+            HttpServletRequest request) {
+        try {
+            queryService.savedStory(storyId, Optional.empty());
+            popularityPort.recordPlay(storyId, clock.instant());
+            return ok(Map.of("schemaVersion", "1.2", "storyId", storyId, "recorded", true));
+        } catch (OdiiStoryNotFoundException exception) {
+            return notFound(request);
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
     }
 
     private ResponseEntity<Object> ok(Object body) {
