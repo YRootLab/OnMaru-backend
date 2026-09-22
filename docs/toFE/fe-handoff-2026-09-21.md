@@ -1,6 +1,24 @@
-# 홈·오디오 API FE 연동 보고서 (2026-09-21)
+# 홈·오디오 API FE 연동 보고서 (2026-09-21, 2차 갱신)
 
 FE에 전달하는 최신 API 연동 상태 보고서. Base URL: `https://onmaru-backend.onrender.com` (v0.3.12 이상 배포 기준). 모든 응답은 `Cache-Control: no-store`, 목록 계약은 `schemaVersion: 1.2`다.
+
+---
+
+## 0. 이번 신규 작업 요약 (이번 PR에 포함 — 배포 대기)
+
+이번 세션에서 **신규 API 3종 + 찜 데이터 영속화**를 추가했다. 상세 계약은 각 문서 참고.
+
+| 신규 | 용도 | 계약 문서 |
+|---|---|---|
+| `GET /api/v1/odii/regions` | "지도로 듣는 이야기" 지역 탭 (서울·경기·인천 5, 강원 4 …) | `docs/toFE/odii-region-groups.md` |
+| `GET /api/v1/home/popular-sounds` | 홈 "인기 한옥 소리" **이번 주 TOP N** 랭킹 (기본 7) | `docs/toFE/popular-sounds.md` |
+| `POST /api/v1/odii/stories/{storyId}/plays` | 오디오 재생 시작 기록 (인기 랭킹의 재생 수 신호) | `docs/toFE/popular-sounds.md` §2 |
+
+**찜(저장) 영속화**: 지금까지 찜은 앱 메모리에만 있어서 재배포 때마다 사라졌다. 이번부터 Neon DB(`journey_saved_places`, `journey_saved_odii_stories`)에 영속 저장되어 재배포 후에도 유지된다. 인기 랭킹의 저장 수 신호도 이 DB 집계를 사용한다.
+
+**인기 점수 정의**: `2 × 최근 7일 재생 수 + 1 × 최근 7일 저장 수`. 재생/저장 신호가 아직 없으면 최근 게시 순으로 폴백(`basis: FALLBACK_RECENT`)하므로 FE는 항상 7개 카드를 렌더링할 수 있다.
+
+**재생 기록 호출 방식**: FE는 오디오 재생 버튼을 누를 때 `POST /api/v1/odii/stories/{storyId}/plays`를 1회 호출한다. 기존 POST와 동일하게 CSRF 토큰(`X-CSRF-TOKEN` + `__Host-onmaru-csrf` 쿠키)을 동봉하고, 실패해도 UI에 영향 없이 조용히 무시하면 된다.
 
 ---
 
@@ -73,7 +91,8 @@ FE에 전달하는 최신 API 연동 상태 보고서. Base URL: `https://onmaru
 | 홈 첫 섹션 (이번 주 추천 한옥 코스) | `GET /api/v1/home/curated-courses?limit=20` | ✅ 페이징·이미지 정상 |
 | 지도로 듣는 이야기 — 지역 탭 | `GET /api/v1/odii/regions` | 🆕 신규 (배포 후 사용) |
 | 지도로 듣는 이야기 — 스토리 목록/재생 | `GET /api/v1/odii/stories` (+`/{storyId}`) | 🔴 503 → 복구 대기 (#307) |
-| 인기 한옥 소리 섹션 | `GET /api/v1/home/trending-sounds` | 🔴 503 → 복구 대기 (#307) |
+| 인기 한옥 소리 섹션 (이번 주 TOP N) | `GET /api/v1/home/popular-sounds` | 🆕 신규 (배포 후 사용, 재생 기록 호출 병행) |
+| 오디오 재생 기록 | `POST /api/v1/odii/stories/{storyId}/plays` | 🆕 신규 (배포 후 사용) |
 | 지역별 둘러보기 | `GET /api/v1/home/popular-regions` | ✅ |
 | 검색창 | `POST /api/journey-curator/explore` | ✅ |
 
