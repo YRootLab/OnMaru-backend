@@ -1,5 +1,20 @@
 # handoff.md
 
+- **Date**: 2026-09-21 찜 영속화 + 이번 주 인기 한옥 소리 TOP N
+- **Branch**: `feature/317-saved-popularity-persistence` (Issues #317, #318)
+- **State**:
+  - V017 마이그레이션: `journey_saved_places`, `journey_saved_odii_stories`, `audio_story_play_events` (기존 journey_saved_resources는 uuid resource_id 한계로 미사용 비고)
+  - JDBC 스토어: `JdbcSavedPlaceStore`, `JdbcSavedOdiiStoryStore`, `JdbcOdiiStoryPopularityStore` — `@Profile("production") + @ConditionalOnBean(DataSource) + @ConditionalOnMissingBean` 패턴, 로컬/테스트는 인메모리 유지
+  - 마커 인터페이스 `SavedPlaceRecordSource`/`SavedOdiiRecordSource`로 빈 타입 구분 (인메모리 @Primary 테스트 빈과 충돌 없음)
+  - `GET /api/v1/home/popular-sounds` (기본 limit 7, window=week) + 호환 경로 `/api/home/popular-sounds`
+  - `POST /api/v1/odii/stories/{storyId}/plays` 재생 기록 (CSRF 필요, 비인증 허용)
+  - 점수 = 2×재생 + 저장(최근 7일). 신호 없으면 최근 게시순 폴백 (`basis: FALLBACK_RECENT`)
+  - 기존 `trending-sounds` 계약 무변경
+  - docs: `docs/toFE/popular-sounds.md`, journey.dbml/audio.dbml 갱신
+  - 선병합 실패 수정: `MonthlyHanokEditionWebBoundaryTests` thumbnailUrl 기대값을 #301 이미지 시드 변경에 맞게 갱신
+- **Verification**: `:modules:audio:test` PASS, spring-api 관련 경계 테스트 PASS (editorial 수정 포함)
+- **Next**: PR 생성(verify CI) → develop 머지, Render Odii 키 교체 후 #307 검증
+
 - **Active Issue**: 없음 (Issue #239 전체 23개 컨트롤러 및 DTO Swagger 명세화 완료 및 PR #240 머지)
 - **Current Branch**: `develop`
 - **Current State**:
