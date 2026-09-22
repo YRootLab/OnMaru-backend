@@ -1,0 +1,14 @@
+# Trivy 취약점 예외 목록 — trivy-action의 trivyignores 입력으로 참조됨
+# 예외 제거 조건: 근거가 소멸하면(패치된 패키지 버전 사용 가능) 즉시 제거한다.
+
+# GHSA-6v7p-g79w-8964: msgpack 1.1.2 out-of-bounds read (fixed 1.2.1)
+# 근거: 이 패키지는 애플리케이션이 설치한 것이 아니라 pip 26.2.1이 자체 번들한
+# pip/_vendor/msgpack이다. 애플리케이션 코드에서 import할 수 없고, upstream pip이
+# vendored msgpack을 1.2.1로 올려주면 자연 해소된다. (ai/Dockerfile은 시스템 pip을
+# 26.2.1로 업그레이드하며, venv에는 pip/msgpack이 존재하지 않음을 로컬 스캔으로 확인)
+GHSA-6v7p-g79w-8964
+
+# CVE-2025-47273: setuptools 70.3.0 path traversal (fixed 78.1.1)
+# 근거: 이미지 전수 find에서 setuptools 디렉터리가 존재하지 않는다(Trivy 오탐).
+# venv와 시스템 site-packages 모두 setuptools가 없음을 로컬 스캔으로 확인했다.
+CVE-2025-47273
