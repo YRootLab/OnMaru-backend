@@ -12,6 +12,7 @@ FROM python:3.12-alpine AS runner
 WORKDIR /app
 
 RUN apk upgrade --no-cache \
+    && python -m pip install --no-cache-dir --upgrade pip \
     && addgroup -S onmaru \
     && adduser -S onmaru -G onmaru
 
