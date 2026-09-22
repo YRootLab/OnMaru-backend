@@ -1,5 +1,16 @@
 # handoff.md
 
+- **Active Issue**: #269 A0206 문화시설 cat3 실코드 검증 — 완료 (2026-09-21 수동 close)
+- **Current Branch**: `release/0.3.13` (정리 완료, 로컬 브랜치 삭제)
+- **Current State**:
+  - PR #308 (feature/269-culture-facility-cat3) develop 병합, PR #309 (release/0.3.13 → master) 병합
+  - 태그 v0.3.13 및 GitHub Release 발행 (master 2a76f4f). Release Please는 이슈 #277 조직 Actions 설정 미적용으로 PR 생성 실패 → 수동 태그 처리
+  - Staging Deploy 실패는 기존 문제(Trivy SARIF category 중복 → 이전 배포 실패 → 롤백 digest 부재 연쇄). 이번 릴리즈와 무관, 별도 후속 필요
+- **Verification**: `./gradlew check` (PASS), `verify` CI (PASS), `gh release view v0.3.13` (PUBLISHED)
+- **Follow-ups**: ① Release Please 조직 설정(이슈 #277) ② Staging Deploy Trivy category 중복 수정 ③ A0206 전체 cat3 코드표 전수 capture(categoryCode2?cat2=A0206, serviceKey 필요) ④ release/0.3.13 원격 브랜치는 ruleset상 삭제 불가 — 기존 release/*와 동일하게 보관
+
+
+
 - **Active Issue**: 없음 (Issue #239 전체 23개 컨트롤러 및 DTO Swagger 명세화 완료 및 PR #240 머지)
 - **Current Branch**: `develop`
 - **Current State**:
