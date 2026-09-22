@@ -117,6 +117,29 @@ class OdiiStoryWebBoundaryTests {
     }
 
     @Test
+    void regionGroupsExposeBroadRegionCountsAndCompatibilityAlias() throws Exception {
+        mockMvc.perform(get("/api/v1/odii/regions")
+                        .param("language", "ko-KR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.language").value("ko-KR"))
+                .andExpect(jsonPath("$.languageStatus").value("EXACT"))
+                .andExpect(jsonPath("$.groups[0].label").value("전북"))
+                .andExpect(jsonPath("$.groups[0].regionCodes[0]").value("kr-45"))
+                .andExpect(jsonPath("$.groups[0].storyCount").value(1));
+
+        mockMvc.perform(get("/api/v1/audio/regions")
+                        .param("language", "ko-KR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.groups[0].storyCount").value(1));
+
+        mockMvc.perform(get("/api/v1/odii/regions")
+                        .param("language", "invalid-LANG"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
     void resolvesSavedStateFromTheOptionalServerSessionOnly() throws Exception {
         var memberId = identityStore.createMember(clock.instant());
         identityStore.saveSession(new SessionRecord(
