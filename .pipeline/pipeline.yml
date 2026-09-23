@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "environment": "staging",
+  "runner": {
+    "architecture": "linux-amd64",
+    "resource": { "cpu": "2", "memory": "4Gi" }
+  },
+  "stages": ["spring-api", "fastapi"]
+}
