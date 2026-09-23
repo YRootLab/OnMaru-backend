@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "defaults": {"max_parallel": 4, "fallback": "full-suite"},
+  "always_full_paths": [
+    "settings.gradle.kts",
+    "build.gradle.kts",
+    "build-logic/**",
+    "gradle/**",
+    ".github/workflows/**"
+  ],
+  "modules": [
+    {"id": "tourism-api", "kind": "gradle", "paths": ["adapters/tourism-api/**"], "depends_on": ["audio", "catalog", "insights"], "test_command": "./gradlew :adapters:tourism-api:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "persistence-jdbc", "kind": "gradle", "paths": ["adapters/persistence-jdbc/**"], "depends_on": ["journey", "operations"], "test_command": "./gradlew :adapters:persistence-jdbc:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "catalog", "kind": "gradle", "paths": ["modules/catalog/**"], "depends_on": [], "test_command": "./gradlew :modules:catalog:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "audio", "kind": "gradle", "paths": ["modules/audio/**"], "depends_on": ["catalog"], "test_command": "./gradlew :modules:audio:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "community", "kind": "gradle", "paths": ["modules/community/**"], "depends_on": [], "test_command": "./gradlew :modules:community:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "identity", "kind": "gradle", "paths": ["modules/identity/**"], "depends_on": [], "test_command": "./gradlew :modules:identity:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "insights", "kind": "gradle", "paths": ["modules/insights/**"], "depends_on": [], "test_command": "./gradlew :modules:insights:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "journey", "kind": "gradle", "paths": ["modules/journey/**"], "depends_on": [], "test_command": "./gradlew :modules:journey:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "operations", "kind": "gradle", "paths": ["modules/operations/**"], "depends_on": [], "test_command": "./gradlew :modules:operations:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
+    {"id": "shared-web", "kind": "gradle", "paths": ["modules/shared-web/**"], "depends_on": [], "test_command": "./gradlew :modules:shared-web:test --no-daemon", "tier": "full-suite", "resource_profile": "medium"},
+    {"id": "spring-api", "kind": "gradle", "paths": ["apps/spring-api/**"], "depends_on": ["tourism-api", "persistence-jdbc", "catalog", "audio", "community", "identity", "insights", "journey", "operations", "shared-web"], "test_command": "./gradlew :apps:spring-api:test --no-daemon", "tier": "full-suite", "resource_profile": "heavy"},
+    {"id": "ai", "kind": "pytest", "paths": ["ai/**"], "depends_on": [], "test_command": "uv run pytest", "tier": "pr-and-release", "resource_profile": "medium"}
+  ]
+}
