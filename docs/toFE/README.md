@@ -9,6 +9,7 @@
 3. [Integration checklist](integration-checklist.md): 라우트별 API, 상태, fixture, 완료 조건
 4. [Kakao 로그인 연동 가이드](kakao-login-flow.md): 로그인 시작·복귀 감지·credentials·CSRF·로그아웃 전체 플로우
 5. 기계 계약: [Journey OpenAPI](../contracts/openapi/journey.openapi.yaml), [VisitReview OpenAPI](../contracts/openapi/visit-reviews.openapi.json), [SSE schema](../contracts/schemas/journey-sse-event.schema.json), [SSE fixtures](../contracts/fixtures/journey-sse-fixtures.json), [관광 장소 찜 fixture](../contracts/fixtures/saved-place-fixtures.json)
+6. [소리마루 API FE 전달 보고서](sorimaru-api-handoff-2026-09-23.md): 검색·근처 조회·키워드 추천 호환 API와 FE 연동 규칙
 
 정확한 API 필드와 오류 코드는 [Public REST API](../contracts/rest-api.md)가 정답이다. 이 폴더는 그 계약을 FE 작업 흐름으로 번역하며, 필드가 충돌하면 `docs/contracts`를 따른다.
 
