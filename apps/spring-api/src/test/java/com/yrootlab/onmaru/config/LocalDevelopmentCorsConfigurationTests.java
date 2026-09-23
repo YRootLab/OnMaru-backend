@@ -35,6 +35,18 @@ class LocalDevelopmentCorsConfigurationTests {
     }
 
     @Test
+    void allowsCorsPreflightFromRenderFrontendForOdiiStories() throws Exception {
+        var origin = "https://onmaru-web.onrender.com";
+
+        mockMvc.perform(options("/api/v1/odii/stories")
+                        .header("Origin", origin)
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", origin))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+    }
+
+    @Test
     void rejectsCorsPreflightFromOriginsOutsideTheLocalDevelopmentAllowlist() throws Exception {
         mockMvc.perform(options("/api/v1/home/curated-courses")
                         .header("Origin", "http://localhost:3008")
