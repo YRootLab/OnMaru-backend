@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.journey.saved.place;
 
+import com.yrootlab.onmaru.journey.saved.list.SavedPlaceRecordSource;
 import com.yrootlab.onmaru.journey.saved.list.SavedResourceRecord;
 import com.yrootlab.onmaru.journey.saved.list.SavedResourceRecordSource;
 
@@ -10,7 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class InMemorySavedPlaceStore implements SavedPlaceStore, SavedResourceRecordSource {
+public final class InMemorySavedPlaceStore implements SavedPlaceStore, SavedPlaceRecordSource {
 
     private final Map<SavedPlaceKey, SavedRow> savedPlaces = new ConcurrentHashMap<>();
 

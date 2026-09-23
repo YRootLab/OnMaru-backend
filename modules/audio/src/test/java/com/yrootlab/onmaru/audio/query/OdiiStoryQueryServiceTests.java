@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLink;
 import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkMatchMethod;
 import com.yrootlab.onmaru.audio.placelink.CanonicalPlaceLinkCard;
 import com.yrootlab.onmaru.audio.sync.AudioStatus;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -307,6 +308,57 @@ class OdiiStoryQueryServiceTests {
         assertThat(page.groups())
                 .extracting(OdiiRegionGroup::label, OdiiRegionGroup::storyCount)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple("제주", 1L));
+    }
+
+    @Test
+    void ranksPopularSoundsByScoreAndFallsBackToRecencyWithoutSignals() {
+        var counter = new InMemoryOdiiStoryPopularityCounter();
+        var rankedService = new OdiiStoryQueryService(
+                store,
+                (memberId, storyId) -> false,
+                (spotId, memberId) -> Optional.empty(),
+                new OdiiPublicAudioUrlPolicy(Set.of("cdn.onmaru.example")),
+                cursorCodec,
+                ContentTagPipeline.defaultPipeline(),
+                counter);
+
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyInRegion("odii-story-old-a", "ko-KR", "kr-45-jeonju", "kr-45", "전북 전주시",
+                        Instant.parse("2026-09-10T00:00:00Z")),
+                storyInRegion("odii-story-old-b", "ko-KR", "kr-45-jeonju", "kr-45", "전북 전주시",
+                        Instant.parse("2026-09-11T00:00:00Z")),
+                storyInRegion("odii-story-old-c", "ko-KR", "kr-45-jeonju", "kr-45", "전북 전주시",
+                        Instant.parse("2026-09-12T00:00:00Z"))));
+
+        var coldStart = rankedService.popular(new OdiiPopularSoundsQuery(
+                "ko-KR", null, 2, Instant.EPOCH, Optional.empty()));
+        assertThat(coldStart.basis()).isEqualTo("FALLBACK_RECENT");
+        assertThat(coldStart.items())
+                .extracting(item -> item.story().storyId())
+                .containsExactly("odii-story-old-c", "odii-story-old-b");
+        assertThat(coldStart.items()).allSatisfy(item -> {
+            assertThat(item.score()).isZero();
+            assertThat(item.playCount()).isZero();
+            assertThat(item.saveCount()).isZero();
+        });
+
+        // old-b: 재생 2회 → 점수 4, old-a: 저장 1회 → 점수 1. 점수 순으로 재정렬된다.
+        counter.recordPlay("odii-story-old-b", Instant.parse("2026-09-15T10:00:00Z"));
+        counter.recordPlay("odii-story-old-b", Instant.parse("2026-09-15T11:00:00Z"));
+        counter.recordSave("odii-story-old-a", Instant.parse("2026-09-15T12:00:00Z"));
+
+        var popular = rankedService.popular(new OdiiPopularSoundsQuery(
+                "ko-KR", null, 2,
+                Instant.parse("2026-09-14T00:00:00Z"), Optional.empty()));
+        assertThat(popular.basis()).isEqualTo("POPULARITY");
+        assertThat(popular.items())
+                .extracting(OdiiPopularSoundItem::rank, OdiiPopularSoundItem::score)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1, 4L),
+                        org.assertj.core.groups.Tuple.tuple(2, 1L));
+        assertThat(popular.items())
+                .extracting(item -> item.story().storyId())
+                .containsExactly("odii-story-old-b", "odii-story-old-a");
     }
 
     private OdiiStoryProjection storyInRegion(

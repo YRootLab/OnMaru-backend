@@ -8,8 +8,10 @@ import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.journey.saved.odii.InMemorySavedOdiiStoryStore;
 import com.yrootlab.onmaru.journey.saved.odii.OdiiStorySaveEligibility;
 import com.yrootlab.onmaru.journey.saved.odii.SavedOdiiStoryService;
+import com.yrootlab.onmaru.journey.saved.odii.SavedOdiiStoryStore;
 import com.yrootlab.onmaru.web.common.cursor.CursorCodec;
 import com.yrootlab.onmaru.web.common.cursor.CursorSigningKey;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -20,12 +22,13 @@ import java.util.Optional;
 class SavedResourceConfiguration {
 
     @Bean
+    @ConditionalOnMissingBean(SavedOdiiStoryStore.class)
     InMemorySavedOdiiStoryStore savedOdiiStoryStore() {
         return new InMemorySavedOdiiStoryStore();
     }
 
     @Bean
-    OdiiSavedStateLookup odiiSavedStateLookup(InMemorySavedOdiiStoryStore store) {
+    OdiiSavedStateLookup odiiSavedStateLookup(SavedOdiiStoryStore store) {
         return (memberId, storyId) -> memberId.map(id -> store.savedBy(id, storyId)).orElse(false);
     }
 
@@ -43,7 +46,7 @@ class SavedResourceConfiguration {
 
     @Bean
     SavedOdiiStoryService savedOdiiStoryService(
-            InMemorySavedOdiiStoryStore store,
+            SavedOdiiStoryStore store,
             OdiiStorySaveEligibility eligibility,
             Clock clock) {
         return new SavedOdiiStoryService(store, eligibility, clock);

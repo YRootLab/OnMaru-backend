@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Clock;
@@ -27,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(classes = OnMaruApplication.class, properties = "onmaru.secrets.source=fake")
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class MonthlyHanokEditionWebBoundaryTests {
 
     @Autowired
@@ -88,7 +90,8 @@ class MonthlyHanokEditionWebBoundaryTests {
                 .andExpect(jsonPath("$.placements[0].place.placeId").value("p-jeonju-hanok-village"))
                 .andExpect(jsonPath("$.placements[0].place.savedByMe").value(true))
                 .andExpect(jsonPath("$.placements[1].slot").value("CAFE"))
-                .andExpect(jsonPath("$.placements[1].place.thumbnailUrl", nullValue()))
+                .andExpect(jsonPath("$.placements[1].place.thumbnailUrl")
+                        .value("https://tong.visitkorea.or.kr/cms/resource/04/3304404_image3_1.jpg"))
                 .andExpect(jsonPath("$.placements[1].place.savedByMe").value(false));
     }
 
