@@ -39,6 +39,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -137,6 +138,37 @@ class OdiiStoryWebBoundaryTests {
                         .param("language", "invalid-LANG"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void recordsPlayEventsAndRanksPopularSounds() throws Exception {
+        mockMvc.perform(post("/api/v1/odii/stories/odii-story-jeonju-hanok-01/plays")
+                        .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                        .header("X-CSRF-TOKEN", "csrf-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.storyId").value("odii-story-jeonju-hanok-01"))
+                .andExpect(jsonPath("$.recorded").value(true));
+
+        mockMvc.perform(post("/api/v1/odii/stories/odii-story-unknown/plays")
+                        .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                        .header("X-CSRF-TOKEN", "csrf-token"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/v1/odii/stories/odii-story-jeonju-hanok-01/plays"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/home/popular-sounds").param("limit", "7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.basis").value("POPULARITY"))
+                .andExpect(jsonPath("$.window").value("week"))
+                .andExpect(jsonPath("$.items[0].rank").value(1))
+                .andExpect(jsonPath("$.items[0].playCount").value(1))
+                .andExpect(jsonPath("$.items[0].saveCount").value(0))
+                .andExpect(jsonPath("$.items[0].score").value(2))
+                .andExpect(jsonPath("$.items[0].story.storyId").value("odii-story-jeonju-hanok-01"))
+                .andExpect(jsonPath("$.items[0].story.savedByMe").value(false));
     }
 
     @Test

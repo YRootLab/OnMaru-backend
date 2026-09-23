@@ -7,7 +7,7 @@ import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailQueryServ
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.RegionProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.SavedPlaceStateLookup;
-import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
+import com.yrootlab.onmaru.journey.saved.place.SavedPlaceStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -43,7 +43,7 @@ class CatalogDetailConfiguration {
     }
 
     @Bean
-    SavedPlaceStateLookup savedPlaceStateLookup(InMemorySavedPlaceStore savedPlaceStore) {
+    SavedPlaceStateLookup savedPlaceStateLookup(SavedPlaceStore savedPlaceStore) {
         return (memberId, placeId) -> memberId
                 .map(id -> savedPlaceStore.savedBy(id, placeId))
                 .orElse(false);

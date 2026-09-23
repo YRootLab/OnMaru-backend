@@ -3,10 +3,13 @@ package com.yrootlab.onmaru.web.audio;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLinkQuery;
 import com.yrootlab.onmaru.audio.query.ActiveRevisionOdiiStoryQueryStore;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
+import com.yrootlab.onmaru.audio.query.InMemoryOdiiStoryPopularityCounter;
 import com.yrootlab.onmaru.audio.query.OdiiPublicAudioUrlPolicy;
 import com.yrootlab.onmaru.audio.query.OdiiProjectionMetadataResolver;
 import com.yrootlab.onmaru.audio.query.OdiiSavedStateLookup;
 import com.yrootlab.onmaru.audio.query.OdiiStoryCursorCodec;
+import com.yrootlab.onmaru.audio.query.OdiiStoryPopularityPort;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryObserver;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryStore;
@@ -108,7 +111,8 @@ public class OdiiStoryConfiguration {
             ObjectProvider<OdiiSavedStateLookup> savedStateLookups,
             ObjectProvider<ApprovedAudioPlaceLinkQuery> approvedPlaceLinkQueries,
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
-            OdiiStoryCursorCodec cursorCodec) {
+            OdiiStoryCursorCodec cursorCodec,
+            ObjectProvider<OdiiStoryPopularityPort> popularityPorts) {
         var storyQueryStore = storyQueryStores.getIfAvailable(UnavailableOdiiStoryQueryStore::new);
         var savedStateLookup = savedStateLookups.getIfAvailable(() -> (memberId, storyId) -> false);
         var approvedPlaceLinkQuery = approvedPlaceLinkQueries.getIfAvailable(
@@ -118,7 +122,9 @@ public class OdiiStoryConfiguration {
                 savedStateLookup,
                 approvedPlaceLinkQuery,
                 audioUrlPolicy,
-                cursorCodec);
+                cursorCodec,
+                ContentTagPipeline.defaultPipeline(),
+                popularityPorts.getIfAvailable(InMemoryOdiiStoryPopularityCounter::new));
     }
 
     @ConfigurationProperties("onmaru.audio")
