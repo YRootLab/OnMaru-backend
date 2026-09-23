@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Run the opt-in AI pytest worker profile and persist comparable CI evidence."""
 
+from __future__ import annotations
+
 import argparse
 import importlib.util
 import json
@@ -54,12 +56,16 @@ def worker_isolation_is_healthy(workers: str) -> bool:
     return result.returncode == 0
 
 
-def select_profile(arguments: argparse.Namespace, workers: str | None) -> tuple[str, str | None]:
+def select_profile(
+    arguments: argparse.Namespace, workers: str | None
+) -> tuple[str, str | None]:
     if workers is None:
         return "serial", "workers-not-requested"
+    if arguments.force_isolation_failure:
+        return "serial", "isolation-check-failed"
     if arguments.force_worker_unavailable or importlib.util.find_spec("xdist") is None:
         return "serial", "pytest-xdist-unavailable"
-    if arguments.force_isolation_failure or not worker_isolation_is_healthy(workers):
+    if not worker_isolation_is_healthy(workers):
         return "serial", "isolation-check-failed"
     return "workers", None
 

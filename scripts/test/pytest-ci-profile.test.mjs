@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,25 +13,18 @@ function runProfile({
   workers,
   forceIsolationFailure = false,
   forceWorkerUnavailable = false,
-  testTarget,
-  dryRun = !testTarget,
 } = {}) {
   const evidenceDirectory = mkdtemp(join(tmpdir(), 'onmaru-pytest-profile-'));
   return evidenceDirectory.then(async (directory) => {
     const result = spawnSync(
-      'uv',
+      'python3',
       [
-        'run',
-        '--project',
-        'ai',
-        'python',
         profileScript,
-        ...(dryRun ? ['--dry-run'] : []),
+        '--dry-run',
         '--evidence-dir',
         directory,
         ...(forceIsolationFailure ? ['--force-isolation-failure'] : []),
         ...(forceWorkerUnavailable ? ['--force-worker-unavailable'] : []),
-        ...(testTarget ? ['--', testTarget] : []),
       ],
       {
         cwd: repositoryRoot,
@@ -50,15 +44,15 @@ function runProfile({
   });
 }
 
-test('pytest CI profile stays serial unless workers are explicitly opted in and emits JUnit and duration evidence', async () => {
-  const { result, evidence } = await runProfile({ testTarget: 'tests/test_health.py' });
+test('pytest CI profile fixture runs before setup-uv and records a serial dry-run plan', async () => {
+  const { result, evidence } = await runProfile();
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(evidence.selected_profile, 'serial');
   assert.equal(evidence.fallback_reason, 'workers-not-requested');
   assert.match(evidence.junit_xml, /pytest-junit\.xml$/);
   assert.ok(Number.isFinite(evidence.duration_ms));
-  assert.match(await readFile(evidence.junit_xml, 'utf8'), /<testsuite/);
+  assert.equal(existsSync(evidence.junit_xml), false, 'dry run must not claim a generated JUnit XML file');
 });
 
 test('pytest CI profile reports a serial fallback when worker isolation fails', async () => {
