@@ -5,7 +5,8 @@ import test from 'node:test';
 
 const root = process.cwd();
 const workflowPath = '.github/workflows/module-benchmark.yml';
-const toolkitWorkflow = 'YRootLab/OnMaru-modular-backend-pipeline-toolkit/.github/workflows/module-benchmark.yml@d8d67b3102164e0fa340322bef1d3f1d9b081153';
+const toolkitRef = 'a7c0b26b4a6c6cf405d5134610ba9c96e3f43a17';
+const toolkitWorkflow = `YRootLab/OnMaru-modular-backend-pipeline-toolkit/.github/workflows/module-benchmark.yml@${toolkitRef}`;
 
 function workflow() {
   return readFileSync(join(root, workflowPath), 'utf8');
@@ -16,6 +17,7 @@ test('module benchmark caller pins the toolkit and delegates affected planning t
   const yaml = workflow();
 
   assert.match(yaml, new RegExp(toolkitWorkflow.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(yaml, new RegExp(`toolkit_ref:\\s*${toolkitRef}`));
   assert.match(yaml, /catalog_path:\s*\.github\/benchmark-modules\.yml/);
   assert.match(yaml, /mode:\s*\$\{\{[^}]*pull_request[^}]*\}\}/);
   assert.match(yaml, /baseline_ref:\s*develop/);
