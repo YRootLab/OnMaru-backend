@@ -45,6 +45,14 @@ public final class InMemoryAudioRevisionStore implements AudioRevisionStore {
     }
 
     @Override
+    public synchronized UUID initializeDataset(String dataset, Instant initializedAt) {
+        if (!this.dataset.equals(dataset)) {
+            throw new IllegalArgumentException("unknown dataset: " + dataset);
+        }
+        return activeRevision;
+    }
+
+    @Override
     public synchronized AudioRevisionStage openStage(
             String dataset,
             UUID expectedBaseRevisionId,

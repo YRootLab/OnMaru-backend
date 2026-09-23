@@ -7,6 +7,8 @@ import com.yrootlab.onmaru.catalog.application.publication.SourceWatermark;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
+import java.util.HashSet;
 
 public final class OdiiRevisionSyncService {
 
@@ -16,6 +18,8 @@ public final class OdiiRevisionSyncService {
     private final OdiiPageSource source;
     private final OdiiSourceMapper mapper;
     private final Clock clock;
+    private final List<String> keywords;
+    private final OdiiCurationPolicy curationPolicy;
     private final DatasetPublicationService publisher;
     private final OdiiSyncObserver observer;
 
@@ -25,7 +29,7 @@ public final class OdiiRevisionSyncService {
             OdiiSourceMapper mapper,
             Clock clock
     ) {
-        this(store, source, mapper, clock, OdiiSyncObserver.NOOP);
+        this(store, source, mapper, List.of("한옥"), new OdiiCurationPolicy(), clock, OdiiSyncObserver.NOOP);
     }
 
     public OdiiRevisionSyncService(
@@ -35,10 +39,35 @@ public final class OdiiRevisionSyncService {
             Clock clock,
             OdiiSyncObserver observer
     ) {
+        this(store, source, mapper, List.of("한옥"), new OdiiCurationPolicy(), clock, observer);
+    }
+
+    public OdiiRevisionSyncService(
+            AudioRevisionStore store,
+            OdiiPageSource source,
+            OdiiSourceMapper mapper,
+            List<String> keywords,
+            Clock clock,
+            OdiiSyncObserver observer
+    ) {
+        this(store, source, mapper, keywords, new OdiiCurationPolicy(), clock, observer);
+    }
+
+    public OdiiRevisionSyncService(
+            AudioRevisionStore store,
+            OdiiPageSource source,
+            OdiiSourceMapper mapper,
+            List<String> keywords,
+            OdiiCurationPolicy curationPolicy,
+            Clock clock,
+            OdiiSyncObserver observer
+    ) {
         this.store = store;
         this.source = source;
         this.mapper = mapper;
         this.clock = clock;
+        this.keywords = List.copyOf(keywords);
+        this.curationPolicy = curationPolicy;
         this.observer = observer == null ? OdiiSyncObserver.NOOP : observer;
         this.publisher = new DatasetPublicationService(store, clock);
     }
@@ -50,25 +79,33 @@ public final class OdiiRevisionSyncService {
         Instant latestModifiedAt = null;
         String latestExternalId = null;
         var mappedStories = new java.util.ArrayList<OdiiStoryVersion>();
+        var seenStoryIds = new HashSet<String>();
         try {
             for (String language : command.languages()) {
-                int pageNumber = 1;
-                while (true) {
-                    OdiiSourcePage page = source.fetch(language, pageNumber);
-                    var mapped = page.stories().stream().map(mapper::map).toList();
-                    store.stage(stage.revisionId(), mapped);
-                    for (OdiiMappedStory story : mapped) {
-                        mappedStories.add(story.story());
-                        Instant modifiedAt = story.story().sourceModifiedAt();
-                        if (latestModifiedAt == null || modifiedAt.isAfter(latestModifiedAt)) {
-                            latestModifiedAt = modifiedAt;
-                            latestExternalId = story.story().identity().stlid();
+                for (String keyword : keywords) {
+                    int pageNumber = 1;
+                    while (true) {
+                        OdiiSourcePage page = source.fetch(language, keyword, pageNumber);
+                        var mapped = page.stories().stream()
+                                .filter(story -> curationPolicy.decide(story, keyword).status()
+                                        == OdiiCurationDecision.Status.INCLUDED)
+                                .filter(story -> seenStoryIds.add(story.stlid()))
+                                .map(mapper::map)
+                                .toList();
+                        store.stage(stage.revisionId(), mapped);
+                        for (OdiiMappedStory story : mapped) {
+                            mappedStories.add(story.story());
+                            Instant modifiedAt = story.story().sourceModifiedAt();
+                            if (latestModifiedAt == null || modifiedAt.isAfter(latestModifiedAt)) {
+                                latestModifiedAt = modifiedAt;
+                                latestExternalId = story.story().identity().stlid();
+                            }
                         }
+                        if (page.lastPage()) {
+                            break;
+                        }
+                        pageNumber++;
                     }
-                    if (page.lastPage()) {
-                        break;
-                    }
-                    pageNumber++;
                 }
             }
         } catch (OdiiSourceException | OdiiMappingException exception) {

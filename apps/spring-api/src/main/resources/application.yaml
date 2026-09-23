@@ -49,7 +49,7 @@ onmaru:
     sync:
       base-uri: ${ONMARU_ODII_BASE_URI:https://apis.data.go.kr/B551011/Odii}
       mobile-app: ${ONMARU_ODII_MOBILE_APP:OnMaru}
-      keyword: ${ONMARU_ODII_KEYWORD:한옥}
+      keywords: ${ONMARU_ODII_KEYWORDS:한옥,고택,전통마을,궁궐,성곽,문화유산,역사문화,전통시장}
       page-size: ${ONMARU_ODII_PAGE_SIZE:100}
 
 management:
