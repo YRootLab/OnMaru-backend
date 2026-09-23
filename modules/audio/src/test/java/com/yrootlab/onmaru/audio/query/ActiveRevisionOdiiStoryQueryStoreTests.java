@@ -175,6 +175,11 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
         }
 
         @Override
+        public UUID initializeDataset(String dataset, Instant initializedAt) {
+            return oldRevisionId;
+        }
+
+        @Override
         public ActiveAudioRevision activePublishedRevision(String dataset) {
             return new ActiveAudioRevision(oldRevisionId, oldSnapshot);
         }
