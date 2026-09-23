@@ -145,11 +145,10 @@ class OdiiHttpClientTests {
                 client(0),
                 new OdiiUriBuilder(serverUri(), "secret", "OnMaru"),
                 new OdiiSourceItemMapper(),
-                "한옥",
                 20
         );
 
-        var page = source.fetch("ko", 1);
+        var page = source.fetch("ko", "한옥", 1);
 
         assertThat(page.lastPage()).isTrue();
         assertThat(page.stories()).singleElement().satisfies(story -> {

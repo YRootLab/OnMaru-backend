@@ -15,31 +15,28 @@ public final class OdiiStorySearchPageSource implements OdiiPageSource {
     private final OdiiHttpClient client;
     private final OdiiUriBuilder uriBuilder;
     private final OdiiSourceItemMapper mapper;
-    private final String keyword;
     private final int pageSize;
 
     public OdiiStorySearchPageSource(
             OdiiHttpClient client,
             OdiiUriBuilder uriBuilder,
             OdiiSourceItemMapper mapper,
-            String keyword,
             int pageSize
     ) {
-        if (keyword == null || keyword.isBlank()) {
-            throw new IllegalArgumentException("keyword must not be blank");
-        }
         if (pageSize < 1) {
             throw new IllegalArgumentException("pageSize must be positive");
         }
         this.client = client;
         this.uriBuilder = uriBuilder;
         this.mapper = mapper;
-        this.keyword = keyword;
         this.pageSize = pageSize;
     }
 
     @Override
-    public OdiiSourcePage fetch(String language, int page) {
+    public OdiiSourcePage fetch(String language, String keyword, int page) {
+        if (language == null || language.isBlank() || keyword == null || keyword.isBlank()) {
+            throw new IllegalArgumentException("language and keyword must not be blank");
+        }
         try {
             var providerPage = client.get(
                     OPERATION,

@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Profile;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 
 @Configuration
 @EnableConfigurationProperties({
@@ -64,7 +65,6 @@ public class OdiiClientConfiguration {
                 client,
                 uriBuilder,
                 new OdiiSourceItemMapper(),
-                settings.keyword(),
                 settings.pageSize());
     }
 
@@ -73,10 +73,11 @@ public class OdiiClientConfiguration {
     OdiiRevisionSyncService odiiRevisionSyncService(
             AudioRevisionStore store,
             OdiiStorySearchPageSource source,
+            OdiiSyncSettings settings,
             Clock clock,
             OdiiSyncObserver observer
     ) {
-        return new OdiiRevisionSyncService(store, source, new OdiiSourceMapper(), clock, observer);
+        return new OdiiRevisionSyncService(store, source, new OdiiSourceMapper(), settings.keywords(), clock, observer);
     }
 
     @Bean
@@ -105,13 +106,19 @@ public class OdiiClientConfiguration {
     public record OdiiSyncSettings(
             URI baseUri,
             String mobileApp,
-            String keyword,
+            List<String> keywords,
             Integer pageSize
     ) {
         public OdiiSyncSettings {
             baseUri = baseUri == null ? URI.create("https://apis.data.go.kr/B551011/Odii") : baseUri;
             mobileApp = mobileApp == null || mobileApp.isBlank() ? "OnMaru" : mobileApp;
-            keyword = keyword == null || keyword.isBlank() ? "한옥" : keyword;
+            keywords = keywords == null || keywords.isEmpty()
+                    ? List.of("한옥", "고택", "전통마을", "궁궐", "성곽", "문화유산", "역사문화", "전통시장")
+                    : keywords.stream().map(String::trim).toList();
+            if (keywords.stream().anyMatch(String::isBlank)
+                    || keywords.stream().distinct().count() != keywords.size()) {
+                throw new IllegalArgumentException("keywords must contain unique non-blank values");
+            }
             pageSize = pageSize == null ? 100 : pageSize;
             if (pageSize < 1 || pageSize > 1000) {
                 throw new IllegalArgumentException("pageSize must be between 1 and 1000");
