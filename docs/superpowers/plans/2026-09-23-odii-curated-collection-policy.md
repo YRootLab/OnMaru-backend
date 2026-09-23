@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Expand Odii synchronization from the single `한옥` query to a policy-driven, deduplicated collection that excludes leisure and sports content, preserves culturally contextualized traditional accommodation, and keeps the last active PostgreSQL revision on unsafe sync results.
+**Goal:** Expand Odii synchronization from the single `한옥` query to a policy-driven, deduplicated full collection using `storyBasedSyncList`, exclude leisure and sports content, preserve culturally contextualized traditional accommodation, and keep the last active PostgreSQL revision on unsafe sync results.
 
-**Architecture:** Keep the existing `OdiiPageSource → OdiiRevisionSyncService → AudioRevisionStore → publish` pipeline. Make the source accept a list of configured keywords, introduce a pure curation policy for deduplication and inclusion decisions, and expose sync counts through the existing result/observer boundary. Do not delete raw provider observations or introduce AI classification in this change.
+**Architecture:** Keep the existing `OdiiPageSource → OdiiRevisionSyncService → AudioRevisionStore → publish` pipeline. Add a full-collection source contract for `storyBasedSyncList`; retain the keyword source as a compatibility fallback. Introduce a pure curation policy for deduplication and inclusion decisions. Do not delete raw provider observations or introduce AI classification in this change.
 
 **Tech Stack:** Java 21, Spring Boot configuration properties, JUnit 5, AssertJ, existing PostgreSQL/Testcontainers migration and audio sync test fixtures.
 
 ## Global Constraints
 
 - The production source remains the Korea Tourism Organization Odii API; request-time public APIs must continue reading the active PostgreSQL revision.
-- `#307` production credential/empty-dataset recovery is a prerequisite and must remain diagnostically separate from `#329` policy changes.
+- `#307` production credential/empty-dataset recovery is a prerequisite and must remain diagnostically separate from `#355` policy changes.
 - Preserve atomic staging/publication and keep the previous active revision when source fetch fails, the result is empty, or the result falls below the configured safety threshold.
 - Keep the source allowlist and exclusion rules deterministic, reviewable, and free of AI/model dependencies.
 - Do not remove excluded provider data permanently; retain enough identity/reason information for sync observability or quarantine follow-up.
@@ -69,21 +69,23 @@ git add modules/audio/src/main/java/com/yrootlab/onmaru/audio/sync/OdiiCurationP
 git commit -m "feat(audio): add deterministic Odii curation policy"
 ```
 
-### Task 2: Change Odii source configuration and page fetching to support multiple keywords
+### Task 2: Add full Odii story synchronization source
 
 **Files:**
+- Create: `modules/audio/src/main/java/com/yrootlab/onmaru/audio/sync/OdiiFullCollectionPageSource.java`
+- Create: `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/audio/sync/OdiiStorySyncPageSource.java`
 - Modify: `apps/spring-api/src/main/java/com/yrootlab/onmaru/tourism/audio/OdiiClientConfiguration.java`
-- Modify: `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/audio/sync/OdiiStorySearchPageSource.java`
+- Modify: `adapters/tourism-api/src/main/java/com/yrootlab/onmaru/tourism/audio/client/OdiiUriBuilder.java`
 - Modify: `adapters/tourism-api/src/test/java/com/yrootlab/onmaru/tourism/audio/client/OdiiHttpClientTests.java`
 - Modify: production configuration files containing `onmaru.odii.sync.keyword`
 
 **Interfaces:**
-- Consumes: `OdiiSyncSettings.keywords()` as an immutable list.
-- Produces: `OdiiStorySearchPageSource.fetch(language, keyword, page)` with the same provider error and page-drift behavior as today.
+- Consumes: a language and page number.
+- Produces: `storyBasedSyncList` requests without a keyword filter, with the same provider error and page-drift behavior as today.
 
 - [ ] **Step 1: Add failing configuration/source tests**
 
-Assert that default settings contain the approved first-wave keywords, explicit configured keywords are preserved in order, blank entries are rejected, and the source builds a request for each keyword without changing language/page semantics.
+Assert that the full source builds a `storyBasedSyncList` request without `keyword`, maps the response, and rejects provider page drift.
 
 - [ ] **Step 2: Run focused adapter/configuration tests and verify failure**
 
@@ -91,15 +93,15 @@ Assert that default settings contain the approved first-wave keywords, explicit 
 ./gradlew :adapters:tourism-api:test :apps:spring-api:test --tests '*OdiiHttpClientTests' --tests '*OdiiClientConfigurationTests'
 ```
 
-Expected: compile or assertion failures against the current single-keyword contract.
+Expected: compilation failure because the full collection source does not exist yet.
 
 - [ ] **Step 3: Implement list-based settings and source signature**
 
-Replace `keyword` with `List<String> keywords` in `OdiiSyncSettings`, validate non-empty unique values, and update the Spring bean wiring. Keep the HTTP source responsible only for one `(language, keyword, page)` request so it remains independently testable.
+Add `OdiiFullCollectionPageSource`, implement it with `OdiiStorySyncPageSource`, add `OdiiUriBuilder.storyBasedSync`, and wire the production sync service to the full source. Keep `OdiiStorySearchPageSource` and keyword settings as a compatibility fallback.
 
 - [ ] **Step 4: Run focused tests and verify pass**
 
-Run the commands above. Expected: all configuration and request-building tests pass.
+Run the commands above. Expected: full-source request and configuration tests pass.
 
 - [ ] **Step 5: Commit**
 
@@ -108,7 +110,7 @@ git add apps/spring-api/src/main/java/com/yrootlab/onmaru/tourism/audio/OdiiClie
 git commit -m "feat(audio): configure Odii multi-keyword source"
 ```
 
-### Task 3: Apply deduplication and curation during revision synchronization
+### Task 3: Apply full-collection deduplication and curation during revision synchronization
 
 **Files:**
 - Modify: `modules/audio/src/main/java/com/yrootlab/onmaru/audio/sync/OdiiRevisionSyncService.java`
@@ -147,7 +149,7 @@ Expected: missing constructor/result fields or incorrect staging counts.
 
 - [ ] **Step 3: Implement the sync loop**
 
-Iterate language × keyword × page, fetch one page at a time, maintain a `Set<String>` of seen story IDs, apply the curation policy before mapping/staging, and aggregate counts. Do not publish a revision with no included stories or with a configured safety-threshold violation. Return a typed non-published status rather than throwing for expected policy rejection.
+For a full-collection source, iterate language × page once, maintain a `Set<String>` of seen story IDs, apply the curation policy before mapping/staging, and aggregate counts. For the compatibility source, retain language × keyword × page iteration. Do not publish a revision with no included stories or with a configured safety-threshold violation. Return a typed non-published status rather than throwing for expected policy rejection.
 
 - [ ] **Step 4: Run focused sync tests and verify pass**
 
@@ -199,7 +201,7 @@ git commit -m "feat(observability): report Odii curation sync counts"
 - Modify: `apps/spring-api/src/test/java/com/yrootlab/onmaru/testing/postgres/*Audio*Tests.java` or the existing PostgreSQL audio persistence test file
 - Modify: `docs/database/schema.md` only if a migration/schema field is added
 - Modify: `docs/superpowers/specs/2026-09-23-odii-curated-collection-policy-design.md` only for verified implementation notes
-- Modify: `handoff.md` with branch, Issue #329, verification, and remaining #307 production action
+- Modify: `handoff.md` with branch, Issue #355, verification, and remaining #307 production action
 
 **Interfaces:**
 - Consumes: the completed sync service and JDBC `AudioRevisionStore`.
@@ -225,7 +227,7 @@ Expected: tests pass against real PostgreSQL rather than H2.
 git diff --check
 ```
 
-- [ ] **Step 4: Update Issue #329 and handoff evidence**
+- [ ] **Step 4: Update Issue #355 and handoff evidence**
 
 Record the exact test commands, counts observed in the sync summary, the deployed environment result, and whether #307 has been separately recovered. Do not close either issue until its own acceptance criteria and merge state are verified.
 
@@ -238,7 +240,7 @@ git commit -m "docs(audio): record Odii curation verification"
 
 ## Plan Self-Review
 
-- Spec coverage: multi-keyword collection, exclusion policy, deduplication, safe publication, observability, PostgreSQL verification, and #307 separation are covered by Tasks 1–5.
+- Spec coverage: full collection, exclusion policy, deduplication, safe publication, observability, PostgreSQL verification, and #307 separation are covered by Tasks 1–5.
 - Placeholder scan: no `TBD`, `TODO`, or unspecified implementation step is required; all commands and target files are named.
 - Type consistency: Task 1 defines `OdiiCurationDecision`; Task 3 consumes it. Task 2 defines `OdiiSyncSettings.keywords()` and keyword-aware source fetching; Task 3 consumes the list. Task 3 enriches `OdiiSyncResult`; Task 4 consumes it.
 - Scope check: no AI classifier, general tourism category rewrite, search engine, or raw-data deletion is included.

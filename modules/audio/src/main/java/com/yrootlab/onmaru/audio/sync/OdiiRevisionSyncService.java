@@ -82,29 +82,35 @@ public final class OdiiRevisionSyncService {
         var seenStoryIds = new HashSet<String>();
         try {
             for (String language : command.languages()) {
-                for (String keyword : keywords) {
+                if (source instanceof OdiiFullCollectionPageSource fullSource) {
                     int pageNumber = 1;
                     while (true) {
-                        OdiiSourcePage page = source.fetch(language, keyword, pageNumber);
-                        var mapped = page.stories().stream()
-                                .filter(story -> curationPolicy.decide(story, keyword).status()
-                                        == OdiiCurationDecision.Status.INCLUDED)
-                                .filter(story -> seenStoryIds.add(story.stlid()))
-                                .map(mapper::map)
-                                .toList();
-                        store.stage(stage.revisionId(), mapped);
-                        for (OdiiMappedStory story : mapped) {
-                            mappedStories.add(story.story());
-                            Instant modifiedAt = story.story().sourceModifiedAt();
-                            if (latestModifiedAt == null || modifiedAt.isAfter(latestModifiedAt)) {
-                                latestModifiedAt = modifiedAt;
-                                latestExternalId = story.story().identity().stlid();
-                            }
-                        }
+                        OdiiSourcePage page = fullSource.fetchFull(language, pageNumber);
+                        var processed = processPage(
+                                stage.revisionId(), page, null, seenStoryIds, mappedStories, latestModifiedAt,
+                                latestExternalId);
+                        latestModifiedAt = processed.latestModifiedAt();
+                        latestExternalId = processed.latestExternalId();
                         if (page.lastPage()) {
                             break;
                         }
                         pageNumber++;
+                    }
+                } else {
+                    for (String keyword : keywords) {
+                        int pageNumber = 1;
+                        while (true) {
+                            OdiiSourcePage page = source.fetch(language, keyword, pageNumber);
+                            var processed = processPage(
+                                    stage.revisionId(), page, keyword, seenStoryIds, mappedStories, latestModifiedAt,
+                                    latestExternalId);
+                            latestModifiedAt = processed.latestModifiedAt();
+                            latestExternalId = processed.latestExternalId();
+                            if (page.lastPage()) {
+                                break;
+                            }
+                            pageNumber++;
+                        }
                     }
                 }
             }
@@ -141,5 +147,35 @@ public final class OdiiRevisionSyncService {
         );
         observer.completed(command.dataset(), result);
         return result;
+    }
+
+    private ProcessedPage processPage(
+            java.util.UUID revisionId,
+            OdiiSourcePage page,
+            String keyword,
+            HashSet<String> seenStoryIds,
+            java.util.List<OdiiStoryVersion> mappedStories,
+            Instant latestModifiedAt,
+            String latestExternalId
+    ) {
+        var mapped = page.stories().stream()
+                .filter(story -> curationPolicy.decide(story, keyword).status()
+                        == OdiiCurationDecision.Status.INCLUDED)
+                .filter(story -> seenStoryIds.add(story.stlid()))
+                .map(mapper::map)
+                .toList();
+        store.stage(revisionId, mapped);
+        for (OdiiMappedStory story : mapped) {
+            mappedStories.add(story.story());
+            Instant modifiedAt = story.story().sourceModifiedAt();
+            if (latestModifiedAt == null || modifiedAt.isAfter(latestModifiedAt)) {
+                latestModifiedAt = modifiedAt;
+                latestExternalId = story.story().identity().stlid();
+            }
+        }
+        return new ProcessedPage(latestModifiedAt, latestExternalId);
+    }
+
+    private record ProcessedPage(Instant latestModifiedAt, String latestExternalId) {
     }
 }

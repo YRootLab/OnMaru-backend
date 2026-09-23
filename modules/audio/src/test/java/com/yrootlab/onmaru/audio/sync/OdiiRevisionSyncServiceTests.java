@@ -66,6 +66,22 @@ class OdiiRevisionSyncServiceTests {
     }
 
     @Test
+    void fullCollectionSourceIsFetchedOncePerLanguageWithoutConfiguredKeywordExpansion() {
+        UUID baseRevision = UUID.randomUUID();
+        var store = store(baseRevision, List.of());
+        var source = new StubFullCollectionPageSource()
+                .page("ko", 1, page(List.of(source("300", "1204", "ko", "562")), true))
+                .page("en", 1, page(List.of(source("301", "2187", "en", "562")), true));
+        var service = new OdiiRevisionSyncService(
+                store, source, mapper, List.of("한옥", "고택", "전통시장"), clock, OdiiSyncObserver.NOOP);
+
+        OdiiSyncResult result = service.sync(command(baseRevision, List.of("ko", "en"), 1));
+
+        assertThat(result.status()).isEqualTo(OdiiSyncStatus.PUBLISHED);
+        assertThat(source.fetches).containsExactly("ko:1", "en:1");
+    }
+
+    @Test
     void summarizesContentTagQualityForPublishedRevision() {
         UUID baseRevision = UUID.randomUUID();
         var store = store(baseRevision, List.of());
@@ -278,6 +294,27 @@ class OdiiRevisionSyncServiceTests {
 
         private String key(String language, int page) {
             return language + ":" + page;
+        }
+    }
+
+    private static final class StubFullCollectionPageSource implements OdiiFullCollectionPageSource {
+
+        private final Map<String, OdiiSourcePage> pages = new LinkedHashMap<>();
+        private final List<String> fetches = new ArrayList<>();
+
+        StubFullCollectionPageSource page(String language, int page, OdiiSourcePage sourcePage) {
+            pages.put(language + ":" + page, sourcePage);
+            return this;
+        }
+
+        @Override
+        public OdiiSourcePage fetchFull(String language, int page) {
+            fetches.add(language + ":" + page);
+            OdiiSourcePage sourcePage = pages.get(language + ":" + page);
+            if (sourcePage == null) {
+                throw new OdiiSourceException("missing stub page");
+            }
+            return sourcePage;
         }
     }
 

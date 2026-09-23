@@ -38,8 +38,12 @@ public final class OdiiCurationPolicy {
         return OdiiCurationDecision.included();
     }
 
+    public OdiiCurationDecision decide(OdiiSourceStory story) {
+        return decide(story, null);
+    }
+
     private static String normalize(String value) {
-        return value.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
     }
 
     private static String value(String value) {
