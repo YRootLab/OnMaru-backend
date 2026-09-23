@@ -85,7 +85,11 @@ public class OdiiSyncSchedulingAdapter {
             UUID activeRevision = revisionStore.activeRevision(dataset);
             if (activeRevision == null) {
                 LOGGER.info("initializing dataset {} before sync", dataset);
-                activeRevision = revisionStore.activeRevision(dataset);
+                activeRevision = revisionStore.initializeDataset(dataset, Instant.now());
+            }
+            if (activeRevision == null) {
+                LOGGER.error("odii sync aborted: dataset {} could not be initialized", dataset);
+                return;
             }
 
             SyncRunLease lease = acquireOrRenewLease(dataSource, dataset, OWNER_TOKEN);

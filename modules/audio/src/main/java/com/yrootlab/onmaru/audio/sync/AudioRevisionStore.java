@@ -8,6 +8,8 @@ import java.util.UUID;
 
 public interface AudioRevisionStore extends PublicationStore {
 
+    UUID initializeDataset(String dataset, Instant initializedAt);
+
     AudioRevisionStage openStage(String dataset, UUID expectedBaseRevisionId, Instant observedAt);
 
     void stage(UUID revisionId, List<OdiiMappedStory> stories);

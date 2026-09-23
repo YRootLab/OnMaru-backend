@@ -265,7 +265,7 @@ class OdiiRevisionSyncServiceTests {
         }
 
         @Override
-        public OdiiSourcePage fetch(String language, int page) {
+        public OdiiSourcePage fetch(String language, String keyword, int page) {
             if (failures.contains(key(language, page))) {
                 throw new OdiiSourceException("provider failure");
             }
