@@ -7,7 +7,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class LocalDevelopmentCorsConfiguration implements WebMvcConfigurer {
 
-    private static final String[] LOCAL_DEVELOPMENT_ORIGINS = {
+    private static final String[] ALLOWED_ORIGINS = {
+            "https://onmaru-web.onrender.com",
             "http://localhost:3000",
             "http://localhost:3001",
             "http://localhost:3002",
@@ -21,7 +22,7 @@ public class LocalDevelopmentCorsConfiguration implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins(LOCAL_DEVELOPMENT_ORIGINS)
+                .allowedOrigins(ALLOWED_ORIGINS)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("Content-Type", "Idempotency-Key", "X-CSRF-TOKEN", "X-Request-Id")
                 .allowCredentials(true)
