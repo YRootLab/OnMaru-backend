@@ -37,6 +37,13 @@
     ],
     "failurePolicy": "rollback-on-failure"
   },
+  "benchmark": {
+    "workflow": ".github/workflows/benchmark-release.yml",
+    "requires": ["staging-readiness", "deployed-image-digest-match"],
+    "inconclusivePolicy": "block-automatic-promotion",
+    "regressionPolicy": "require-explicit-approval",
+    "artifactRetentionDays": 30
+  },
   "rollback": {
     "strategy": "previous-image-digest",
     "evidencePath": "docs/operations/release-evidence/staging"
