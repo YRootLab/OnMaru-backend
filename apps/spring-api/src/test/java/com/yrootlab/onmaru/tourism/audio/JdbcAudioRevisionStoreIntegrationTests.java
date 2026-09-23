@@ -89,7 +89,7 @@ class JdbcAudioRevisionStoreIntegrationTests {
         AudioRevisionStore firstStore = new JdbcAudioRevisionStore(dataSource());
         var successful = new OdiiRevisionSyncService(
                 firstStore,
-                (language, page) -> new OdiiSourcePage(List.of(source()), true),
+                (language, keyword, page) -> new OdiiSourcePage(List.of(source()), true),
                 mapper,
                 clock);
 
@@ -106,7 +106,7 @@ class JdbcAudioRevisionStoreIntegrationTests {
         });
 
         UUID lkgRevision = restarted.revisionId();
-        OdiiPageSource lastPageFailure = (language, page) -> {
+        OdiiPageSource lastPageFailure = (language, keyword, page) -> {
             if (page == 1) {
                 return new OdiiSourcePage(List.of(source()), false);
             }
