@@ -9,6 +9,7 @@
 - [r2/README.md](r2/README.md): R2 지도, 사용자 후기, Odii 오디오 및 Cloudflare R2 연동 증적
 - [journey/README.md](journey/README.md): R3 Journey AI 탐색, SSE 실시간 스트리밍, OpenAPI 및 Fallback 증적
 - [grafana-o02-checklist.md](grafana-o02-checklist.md): O02 Grafana Cloud 대시보드 및 Alert 라우팅 검증 체크리스트
+- [benchmark.md](benchmark.md): Release tag부터 benchmark manifest, artifact link, promotion gate까지의 W4 증적
 
 ## 🚀 게이트 자동화 검증
 
