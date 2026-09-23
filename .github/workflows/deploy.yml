@@ -57,6 +57,7 @@ jobs:
           image-ref: ${{ env.SPRING_IMAGE }}:${{ github.sha }}
           format: sarif
           output: trivy-spring-api.sarif
+          scanners: vuln
           severity: CRITICAL,HIGH
           exit-code: "1"
 
@@ -84,6 +85,7 @@ jobs:
           image-ref: ${{ env.AI_IMAGE }}:${{ github.sha }}
           format: sarif
           output: trivy-ai-service.sarif
+          scanners: vuln
           severity: CRITICAL,HIGH
           exit-code: "1"
           trivyignores: .trivyignore
@@ -159,7 +161,11 @@ jobs:
       - build-and-scan-images
       - migration-gate
       - staging-smoke
-    if: failure()
+    if: >-
+      failure() &&
+      (needs.build-and-scan-images.result == 'success' ||
+      needs.migration-gate.result == 'success' ||
+      needs.staging-smoke.result == 'failure')
     environment: staging
     steps:
       - name: Checkout
