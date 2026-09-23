@@ -119,7 +119,7 @@ class OdiiStoryQueryServiceTests {
     }
 
     @Test
-    void recommendsKeywordMatchesBeforeRecentUnmatchedStoriesWithStableOrder() {
+    void recommendsKeywordMatchesWithStableOrder() {
         store.replaceActive(snapshot(REVISION_ONE,
                 storyWithTextAndPublishedAt("odii-story-match", "궁궐 이야기", "왕실 산책",
                         List.of("궁궐"), Instant.parse("2026-09-10T00:00:00Z")),
@@ -130,6 +130,22 @@ class OdiiStoryQueryServiceTests {
 
         assertThat(result.items()).extracting(OdiiStorySummary::storyId)
                 .containsExactly("odii-story-match");
+    }
+
+    @Test
+    void deduplicatesStoriesBeforeApplyingLimitToCompatibilityQueries() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyWithTextAndPublishedAt("odii-story-duplicate", "궁궐 이야기", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-15T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-duplicate", "궁궐 이야기 이전 버전", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-14T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-second", "궁궐 두 번째 이야기", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-13T00:00:00Z"))));
+
+        var result = service.search("궁궐", "ko-KR", 2, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-duplicate", "odii-story-second");
     }
 
     @Test

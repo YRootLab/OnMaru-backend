@@ -160,8 +160,9 @@ public final class OdiiStoryQueryService {
         var matches = deduplicate(selection.stories().stream()
                 .filter(story -> searchableText(story).contains(normalizedKeyword))
                 .sorted(ORDER)
+                .toList()).stream()
                 .limit(limit)
-                .toList());
+                .toList();
         return page(selection, matches, memberId);
     }
 
@@ -182,7 +183,7 @@ public final class OdiiStoryQueryService {
 
         var snapshot = store.activeSnapshot();
         var selection = selectLanguage(publicStories(snapshot.stories()), language);
-        var nearby = selection.stories().stream()
+        var nearby = deduplicate(selection.stories()).stream()
                 .map(story -> new Distance(story, distanceMeters(
                         latitude, longitude, story.coordinates().lat(), story.coordinates().lng())))
                 .filter(distance -> distance.meters() <= radiusMeters)
@@ -192,7 +193,7 @@ public final class OdiiStoryQueryService {
                 .map(Distance::story)
                 .limit(limit)
                 .toList();
-        return page(selection, deduplicate(nearby), memberId);
+        return page(selection, nearby, memberId);
     }
 
     public OdiiStoryPage recommend(
@@ -206,15 +207,14 @@ public final class OdiiStoryQueryService {
 
         var snapshot = store.activeSnapshot();
         var selection = selectLanguage(publicStories(snapshot.stories()), language);
-        var ranked = selection.stories().stream()
+        var ranked = deduplicate(selection.stories()).stream()
                 .filter(story -> searchableText(story).contains(normalizedKeyword))
                 .sorted(Comparator.comparingInt((OdiiStoryProjection story) -> matchScore(story, normalizedKeyword))
                         .reversed()
                         .thenComparing(OdiiStoryProjection::publishedAt, Comparator.reverseOrder())
                         .thenComparing(OdiiStoryProjection::storyId))
-                .limit(limit)
                 .toList();
-        return page(selection, deduplicate(ranked), memberId);
+        return page(selection, ranked.stream().limit(limit).toList(), memberId);
     }
 
     private List<OdiiStoryProjection> publicStories(List<OdiiStoryProjection> stories) {

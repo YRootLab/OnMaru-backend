@@ -25,7 +25,7 @@
 `GET /api/recommendation?keyword=궁궐&language=ko-KR&limit=20`
 
 - `keyword`: 필수, 1~80자
-- 제목 exact match, 제목 부분 일치, 오디오 제목, contentTags 순으로 점수화한다.
+- 키워드에 일치하는 story만 후보로 삼고 제목 exact match, 제목 부분 일치, 오디오 제목, contentTags 순으로 점수화한다.
 - 동점은 게시일 최신순과 story ID 순으로 정렬한다.
 - 외부 추천 서비스나 사용자별 캐시는 사용하지 않는다.
 
