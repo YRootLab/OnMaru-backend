@@ -1,0 +1,57 @@
+name: Module Benchmark
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: module-benchmark-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  module-benchmark:
+    name: affected module benchmark
+    uses: YRootLab/OnMaru-modular-backend-pipeline-toolkit/.github/workflows/module-benchmark.yml@d8d67b3102164e0fa340322bef1d3f1d9b081153
+    with:
+      catalog_path: .github/benchmark-modules.yml
+      mode: ${{ github.event_name == 'pull_request' && 'pr' || 'develop' }}
+      max_parallel: 4
+      baseline_ref: develop
+      comment_mode: none
+
+  caller-summary:
+    name: module benchmark summary
+    needs: module-benchmark
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Publish artifact-backed PR summary
+        env:
+          RESULT: ${{ needs.module-benchmark.outputs.result }}
+          COMPARISON_ID: ${{ needs.module-benchmark.outputs.comparison_id }}
+          MANIFEST_URI: ${{ needs.module-benchmark.outputs.manifest_uri }}
+          REPORT_ARTIFACT: ${{ needs.module-benchmark.outputs.report_artifact }}
+          CRITICAL_PATH_SECONDS: ${{ needs.module-benchmark.outputs.critical_path_seconds }}
+          IS_FORK: ${{ github.event.pull_request.head.repo.fork || false }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          # Module benchmark
+
+          - Result: \`${RESULT:-failed}\`
+          - Comparison: \`${COMPARISON_ID:-unavailable}\`
+          - Critical path: \`${CRITICAL_PATH_SECONDS:-unavailable}\` seconds
+          - Evidence manifest: ${MANIFEST_URI:-unavailable}
+          - Report artifact: \`${REPORT_ARTIFACT:-unavailable}\`
+          - Fork PR: \`${IS_FORK}\` (read-only; no secrets are provided)
+
+          Affected planning is delegated to the pinned toolkit with the consumer catalog.
+          All PR paths are evaluated: docs-only, common-path, and unknown diffs safely use the catalog planner fallback when no direct module match exists.
+          EOF

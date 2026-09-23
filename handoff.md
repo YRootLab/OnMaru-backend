@@ -1,5 +1,12 @@
 # handoff.md
 
+- **Date**: 2026-09-23 toolkit module matrix caller 구현 시작
+- **Branch**: `feature/365-toolkit-module-caller`
+- **Related Issue**: #365 (depends on #363 and toolkit #35)
+- **Scope**: `.github/workflows/module-benchmark.yml`, caller contract test, handoff only; `ci.yml`은 #364 소유로 수정하지 않음
+- **Verification**: TDD로 `node --test scripts/test/module-benchmark-caller.test.mjs` RED 확인 후 실행
+- **Open Risk**: reusable workflow의 실제 matrix fan-out 검증은 PR Actions run에서 확인 필요
+
 - **Date**: 2026-09-23 serial CI baseline manifest 구현 시작
 - **Branch**: `feature/368-serial-baseline-manifest`
 - **Related Issue**: #255 root, #368 serial baseline manifest
