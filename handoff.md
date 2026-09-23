@@ -2,10 +2,11 @@
 
 - **Date**: 2026-09-23 모듈별 병렬 CI·benchmark control-plane Wave 0
 - **Branch**: `feature/363-ci-baseline-catalog`
-- **Related Issue**: #255 root, #363 catalog/baseline, toolkit #31/#33
+- **Related Issue**: #255 root, #363 catalog, toolkit #31/#33
 - **Changed**: `.github/benchmark-modules.yml`, catalog coverage test
 - **Verified**: `node --test scripts/test/module-catalog.test.mjs`, `node --test scripts/test/*.test.mjs` (88 passed)
-- **Open Risk**: PR #367의 full CI `verify`가 실행 중이다. serial baseline 3회 evidence 수집과 CI fan-out은 후속 #363/#364에서 수행한다.
+- **Verified CI**: PR #367 `verify` passed (2026-09-23).
+- **Open Risk**: serial baseline 3회 evidence 수집은 #368, CI fan-out은 #364에서 수행한다.
 
 - **Date**: 2026-09-23 소리마루 Single Source of Truth API 구현 및 PR 준비
 - **Branch**: `feature/345-sorimaru-single-source-of-truth`로 rename 예정
