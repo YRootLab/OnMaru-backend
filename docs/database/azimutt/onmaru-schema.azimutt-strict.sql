@@ -329,6 +329,12 @@ CREATE TABLE "audio_story_content_tag_versions" (
   PRIMARY KEY ("revision_id", "story_id", "position")
 );
 
+CREATE TABLE "audio_story_play_events" (
+  "id" varchar(36) PRIMARY KEY,
+  "story_id" varchar NOT NULL,
+  "occurred_at" timestamp NOT NULL
+);
+
 CREATE TABLE "insights_visitor_observations" (
   "revision_id" varchar(36) NOT NULL,
   "region_id" varchar(36) NOT NULL,
@@ -453,6 +459,20 @@ CREATE TABLE "journey_saved_resources" (
   "member_id" varchar(36) NOT NULL,
   "resource_type" varchar(32) NOT NULL,
   "resource_id" varchar(36) NOT NULL,
+  "saved_at" timestamp NOT NULL
+);
+
+CREATE TABLE "journey_saved_places" (
+  "id" varchar(36) PRIMARY KEY,
+  "member_id" varchar(36) NOT NULL,
+  "place_id" varchar NOT NULL,
+  "saved_at" timestamp NOT NULL
+);
+
+CREATE TABLE "journey_saved_odii_stories" (
+  "id" varchar(36) PRIMARY KEY,
+  "member_id" varchar(36) NOT NULL,
+  "story_id" varchar NOT NULL,
   "saved_at" timestamp NOT NULL
 );
 
@@ -699,12 +719,22 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
+
+
+
+
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
 
 
 COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The executable migration enforces the operation/stage allowlists, positive generation, expiry, and composite primary key.';
+
+
 
 
 

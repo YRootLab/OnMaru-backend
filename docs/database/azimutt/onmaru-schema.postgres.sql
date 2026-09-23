@@ -415,6 +415,12 @@ CREATE TABLE "audio_story_content_tag_versions" (
   PRIMARY KEY ("revision_id", "story_id", "position")
 );
 
+CREATE TABLE "audio_story_play_events" (
+  "id" uuid PRIMARY KEY,
+  "story_id" varchar NOT NULL,
+  "occurred_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "insights_visitor_observations" (
   "revision_id" uuid NOT NULL,
   "region_id" uuid NOT NULL,
@@ -539,6 +545,20 @@ CREATE TABLE "journey_saved_resources" (
   "member_id" uuid NOT NULL,
   "resource_type" journey_saved_resource_type NOT NULL,
   "resource_id" uuid NOT NULL,
+  "saved_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "journey_saved_places" (
+  "id" uuid PRIMARY KEY,
+  "member_id" uuid NOT NULL,
+  "place_id" varchar NOT NULL,
+  "saved_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "journey_saved_odii_stories" (
+  "id" uuid PRIMARY KEY,
+  "member_id" uuid NOT NULL,
+  "story_id" varchar NOT NULL,
   "saved_at" timestamptz NOT NULL
 );
 
@@ -781,6 +801,8 @@ CREATE UNIQUE INDEX ON "audio_story_content_tag_versions" ("revision_id", "story
 
 CREATE INDEX ON "audio_story_content_tag_versions" ("label", "revision_id");
 
+CREATE INDEX ON "audio_story_play_events" ("story_id", "occurred_at");
+
 CREATE INDEX ON "insights_visitor_observations" ("region_id", "basis_date");
 
 CREATE UNIQUE INDEX ON "insights_tourism_targets" ("provider", "source_target_key");
@@ -814,6 +836,18 @@ CREATE INDEX ON "journey_saved_journeys" ("member_id", "saved_at", "id");
 CREATE UNIQUE INDEX ON "journey_saved_resources" ("member_id", "resource_type", "resource_id");
 
 CREATE INDEX ON "journey_saved_resources" ("member_id", "resource_type", "saved_at", "id");
+
+CREATE UNIQUE INDEX ON "journey_saved_places" ("member_id", "place_id");
+
+CREATE INDEX ON "journey_saved_places" ("saved_at", "id");
+
+CREATE INDEX ON "journey_saved_places" ("place_id", "saved_at");
+
+CREATE UNIQUE INDEX ON "journey_saved_odii_stories" ("member_id", "story_id");
+
+CREATE INDEX ON "journey_saved_odii_stories" ("saved_at", "id");
+
+CREATE INDEX ON "journey_saved_odii_stories" ("story_id", "saved_at");
 
 CREATE INDEX ON "community_visit_reviews" ("created_at", "id");
 
@@ -857,6 +891,8 @@ COMMENT ON COLUMN "catalog_place_versions"."location" IS 'PostGIS Point(4326)';
 
 COMMENT ON COLUMN "audio_spot_versions"."location" IS 'PostGIS Point(4326)';
 
+COMMENT ON COLUMN "audio_story_play_events"."story_id" IS '공개 odii story ID';
+
 COMMENT ON COLUMN "insights_visitor_observations"."visitor_type" IS 'local, domestic visitor, foreign visitor, or provider code';
 
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
@@ -868,6 +904,10 @@ COMMENT ON COLUMN "discovery_runs"."lease_expires_at" IS 'RUNNING worker lease; 
 COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The executable migration enforces the operation/stage allowlists, positive generation, expiry, and composite primary key.';
 
 COMMENT ON COLUMN "journey_saved_resources"."resource_id" IS 'PLACE -> catalog_place_identity.id for every public canonical tourism place (hanok, stay, cafe, experience, market, attraction); ODII_STORY -> audio_odii_stories.id only for standalone replay. Enforced by application eligibility port.';
+
+COMMENT ON COLUMN "journey_saved_places"."place_id" IS '공개 place ID (예: p-jeonju-hanok-village)';
+
+COMMENT ON COLUMN "journey_saved_odii_stories"."story_id" IS '공개 odii story ID (예: odii-story-jeonju-hanok-01)';
 
 COMMENT ON COLUMN "community_review_reports"."reason" IS 'SPAM, ABUSE, PERSONAL_DATA, COPYRIGHT, OTHER';
 
