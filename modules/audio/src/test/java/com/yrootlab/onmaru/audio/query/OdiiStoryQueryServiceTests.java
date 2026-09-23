@@ -82,6 +82,73 @@ class OdiiStoryQueryServiceTests {
     }
 
     @Test
+    void searchesStoryTitleAudioTitleAndContentTagsWithoutExposingInactiveStories() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyWithText("odii-story-palace-01", "경복궁의 궁궐 이야기", "왕실 문화 산책",
+                        List.of("궁궐", "왕실"), AudioStatus.ACTIVE),
+                storyWithText("odii-story-market-01", "남대문 시장 이야기", "전통시장 골목",
+                        List.of("시장"), AudioStatus.ACTIVE),
+                storyWithText("odii-story-hidden-01", "궁궐 비공개 이야기", "왕실 문화",
+                        List.of("궁궐"), AudioStatus.HIDDEN)));
+
+        var result = service.search("  왕실 ", "ko-KR", 20, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-palace-01");
+        assertThat(result.hasMore()).isFalse();
+    }
+
+    @Test
+    void listsNearbyStoriesByDistanceAndValidatesCoordinatesAndRadius() {
+        var near = storyWithCoordinates("odii-story-near-01", 37.5665, 126.9780,
+                Instant.parse("2026-09-15T01:00:00Z"));
+        var far = storyWithCoordinates("odii-story-far-01", 35.1796, 129.0756,
+                Instant.parse("2026-09-15T02:00:00Z"));
+        store.replaceActive(snapshot(REVISION_ONE, far, near));
+
+        var result = service.nearby(37.5665, 126.9780, 5_000, "ko-KR", 20, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-near-01");
+        assertThatThrownBy(() -> service.nearby(91, 126.978, 5_000, "ko-KR", 20, Optional.empty()))
+                .isInstanceOf(OdiiStoryInvalidRequestException.class)
+                .hasMessageContaining("lat");
+        assertThatThrownBy(() -> service.nearby(37.5, 126.978, 0, "ko-KR", 20, Optional.empty()))
+                .isInstanceOf(OdiiStoryInvalidRequestException.class)
+                .hasMessageContaining("radius");
+    }
+
+    @Test
+    void recommendsKeywordMatchesWithStableOrder() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyWithTextAndPublishedAt("odii-story-match", "궁궐 이야기", "왕실 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-10T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-recent", "시장 이야기", "전통시장",
+                        List.of("시장"), Instant.parse("2026-09-15T00:00:00Z"))));
+
+        var result = service.recommend("궁궐", "ko-KR", 20, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-match");
+    }
+
+    @Test
+    void deduplicatesStoriesBeforeApplyingLimitToCompatibilityQueries() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyWithTextAndPublishedAt("odii-story-duplicate", "궁궐 이야기", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-15T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-duplicate", "궁궐 이야기 이전 버전", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-14T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-second", "궁궐 두 번째 이야기", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-13T00:00:00Z"))));
+
+        var result = service.search("궁궐", "ko-KR", 2, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-duplicate", "odii-story-second");
+    }
+
+    @Test
     void fallsBackToKoreanWhenRequestedLanguageHasNoPublicStories() {
         store.replaceActive(snapshot(REVISION_ONE,
                 story("odii-story-jeonju-hanok-01", "ko-KR", "한옥/고택", "kr-45-jeonju",
@@ -482,6 +549,54 @@ class OdiiStoryQueryServiceTests {
                 publishedAt,
                 storyStatus,
                 spotStatus);
+    }
+
+    private OdiiStoryProjection storyWithText(
+            String storyId,
+            String title,
+            String audioTitle,
+            List<String> contentTags,
+            AudioStatus status) {
+        var base = storyWithTextAndPublishedAt(
+                storyId,
+                title,
+                audioTitle,
+                contentTags,
+                Instant.parse("2026-09-15T00:00:00Z"));
+        return new OdiiStoryProjection(
+                base.storyId(), base.spotId(), base.language(), base.title(), base.audioTitle(), base.category(),
+                base.region(), base.coordinates(), base.durationSeconds(), base.imageUrl(), base.audioUrl(),
+                base.transcriptStatus(), base.transcript(), base.contentTags(), base.publishedAt(), status,
+                base.spotStatus());
+    }
+
+    private OdiiStoryProjection storyWithTextAndPublishedAt(
+            String storyId,
+            String title,
+            String audioTitle,
+            List<String> contentTags,
+            Instant publishedAt) {
+        var base = story(storyId, "ko-KR", "문화", "kr-11-seoul", publishedAt,
+                OdiiTranscriptStatus.OFFICIAL, AudioStatus.ACTIVE);
+        return new OdiiStoryProjection(
+                base.storyId(), base.spotId(), base.language(), title, audioTitle, base.category(),
+                base.region(), base.coordinates(), base.durationSeconds(), base.imageUrl(), base.audioUrl(),
+                base.transcriptStatus(), base.transcript(), contentTags, base.publishedAt(),
+                base.status(), base.spotStatus());
+    }
+
+    private OdiiStoryProjection storyWithCoordinates(
+            String storyId,
+            double latitude,
+            double longitude,
+            Instant publishedAt) {
+        var base = story(storyId, "ko-KR", "문화", "kr-11-seoul", publishedAt,
+                OdiiTranscriptStatus.OFFICIAL, AudioStatus.ACTIVE);
+        return new OdiiStoryProjection(
+                base.storyId(), base.spotId(), base.language(), base.title(), base.audioTitle(), base.category(),
+                base.region(), new OdiiCoordinates(latitude, longitude), base.durationSeconds(), base.imageUrl(),
+                base.audioUrl(), base.transcriptStatus(), base.transcript(), base.contentTags(), base.publishedAt(),
+                base.status(), base.spotStatus());
     }
 
     private OdiiStoryProjection storyWithTranscript(

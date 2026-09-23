@@ -58,6 +58,80 @@ public final class OdiiStoryController {
         this.memberLifecycleService = memberLifecycleService;
     }
 
+    @Operation(summary = "소리마루 스토리 검색", description = "활성 Odii 스토리를 키워드로 검색합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "스토리 검색 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 검색 조건"),
+            @ApiResponse(responseCode = "503", description = "Odii 데이터 일시 이용 불가")
+    })
+    @GetMapping("/api/stories")
+    ResponseEntity<?> searchStories(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @RequestParam(required = false, defaultValue = "20") String limit,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        try {
+            return ok(queryService.search(keyword, language, parseLimit(limit), memberId(sessionToken)));
+        } catch (OdiiStoryInvalidRequestException exception) {
+            return invalidRequest(request, exception.field());
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
+    }
+
+    @Operation(summary = "근처 소리마루 스토리 조회", description = "좌표와 반경 안의 활성 Odii 스토리를 거리순으로 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "근처 스토리 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 좌표 또는 반경"),
+            @ApiResponse(responseCode = "503", description = "Odii 데이터 일시 이용 불가")
+    })
+    @GetMapping("/api/stories/nearby")
+    ResponseEntity<?> nearbyStories(
+            @RequestParam(required = false) String lat,
+            @RequestParam(required = false) String lng,
+            @RequestParam(required = false, defaultValue = "5000") String radius,
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @RequestParam(required = false, defaultValue = "20") String limit,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        try {
+            return ok(queryService.nearby(
+                    parseCoordinate(lat, "lat"),
+                    parseCoordinate(lng, "lng"),
+                    parseCoordinate(radius, "radius"),
+                    language,
+                    parseLimit(limit),
+                    memberId(sessionToken)));
+        } catch (OdiiStoryInvalidRequestException exception) {
+            return invalidRequest(request, exception.field());
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
+    }
+
+    @Operation(summary = "소리마루 키워드 추천", description = "키워드 일치도와 게시일을 기준으로 활성 Odii 스토리를 결정론적으로 추천합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "추천 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 추천 조건"),
+            @ApiResponse(responseCode = "503", description = "Odii 데이터 일시 이용 불가")
+    })
+    @GetMapping("/api/recommendation")
+    ResponseEntity<?> recommendations(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @RequestParam(required = false, defaultValue = "20") String limit,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        try {
+            return ok(queryService.recommend(keyword, language, parseLimit(limit), memberId(sessionToken)));
+        } catch (OdiiStoryInvalidRequestException exception) {
+            return invalidRequest(request, exception.field());
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
+    }
+
     @Operation(
             summary = "오디 오디오 도슨트 스토리 목록 조회",
             description = "언어, 카테고리, 행정구역 코드를 기반으로 오디 오디오 스토리 목록과 재생 시간, 커서 페이징 결과를 조회합니다."
@@ -201,6 +275,17 @@ public final class OdiiStoryController {
             return Integer.parseInt(limit);
         } catch (NumberFormatException exception) {
             throw new OdiiStoryInvalidRequestException("limit");
+        }
+    }
+
+    private double parseCoordinate(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new OdiiStoryInvalidRequestException(field);
+        }
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException exception) {
+            throw new OdiiStoryInvalidRequestException(field);
         }
     }
 
