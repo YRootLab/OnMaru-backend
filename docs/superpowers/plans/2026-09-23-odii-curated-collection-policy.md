@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Expand Odii synchronization from the single `한옥` query to a policy-driven, deduplicated traditional-culture collection that excludes leisure and sports content while preserving the last active PostgreSQL revision on unsafe sync results.
+**Goal:** Expand Odii synchronization from the single `한옥` query to a policy-driven, deduplicated collection that excludes leisure and sports content, preserves culturally contextualized traditional accommodation, and keeps the last active PostgreSQL revision on unsafe sync results.
 
 **Architecture:** Keep the existing `OdiiPageSource → OdiiRevisionSyncService → AudioRevisionStore → publish` pipeline. Make the source accept a list of configured keywords, introduce a pure curation policy for deduplication and inclusion decisions, and expose sync counts through the existing result/observer boundary. Do not delete raw provider observations or introduce AI classification in this change.
 
