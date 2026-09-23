@@ -53,7 +53,9 @@ async function fakeToolkit(mode) {
   const dir = await mkdtemp(join(tmpdir(), 'onmaru-fake-toolkit-'));
   const executable = join(dir, 'fake-toolkit.mjs');
   const script = `#!/usr/bin/env node\nimport { readFile, writeFile } from 'node:fs/promises';\nconst input = JSON.parse(await readFile(process.argv[2], 'utf8'));\nif (!input.suite || !input.baseline.releaseId || !input.candidate.releaseId || input.environment !== 'staging' || input.conditions.repetitions !== 3 || input.conditions.cold !== true || input.conditions.warm !== true || input.stages.length !== 2) process.exit(7);\nif (${JSON.stringify(mode)} === 'timeout') await new Promise(() => {});\nif (${JSON.stringify(mode)} === 'cancel') await new Promise(() => {});\nif (${JSON.stringify(mode)} === 'missing') process.exit(0);\nif (${JSON.stringify(mode)} === 'mismatch') input.candidate.compatibility = { toolkitVersion: 'wrong' };\nawait writeFile(process.argv[3], JSON.stringify(${JSON.stringify(result(90))}));\n`;
-  await writeFile(executable, script);
+  const timeoutLine = "if (" + JSON.stringify(mode) + " === 'timeout') await new Promise(() => {});";
+  const stableTimeoutLine = "if (" + JSON.stringify(mode) + " === 'timeout') { setInterval(() => {}, 1000); await new Promise(() => {}); }";
+  await writeFile(executable, script.replace(timeoutLine, stableTimeoutLine));
   await chmod(executable, 0o755);
   return { executable, dir };
 }
@@ -70,12 +72,13 @@ for (const mode of ['timeout', 'missing']) {
   test(`normalizes ${mode} as inconclusive`, async (t) => {
     const fake = await fakeToolkit(mode);
     t.after(async () => { await import('node:fs/promises').then(({ rm }) => rm(fake.dir, { recursive: true, force: true })); });
-    const timeoutMs = mode === 'missing' ? 1000 : 30;
+    const timeoutMs = mode === 'missing' ? 1000 : 100;
     const config = { ...baseConfig, toolkit: { ...baseConfig.toolkit, timeoutMs, executable: fake.executable, commands: { compare: ['{input}', '{output}'] } } };
     const normalized = await runComparison({ config, baseline, candidate });
     assert.equal(normalized.status, 'inconclusive');
     const expectedReason = mode === 'missing' ? 'missing-artifact' : mode;
     assert.ok(normalized.reasons.includes(expectedReason));
+    if (mode === 'timeout') assert.deepEqual(normalized.reasons, ['timeout', 'missing-metric', 'insufficient-valid-runs']);
   });
 }
 
