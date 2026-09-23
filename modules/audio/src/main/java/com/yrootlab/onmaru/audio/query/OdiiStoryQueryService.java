@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -143,6 +144,166 @@ public final class OdiiStoryQueryService {
                 summaries,
                 nextCursor,
                 hasMore);
+    }
+
+    public OdiiStoryPage search(
+            String keyword,
+            String language,
+            int limit,
+            Optional<UUID> memberId) {
+        String normalizedKeyword = validateKeyword(keyword);
+        validateLanguage(language);
+        validateLimit(limit, "limit", 50);
+
+        var snapshot = store.activeSnapshot();
+        var selection = selectLanguage(publicStories(snapshot.stories()), language);
+        var matches = deduplicate(selection.stories().stream()
+                .filter(story -> searchableText(story).contains(normalizedKeyword))
+                .sorted(ORDER)
+                .limit(limit)
+                .toList());
+        return page(selection, matches, memberId);
+    }
+
+    public OdiiStoryPage nearby(
+            double latitude,
+            double longitude,
+            double radiusMeters,
+            String language,
+            int limit,
+            Optional<UUID> memberId) {
+        validateCoordinate(latitude, -90, 90, "lat");
+        validateCoordinate(longitude, -180, 180, "lng");
+        if (!Double.isFinite(radiusMeters) || radiusMeters <= 0 || radiusMeters > 50_000) {
+            throw new OdiiStoryInvalidRequestException("radius");
+        }
+        validateLanguage(language);
+        validateLimit(limit, "limit", 50);
+
+        var snapshot = store.activeSnapshot();
+        var selection = selectLanguage(publicStories(snapshot.stories()), language);
+        var nearby = selection.stories().stream()
+                .map(story -> new Distance(story, distanceMeters(
+                        latitude, longitude, story.coordinates().lat(), story.coordinates().lng())))
+                .filter(distance -> distance.meters() <= radiusMeters)
+                .sorted(Comparator.comparingDouble(Distance::meters)
+                        .thenComparing(distance -> distance.story().publishedAt(), Comparator.reverseOrder())
+                        .thenComparing(distance -> distance.story().storyId()))
+                .map(Distance::story)
+                .limit(limit)
+                .toList();
+        return page(selection, deduplicate(nearby), memberId);
+    }
+
+    public OdiiStoryPage recommend(
+            String keyword,
+            String language,
+            int limit,
+            Optional<UUID> memberId) {
+        String normalizedKeyword = validateKeyword(keyword);
+        validateLanguage(language);
+        validateLimit(limit, "limit", 50);
+
+        var snapshot = store.activeSnapshot();
+        var selection = selectLanguage(publicStories(snapshot.stories()), language);
+        var ranked = selection.stories().stream()
+                .filter(story -> searchableText(story).contains(normalizedKeyword))
+                .sorted(Comparator.comparingInt((OdiiStoryProjection story) -> matchScore(story, normalizedKeyword))
+                        .reversed()
+                        .thenComparing(OdiiStoryProjection::publishedAt, Comparator.reverseOrder())
+                        .thenComparing(OdiiStoryProjection::storyId))
+                .limit(limit)
+                .toList();
+        return page(selection, deduplicate(ranked), memberId);
+    }
+
+    private List<OdiiStoryProjection> publicStories(List<OdiiStoryProjection> stories) {
+        return stories.stream().filter(this::isPublicAndPlayable).toList();
+    }
+
+    private OdiiStoryPage page(
+            LanguageSelection selection,
+            List<OdiiStoryProjection> stories,
+            Optional<UUID> memberId) {
+        var summaries = stories.stream().map(story -> summary(story, memberId)).toList();
+        var coverage = summaries.isEmpty()
+                ? OdiiCoverageStatus.MISSING
+                : selection.status() == OdiiLanguageStatus.EXACT
+                ? OdiiCoverageStatus.COMPLETE
+                : OdiiCoverageStatus.PARTIAL;
+        return new OdiiStoryPage(
+                SCHEMA_VERSION,
+                coverage,
+                selection.language(),
+                selection.status(),
+                summaries,
+                null,
+                false);
+    }
+
+    private String validateKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank() || keyword.trim().length() > 80) {
+            throw new OdiiStoryInvalidRequestException("keyword");
+        }
+        return normalize(keyword);
+    }
+
+    private void validateLimit(int limit, String field, int maximum) {
+        if (limit < 1 || limit > maximum) {
+            throw new OdiiStoryInvalidRequestException(field);
+        }
+    }
+
+    private void validateCoordinate(double value, double minimum, double maximum, String field) {
+        if (!Double.isFinite(value) || value < minimum || value > maximum) {
+            throw new OdiiStoryInvalidRequestException(field);
+        }
+    }
+
+    private String searchableText(OdiiStoryProjection story) {
+        return normalize(String.join(" ",
+                nullToEmpty(story.title()),
+                nullToEmpty(story.audioTitle()),
+                String.join(" ", story.contentTags())));
+    }
+
+    private int matchScore(OdiiStoryProjection story, String keyword) {
+        int score = 0;
+        if (normalize(nullToEmpty(story.title())).equals(keyword)) {
+            score += 100;
+        } else if (normalize(nullToEmpty(story.title())).contains(keyword)) {
+            score += 60;
+        }
+        if (normalize(nullToEmpty(story.audioTitle())).contains(keyword)) {
+            score += 40;
+        }
+        if (story.contentTags().stream().map(this::normalize).anyMatch(tag -> tag.equals(keyword))) {
+            score += 30;
+        } else if (story.contentTags().stream().map(this::normalize).anyMatch(tag -> tag.contains(keyword))) {
+            score += 15;
+        }
+        return score;
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String normalize(String value) {
+        return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
+        double earthRadiusMeters = 6_371_000;
+        double latDelta = Math.toRadians(lat2 - lat1);
+        double lonDelta = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDelta / 2) * Math.sin(latDelta / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2);
+        return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private record Distance(OdiiStoryProjection story, double meters) {
     }
 
     /**
