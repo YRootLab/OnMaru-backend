@@ -6,9 +6,12 @@ import com.yrootlab.onmaru.catalog.application.tags.ContentTagExtractor;
 import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
 import com.yrootlab.onmaru.catalog.application.tags.ContentTagSource;
 
+import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -30,6 +33,7 @@ public final class OdiiStoryQueryService {
     private final OdiiPublicAudioUrlPolicy audioUrlPolicy;
     private final OdiiStoryCursorCodec cursorCodec;
     private final ContentTagPipeline contentTagPipeline;
+    private final OdiiStoryPopularityPort popularityPort;
 
     public OdiiStoryQueryService(
             OdiiStoryQueryStore store,
@@ -38,7 +42,7 @@ public final class OdiiStoryQueryService {
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
             OdiiStoryCursorCodec cursorCodec) {
         this(store, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
-                ContentTagPipeline.defaultPipeline());
+                ContentTagPipeline.defaultPipeline(), noopPopularity());
     }
 
     public OdiiStoryQueryService(
@@ -49,7 +53,7 @@ public final class OdiiStoryQueryService {
             OdiiStoryCursorCodec cursorCodec,
             ContentTagExtractor contentTagExtractor) {
         this(store, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
-                ContentTagPipeline.of(contentTagExtractor));
+                ContentTagPipeline.of(contentTagExtractor), noopPopularity());
     }
 
     public OdiiStoryQueryService(
@@ -59,12 +63,47 @@ public final class OdiiStoryQueryService {
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
             OdiiStoryCursorCodec cursorCodec,
             ContentTagPipeline contentTagPipeline) {
+        this(store, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
+                contentTagPipeline, noopPopularity());
+    }
+
+    public OdiiStoryQueryService(
+            OdiiStoryQueryStore store,
+            OdiiSavedStateLookup savedStateLookup,
+            ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery,
+            OdiiPublicAudioUrlPolicy audioUrlPolicy,
+            OdiiStoryCursorCodec cursorCodec,
+            ContentTagPipeline contentTagPipeline,
+            OdiiStoryPopularityPort popularityPort) {
         this.store = store;
         this.savedStateLookup = savedStateLookup;
         this.approvedPlaceLinkQuery = approvedPlaceLinkQuery;
         this.audioUrlPolicy = audioUrlPolicy;
         this.cursorCodec = cursorCodec;
         this.contentTagPipeline = contentTagPipeline;
+        this.popularityPort = popularityPort;
+    }
+
+    private static OdiiStoryPopularityPort noopPopularity() {
+        return new OdiiStoryPopularityPort() {
+            @Override
+            public void recordPlay(String storyId, Instant occurredAt) {
+            }
+
+            @Override
+            public void recordSave(String storyId, Instant occurredAt) {
+            }
+
+            @Override
+            public Map<String, Long> playCounts(Collection<String> storyIds, Instant sinceInclusive) {
+                return Map.of();
+            }
+
+            @Override
+            public Map<String, Long> saveCounts(Collection<String> storyIds, Instant sinceInclusive) {
+                return Map.of();
+            }
+        };
     }
 
     public OdiiStoryPage list(OdiiStoryQuery query) {
@@ -252,6 +291,75 @@ public final class OdiiStoryQueryService {
         var byStoryId = new LinkedHashMap<String, OdiiStoryProjection>();
         stories.stream().sorted(ORDER).forEach(story -> byStoryId.putIfAbsent(story.storyId(), story));
         return List.copyOf(byStoryId.values());
+    }
+
+    /**
+     * 인기 점수(2 × 재생 수 + 저장 수) 기준 오디오 스토리 랭킹을 조회한다.
+     *
+     * <p>{@code sinceInclusive} 이후의 재생·저장 신호로 점수를 매기고, 모든 점수가 0이면
+     * 최근 게시 순으로 폴백한다({@code basis: FALLBACK_RECENT}). 커서 없는 TOP N 계약이다.</p>
+     */
+    public OdiiPopularSoundsPage popular(OdiiPopularSoundsQuery query) {
+        validateLanguage(query.language());
+        if (query.limit() < 1 || query.limit() > 20) {
+            throw new OdiiStoryInvalidRequestException("limit");
+        }
+        if (query.category() != null && query.category().length() > 80) {
+            throw new OdiiStoryInvalidRequestException("category");
+        }
+        var snapshot = store.activeSnapshot();
+        var eligible = snapshot.stories().stream()
+                .filter(this::isPublicAndPlayable)
+                .filter(story -> query.category() == null || query.category().equals(story.category()))
+                .toList();
+        var selection = selectLanguage(eligible, query.language());
+        var deduplicated = deduplicate(selection.stories());
+
+        var storyIds = deduplicated.stream().map(OdiiStoryProjection::storyId).toList();
+        var plays = popularityPort.playCounts(storyIds, query.sinceInclusive());
+        var saves = popularityPort.saveCounts(storyIds, query.sinceInclusive());
+        boolean hasSignal = deduplicated.stream()
+                .anyMatch(story -> scoreOf(story, plays, saves) > 0);
+
+        Comparator<OdiiStoryProjection> ranking = hasSignal
+                ? Comparator.<OdiiStoryProjection>comparingLong(
+                        story -> -scoreOf(story, plays, saves))
+                .thenComparing(OdiiStoryProjection::publishedAt, Comparator.reverseOrder())
+                .thenComparing(OdiiStoryProjection::storyId)
+                : (left, right) -> {
+                    int comparison = right.publishedAt().compareTo(left.publishedAt());
+                    return comparison != 0 ? comparison : left.storyId().compareTo(right.storyId());
+                };
+
+        var ranked = deduplicated.stream().sorted(ranking)
+                .limit(query.limit())
+                .toList();
+        var items = new java.util.ArrayList<OdiiPopularSoundItem>(ranked.size());
+        for (int index = 0; index < ranked.size(); index++) {
+            var story = ranked.get(index);
+            long score = hasSignal ? scoreOf(story, plays, saves) : 0;
+            items.add(new OdiiPopularSoundItem(
+                    index + 1,
+                    score,
+                    plays.getOrDefault(story.storyId(), 0L),
+                    saves.getOrDefault(story.storyId(), 0L),
+                    summary(story, query.memberId())));
+        }
+        return new OdiiPopularSoundsPage(
+                SCHEMA_VERSION,
+                hasSignal ? "POPULARITY" : "FALLBACK_RECENT",
+                "week",
+                selection.language(),
+                selection.status(),
+                items);
+    }
+
+    private long scoreOf(
+            OdiiStoryProjection story,
+            Map<String, Long> plays,
+            Map<String, Long> saves) {
+        return 2 * plays.getOrDefault(story.storyId(), 0L)
+                + saves.getOrDefault(story.storyId(), 0L);
     }
 
     private OdiiStorySummary summary(OdiiStoryProjection story, Optional<UUID> memberId) {

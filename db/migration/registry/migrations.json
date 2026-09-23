@@ -140,6 +140,15 @@
       "checksum": "j10-v016-20260920",
       "sha256": "22aeb5f17ab4715ebfdc55cf42687fea98da9b8474023fbfe021532cf042d576",
       "description": "Reconcile a missing discovery_runs relation without manual production DDL"
+    },
+    {
+      "version": "017",
+      "reservedFor": "SAVED_RESOURCES",
+      "issueNumber": 318,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V017__318_saved_resources_persistence.sql",
+      "checksum": "saved-resources-v017-20260921",
+      "sha256": "ee7afd87636cb3bc0581d6b94f94a267c1d1027a04e3fc8c94d2d120ff05f2c1",
+      "description": "Saved place and Odii story persistence with audio play event tracking"
     }
   ]
 }

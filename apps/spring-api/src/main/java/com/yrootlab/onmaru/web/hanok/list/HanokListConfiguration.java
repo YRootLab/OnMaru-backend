@@ -6,7 +6,7 @@ import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListQueryService
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStatus;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokSavedStateLookup;
 import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
-import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
+import com.yrootlab.onmaru.journey.saved.place.SavedPlaceStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -283,7 +283,7 @@ class HanokListConfiguration {
     }
 
     @Bean
-    HanokSavedStateLookup hanokSavedStateLookup(InMemorySavedPlaceStore savedPlaceStore) {
+    HanokSavedStateLookup hanokSavedStateLookup(SavedPlaceStore savedPlaceStore) {
         return (memberId, placeId) -> memberId
                 .map(id -> savedPlaceStore.savedBy(id, placeId))
                 .orElse(false);

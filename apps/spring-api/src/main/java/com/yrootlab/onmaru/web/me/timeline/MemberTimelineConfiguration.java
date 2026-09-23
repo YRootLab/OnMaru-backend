@@ -5,8 +5,8 @@ import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
 import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailStore;
 import com.yrootlab.onmaru.community.query.VisitReviewStore;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
-import com.yrootlab.onmaru.journey.saved.odii.InMemorySavedOdiiStoryStore;
-import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
+import com.yrootlab.onmaru.journey.saved.list.SavedOdiiRecordSource;
+import com.yrootlab.onmaru.journey.saved.list.SavedPlaceRecordSource;
 import com.yrootlab.onmaru.journey.savedjourney.SavedJourneyStore;
 import com.yrootlab.onmaru.journey.timeline.MemberTimelineService;
 import com.yrootlab.onmaru.web.common.cursor.CursorCodec;
@@ -27,9 +27,9 @@ class MemberTimelineConfiguration {
 
     @Bean
     MemberTimelineService memberTimelineService(
-            InMemorySavedPlaceStore placeStore,
+            SavedPlaceRecordSource placeStore,
             InMemoryPlaceDetailStore placeDetails,
-            InMemorySavedOdiiStoryStore odiiStore,
+            SavedOdiiRecordSource odiiStore,
             OdiiStoryQueryService odiiQueries,
             SavedJourneyStore journeyStore,
             VisitReviewStore reviewStore,

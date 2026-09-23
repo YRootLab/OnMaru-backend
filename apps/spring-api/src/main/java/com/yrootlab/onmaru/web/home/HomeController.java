@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.web.home;
 
 import com.yrootlab.onmaru.audio.query.OdiiCursorExpiredException;
 import com.yrootlab.onmaru.audio.query.OdiiCursorInvalidException;
+import com.yrootlab.onmaru.audio.query.OdiiPopularSoundsQuery;
 import com.yrootlab.onmaru.audio.query.OdiiStoryInvalidRequestException;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQuery;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
@@ -36,6 +37,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,16 +53,19 @@ public final class HomeController {
     private final OdiiStoryQueryService odiiStoryQueryService;
     private final VisitReviewRegionReadService regionReadService;
     private final MemberLifecycleService memberLifecycleService;
+    private final Clock clock;
 
     HomeController(
             HanokListQueryService hanokListQueryService,
             OdiiStoryQueryService odiiStoryQueryService,
             VisitReviewRegionReadService regionReadService,
-            MemberLifecycleService memberLifecycleService) {
+            MemberLifecycleService memberLifecycleService,
+            Clock clock) {
         this.hanokListQueryService = hanokListQueryService;
         this.odiiStoryQueryService = odiiStoryQueryService;
         this.regionReadService = regionReadService;
         this.memberLifecycleService = memberLifecycleService;
+        this.clock = clock;
     }
 
     @Operation(summary = "홈 큐레이션 코스 조회", description = "게시된 장소 목록을 홈 큐레이션 카드로 조회합니다.")
@@ -142,6 +148,55 @@ public final class HomeController {
         } catch (OdiiStoryUnavailableException exception) {
             return unavailable(request, "Odii data is temporarily unavailable.");
         }
+    }
+
+    @Operation(
+            summary = "홈 인기 오디오 TOP N 조회",
+            description = "최근 7일 재생 수·저장 수 기반 점수(2×재생+저장)로 랭킹한 오디오 스토리 TOP N을 조회한다. 신호가 없으면 최근 게시순으로 폴백한다(basis: FALLBACK_RECENT)."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "인기 오디오 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 요청", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "오디오 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    @GetMapping("/api/v1/home/popular-sounds")
+    ResponseEntity<?> popularSounds(
+            @Parameter(description = "해설 언어 코드") @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @Parameter(description = "스토리 카테고리") @RequestParam(required = false) String category,
+            @Parameter(description = "조회 개수 (1~20, 기본 7)") @RequestParam(required = false, defaultValue = "7") int limit,
+            @Parameter(description = "인기 집계 기간 (week, all)") @RequestParam(required = false, defaultValue = "week") String window,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        if (!"week".equals(window) && !"all".equals(window)) {
+            return invalidRequest(request, "window");
+        }
+        var since = "all".equals(window)
+                ? Instant.EPOCH
+                : clock.instant().minus(java.time.Duration.ofDays(7));
+        try {
+            return ok(odiiStoryQueryService.popular(new OdiiPopularSoundsQuery(
+                    language,
+                    category,
+                    Math.min(Math.max(limit, 1), 20),
+                    since,
+                    memberId(sessionToken))));
+        } catch (OdiiStoryInvalidRequestException exception) {
+            return invalidRequest(request, exception.field());
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request, "Odii data is temporarily unavailable.");
+        }
+    }
+
+    @Hidden
+    @GetMapping("/api/home/popular-sounds")
+    ResponseEntity<?> popularSoundsCompatibility(
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false, defaultValue = "7") int limit,
+            @RequestParam(required = false, defaultValue = "week") String window,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        return popularSounds(language, category, limit, window, sessionToken, request);
     }
 
     @Hidden
