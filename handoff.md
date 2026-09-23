@@ -6,6 +6,12 @@
 - **Planned**: serial run 입력 검증·comparable baseline manifest·운영 수집 절차
 - **Verification**: TDD로 `scripts/test/serial-baseline.test.mjs`부터 추가
 - **Open Risk**: 현재 CI에는 `workflow_dispatch`가 없으므로 실제 develop serial run 3회의 artifact URL은 자연 발생 develop run 또는 별도 dispatch 지원 후 수집해야 한다.
+- **Date**: 2026-09-23 Gradle CI 성능 profile 구현 및 PR 준비
+- **Branch**: `feature/369-gradle-ci-performance-profile`
+- **Related Issue**: #369
+- **Changed**: opt-in Gradle worker/cache profile, 실효 설정 JSON report task, 계약 테스트
+- **Verified**: `node --test scripts/test/gradle-ci-performance.test.mjs`, `./gradlew --init-script build-logic/ci-performance.gradle.kts ciPerformanceProfile -Ponmaru.ci.performance.enabled=true --no-daemon`
+- **Open Risk**: #364가 CI workflow에서 init script와 profile flag를 호출해야 실제 CI fan-out 실행에 적용된다.
 
 - **Date**: 2026-09-23 모듈별 병렬 CI·benchmark control-plane Wave 0
 - **Branch**: `feature/363-ci-baseline-catalog`
