@@ -5,7 +5,7 @@
 - **Related Issue**: #365 (depends on #363 and toolkit #35)
 - **Scope**: `.github/workflows/module-benchmark.yml`, caller contract test, handoff only; `ci.yml`은 #364 소유로 수정하지 않음
 - **Verification**: `toolkit_ref` 입력이 없던 호출 계약의 RED를 확인한 뒤 보정했으며, caller focused test와 전체 Node test 96건을 통과
-- **Correction**: toolkit #48의 immutable checkout 보정 커밋 `a7c0b26b4a6c6cf405d5134610ba9c96e3f43a17`을 reusable workflow ref와 `toolkit_ref` 입력으로 함께 고정
+- **Correction**: toolkit #48의 immutable checkout 보정이 merge된 `develop` 커밋 `6a46022043998ca8c54e2d7d3fec2827eefc4538`을 reusable workflow ref와 `toolkit_ref` 입력으로 함께 고정
 - **Open Risk**: reusable workflow의 실제 matrix fan-out 검증은 PR Actions run에서 확인 필요. toolkit PR #49가 GitHub check 상태 전파 문제로 아직 merge되지 않아, #365는 그 해결 후에만 병합
 
 - **Date**: 2026-09-23 serial CI baseline manifest 구현 시작
