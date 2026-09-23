@@ -12,6 +12,12 @@
 - **Changed**: opt-in Gradle worker/cache profile, 실효 설정 JSON report task, 계약 테스트
 - **Verified**: `node --test scripts/test/gradle-ci-performance.test.mjs`, `./gradlew --init-script build-logic/ci-performance.gradle.kts ciPerformanceProfile -Ponmaru.ci.performance.enabled=true --no-daemon`
 - **Open Risk**: #364가 CI workflow에서 init script와 profile flag를 호출해야 실제 CI fan-out 실행에 적용된다.
+- **Date**: 2026-09-23 AI pytest worker profile 및 duration evidence 구현
+- **Branch**: `feature/370-pytest-ci-profile`
+- **Related Issue**: #370
+- **Changed**: `ai/pyproject.toml`, `ai/uv.lock`, `ai/scripts/pytest-ci-profile.py`, `scripts/test/pytest-ci-profile.test.mjs`
+- **Verified**: `uv run --project ai ruff check ai/scripts/pytest-ci-profile.py`, `uv run --project ai pytest ai/tests` (212 passed, 1 skipped), `node --test scripts/test/pytest-ci-profile.test.mjs` (3 passed), `ONMARU_PYTEST_WORKERS=2 uv run --project ai python ai/scripts/pytest-ci-profile.py --evidence-dir <tmp> --` (worker profile, JUnit/duration evidence 확인)
+- **Open Risk**: 저장소 루트 `uv run --project ai pytest`는 기존 `scripts/test/test_contract_validation.py`가 `openapi_spec_validator`를 요구하지만 AI dev dependency에 없어 7건 실패한다. #370 독점 범위 밖이며 AI 테스트 경로는 통과했다.
 
 - **Date**: 2026-09-23 모듈별 병렬 CI·benchmark control-plane Wave 0
 - **Branch**: `feature/363-ci-baseline-catalog`
