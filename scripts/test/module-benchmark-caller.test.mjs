@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const root = process.cwd();
 const workflowPath = '.github/workflows/module-benchmark.yml';
-const toolkitRef = 'cd4e32c22020162c1a161346587b3abd0cdbde16';
+const toolkitRef = '53947d2e2cdaf4ad8d48a4f99aaff84039ba4c40';
 const toolkitWorkflow = `YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@${toolkitRef}`;
 
 function workflow() {

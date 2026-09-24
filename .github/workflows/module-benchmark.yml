@@ -17,10 +17,10 @@ concurrency:
 jobs:
   module-benchmark:
     name: affected module benchmark
-    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@cd4e32c22020162c1a161346587b3abd0cdbde16
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@53947d2e2cdaf4ad8d48a4f99aaff84039ba4c40
     with:
       catalog_path: .github/benchmark-modules.yml
-      toolkit_ref: cd4e32c22020162c1a161346587b3abd0cdbde16
+      toolkit_ref: 53947d2e2cdaf4ad8d48a4f99aaff84039ba4c40
       mode: ${{ github.event_name == 'pull_request' && 'pr' || 'develop' }}
       max_parallel: 4
       baseline_ref: develop
