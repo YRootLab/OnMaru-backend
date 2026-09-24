@@ -1,165 +1,90 @@
-# OnMaruBE CI 병렬화: 기준선, fan-out 관측, 측정 계획
+# OnMaruBE CI 성과: 7분의 대기 시간을 측정하고 병렬화의 기준을 세우기까지
 
-- 상태: **초기 관측 완료 — 성능 비교는 아직 보류**
-- 기준 이슈: #368 (serial 기준선), #365 (caller), #376 (이 보고서), #377 (AI runner 준비)
+- 상태: **현재 병목 관측 완료 — 개선율 확정 전**
 - 관측 일시: 2026-09-24 UTC
-- 원칙: raw log·secret·consumer source는 저장하지 않고 GitHub Actions run/artifact 링크와 집계 수치만 기록한다.
+- 관련 이슈: #368 (직렬 기준선), #365 (병렬 caller), #377 (AI 실행 환경), #380 (보고서 표현)
+- 데이터 원칙: 원시 로그·secret·consumer source는 저장하지 않고, 실행 링크와 집계 수치만 기록한다.
 
-## 결론
+## 먼저 읽을 결론
 
-현재 `verify`는 하나의 runner에서 모듈과 품질 검사를 순서대로 실행하는 약 7분 34초의 직렬 경로다. 실측 fan-out은 4개 모듈을 동시에 시작하고 toolkit checkout·planning·artifact 수집까지 성공해 병렬 topology 자체는 검증했다. 그러나 AI 모듈이 fresh runner에 없는 `uv`를 호출하여 실패했으므로, 이 후보 run은 **성능 개선의 증거가 아니라 실패한 관측값**이다.
+개발자가 Pull Request를 올린 뒤 코드를 합치기 전에 기다리는 자동 확인 절차, 즉 CI는 현재 한 번에 약 **6분 40초~7분 34초**가 걸린다. 그중 Spring API 테스트가 약 **3분 30초**로 가장 길어서, 전체 대기 시간의 약 절반을 붙잡고 있다. 여러 검사를 동시에 실행하는 병렬 구조 자체는 확인했지만, 첫 후보 실행은 AI 테스트 도구가 준비되지 않아 실패했다. 따라서 지금은 “얼마나 빨라졌다”가 아니라 “어디가 느리고, 무엇을 성공 표본으로 다시 측정해야 하는가”까지 확정된 상태다.
 
-따라서 현 시점에 주장할 수 있는 것은 다음 두 가지뿐이다.
+## 개발자가 체감하는 흐름은 하나의 긴 줄이었다
 
-1. Spring API 테스트(221초)가 현재 단일 `verify`의 최대 병목이다.
-2. module matrix의 resource-profile self-cancellation은 제거됐고, 최대 4개 모듈의 동시 실행을 실제로 확인했다.
-
-"30% 빨라졌다"와 같은 결론은 #377을 고친 성공 candidate와 #368의 동일 조건 serial run 3개가 확보되기 전에는 금지한다.
-
-## 측정 대상과 증거 품질
-
-| 구분 | 증거 | 결과 | 비교 가능 여부 | 용도 |
-| --- | --- | --- | --- | --- |
-| Serial 관측 | [CI run 35940692137](https://github.com/YRootLab/OnMaru-backend/actions/runs/35940692137) | success | 단일 표본, 불충분 | 현재 병목 지도 |
-| Fan-out 관측 | [Module Benchmark run 35941255870](https://github.com/YRootLab/OnMaru-backend/actions/runs/35941255870) | failed | 불가 | topology·실패 원인 확인 |
-| Serial baseline | #368 | pending | 동일 SHA 성공 3회 필요 | median/분산 기준선 |
-| Fan-out candidate | #365 + #377 | pending | 동일 catalog/config, success 필요 | 전후 비교 |
-
-비교 가능 조건은 commit SHA, runner image, dependency mode, cache state, Java/Python version, test command와 catalog/config hash가 모두 같은 것이다. 조건이 다르거나 실패·취소·artifact 누락이면 결과는 `inconclusive`이며 regression 또는 improvement로 분류하지 않는다.
-
-## 현재 직렬 CI의 구조와 병목
-
-```mermaid
-flowchart TD
-  A[verify job 시작] --> B[JDK 21 setup]
-  B --> C[TourAPI adapter: 59s]
-  C --> D[Insights: 12s]
-  D --> E[Catalog: 14s]
-  E --> F[Audio: 13s]
-  F --> G[Community: 13s]
-  G --> H[Identity: 13s]
-  H --> I[Journey: 14s]
-  I --> J[Operations: 12s]
-  J --> K[Spring API: 221s]
-  K --> L[Node and generated artifacts: 38s]
-  L --> M[Python / FastAPI gates: 18s]
-  M --> N[verify 완료]
-```
-
-Serial run 35940692137의 job 실행 시간은 **454초**(시작 00:56:32 UTC, 완료 01:04:06 UTC)다. GitHub run 전체는 458초다. 이는 하나의 최신 `develop` 관측값이며 median이 아니다.
-
-| 구간 | 시간 | 직렬 job 대비 | 해석 |
-| --- | ---: | ---: | --- |
-| Spring API tests | 221s | 48.7% | 가장 큰 병목; 병렬화 뒤에도 critical path 후보 |
-| TourAPI adapter tests | 59s | 13.0% | 두 번째 독립 비용 |
-| Node / generated artifact validation | 38s | 8.4% | Spring API 이후에 놓여 있어 tail 증가 |
-| 나머지 모듈 테스트 | 91s | 20.0% | 서로 독립이면 matrix로 겹칠 수 있는 구간 |
-| setup·Python/FastAPI·cleanup | 45s | 9.9% | runtime provisioning과 tail 비용 |
-
-이 표의 합계는 step timestamp 경계로 계산한 근사치다. GitHub-hosted runner의 queue·image provisioning 시간은 job 시작 전후와 별도이므로, runner utilization이나 비용을 뜻하지 않는다.
-
-## 목표 fan-out 구조와 관측 결과
-
-```mermaid
-flowchart TD
-  A[PR / develop event] --> B[detect: catalog + changed paths]
-  B --> C{affected module matrix\nmax_parallel = 4}
-  C --> D1[AI]
-  C --> D2[Audio]
-  C --> D3[Catalog]
-  C --> D4[Community]
-  D1 --> E[다음 4개]
-  D2 --> E
-  D3 --> E
-  D4 --> E
-  E --> F[aggregate: evidence + critical path]
-  F --> G[verify: failed / unchanged / improved / inconclusive]
-  G --> H[read-only Job Summary + artifacts]
-```
-
-Fan-out run 35941255870에서 detect는 다음을 성공했다.
-
-- consumer checkout, immutable toolkit checkout, toolkit CLI install, module-plan 생성
-- `max_parallel: 4`로 AI·audio·catalog·community 4개 module job의 동시 시작
-- 이전 resource-profile concurrency key로 인한 sibling cancellation은 발생하지 않음
-- module evidence artifact와 aggregate report artifact를 발행
-
-그러나 AI job은 `uv run pytest`를 실행했을 때 `uv`가 없는 fresh runner에서 exit 127로 실패했다. 나머지 11개 module job은 성공했지만 aggregate는 fail-closed로 `failed`를 반환했다. 이것은 #377이 해결할 실행 계약 결함이며, 성능 회귀로 해석하지 않는다.
-
-| Fan-out 관측 지표 | 값 | 해석 |
-| --- | ---: | --- |
-| 실행 모드 | PR / full-suite fallback | caller workflow 변경이 공통 경로로 분류됨 |
-| 동시 시작 module 수 | 4 | `max_parallel` 정책이 적용됨 |
-| module 결과 | 11 success, 1 failed | 불완전 candidate |
-| aggregate critical path | 316.41s | 실패한 run의 topology 관측값; 개선 수치로 사용 금지 |
-| 실행 결과 | failed | promotion/required gate에 사용 금지 |
-
-## 왜 직렬 454초와 fan-out 316.41초를 비교하지 않는가
-
-두 수치는 참고 가능한 운영 관측값이지만 실험 쌍이 아니다. serial은 `develop`의 SHA `2843c8c…`이고, fan-out은 PR merge SHA와 다른 runner image/version, cache 상태, command environment를 사용했다. 더 결정적으로 candidate는 실패했다.
+CI는 사람이 검토하기 전에 컴퓨터가 테스트와 품질 검사를 대신 수행하는 과정이다. 현재 `verify` 작업은 하나의 임시 컴퓨터(runner)에서 검사들을 차례대로 처리한다. 앞선 검사가 끝나야 다음 검사가 시작되므로, 짧은 테스트가 많아도 가장 긴 테스트가 전체 완료 시간을 끌고 간다. 이때 전체 완료를 가장 오래 붙잡는 단계를 critical path, 즉 **가장 긴 대기 경로**라고 부른다.
 
 ```mermaid
 flowchart LR
-  S[Serial 454s\n단일 표본] --> X{동일 조건 3회?}
-  P[Fan-out 316.41s\nAI 실패] --> Y{성공 candidate?}
-  X -->|아니오| I[Inconclusive]
-  Y -->|아니오| I
-  X -->|예| C[median / p95 / variance 비교]
-  Y -->|예| C
-  C --> D{정책 임계치 초과?}
-  D -->|예| R[regressed]
-  D -->|아니오| U[unchanged / improved]
+  A[변경 제출] --> B[자동 검사 시작]
+  B --> C[핵심 API 검사]
+  C --> D[나머지 검사]
+  D --> E[합칠지 결정]
+  E --> F[배포와 다음 측정]
 ```
 
-## 기준선과 후보 측정 계약
+*현재는 핵심 API 검사가 가장 긴 대기 경로를 형성한다. 이 그림은 세부 step 목록이 아니라 개발자가 경험하는 의사결정 흐름을 보여 준다.*
 
-| 지표 | 정의 | 수집 위치 | 판정에 쓰는 방법 |
-| --- | --- | --- | --- |
-| Queue time | workflow 생성부터 job 시작까지 | Actions run/job timestamps | runner capacity 변동과 실행 시간 분리 |
-| Wall-clock | job 시작부터 완료까지 | Actions job timestamps | 개발자 대기 시간; median/p95 비교 |
-| Sum of work | module elapsed/cpu evidence의 합 | module evidence artifacts | 병렬화가 비용을 늘렸는지 확인 |
-| Critical path | DAG상 가장 긴 의존 경로 | aggregate report | topology 효과 확인 |
-| Module duration | module command 시작~종료 | `module-evidence-<id>` | 병목·straggler 탐지 |
-| Failure/cancellation | exit code, result, artifact 존재 | aggregate/verify | false improvement 차단 |
-| Environment identity | SHA, runner image, cache, toolchain, config hash | serial manifest + module report | 비교 가능성 gate |
+## 숫자로 보면 CI는 측정할 수 있지만 CD는 아직 측정할 수 없다
 
-### 기준선 수집 순서
+아래의 PR CI 세 건은 서로 다른 커밋에서 실행된 운영 관측값이다. 시간대가 비슷하게 모여 현재 대기 시간을 설명하는 데에는 도움이 되지만, 동일 커밋을 반복 실행한 정식 기준선은 아니다. 정식 기준선은 #368에서 같은 코드 상태로 세 번 이상 성공 실행을 확보한 뒤 중앙값으로 정한다.
 
-1. #368에서 동일 `develop` SHA의 성공한 serial `verify` 3개를 확보한다.
-2. `serial-baseline.mjs`로 median wall-clock, work, peak RSS와 immutable run URL을 포함한 manifest를 생성한다.
-3. #377에서 AI runner 준비를 고치고, #365의 fan-out을 성공시킨다.
-4. 같은 catalog/config hash와 toolchain identity를 가진 성공 fan-out 3개를 수집한다.
-5. 보고서 표에 median, p95, relative delta, queue delta, critical-path delta를 채운다.
+| 구분 | 현재 관측 | 독자가 알아야 할 점 |
+| --- | ---: | --- |
+| PR CI `verify` | 400~403초 (약 6분 40초) | 최근 성공 PR 3건의 job 실행 시간 |
+| develop CI `verify` | 454초 (약 7분 34초) | 단일 성공 관측값 |
+| 병렬 후보의 가장 긴 경로 | 316.41초 | 실패한 실행이므로 개선 성과로 사용하지 않음 |
+| CD: Staging Deploy | 성공 표본 없음 | 실패까지 걸린 시간은 배포 속도가 아님 |
+| CD: Release Please | 성공 표본 없음 | 성공한 release 흐름부터 별도 측정 필요 |
 
-## 개선 우선순위와 기대 검증
+CI는 코드를 확인하는 시간이고, CD는 확인된 코드를 실제 환경에 배포하는 시간이다. 최근 Staging Deploy와 Release Please에는 성공 표본이 없으므로, 지금 CD에 대해 “몇 분 만에 배포된다”라고 말할 근거는 없다. 실패한 실행의 지속 시간은 문제를 찾는 단서일 뿐, 배포 성능 지표가 아니다.
 
-| 우선순위 | 개선 | 기대 효과 | 검증 기준 | 위험 / 방어 |
-| --- | --- | --- | --- | --- |
-| P0 | AI module에 `uv` runtime 준비 | candidate 성공·evidence 완결 | AI exit 0, aggregate success | 설치 비용은 module duration에 포함 |
-| P0 | module-ID concurrency 유지 | sibling cancellation 제거 | 같은 profile 4개 이상이 모두 실행 | max_parallel 초과 금지 |
-| P1 | serial baseline 3회 수집 | 전후 수치의 신뢰성 | identity 완전 일치 | 표본 부족은 inconclusive |
-| P1 | Spring API를 독립 matrix lane으로 운용 | 221초 병목을 다른 short test와 겹침 | critical path와 wall-clock 감소 | shared DB/CPU contention 측정 |
-| P2 | cache warm/cold를 분리 보고 | 캐시 편향 차단 | cache state label 일치 | warm 결과를 cold baseline과 비교 금지 |
-| P2 | develop/nightly/release evidence gate | PR·장기 추세 분리 | #366 artifact 연계 | 실패를 자동 개선으로 오인하지 않음 |
+## 시간의 절반은 Spring API 테스트에 쓰였다
 
-## 보고서 갱신 표
+`develop`의 [CI run 35940692137](https://github.com/YRootLab/OnMaru-backend/actions/runs/35940692137)은 454초가 걸렸다. Step timestamp를 기준으로 나눈 아래 값은 근사치이며, runner가 배정되기 전의 대기 시간이나 비용을 뜻하지 않는다.
 
-성공한 비교 표본이 생기면 아래 표를 채운다. 빈 칸이나 `N/A`는 0 또는 improvement가 아니다.
+| 자동 확인 단계 | 시간 | 전체 CI에서 차지한 비중 | 기다림의 의미 |
+| --- | ---: | ---: | --- |
+| Spring API 테스트 | 221초 | 48.7% | 다른 검사가 끝나도 이 검사가 끝날 때까지 PR 결과를 기다린다. |
+| TourAPI adapter 테스트 | 59초 | 13.0% | 외부 관광 API 연동 계약이 깨지지 않았는지 확인한다. |
+| Node·생성물 검증 | 38초 | 8.4% | 공개 계약과 생성 파일이 서로 어긋나지 않았는지 확인한다. |
+| 나머지 모듈 테스트 | 91초 | 20.0% | 독립적인 검사들이 순서대로 실행되고 있다. |
+| 준비·Python/FastAPI·정리 | 45초 | 9.9% | 검사 도구를 준비하고 AI·FastAPI 품질을 확인한다. |
 
-| Metric | Serial baseline median (n=3) | Fan-out median (n=3) | Delta | Status |
-| --- | ---: | ---: | ---: | --- |
-| Queue time | pending | pending | pending | inconclusive |
-| Wall-clock | pending | pending | pending | inconclusive |
-| Sum of work | pending | pending | pending | inconclusive |
-| Critical path | serial DAG pending | pending | pending | inconclusive |
-| P95 wall-clock | pending | pending | pending | inconclusive |
-| Failure/cancellation rate | pending | pending | pending | inconclusive |
+가장 먼저 개선을 검토할 이유도 여기에 있다. Spring API 테스트를 없애거나 줄이자는 뜻은 아니다. 다른 독립 테스트와 **동시에** 시작하게 만들어, 중요한 검증은 그대로 유지하면서 개발자가 결과를 기다리는 시간을 줄일 수 있는지 확인하자는 뜻이다.
 
-## 의사결정 기준
+## 병렬화는 가능성을 보였지만 아직 성과가 아니다
 
-- `improved`: valid paired evidence에서 wall-clock과 critical path가 정책 임계치 이상 개선되고, failure/cancellation이 증가하지 않음.
-- `unchanged`: 유의미한 차이가 없거나 개선이 임계치 미만.
-- `regressed`: comparable evidence에서 정책 임계치 이상의 악화.
-- `inconclusive`: 표본 부족, identity 불일치, 실패, 취소, timeout, artifact 누락 또는 설정 변경.
+[Module Benchmark run 35941255870](https://github.com/YRootLab/OnMaru-backend/actions/runs/35941255870)에서는 한 번에 최대 4개 모듈을 시작했고, 12개 모듈 중 11개가 성공했다. toolkit checkout, 실행 계획 생성, 각 모듈의 근거 artifact 수집도 동작했다. 즉, 여러 검사를 동시에 실행할 수 있는 배관은 실제로 연결됐다.
 
-이 보고서는 #364의 required-check 변경과 #366의 release gate를 직접 바꾸지 않는다. 해당 이슈들은 여기서 확정된 baseline·candidate evidence를 입력으로 사용한다.
+하지만 AI 모듈이 새 runner에 없는 `uv` 명령을 실행하면서 실패했다. 이 한 건 때문에 결과를 모으는 단계는 의도적으로 실패 처리됐다. 316.41초라는 값은 병렬 구조의 길이를 관찰한 값일 뿐이며, 성공한 직렬 실행과 비교해 “절감됐다”라고 표현할 수 없다. AI 실행 환경은 #377에서 수정 중이고, 그 수정이 성공한 뒤에야 공정한 비교를 시작할 수 있다.
+
+| 확인된 사실 | 아직 말할 수 없는 것 |
+| --- | --- |
+| 최대 4개 모듈을 동시에 시작할 수 있다. | CI가 21% 빨라졌다. |
+| 11개 모듈의 테스트와 근거 artifact 수집은 성공했다. | 316.41초가 공식 병렬 기준선이다. |
+| AI runner의 `uv` 준비가 필요하다. | CD가 더 빨라졌다. |
+
+> 실패·취소·시간 초과·근거 artifact 누락·환경 차이가 있는 실행은 개선 또는 회귀 판단에서 제외한다. 빨라 보이는 실패를 성과로 기록하지 않는 것이 이 측정 체계의 기본 원칙이다.
+
+## 다음 측정에서는 결과가 아니라 비교 조건부터 맞춘다
+
+공정한 비교를 위해 같은 코드(commit SHA), 같은 테스트 명령, 같은 도구 버전, 같은 runner 이미지, 같은 캐시 상태에서 실행해야 한다. 직렬 CI와 병렬 CI를 각각 세 번 이상 성공 실행한 뒤, 가운데 값인 중앙값을 대표 수치로 사용한다. 가장 느린 쪽의 안정성은 p95, 즉 20번 중 19번은 이보다 빨랐던 시간으로 계속 살핀다. 실패율과 취소율도 함께 비교해, 단지 빨라진 대신 신뢰도가 떨어지는 변화는 개선으로 보지 않는다.
+
+| 다음 단계 | 완료 기준 | 왜 필요한가 |
+| --- | --- | --- |
+| 직렬 기준선 수집 (#368) | 같은 코드 상태의 성공 실행 3회 | 우연한 runner·캐시 차이를 줄인다. |
+| AI 실행 환경 수정 (#377) | AI 테스트 성공, 전체 결과 집계 성공 | 병렬 후보가 완결된 실행이 되게 한다. |
+| 병렬 후보 수집 (#365) | 같은 조건의 성공 실행 3회 | 직렬과 공정하게 비교한다. |
+| CI·CD 추세 보고 (#366) | 중앙값·p95·실패율을 지속 기록 | 한 번의 빠른 실행이 아닌 꾸준한 개선을 확인한다. |
+
+## 포트폴리오에 남길 수 있는 문장
+
+OnMaru Backend의 CI 실행 시간을 단계별로 계측해 Spring API 테스트가 전체 대기 시간의 약 절반을 차지하는 병목임을 확인했습니다. 이후 모듈 단위 병렬 실행 구조와 실행 근거 수집 체계를 도입했으며, 실패한 실행은 개선 성과에서 제외하고 동일 조건 반복 측정으로 실제 개선율을 검증하는 기준을 설계했습니다.
+
+## 데이터의 범위와 원본
+
+- 직렬 관측: [CI run 35940692137](https://github.com/YRootLab/OnMaru-backend/actions/runs/35940692137) — 성공, 단일 `develop` 표본
+- 병렬 관측: [Module Benchmark run 35941255870](https://github.com/YRootLab/OnMaru-backend/actions/runs/35941255870) — AI runner 환경 문제로 실패, 성과 판정 제외
+- 최근 성공 PR CI: [35942322749](https://github.com/YRootLab/OnMaru-backend/actions/runs/35942322749), [35942194992](https://github.com/YRootLab/OnMaru-backend/actions/runs/35942194992), [35941255407](https://github.com/YRootLab/OnMaru-backend/actions/runs/35941255407)
+
+이 문서는 [CI 성과 보고서 작성 프롬프트](../prompts/ci-performance-report.md)를 적용한 첫 결과다. 이후 보고서도 같은 프롬프트와 비교 가능성 규칙을 사용해 갱신한다.

@@ -56,3 +56,10 @@
 - **Next Steps**:
   - Render 로그에서 `odii sync failed` 확인, `ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT` 유효성 점검 (#307)
   - `GET /api/v1/audio/regions` 지역 그룹 카운트 API 구현 (#306)
+# Issue #380 — CI 성과 보고 프롬프트와 비개발자용 기준선 보고서
+
+- Branch: `docs/380-accessible-ci-report-prompt`
+- Scope: 재사용 가능한 보고서 프롬프트를 추가하고, #376의 CI 기준선 보고서를 비개발자도 읽을 수 있는 문단형 보고서와 짧은 Mermaid로 재구성한다.
+- Changed: `docs/prompts/ci-performance-report.md`, `docs/reports/2026-09-24-ci-parallelization-baseline.md`
+- Verification: `node --test scripts/test/*.test.mjs` (94 passed), 보고서 표현 계약 검사(1 Mermaid, 6 nodes), `git diff --check`.
+- Next: PR을 열고 `verify`가 통과하면 develop으로 병합한 뒤 #380을 정리한다.
