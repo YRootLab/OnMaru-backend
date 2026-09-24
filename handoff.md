@@ -1,5 +1,11 @@
 # handoff.md
 
+- **Date**: 2026-09-24 CI baseline and fan-out evidence report
+- **Branch**: `docs/376-ci-performance-evidence-report`
+- **Related Issue**: #376 (depends on #368 serial baseline and #365/#377 fan-out evidence)
+- **Scope**: sanitized aggregate report and measurement/decision contract only; no CI topology, runtime command, or release-gate changes
+- **Evidence**: serial CI run 35940692137; fan-out run 35941255870 (failed/incomparable because AI `uv` runtime is absent)
+
 - **Date**: 2026-09-23 serial CI baseline manifest 구현 시작
 - **Branch**: `feature/368-serial-baseline-manifest`
 - **Related Issue**: #255 root, #368 serial baseline manifest
