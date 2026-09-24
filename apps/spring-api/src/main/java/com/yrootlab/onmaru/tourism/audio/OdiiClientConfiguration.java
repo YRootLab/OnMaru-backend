@@ -11,7 +11,7 @@ import com.yrootlab.onmaru.tourism.audio.client.OdiiClientProperties;
 import com.yrootlab.onmaru.tourism.audio.client.OdiiHttpClient;
 import com.yrootlab.onmaru.tourism.audio.client.OdiiUriBuilder;
 import com.yrootlab.onmaru.tourism.audio.mapping.OdiiSourceItemMapper;
-import com.yrootlab.onmaru.tourism.audio.sync.OdiiStorySearchPageSource;
+import com.yrootlab.onmaru.tourism.audio.sync.OdiiStorySyncPageSource;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -52,7 +52,7 @@ public class OdiiClientConfiguration {
 
     @Bean
     @Profile("production")
-    OdiiStorySearchPageSource odiiStorySearchPageSource(
+    OdiiStorySyncPageSource odiiStorySyncPageSource(
             OdiiHttpClient client,
             SecretProvider secretProvider,
             OdiiSyncSettings settings
@@ -61,7 +61,7 @@ public class OdiiClientConfiguration {
                 settings.baseUri(),
                 secretProvider.get("odii.service-key").current(),
                 settings.mobileApp());
-        return new OdiiStorySearchPageSource(
+        return new OdiiStorySyncPageSource(
                 client,
                 uriBuilder,
                 new OdiiSourceItemMapper(),
@@ -72,7 +72,7 @@ public class OdiiClientConfiguration {
     @Profile("production")
     OdiiRevisionSyncService odiiRevisionSyncService(
             AudioRevisionStore store,
-            OdiiStorySearchPageSource source,
+            OdiiStorySyncPageSource source,
             OdiiSyncSettings settings,
             Clock clock,
             OdiiSyncObserver observer

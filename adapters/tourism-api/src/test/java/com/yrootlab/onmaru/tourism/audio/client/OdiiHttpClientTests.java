@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.yrootlab.onmaru.tourism.audio.mapping.OdiiSourceItemMapper;
 import com.yrootlab.onmaru.tourism.audio.sync.OdiiStorySearchPageSource;
+import com.yrootlab.onmaru.tourism.audio.sync.OdiiStorySyncPageSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -157,6 +158,31 @@ class OdiiHttpClientTests {
         });
         assertThat(requestedQuery.get())
                 .contains("langCode=ko", "pageNo=1", "numOfRows=20", "keyword=%ED%95%9C%EC%98%A5");
+    }
+
+    @Test
+    void storySyncPageSourceCollectsAllStoriesWithoutKeywordFilter() throws Exception {
+        var requestedPath = new AtomicReference<String>();
+        var requestedQuery = new AtomicReference<String>();
+        server = startServer(exchange -> {
+            requestedPath.set(exchange.getRequestURI().getPath());
+            requestedQuery.set(exchange.getRequestURI().getRawQuery());
+            send(exchange, 200, successBody());
+        });
+        var source = new OdiiStorySyncPageSource(
+                client(0),
+                new OdiiUriBuilder(serverUri(), "secret", "OnMaru"),
+                new OdiiSourceItemMapper(),
+                20
+        );
+
+        var page = source.fetchFull("ko", 1);
+
+        assertThat(page.stories()).hasSize(1);
+        assertThat(requestedPath).hasValue("/odii/storyBasedSyncList");
+        assertThat(requestedQuery.get())
+                .contains("langCode=ko", "pageNo=1", "numOfRows=20")
+                .doesNotContain("keyword=");
     }
 
     private OdiiHttpClient client(int retries) {
