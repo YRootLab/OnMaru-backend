@@ -17,7 +17,7 @@ concurrency:
 jobs:
   module-benchmark:
     name: affected module benchmark
-    uses: YRootLab/OnMaru-modular-backend-pipeline-toolkit/.github/workflows/module-benchmark.yml@6a46022043998ca8c54e2d7d3fec2827eefc4538
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@6a46022043998ca8c54e2d7d3fec2827eefc4538
     with:
       catalog_path: .github/benchmark-modules.yml
       toolkit_ref: 6a46022043998ca8c54e2d7d3fec2827eefc4538
