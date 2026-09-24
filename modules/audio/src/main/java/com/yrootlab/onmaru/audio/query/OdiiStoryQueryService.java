@@ -6,9 +6,13 @@ import com.yrootlab.onmaru.catalog.application.tags.ContentTagExtractor;
 import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
 import com.yrootlab.onmaru.catalog.application.tags.ContentTagSource;
 
+import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -30,6 +34,7 @@ public final class OdiiStoryQueryService {
     private final OdiiPublicAudioUrlPolicy audioUrlPolicy;
     private final OdiiStoryCursorCodec cursorCodec;
     private final ContentTagPipeline contentTagPipeline;
+    private final OdiiStoryPopularityPort popularityPort;
 
     public OdiiStoryQueryService(
             OdiiStoryQueryStore store,
@@ -38,7 +43,7 @@ public final class OdiiStoryQueryService {
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
             OdiiStoryCursorCodec cursorCodec) {
         this(store, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
-                ContentTagPipeline.defaultPipeline());
+                ContentTagPipeline.defaultPipeline(), noopPopularity());
     }
 
     public OdiiStoryQueryService(
@@ -49,7 +54,7 @@ public final class OdiiStoryQueryService {
             OdiiStoryCursorCodec cursorCodec,
             ContentTagExtractor contentTagExtractor) {
         this(store, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
-                ContentTagPipeline.of(contentTagExtractor));
+                ContentTagPipeline.of(contentTagExtractor), noopPopularity());
     }
 
     public OdiiStoryQueryService(
@@ -59,12 +64,47 @@ public final class OdiiStoryQueryService {
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
             OdiiStoryCursorCodec cursorCodec,
             ContentTagPipeline contentTagPipeline) {
+        this(store, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
+                contentTagPipeline, noopPopularity());
+    }
+
+    public OdiiStoryQueryService(
+            OdiiStoryQueryStore store,
+            OdiiSavedStateLookup savedStateLookup,
+            ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery,
+            OdiiPublicAudioUrlPolicy audioUrlPolicy,
+            OdiiStoryCursorCodec cursorCodec,
+            ContentTagPipeline contentTagPipeline,
+            OdiiStoryPopularityPort popularityPort) {
         this.store = store;
         this.savedStateLookup = savedStateLookup;
         this.approvedPlaceLinkQuery = approvedPlaceLinkQuery;
         this.audioUrlPolicy = audioUrlPolicy;
         this.cursorCodec = cursorCodec;
         this.contentTagPipeline = contentTagPipeline;
+        this.popularityPort = popularityPort;
+    }
+
+    private static OdiiStoryPopularityPort noopPopularity() {
+        return new OdiiStoryPopularityPort() {
+            @Override
+            public void recordPlay(String storyId, Instant occurredAt) {
+            }
+
+            @Override
+            public void recordSave(String storyId, Instant occurredAt) {
+            }
+
+            @Override
+            public Map<String, Long> playCounts(Collection<String> storyIds, Instant sinceInclusive) {
+                return Map.of();
+            }
+
+            @Override
+            public Map<String, Long> saveCounts(Collection<String> storyIds, Instant sinceInclusive) {
+                return Map.of();
+            }
+        };
     }
 
     public OdiiStoryPage list(OdiiStoryQuery query) {
@@ -104,6 +144,166 @@ public final class OdiiStoryQueryService {
                 summaries,
                 nextCursor,
                 hasMore);
+    }
+
+    public OdiiStoryPage search(
+            String keyword,
+            String language,
+            int limit,
+            Optional<UUID> memberId) {
+        String normalizedKeyword = validateKeyword(keyword);
+        validateLanguage(language);
+        validateLimit(limit, "limit", 50);
+
+        var snapshot = store.activeSnapshot();
+        var selection = selectLanguage(publicStories(snapshot.stories()), language);
+        var matches = deduplicate(selection.stories().stream()
+                .filter(story -> searchableText(story).contains(normalizedKeyword))
+                .sorted(ORDER)
+                .toList()).stream()
+                .limit(limit)
+                .toList();
+        return page(selection, matches, memberId);
+    }
+
+    public OdiiStoryPage nearby(
+            double latitude,
+            double longitude,
+            double radiusMeters,
+            String language,
+            int limit,
+            Optional<UUID> memberId) {
+        validateCoordinate(latitude, -90, 90, "lat");
+        validateCoordinate(longitude, -180, 180, "lng");
+        if (!Double.isFinite(radiusMeters) || radiusMeters <= 0 || radiusMeters > 50_000) {
+            throw new OdiiStoryInvalidRequestException("radius");
+        }
+        validateLanguage(language);
+        validateLimit(limit, "limit", 50);
+
+        var snapshot = store.activeSnapshot();
+        var selection = selectLanguage(publicStories(snapshot.stories()), language);
+        var nearby = deduplicate(selection.stories()).stream()
+                .map(story -> new Distance(story, distanceMeters(
+                        latitude, longitude, story.coordinates().lat(), story.coordinates().lng())))
+                .filter(distance -> distance.meters() <= radiusMeters)
+                .sorted(Comparator.comparingDouble(Distance::meters)
+                        .thenComparing(distance -> distance.story().publishedAt(), Comparator.reverseOrder())
+                        .thenComparing(distance -> distance.story().storyId()))
+                .map(Distance::story)
+                .limit(limit)
+                .toList();
+        return page(selection, nearby, memberId);
+    }
+
+    public OdiiStoryPage recommend(
+            String keyword,
+            String language,
+            int limit,
+            Optional<UUID> memberId) {
+        String normalizedKeyword = validateKeyword(keyword);
+        validateLanguage(language);
+        validateLimit(limit, "limit", 50);
+
+        var snapshot = store.activeSnapshot();
+        var selection = selectLanguage(publicStories(snapshot.stories()), language);
+        var ranked = deduplicate(selection.stories()).stream()
+                .filter(story -> searchableText(story).contains(normalizedKeyword))
+                .sorted(Comparator.comparingInt((OdiiStoryProjection story) -> matchScore(story, normalizedKeyword))
+                        .reversed()
+                        .thenComparing(OdiiStoryProjection::publishedAt, Comparator.reverseOrder())
+                        .thenComparing(OdiiStoryProjection::storyId))
+                .toList();
+        return page(selection, ranked.stream().limit(limit).toList(), memberId);
+    }
+
+    private List<OdiiStoryProjection> publicStories(List<OdiiStoryProjection> stories) {
+        return stories.stream().filter(this::isPublicAndPlayable).toList();
+    }
+
+    private OdiiStoryPage page(
+            LanguageSelection selection,
+            List<OdiiStoryProjection> stories,
+            Optional<UUID> memberId) {
+        var summaries = stories.stream().map(story -> summary(story, memberId)).toList();
+        var coverage = summaries.isEmpty()
+                ? OdiiCoverageStatus.MISSING
+                : selection.status() == OdiiLanguageStatus.EXACT
+                ? OdiiCoverageStatus.COMPLETE
+                : OdiiCoverageStatus.PARTIAL;
+        return new OdiiStoryPage(
+                SCHEMA_VERSION,
+                coverage,
+                selection.language(),
+                selection.status(),
+                summaries,
+                null,
+                false);
+    }
+
+    private String validateKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank() || keyword.trim().length() > 80) {
+            throw new OdiiStoryInvalidRequestException("keyword");
+        }
+        return normalize(keyword);
+    }
+
+    private void validateLimit(int limit, String field, int maximum) {
+        if (limit < 1 || limit > maximum) {
+            throw new OdiiStoryInvalidRequestException(field);
+        }
+    }
+
+    private void validateCoordinate(double value, double minimum, double maximum, String field) {
+        if (!Double.isFinite(value) || value < minimum || value > maximum) {
+            throw new OdiiStoryInvalidRequestException(field);
+        }
+    }
+
+    private String searchableText(OdiiStoryProjection story) {
+        return normalize(String.join(" ",
+                nullToEmpty(story.title()),
+                nullToEmpty(story.audioTitle()),
+                String.join(" ", story.contentTags())));
+    }
+
+    private int matchScore(OdiiStoryProjection story, String keyword) {
+        int score = 0;
+        if (normalize(nullToEmpty(story.title())).equals(keyword)) {
+            score += 100;
+        } else if (normalize(nullToEmpty(story.title())).contains(keyword)) {
+            score += 60;
+        }
+        if (normalize(nullToEmpty(story.audioTitle())).contains(keyword)) {
+            score += 40;
+        }
+        if (story.contentTags().stream().map(this::normalize).anyMatch(tag -> tag.equals(keyword))) {
+            score += 30;
+        } else if (story.contentTags().stream().map(this::normalize).anyMatch(tag -> tag.contains(keyword))) {
+            score += 15;
+        }
+        return score;
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String normalize(String value) {
+        return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
+        double earthRadiusMeters = 6_371_000;
+        double latDelta = Math.toRadians(lat2 - lat1);
+        double lonDelta = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDelta / 2) * Math.sin(latDelta / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2);
+        return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private record Distance(OdiiStoryProjection story, double meters) {
     }
 
     /**
@@ -252,6 +452,75 @@ public final class OdiiStoryQueryService {
         var byStoryId = new LinkedHashMap<String, OdiiStoryProjection>();
         stories.stream().sorted(ORDER).forEach(story -> byStoryId.putIfAbsent(story.storyId(), story));
         return List.copyOf(byStoryId.values());
+    }
+
+    /**
+     * 인기 점수(2 × 재생 수 + 저장 수) 기준 오디오 스토리 랭킹을 조회한다.
+     *
+     * <p>{@code sinceInclusive} 이후의 재생·저장 신호로 점수를 매기고, 모든 점수가 0이면
+     * 최근 게시 순으로 폴백한다({@code basis: FALLBACK_RECENT}). 커서 없는 TOP N 계약이다.</p>
+     */
+    public OdiiPopularSoundsPage popular(OdiiPopularSoundsQuery query) {
+        validateLanguage(query.language());
+        if (query.limit() < 1 || query.limit() > 20) {
+            throw new OdiiStoryInvalidRequestException("limit");
+        }
+        if (query.category() != null && query.category().length() > 80) {
+            throw new OdiiStoryInvalidRequestException("category");
+        }
+        var snapshot = store.activeSnapshot();
+        var eligible = snapshot.stories().stream()
+                .filter(this::isPublicAndPlayable)
+                .filter(story -> query.category() == null || query.category().equals(story.category()))
+                .toList();
+        var selection = selectLanguage(eligible, query.language());
+        var deduplicated = deduplicate(selection.stories());
+
+        var storyIds = deduplicated.stream().map(OdiiStoryProjection::storyId).toList();
+        var plays = popularityPort.playCounts(storyIds, query.sinceInclusive());
+        var saves = popularityPort.saveCounts(storyIds, query.sinceInclusive());
+        boolean hasSignal = deduplicated.stream()
+                .anyMatch(story -> scoreOf(story, plays, saves) > 0);
+
+        Comparator<OdiiStoryProjection> ranking = hasSignal
+                ? Comparator.<OdiiStoryProjection>comparingLong(
+                        story -> -scoreOf(story, plays, saves))
+                .thenComparing(OdiiStoryProjection::publishedAt, Comparator.reverseOrder())
+                .thenComparing(OdiiStoryProjection::storyId)
+                : (left, right) -> {
+                    int comparison = right.publishedAt().compareTo(left.publishedAt());
+                    return comparison != 0 ? comparison : left.storyId().compareTo(right.storyId());
+                };
+
+        var ranked = deduplicated.stream().sorted(ranking)
+                .limit(query.limit())
+                .toList();
+        var items = new java.util.ArrayList<OdiiPopularSoundItem>(ranked.size());
+        for (int index = 0; index < ranked.size(); index++) {
+            var story = ranked.get(index);
+            long score = hasSignal ? scoreOf(story, plays, saves) : 0;
+            items.add(new OdiiPopularSoundItem(
+                    index + 1,
+                    score,
+                    plays.getOrDefault(story.storyId(), 0L),
+                    saves.getOrDefault(story.storyId(), 0L),
+                    summary(story, query.memberId())));
+        }
+        return new OdiiPopularSoundsPage(
+                SCHEMA_VERSION,
+                hasSignal ? "POPULARITY" : "FALLBACK_RECENT",
+                "week",
+                selection.language(),
+                selection.status(),
+                items);
+    }
+
+    private long scoreOf(
+            OdiiStoryProjection story,
+            Map<String, Long> plays,
+            Map<String, Long> saves) {
+        return 2 * plays.getOrDefault(story.storyId(), 0L)
+                + saves.getOrDefault(story.storyId(), 0L);
     }
 
     private OdiiStorySummary summary(OdiiStoryProjection story, Optional<UUID> memberId) {

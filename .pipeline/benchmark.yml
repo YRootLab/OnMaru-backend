@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "suite": "onmaru-release-smoke",
+  "environment": "staging",
+  "runner": {
+    "architecture": "linux-amd64",
+    "resource": { "cpu": "2", "memory": "4Gi" }
+  },
+  "fixture": { "name": "onmaru-release-smoke", "version": "v1" },
+  "dependencyMode": "staging-readonly",
+  "warmupRuns": 2,
+  "repetitions": 3,
+  "minimumValidRuns": 3,
+  "cache": { "cold": true, "warm": true },
+  "stages": [
+    { "name": "spring-api", "readinessPath": "/actuator/health" },
+    { "name": "fastapi", "readinessPath": "/ready" }
+  ],
+  "toolkit": {
+    "provenance": "unverified",
+    "executable": null,
+    "commands": { "compare": null },
+    "timeoutMs": 30000
+  },
+  "policy": {
+    "latencyRegressionThreshold": 0.05,
+    "improvementThreshold": 0.05
+  }
+}

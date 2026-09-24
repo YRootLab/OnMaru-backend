@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.audio.query.OdiiCursorExpiredException;
 import com.yrootlab.onmaru.audio.query.OdiiCursorInvalidException;
 import com.yrootlab.onmaru.audio.query.OdiiStoryInvalidRequestException;
 import com.yrootlab.onmaru.audio.query.OdiiStoryNotFoundException;
+import com.yrootlab.onmaru.audio.query.OdiiStoryPopularityPort;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQuery;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
 import com.yrootlab.onmaru.audio.query.OdiiStoryUnavailableException;
@@ -26,9 +27,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,11 +43,93 @@ public final class OdiiStoryController {
     private static final String SESSION_COOKIE = "__Host-onmaru-session";
 
     private final OdiiStoryQueryService queryService;
+    private final OdiiStoryPopularityPort popularityPort;
+    private final Clock clock;
     private final MemberLifecycleService memberLifecycleService;
 
-    OdiiStoryController(OdiiStoryQueryService queryService, MemberLifecycleService memberLifecycleService) {
+    OdiiStoryController(
+            OdiiStoryQueryService queryService,
+            OdiiStoryPopularityPort popularityPort,
+            Clock clock,
+            MemberLifecycleService memberLifecycleService) {
         this.queryService = queryService;
+        this.popularityPort = popularityPort;
+        this.clock = clock;
         this.memberLifecycleService = memberLifecycleService;
+    }
+
+    @Operation(summary = "소리마루 스토리 검색", description = "활성 Odii 스토리를 키워드로 검색합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "스토리 검색 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 검색 조건"),
+            @ApiResponse(responseCode = "503", description = "Odii 데이터 일시 이용 불가")
+    })
+    @GetMapping("/api/stories")
+    ResponseEntity<?> searchStories(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @RequestParam(required = false, defaultValue = "20") String limit,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        try {
+            return ok(queryService.search(keyword, language, parseLimit(limit), memberId(sessionToken)));
+        } catch (OdiiStoryInvalidRequestException exception) {
+            return invalidRequest(request, exception.field());
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
+    }
+
+    @Operation(summary = "근처 소리마루 스토리 조회", description = "좌표와 반경 안의 활성 Odii 스토리를 거리순으로 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "근처 스토리 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 좌표 또는 반경"),
+            @ApiResponse(responseCode = "503", description = "Odii 데이터 일시 이용 불가")
+    })
+    @GetMapping("/api/stories/nearby")
+    ResponseEntity<?> nearbyStories(
+            @RequestParam(required = false) String lat,
+            @RequestParam(required = false) String lng,
+            @RequestParam(required = false, defaultValue = "5000") String radius,
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @RequestParam(required = false, defaultValue = "20") String limit,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        try {
+            return ok(queryService.nearby(
+                    parseCoordinate(lat, "lat"),
+                    parseCoordinate(lng, "lng"),
+                    parseCoordinate(radius, "radius"),
+                    language,
+                    parseLimit(limit),
+                    memberId(sessionToken)));
+        } catch (OdiiStoryInvalidRequestException exception) {
+            return invalidRequest(request, exception.field());
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
+    }
+
+    @Operation(summary = "소리마루 키워드 추천", description = "키워드 일치도와 게시일을 기준으로 활성 Odii 스토리를 결정론적으로 추천합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "추천 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 추천 조건"),
+            @ApiResponse(responseCode = "503", description = "Odii 데이터 일시 이용 불가")
+    })
+    @GetMapping("/api/recommendation")
+    ResponseEntity<?> recommendations(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, defaultValue = "ko-KR") String language,
+            @RequestParam(required = false, defaultValue = "20") String limit,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        try {
+            return ok(queryService.recommend(keyword, language, parseLimit(limit), memberId(sessionToken)));
+        } catch (OdiiStoryInvalidRequestException exception) {
+            return invalidRequest(request, exception.field());
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
     }
 
     @Operation(
@@ -150,6 +235,31 @@ public final class OdiiStoryController {
         return regionGroups(language, request);
     }
 
+    @Operation(
+            summary = "오디오 스토리 재생 기록",
+            description = "오디오 스토리 재생 시작을 기록한다. 이번 주 인기 랭킹(popular-sounds)의 재생 수 신호로 사용된다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "재생 기록 성공"),
+            @ApiResponse(responseCode = "404", description = "스토리를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "503", description = "오디오 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    @PostMapping("/api/v1/odii/stories/{storyId}/plays")
+    ResponseEntity<?> recordPlay(
+            @Parameter(description = "오디오 스토리 ID", example = "odii-story-jeonju-hanok-01")
+            @PathVariable String storyId,
+            HttpServletRequest request) {
+        try {
+            queryService.savedStory(storyId, Optional.empty());
+            popularityPort.recordPlay(storyId, clock.instant());
+            return ok(Map.of("schemaVersion", "1.2", "storyId", storyId, "recorded", true));
+        } catch (OdiiStoryNotFoundException exception) {
+            return notFound(request);
+        } catch (OdiiStoryUnavailableException exception) {
+            return unavailable(request);
+        }
+    }
+
     private ResponseEntity<Object> ok(Object body) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
@@ -165,6 +275,17 @@ public final class OdiiStoryController {
             return Integer.parseInt(limit);
         } catch (NumberFormatException exception) {
             throw new OdiiStoryInvalidRequestException("limit");
+        }
+    }
+
+    private double parseCoordinate(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new OdiiStoryInvalidRequestException(field);
+        }
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException exception) {
+            throw new OdiiStoryInvalidRequestException(field);
         }
     }
 

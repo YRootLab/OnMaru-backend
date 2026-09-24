@@ -1,37 +1,39 @@
 # handoff.md
 
-- **Active Issue**: #269 A0206 문화시설 cat3 실코드 검증 — 완료 (2026-09-21 수동 close)
-- **Current Branch**: `release/0.3.13` (정리 완료, 로컬 브랜치 삭제)
-- **Current State**:
-  - PR #308 (feature/269-culture-facility-cat3) develop 병합, PR #309 (release/0.3.13 → master) 병합
-  - 태그 v0.3.13 및 GitHub Release 발행 (master 2a76f4f). Release Please는 이슈 #277 조직 Actions 설정 미적용으로 PR 생성 실패 → 수동 태그 처리
-  - Staging Deploy 실패는 기존 문제(Trivy SARIF category 중복 → 이전 배포 실패 → 롤백 digest 부재 연쇄). 이번 릴리즈와 무관, 별도 후속 필요
-- **Verification**: `./gradlew check` (PASS), `verify` CI (PASS), `gh release view v0.3.13` (PUBLISHED)
-- **Follow-ups**: ① Release Please 조직 설정(이슈 #277) ② Staging Deploy Trivy category 중복 수정 ③ A0206 전체 cat3 코드표 전수 capture(categoryCode2?cat2=A0206, serviceKey 필요) ④ release/0.3.13 원격 브랜치는 ruleset상 삭제 불가 — 기존 release/*와 동일하게 보관
+- **Date**: 2026-09-23 serial CI baseline manifest 구현 시작
+- **Branch**: `feature/368-serial-baseline-manifest`
+- **Related Issue**: #255 root, #368 serial baseline manifest
+- **Planned**: serial run 입력 검증·comparable baseline manifest·운영 수집 절차
+- **Verification**: TDD로 `scripts/test/serial-baseline.test.mjs`부터 추가
+- **Open Risk**: 현재 CI에는 `workflow_dispatch`가 없으므로 실제 develop serial run 3회의 artifact URL은 자연 발생 develop run 또는 별도 dispatch 지원 후 수집해야 한다.
+- **Date**: 2026-09-23 Gradle CI 성능 profile 구현 및 PR 준비
+- **Branch**: `feature/369-gradle-ci-performance-profile`
+- **Related Issue**: #369
+- **Changed**: opt-in Gradle worker/cache profile, 실효 설정 JSON report task, 계약 테스트
+- **Verified**: `node --test scripts/test/gradle-ci-performance.test.mjs`, `./gradlew --init-script build-logic/ci-performance.gradle.kts ciPerformanceProfile -Ponmaru.ci.performance.enabled=true --no-daemon`
+- **Open Risk**: #364가 CI workflow에서 init script와 profile flag를 호출해야 실제 CI fan-out 실행에 적용된다.
+- **Date**: 2026-09-23 AI pytest worker profile 및 duration evidence 구현
+- **Branch**: `feature/370-pytest-ci-profile`
+- **Related Issue**: #370
+- **Changed**: `ai/pyproject.toml`, `ai/uv.lock`, `ai/scripts/pytest-ci-profile.py`, `scripts/test/pytest-ci-profile.test.mjs`
+- **Verified**: `uv run --project ai ruff check ai/scripts/pytest-ci-profile.py`, `uv run --project ai pytest ai/tests` (212 passed, 1 skipped), `node --test scripts/test/pytest-ci-profile.test.mjs` (3 passed), `ONMARU_PYTEST_WORKERS=2 uv run --project ai python ai/scripts/pytest-ci-profile.py --evidence-dir <tmp> --` (worker profile, JUnit/duration evidence 확인)
+- **CI Regression Fix**: setup-uv 이전 Node phase는 시스템 `python3`와 dry-run forced fallback만 사용하도록 fixture를 변경했다. `PATH=/usr/bin:/bin node --test scripts/test/pytest-ci-profile.test.mjs`에서 3건 통과했고, dry-run은 JUnit XML을 생성하지 않는다는 계약을 명시적으로 검증한다.
+- **Open Risk**: 저장소 루트 `uv run --project ai pytest`는 기존 `scripts/test/test_contract_validation.py`가 `openapi_spec_validator`를 요구하지만 AI dev dependency에 없어 7건 실패한다. #370 독점 범위 밖이며 AI 테스트 경로는 통과했다.
 
+- **Date**: 2026-09-23 모듈별 병렬 CI·benchmark control-plane Wave 0
+- **Branch**: `feature/363-ci-baseline-catalog`
+- **Related Issue**: #255 root, #363 catalog, toolkit #31/#33
+- **Changed**: `.github/benchmark-modules.yml`, catalog coverage test
+- **Verified**: `node --test scripts/test/module-catalog.test.mjs`, `node --test scripts/test/*.test.mjs` (88 passed)
+- **Verified CI**: PR #367 `verify` passed (2026-09-23).
+- **Open Risk**: serial baseline 3회 evidence 수집은 #368, CI fan-out은 #364에서 수행한다.
 
-
-- **Active Issue**: 없음 (Issue #239 전체 23개 컨트롤러 및 DTO Swagger 명세화 완료 및 PR #240 머지)
-- **Current Branch**: `develop`
-- **Current State**:
-  - Spring API 23개 전체 컨트롤러 및 요청/응답 DTO에 OpenAPI 3.1 명세(@Tag, @Operation, @Parameter, @ApiResponse, @Schema 등) 적용 완료
-  - Swagger UI(`/swagger-ui/index.html`) 및 5개 기능 그룹별 OpenAPI 스펙 구성 완료
-- **Verification**: `./gradlew test` (PASS), `node --test scripts/test/*.test.mjs` (54 PASS)
-
-- **Active Issue**: #288 로컬 개발 서버 CORS 포트 범위 허용
-- **Current Branch**: `fix/288-local-cors`
-- **Current State**:
-  - `/api/**` CORS allowlist에 `http://localhost:3000`부터 `http://localhost:3007`까지 등록
-  - wildcard Origin 없이 명시적 Origin, 허용 메서드·헤더 및 credentials 정책 적용
-  - 기존 CSRF same-origin 정책은 유지
-- **Verification**: `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.config.LocalDevelopmentCorsConfigurationTests'` (PASS)
-
-- **Active Issue**: #287 Swagger에서 홈 호환 경로 중복 노출 제거
-- **Current Branch**: `fix/287-hide-home-compatibility-paths`
-- **Current State**:
-  - canonical `/api/v1/home/**` 경로만 Swagger/OpenAPI에 노출
-  - 기존 `/api/home/**` 호환 경로는 런타임 동작을 유지하고 OpenAPI에서만 숨김
-- **Verification**: `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.web.swagger.SwaggerEndpointTests' --tests 'com.yrootlab.onmaru.web.home.HomeWebBoundaryTests'` (PASS)
+- **Date**: 2026-09-23 소리마루 Single Source of Truth API 구현 및 PR 준비
+- **Branch**: `feature/345-sorimaru-single-source-of-truth`로 rename 예정
+- **Related Issue**: #345
+- **Changed**: `/api/stories`, `/api/stories/nearby`, `/api/recommendation`, FE 전달 보고서
+- **Verified**: `./gradlew test --no-daemon --max-workers=1`, `bash scripts/verify-contracts`
+- **Open Risk**: Redis 캐시는 의도적으로 제외. 운영 active Odii dataset 배포 확인 필요
 
 - **Date**: 2026-09-21 홈 API 운영 검증 및 후속 이슈 정리
 - **Branch**: `feature/hanok-api-related-improvements` (master 576abfa 병합 완료, 병합 커밋 33ccf94)

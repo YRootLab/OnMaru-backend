@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.audio.placelink.ApprovedAudioPlaceLink;
 import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkMatchMethod;
 import com.yrootlab.onmaru.audio.placelink.CanonicalPlaceLinkCard;
 import com.yrootlab.onmaru.audio.sync.AudioStatus;
+import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -78,6 +79,73 @@ class OdiiStoryQueryServiceTests {
         assertThat(second.hasMore()).isFalse();
         assertThat(filtered.items()).extracting(OdiiStorySummary::storyId)
                 .containsExactly("odii-story-jeonju-hanok-01");
+    }
+
+    @Test
+    void searchesStoryTitleAudioTitleAndContentTagsWithoutExposingInactiveStories() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyWithText("odii-story-palace-01", "경복궁의 궁궐 이야기", "왕실 문화 산책",
+                        List.of("궁궐", "왕실"), AudioStatus.ACTIVE),
+                storyWithText("odii-story-market-01", "남대문 시장 이야기", "전통시장 골목",
+                        List.of("시장"), AudioStatus.ACTIVE),
+                storyWithText("odii-story-hidden-01", "궁궐 비공개 이야기", "왕실 문화",
+                        List.of("궁궐"), AudioStatus.HIDDEN)));
+
+        var result = service.search("  왕실 ", "ko-KR", 20, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-palace-01");
+        assertThat(result.hasMore()).isFalse();
+    }
+
+    @Test
+    void listsNearbyStoriesByDistanceAndValidatesCoordinatesAndRadius() {
+        var near = storyWithCoordinates("odii-story-near-01", 37.5665, 126.9780,
+                Instant.parse("2026-09-15T01:00:00Z"));
+        var far = storyWithCoordinates("odii-story-far-01", 35.1796, 129.0756,
+                Instant.parse("2026-09-15T02:00:00Z"));
+        store.replaceActive(snapshot(REVISION_ONE, far, near));
+
+        var result = service.nearby(37.5665, 126.9780, 5_000, "ko-KR", 20, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-near-01");
+        assertThatThrownBy(() -> service.nearby(91, 126.978, 5_000, "ko-KR", 20, Optional.empty()))
+                .isInstanceOf(OdiiStoryInvalidRequestException.class)
+                .hasMessageContaining("lat");
+        assertThatThrownBy(() -> service.nearby(37.5, 126.978, 0, "ko-KR", 20, Optional.empty()))
+                .isInstanceOf(OdiiStoryInvalidRequestException.class)
+                .hasMessageContaining("radius");
+    }
+
+    @Test
+    void recommendsKeywordMatchesWithStableOrder() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyWithTextAndPublishedAt("odii-story-match", "궁궐 이야기", "왕실 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-10T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-recent", "시장 이야기", "전통시장",
+                        List.of("시장"), Instant.parse("2026-09-15T00:00:00Z"))));
+
+        var result = service.recommend("궁궐", "ko-KR", 20, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-match");
+    }
+
+    @Test
+    void deduplicatesStoriesBeforeApplyingLimitToCompatibilityQueries() {
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyWithTextAndPublishedAt("odii-story-duplicate", "궁궐 이야기", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-15T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-duplicate", "궁궐 이야기 이전 버전", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-14T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-second", "궁궐 두 번째 이야기", "궁궐 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-13T00:00:00Z"))));
+
+        var result = service.search("궁궐", "ko-KR", 2, Optional.empty());
+
+        assertThat(result.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly("odii-story-duplicate", "odii-story-second");
     }
 
     @Test
@@ -309,6 +377,57 @@ class OdiiStoryQueryServiceTests {
                 .containsExactly(org.assertj.core.groups.Tuple.tuple("제주", 1L));
     }
 
+    @Test
+    void ranksPopularSoundsByScoreAndFallsBackToRecencyWithoutSignals() {
+        var counter = new InMemoryOdiiStoryPopularityCounter();
+        var rankedService = new OdiiStoryQueryService(
+                store,
+                (memberId, storyId) -> false,
+                (spotId, memberId) -> Optional.empty(),
+                new OdiiPublicAudioUrlPolicy(Set.of("cdn.onmaru.example")),
+                cursorCodec,
+                ContentTagPipeline.defaultPipeline(),
+                counter);
+
+        store.replaceActive(snapshot(REVISION_ONE,
+                storyInRegion("odii-story-old-a", "ko-KR", "kr-45-jeonju", "kr-45", "전북 전주시",
+                        Instant.parse("2026-09-10T00:00:00Z")),
+                storyInRegion("odii-story-old-b", "ko-KR", "kr-45-jeonju", "kr-45", "전북 전주시",
+                        Instant.parse("2026-09-11T00:00:00Z")),
+                storyInRegion("odii-story-old-c", "ko-KR", "kr-45-jeonju", "kr-45", "전북 전주시",
+                        Instant.parse("2026-09-12T00:00:00Z"))));
+
+        var coldStart = rankedService.popular(new OdiiPopularSoundsQuery(
+                "ko-KR", null, 2, Instant.EPOCH, Optional.empty()));
+        assertThat(coldStart.basis()).isEqualTo("FALLBACK_RECENT");
+        assertThat(coldStart.items())
+                .extracting(item -> item.story().storyId())
+                .containsExactly("odii-story-old-c", "odii-story-old-b");
+        assertThat(coldStart.items()).allSatisfy(item -> {
+            assertThat(item.score()).isZero();
+            assertThat(item.playCount()).isZero();
+            assertThat(item.saveCount()).isZero();
+        });
+
+        // old-b: 재생 2회 → 점수 4, old-a: 저장 1회 → 점수 1. 점수 순으로 재정렬된다.
+        counter.recordPlay("odii-story-old-b", Instant.parse("2026-09-15T10:00:00Z"));
+        counter.recordPlay("odii-story-old-b", Instant.parse("2026-09-15T11:00:00Z"));
+        counter.recordSave("odii-story-old-a", Instant.parse("2026-09-15T12:00:00Z"));
+
+        var popular = rankedService.popular(new OdiiPopularSoundsQuery(
+                "ko-KR", null, 2,
+                Instant.parse("2026-09-14T00:00:00Z"), Optional.empty()));
+        assertThat(popular.basis()).isEqualTo("POPULARITY");
+        assertThat(popular.items())
+                .extracting(OdiiPopularSoundItem::rank, OdiiPopularSoundItem::score)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1, 4L),
+                        org.assertj.core.groups.Tuple.tuple(2, 1L));
+        assertThat(popular.items())
+                .extracting(item -> item.story().storyId())
+                .containsExactly("odii-story-old-b", "odii-story-old-a");
+    }
+
     private OdiiStoryProjection storyInRegion(
             String storyId,
             String language,
@@ -430,6 +549,54 @@ class OdiiStoryQueryServiceTests {
                 publishedAt,
                 storyStatus,
                 spotStatus);
+    }
+
+    private OdiiStoryProjection storyWithText(
+            String storyId,
+            String title,
+            String audioTitle,
+            List<String> contentTags,
+            AudioStatus status) {
+        var base = storyWithTextAndPublishedAt(
+                storyId,
+                title,
+                audioTitle,
+                contentTags,
+                Instant.parse("2026-09-15T00:00:00Z"));
+        return new OdiiStoryProjection(
+                base.storyId(), base.spotId(), base.language(), base.title(), base.audioTitle(), base.category(),
+                base.region(), base.coordinates(), base.durationSeconds(), base.imageUrl(), base.audioUrl(),
+                base.transcriptStatus(), base.transcript(), base.contentTags(), base.publishedAt(), status,
+                base.spotStatus());
+    }
+
+    private OdiiStoryProjection storyWithTextAndPublishedAt(
+            String storyId,
+            String title,
+            String audioTitle,
+            List<String> contentTags,
+            Instant publishedAt) {
+        var base = story(storyId, "ko-KR", "문화", "kr-11-seoul", publishedAt,
+                OdiiTranscriptStatus.OFFICIAL, AudioStatus.ACTIVE);
+        return new OdiiStoryProjection(
+                base.storyId(), base.spotId(), base.language(), title, audioTitle, base.category(),
+                base.region(), base.coordinates(), base.durationSeconds(), base.imageUrl(), base.audioUrl(),
+                base.transcriptStatus(), base.transcript(), contentTags, base.publishedAt(),
+                base.status(), base.spotStatus());
+    }
+
+    private OdiiStoryProjection storyWithCoordinates(
+            String storyId,
+            double latitude,
+            double longitude,
+            Instant publishedAt) {
+        var base = story(storyId, "ko-KR", "문화", "kr-11-seoul", publishedAt,
+                OdiiTranscriptStatus.OFFICIAL, AudioStatus.ACTIVE);
+        return new OdiiStoryProjection(
+                base.storyId(), base.spotId(), base.language(), base.title(), base.audioTitle(), base.category(),
+                base.region(), new OdiiCoordinates(latitude, longitude), base.durationSeconds(), base.imageUrl(),
+                base.audioUrl(), base.transcriptStatus(), base.transcript(), base.contentTags(), base.publishedAt(),
+                base.status(), base.spotStatus());
     }
 
     private OdiiStoryProjection storyWithTranscript(
