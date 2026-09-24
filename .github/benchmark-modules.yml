@@ -20,6 +20,6 @@
     {"id": "operations", "kind": "gradle", "paths": ["modules/operations/**"], "depends_on": [], "test_command": "./gradlew :modules:operations:test --no-daemon", "tier": "pr-and-release", "resource_profile": "medium"},
     {"id": "shared-web", "kind": "gradle", "paths": ["modules/shared-web/**"], "depends_on": [], "test_command": "./gradlew :modules:shared-web:test --no-daemon", "tier": "full-suite", "resource_profile": "medium"},
     {"id": "spring-api", "kind": "gradle", "paths": ["apps/spring-api/**"], "depends_on": ["tourism-api", "persistence-jdbc", "catalog", "audio", "community", "identity", "insights", "journey", "operations", "shared-web"], "test_command": "./gradlew :apps:spring-api:test --no-daemon", "tier": "full-suite", "resource_profile": "heavy"},
-    {"id": "ai", "kind": "pytest", "paths": ["ai/**"], "depends_on": [], "test_command": "uv run pytest", "tier": "pr-and-release", "resource_profile": "medium"}
+    {"id": "ai", "kind": "pytest", "paths": ["ai/**"], "depends_on": [], "test_command": "python3 -m pip install --user uv && export PATH=\"$HOME/.local/bin:$PATH\" && cd ai && uv run pytest", "tier": "pr-and-release", "resource_profile": "medium"}
   ]
 }
