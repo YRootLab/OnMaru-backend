@@ -12,4 +12,8 @@ test('benchmark catalog covers every current backend test entrypoint and full-su
   assert.ok(catalog.always_full_paths.includes('build-logic/**'));
   assert.ok(catalog.always_full_paths.includes('.github/workflows/**'));
   assert.equal(catalog.modules.find((module) => module.id === 'spring-api').resource_profile, 'heavy');
+  assert.equal(
+    catalog.modules.find((module) => module.id === 'ai').test_command,
+    'python3 -m pip install --user uv && export PATH="$HOME/.local/bin:$PATH" && cd ai && uv run pytest',
+  );
 });

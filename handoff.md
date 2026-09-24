@@ -5,6 +5,11 @@
 - **Related Issue**: #376 (depends on #368 serial baseline and #365/#377 fan-out evidence)
 - **Scope**: sanitized aggregate report and measurement/decision contract only; no CI topology, runtime command, or release-gate changes
 - **Evidence**: serial CI run 35940692137; fan-out run 35941255870 (failed/incomparable because AI `uv` runtime is absent)
+- **Date**: 2026-09-24 AI module benchmark runtime preparation
+- **Branch**: `fix/377-ai-module-benchmark-runtime`
+- **Related Issue**: #377 (blocks #365)
+- **Scope**: consumer-owned AI catalog command and catalog contract test only; no reusable workflow permission/topology change
+- **Verification**: contract expectation first failed against bare `uv run pytest`; fresh runner now bootstraps `uv` and runs pytest from `ai/`
 
 - **Date**: 2026-09-23 serial CI baseline manifest 구현 시작
 - **Branch**: `feature/368-serial-baseline-manifest`
