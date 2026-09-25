@@ -1,5 +1,13 @@
 # handoff.md
 
+- **Date**: 2026-09-26 Toolkit 기반 병렬 CI rollout 시작
+- **Branch**: `feature/365-toolkit-module-caller-rollout`
+- **Related Issues**: #365 우선, 이후 #368 → #364 → #366
+- **Scope**: 최신 `develop`에서 Toolkit `v0.1.1` SHA `0f6049a59add9e97dff3d37671ee524c8f3b6ce8`을 고정한 shadow module benchmark caller를 구현한다. 기존 직렬 `CI / verify`는 변경하지 않는다.
+- **Plan**: `docs/superpowers/plans/2026-09-26-parallel-ci-toolkit-rollout.md`
+- **Baseline**: Node 105/105, Gradle `test` 성공(8분 11초), AI pytest 212 passed/1 skipped.
+- **Open Risk**: #365 대체 PR의 실제 artifact와 성공 run이 확보되기 전에는 #374를 닫거나 #364 fan-in으로 전환하지 않는다.
+
 - **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
 - **Branch**: `docs/390-ci-benchmark-report`
 - **Related Issue**: #390 (extends #368; feeds #364/#366)
