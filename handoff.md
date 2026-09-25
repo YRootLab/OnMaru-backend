@@ -11,7 +11,10 @@
 - **Task 1 Verified**: 계약 테스트 RED는 caller 파일 부재(`ENOENT`), GREEN은 1/1 통과. catalog 1/1, 전체 Node 106/106, YAML 파싱, `git diff --check`, 브랜치 Issue 파서(#365) 통과. 기존 `ci.yml` 불변성은 Node 테스트와 별도로 `origin/develop` 대비 바이트 비교로 확인했다.
 - **Task 1 Toolkit Fix**: 최초 지정된 Toolkit `v0.1.1` SHA의 output 줄바꿈 결함은 Toolkit Issue #99 / PR #102에서 수정했다. release 승격 PR #105와 generated metadata PR #106을 required `ci` 통과 후 병합했고, `v0.1.2` tag가 immutable SHA `ff3028ae728de076ea38aa56135529c1566f25a8`을 가리키는 것을 확인했다.
 - **Task 1 Release Verification**: caller의 workflow ref와 `toolkit_ref`를 `v0.1.2` SHA로 교체한 뒤 caller 1/1, catalog 1/1, 전체 Node 106/106, `git diff --check`, 브랜치 Issue 파서(#365), 기존 `ci.yml` 바이트 불변성을 다시 확인했다.
-- **Task 1 Next**: feature branch를 push하고 대체 PR을 열어 Actions 성공 및 module/aggregate artifact를 확인한다.
+- **Task 1 Remote Evidence**: 대체 PR #394의 `CI / verify`와 Module Benchmark run `36173605097`이 성공했다. full-suite 12개 module, aggregate, Toolkit verify, caller summary가 모두 성공했고 module evidence 12개와 `module-benchmark-report` artifact를 확인했다. PR critical path는 287.51초다.
+- **Task 1 Selection Evidence**: consumer catalog를 `module-plan`에 전달해 docs-only와 unknown path는 `unknown-path` full-suite, workflow path는 `always-full-path` full-suite, catalog module 변경은 `catalog`, `audio`, `tourism-api`, `spring-api` affected plan임을 확인했다.
+- **Task 1 Parallel Samples**: 동일 branch SHA `c687b4033bab1ae3509f10ad17e41cbfd1cb498c`의 `workflow_dispatch` run `36174802637`, `36175843868`, `36176943133`이 모두 성공했다. 각 run은 12/12 execution 성공 및 artifact 13개 완전성을 충족했고 critical path는 316.71초, 351.36초, 317.58초(중앙값 317.58초)다. 직렬 중앙값 400초 대비 관측 개선율은 20.605%지만 baseline artifact 비교가 아직 연결되지 않아 공식 판정은 `inconclusive`다.
+- **Task 1 Next**: merge 전 cleanup과 최종 PR checks를 확인한 뒤 #394를 shadow mode로 병합한다. 병합 후 `develop` push run과 artifact를 확인한 다음 PR #374를 superseded로 종료한다.
 
 - **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
 - **Branch**: `docs/390-ci-benchmark-report`
