@@ -189,8 +189,11 @@ jobs:
     needs: [build-and-scan, staging-readiness, baseline-lookup]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
     outputs:
       status: ${{ steps.gate.outputs.status }}
+      config-hash: ${{ steps.gate.outputs.config-hash }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -206,11 +209,13 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p benchmark/reports
+          STARTED_AT=$SECONDS
           node scripts/benchmark/workflow-support.mjs compare \
             --config .pipeline/benchmark.yml \
             --candidate artifacts/release/${{ needs.build-and-scan.outputs.release-tag }}/release.json \
             --baseline benchmark/baseline/baseline.json \
             --output benchmark/reports/comparison.json
+          echo "wall-clock-seconds=$((SECONDS - STARTED_AT))" >> "$GITHUB_OUTPUT"
       - name: Create evidence manifest and summary
         id: gate
         env:
@@ -224,6 +229,15 @@ jobs:
             --baseline benchmark/baseline/baseline.json --comparison benchmark/reports/comparison.json \
             --config .pipeline/benchmark.yml --run-id '${{ github.run_id }}' \
             --output benchmark/onmaru-backend/$RELEASE_TAG/manifest.json
+          node scripts/benchmark/workflow-support.mjs trend-manifest \
+            --release artifacts/release/${{ needs.build-and-scan.outputs.release-tag }}/release.json \
+            --config .pipeline/benchmark.yml --run-id '${{ github.run_id }}' \
+            --repository '${{ github.repository }}' \
+            --artifact-uri 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
+            --runner-profile 'ubuntu-latest-linux-amd64' \
+            --toolkit-version '56862ed48797a13e4739b2fdfc2310a773a3a957' \
+            --wall-clock-seconds '${{ steps.compare.outputs.wall-clock-seconds }}' \
+            --output benchmark/onmaru-backend/$RELEASE_TAG/trend-manifest.json
           node scripts/benchmark/workflow-support.mjs gate --comparison benchmark/reports/comparison.json --output benchmark/onmaru-backend/$RELEASE_TAG/gate.json
           echo "## Benchmark comparison" >> "$GITHUB_STEP_SUMMARY"
           cat benchmark/reports/comparison.json >> "$GITHUB_STEP_SUMMARY"
@@ -234,6 +248,40 @@ jobs:
           name: benchmark-evidence-${{ needs.build-and-scan.outputs.release-tag }}
           path: benchmark/
           retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: trend-manifest-${{ needs.build-and-scan.outputs.release-tag }}
+          path: benchmark/onmaru-backend/${{ needs.build-and-scan.outputs.release-tag }}/trend-manifest.json
+          retention-days: 30
+      - name: Attach trend manifest to an existing GitHub Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build-and-scan.outputs.release-tag }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          MANIFEST=benchmark/onmaru-backend/$RELEASE_TAG/trend-manifest.json
+          if gh release view "$RELEASE_TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$MANIFEST#trend-manifest.json" --repo "$REPOSITORY" --clobber
+          else
+            echo "GitHub Release $RELEASE_TAG does not exist yet; trend manifest remains in the workflow artifact." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  trend-comparison:
+    if: github.event.repository.fork != true && needs.comparison.result == 'success'
+    needs: [build-and-scan, baseline-lookup, comparison]
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@56862ed48797a13e4739b2fdfc2310a773a3a957
+    with:
+      release-tag: ${{ needs.build-and-scan.outputs.release-tag }}
+      commit-sha: ${{ github.sha }}
+      image-digest: ${{ needs.build-and-scan.outputs.spring-digest }}
+      environment: staging
+      suite: onmaru-release-smoke
+      config-hash: ${{ needs.comparison.outputs.config-hash }}
+      toolkit-ref: 56862ed48797a13e4739b2fdfc2310a773a3a957
+      candidate-artifact-name: trend-manifest-${{ needs.build-and-scan.outputs.release-tag }}
+      history-release-tags: ${{ needs.baseline-lookup.outputs.baseline-tag }}
 
   promotion-gate:
     if: >-

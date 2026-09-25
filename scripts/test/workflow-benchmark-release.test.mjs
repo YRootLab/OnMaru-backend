@@ -57,3 +57,18 @@ test('workflow YAML structure preserves ordering, least privilege and fork guard
   assert.ok(yaml.indexOf('expected-deployed-digest') < yaml.indexOf('comparison:'));
   assert.doesNotMatch(yaml, /pull_request:/);
 });
+
+test('workflow preserves reusable trend evidence through a pinned toolkit contract', async () => {
+  const fs = await import('node:fs/promises');
+  const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
+  const pinnedRef = '56862ed48797a13e4739b2fdfc2310a773a3a957';
+  assert.match(yaml, /trend-manifest\.json/);
+  assert.match(yaml, /trend-manifest-\$\{\{ needs\.build-and-scan\.outputs\.release-tag \}\}/);
+  assert.match(yaml, new RegExp(`YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@${pinnedRef}`));
+  assert.match(yaml, new RegExp(`toolkit-ref: ${pinnedRef}`));
+  assert.match(yaml, /candidate-artifact-name: trend-manifest-\$\{\{ needs\.build-and-scan\.outputs\.release-tag \}\}/);
+  assert.match(yaml, /history-release-tags: \$\{\{ needs\.baseline-lookup\.outputs\.baseline-tag \}\}/);
+  assert.match(yaml, /config-hash: \$\{\{ steps\.gate\.outputs\.config-hash \}\}/);
+  assert.match(yaml, /gh release view "\$RELEASE_TAG"/);
+  assert.match(yaml, /gh release upload "\$RELEASE_TAG" .*trend-manifest\.json/);
+});
