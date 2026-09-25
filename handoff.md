@@ -7,6 +7,9 @@
 - **Plan**: `docs/superpowers/plans/2026-09-26-parallel-ci-toolkit-rollout.md`
 - **Baseline**: Node 105/105, Gradle `test` 성공(8분 11초), AI pytest 212 passed/1 skipped.
 - **Open Risk**: #365 대체 PR의 실제 artifact와 성공 run이 확보되기 전에는 #374를 닫거나 #364 fan-in으로 전환하지 않는다.
+- **Task 1 Changed**: `.github/workflows/module-benchmark.yml`에 PR/develop/manual shadow caller와 읽기 전용 요약 job을 추가하고, `scripts/test/module-benchmark-caller.test.mjs`로 고정 SHA·입력·권한·기존 `CI / verify` 불변성을 검증한다.
+- **Task 1 Verified**: 계약 테스트 RED는 caller 파일 부재(`ENOENT`), GREEN은 1/1 통과. catalog 1/1, 전체 Node 106/106, YAML 파싱, `origin/develop` 대비 `ci.yml` 바이트 비교, `git diff --check`, 브랜치 Issue 파서(#365) 통과.
+- **Task 1 Next**: 변경사항을 커밋한 뒤 대체 PR에서 Toolkit module/aggregate artifact와 성공 Actions run을 확인한다. 이 단계에서는 push와 PR 생성은 진행하지 않는다.
 
 - **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
 - **Branch**: `docs/390-ci-benchmark-report`
