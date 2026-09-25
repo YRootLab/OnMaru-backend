@@ -1,5 +1,11 @@
 # handoff.md
 
+- **Date**: 2026-09-25 릴리스 추세 증적 연동 시작
+- **Branch**: `feature/386-release-trend-adoption`
+- **Related Issue**: #386 (Toolkit coordination: YRootLab/OnMaru-backend-ci-toolkit#74, #77)
+- **Scope**: release benchmark 후보 `trend-manifest.json`을 생성·보존하고, immutable toolkit reusable workflow에 이전 release evidence 비교를 위임한다.
+- **Plan**: manifest contract 테스트를 먼저 추가하고, workflow 구성 계약과 release asset 보존을 검증한다. 사용자 로컬 checkout 변경사항은 별도 worktree로 격리한다.
+
 - **Date**: 2026-09-24 CI baseline and fan-out evidence report
 - **Branch**: `docs/376-ci-performance-evidence-report`
 - **Related Issue**: #376 (depends on #368 serial baseline and #365/#377 fan-out evidence)

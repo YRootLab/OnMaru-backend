@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import {
   createManifest,
   createReleaseEvidence,
+  createTrendManifest,
   promotionDecision,
   renderJobSummary,
   resolveReleaseTag,
@@ -134,6 +135,37 @@ test('verifies release tag → metadata → digest → readiness → compare →
   assert.match(summary, /Status: \*\*improved\*\*/);
   assert.match(summary, /Run ID: `run-fixture-001`/);
   assert.equal(decision.outcome, 'pass');
+});
+
+test('creates a toolkit-compatible trend manifest from immutable release evidence', async () => {
+  const release = createReleaseEvidence({
+    tag: 'v1.2.4', commitSha, workflowRunId: 'fixture-run-003',
+    expectedDigests: { 'spring-api': digest, 'ai-service': digest },
+    deployedDigests: { 'spring-api': digest, 'ai-service': digest },
+  });
+
+  const manifest = createTrendManifest({
+    release,
+    repository: 'YRootLab/OnMaru-backend',
+    runId: 'fixture-run-003',
+    artifactUri: 'https://github.com/YRootLab/OnMaru-backend/actions/runs/123',
+    configHash: 'sha256:' + 'd'.repeat(64),
+    runnerProfile: 'ubuntu-latest-linux-amd64',
+    toolkitVersion: 'dd2b79db9b737585836547bde2b3bae3fdeed439',
+    wallClockSeconds: 42.5,
+    suite: config.suite,
+  });
+
+  assert.deepEqual(manifest, {
+    schema_version: '1.0',
+    release: { repository: 'YRootLab/OnMaru-backend', tag: 'v1.2.4', commit_sha: commitSha, image_digest: digest },
+    run: {
+      run_id: 'fixture-run-003', status: 'success', environment: 'staging', suite: 'onmaru-release-smoke',
+      config_hash: 'sha256:' + 'd'.repeat(64), runner_profile: 'ubuntu-latest-linux-amd64',
+      toolkit_version: 'dd2b79db9b737585836547bde2b3bae3fdeed439', artifact_uri: 'https://github.com/YRootLab/OnMaru-backend/actions/runs/123',
+    },
+    metrics: [{ id: 'pipeline.wall_clock', unit: 'seconds', samples: [42.5] }],
+  });
 });
 
 test('keeps failed readiness and digest mismatch out of regression status', async (t) => {

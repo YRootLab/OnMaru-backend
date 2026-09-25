@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { createReleaseMetadata, createBenchmarkManifest } from './release-metadata.mjs';
+import { createReleaseMetadata, createBenchmarkManifest, hashConfig } from './release-metadata.mjs';
 import { readConfig, runComparison } from './toolkit-adapter.mjs';
 
 const RELEASE_TAG = /^v\d+\.\d+\.\d+$/;
@@ -139,6 +139,21 @@ export async function createManifest({ release, baseline, comparison, config, ru
   });
 }
 
+export function createTrendManifest({ release, repository, runId, artifactUri, configHash, runnerProfile, toolkitVersion, wallClockSeconds, suite }) {
+  if (!Number.isFinite(wallClockSeconds) || wallClockSeconds < 0) throw new Error('wallClockSeconds must be a non-negative finite number');
+  const imageDigest = release.services[0]?.deployedDigest;
+  if (!imageDigest) throw new Error('release must include a deployed image digest');
+  return {
+    schema_version: '1.0',
+    release: { repository, tag: release.releaseId, commit_sha: release.commitSha, image_digest: imageDigest },
+    run: {
+      run_id: String(runId), status: 'success', environment: release.environment, suite,
+      config_hash: configHash, runner_profile: runnerProfile, toolkit_version: toolkitVersion, artifact_uri: artifactUri,
+    },
+    metrics: [{ id: 'pipeline.wall_clock', unit: 'seconds', samples: [wallClockSeconds] }],
+  };
+}
+
 function output(values) {
   const target = process.env.GITHUB_OUTPUT;
   if (target) return writeFile(target, Object.entries(values).map(([key, value]) => `${key}=${value}`).join('\n') + '\n', { flag: 'a' });
@@ -178,6 +193,20 @@ async function main() {
     await writeFile(value('--output'), `${JSON.stringify(manifest, null, 2)}\n`);
     return;
   }
+  if (command === 'trend-manifest') {
+    const release = JSON.parse(await readFile(value('--release'), 'utf8'));
+    const configPath = value('--config');
+    const config = await readConfig(configPath);
+    const configHash = `sha256:${hashConfig(await readFile(configPath, 'utf8'))}`;
+    const manifest = createTrendManifest({
+      release, repository: value('--repository'), runId: value('--run-id'), artifactUri: value('--artifact-uri'),
+      configHash, runnerProfile: value('--runner-profile'), toolkitVersion: value('--toolkit-version'),
+      wallClockSeconds: Number(value('--wall-clock-seconds')), suite: config.suite,
+    });
+    await writeFile(value('--output'), `${JSON.stringify(manifest, null, 2)}\n`);
+    await output({ 'config-hash': configHash });
+    return;
+  }
   if (command === 'gate') {
     const comparison = JSON.parse(await readFile(value('--comparison'), 'utf8'));
     const decision = promotionDecision(comparison.status);
@@ -186,7 +215,7 @@ async function main() {
     if (process.env.GITHUB_STEP_SUMMARY) await writeFile(process.env.GITHUB_STEP_SUMMARY, renderJobSummary({ release: null, baseline: null, comparison, decision }), { flag: 'a' });
     return;
   }
-  throw new Error('usage: workflow-support.mjs <metadata|compare|gate> ...');
+  throw new Error('usage: workflow-support.mjs <metadata|compare|manifest|trend-manifest|gate> ...');
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
