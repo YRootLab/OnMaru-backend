@@ -1,5 +1,11 @@
 # handoff.md
 
+- **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
+- **Branch**: `docs/390-ci-benchmark-report`
+- **Related Issue**: #390 (extends #368; feeds #364/#366)
+- **Scope**: 수집된 serial baseline 두 개를 비교하는 결정적 JSON/Markdown 도구와 README 사용 절차를 제공한다. 원시 로그·CI topology·배포 동작은 변경하지 않는다.
+- **Plan**: 비교 계약 테스트를 먼저 추가하고, identity 불일치와 수집 불가 resource metric을 fail-closed로 처리한다.
+
 - **Date**: 2026-09-25 CI baseline 자동 수집 시작
 - **Branch**: `feature/388-ci-baseline-collector`
 - **Related Issue**: #388 (extends #368; feeds #364/#366)
