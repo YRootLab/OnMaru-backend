@@ -1,5 +1,10 @@
 # handoff.md
 
+- **Date**: 2026-09-25 CI baseline 자동 수집 시작
+- **Branch**: `feature/388-ci-baseline-collector`
+- **Related Issue**: #388 (extends #368; feeds #364/#366)
+- **Scope**: GitHub Actions run/job API를 정규화하고, 세 개의 동일 identity CI run을 baseline artifact와 Markdown summary로 수집하는 수동 workflow를 추가한다. 기존 `ci.yml` topology와 #374 module caller는 변경하지 않는다.
+
 - **Date**: 2026-09-25 릴리스 추세 증적 연동 시작
 - **Branch**: `feature/386-release-trend-adoption`
 - **Related Issue**: #386 (Toolkit coordination: YRootLab/OnMaru-backend-ci-toolkit#74, #77)

@@ -21,6 +21,12 @@ node scripts/benchmark/serial-baseline.mjs \
   --output /tmp/serial-baseline.json
 ```
 
+## GitHub Actions API 자동 수집
+
+`Collect CI Baseline Evidence` workflow를 수동 실행하고, 동일한 commit과 실행 identity를 가진 성공한 `CI / verify` run ID 세 개를 쉼표로 전달한다. workflow는 GitHub Actions API에서 run/job/step 시간을 읽어 정규화한 뒤, `serial-baseline.json`과 사람이 읽을 수 있는 `summary.md`를 30일 artifact로 보관한다.
+
+Actions API는 step duration을 제공하지만 CPU와 peak RSS를 제공하지 않는다. 이 경우 수집기는 해당 값을 `0`으로 만들지 않고 `unavailable-from-actions-api`로 표시한다. 자원 수치 비교가 필요하면 이후 CI lane에서 명시적 resource collector artifact를 추가해야 한다.
+
 출력 manifest에는 commit/configuration identity, 세 Actions artifact URL, wall-clock median, work median, peak RSS와 step evidence가 포함된다. `/tmp/serial-baseline.json`을 Actions artifact로 올리고 Issue #368에 세 run URL 및 artifact URL을 기록한다.
 
 ## 종료 기준
