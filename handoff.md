@@ -7,9 +7,10 @@
 - **Plan**: `docs/superpowers/plans/2026-09-26-parallel-ci-toolkit-rollout.md`
 - **Baseline**: Node 105/105, Gradle `test` 성공(8분 11초), AI pytest 212 passed/1 skipped.
 - **Open Risk**: #365 대체 PR의 실제 artifact와 성공 run이 확보되기 전에는 #374를 닫거나 #364 fan-in으로 전환하지 않는다.
-- **Task 1 Changed**: `.github/workflows/module-benchmark.yml`에 PR/develop/manual shadow caller와 읽기 전용 요약 job을 추가하고, `scripts/test/module-benchmark-caller.test.mjs`로 고정 SHA·입력·권한·기존 `CI / verify` 불변성을 검증한다.
-- **Task 1 Verified**: 계약 테스트 RED는 caller 파일 부재(`ENOENT`), GREEN은 1/1 통과. catalog 1/1, 전체 Node 106/106, YAML 파싱, `origin/develop` 대비 `ci.yml` 바이트 비교, `git diff --check`, 브랜치 Issue 파서(#365) 통과.
-- **Task 1 Next**: 변경사항을 커밋한 뒤 대체 PR에서 Toolkit module/aggregate artifact와 성공 Actions run을 확인한다. 이 단계에서는 push와 PR 생성은 진행하지 않는다.
+- **Task 1 Changed**: `.github/workflows/module-benchmark.yml`에 PR/develop/manual shadow caller와 읽기 전용 요약 job을 추가하고, `scripts/test/module-benchmark-caller.test.mjs`로 caller의 고정 SHA·입력·권한 계약을 검증한다.
+- **Task 1 Verified**: 계약 테스트 RED는 caller 파일 부재(`ENOENT`), GREEN은 1/1 통과. catalog 1/1, 전체 Node 106/106, YAML 파싱, `git diff --check`, 브랜치 Issue 파서(#365) 통과. 기존 `ci.yml` 불변성은 Node 테스트와 별도로 `origin/develop` 대비 바이트 비교로 확인했다.
+- **Task 1 Blocker**: 고정된 Toolkit `v0.1.1` SHA `0f6049a59add9e97dff3d37671ee524c8f3b6ce8`의 `.github/workflows/module-benchmark.yml` 222–224행이 `GITHUB_OUTPUT`에 실제 개행 대신 역슬래시와 `n` 문자를 기록한다. 출력이 `result` 한 필드에 합쳐져 모듈 테스트가 통과해도 Toolkit `verify`가 exit 2로 실패한다. Backend caller에서 안전하게 수정할 수 없으며, Toolkit 수정과 새 immutable release가 필요하다.
+- **Task 1 Next**: caller는 커밋된 상태다. Toolkit 수정 release가 나올 때까지 push/대체 PR을 보류한다. 새 고정 SHA가 확인되면 caller의 workflow ref와 `toolkit_ref`를 함께 교체하고 테스트를 재실행한 뒤 push/PR을 열어 Actions 성공 및 module/aggregate artifact를 확인한다.
 
 - **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
 - **Branch**: `docs/390-ci-benchmark-report`
