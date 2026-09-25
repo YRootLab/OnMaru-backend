@@ -106,3 +106,4 @@ Desktop.ini
 *.orig
 *.rej
 .neon
+docs/decisions/.adr-toolkit.lock

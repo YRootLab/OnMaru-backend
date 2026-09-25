@@ -1,6 +1,6 @@
 package com.yrootlab.onmaru.community.like;
 
-import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
+import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 
@@ -9,9 +9,9 @@ import java.util.UUID;
 
 public final class VisitReviewLikeService {
 
-    private final InMemoryVisitReviewStore store;
+    private final MutableVisitReviewStore store;
 
-    public VisitReviewLikeService(InMemoryVisitReviewStore store) {
+    public VisitReviewLikeService(MutableVisitReviewStore store) {
         this.store = store;
     }
 
@@ -50,6 +50,9 @@ public final class VisitReviewLikeService {
                 review.lat(),
                 review.lng(),
                 review.text(),
+                review.mood(),
+                review.score(),
+                review.tags(),
                 review.createdAt(),
                 review.authorMemberId(),
                 likedMemberIds,

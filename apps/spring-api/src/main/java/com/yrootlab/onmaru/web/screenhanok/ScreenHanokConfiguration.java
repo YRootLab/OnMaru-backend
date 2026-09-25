@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.catalog.application.query.hanok.HanokSavedStateLookup
 import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
 import com.yrootlab.onmaru.catalog.screenhanok.InMemoryScreenHanokPlacementStore;
 import com.yrootlab.onmaru.catalog.screenhanok.ScreenHanokIngestionService;
+import com.yrootlab.onmaru.catalog.screenhanok.ScreenHanokPlacementStore;
 import com.yrootlab.onmaru.catalog.screenhanok.ScreenHanokQueryService;
 import com.yrootlab.onmaru.catalog.screenhanok.ScreenHanokResearchPort;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
@@ -13,12 +14,17 @@ import com.yrootlab.onmaru.integration.ai.screenhanok.HttpScreenHanokResearchCli
 import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFactory;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenProperties;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenSigner;
+import com.yrootlab.onmaru.persistence.screenhanok.JdbcScreenHanokPlacementStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
+import javax.sql.DataSource;
 import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
@@ -40,13 +46,28 @@ class ScreenHanokConfiguration {
             "internal-ai.service-token");
 
     @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    ScreenHanokPlacementStore jdbcScreenHanokPlacementStore(DataSource dataSource) {
+        return new JdbcScreenHanokPlacementStore(dataSource);
+    }
+
+    @Bean
+    @Profile("!production")
     InMemoryScreenHanokPlacementStore screenHanokPlacementStore() {
         return new InMemoryScreenHanokPlacementStore();
     }
 
     @Bean
+    @Profile("production")
+    @ConditionalOnMissingBean(DataSource.class)
+    InMemoryScreenHanokPlacementStore inMemoryScreenHanokPlacementStore() {
+        return new InMemoryScreenHanokPlacementStore();
+    }
+
+    @Bean
     ScreenHanokQueryService screenHanokQueryService(
-            InMemoryScreenHanokPlacementStore placementStore,
+            ScreenHanokPlacementStore placementStore,
             InMemoryHanokListStore hanokListStore,
             HanokSavedStateLookup savedStateLookup) {
         return new ScreenHanokQueryService(placementStore, hanokListStore, savedStateLookup);
@@ -75,7 +96,7 @@ class ScreenHanokConfiguration {
     ScreenHanokIngestionService screenHanokIngestionService(
             InMemoryHanokListStore hanokListStore,
             ScreenHanokResearchPort screenHanokResearchPort,
-            InMemoryScreenHanokPlacementStore placementStore,
+            ScreenHanokPlacementStore placementStore,
             Clock clock) {
         return new ScreenHanokIngestionService(hanokListStore, screenHanokResearchPort, placementStore, clock);
     }

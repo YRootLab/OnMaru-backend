@@ -7,7 +7,9 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public final class VisitReviewQueryService {
 
@@ -16,10 +18,19 @@ public final class VisitReviewQueryService {
     private static final Duration CURSOR_TTL = Duration.ofMinutes(10);
 
     private final VisitReviewStore store;
+    private final RegionVisitorCountLookup visitorCountLookup;
     private final Clock clock;
 
     public VisitReviewQueryService(VisitReviewStore store, Clock clock) {
+        this(store, ignored -> Map.of(), clock);
+    }
+
+    public VisitReviewQueryService(
+            VisitReviewStore store,
+            RegionVisitorCountLookup visitorCountLookup,
+            Clock clock) {
         this.store = store;
+        this.visitorCountLookup = visitorCountLookup;
         this.clock = clock;
     }
 
@@ -36,6 +47,9 @@ public final class VisitReviewQueryService {
         var limited = filtered.stream().limit(query.limit() + 1L).toList();
         boolean hasMore = limited.size() > query.limit();
         List<VisitReviewProjection> pageItems = hasMore ? limited.subList(0, query.limit()) : limited;
+        Map<String, Long> visitorCounts = visitorCountLookup.findLatestVisitorCounts(pageItems.stream()
+                .map(VisitReviewProjection::regionCode)
+                .collect(Collectors.toUnmodifiableSet()));
         var items = pageItems.stream()
                 .map(review -> new VisitReview(
                         review.id().toString(),
@@ -44,6 +58,10 @@ public final class VisitReviewQueryService {
                         review.lat(),
                         review.lng(),
                         review.text(),
+                        review.mood(),
+                        review.score(),
+                        review.tags(),
+                        visitorCounts.get(review.regionCode()),
                         review.createdAt(),
                         query.memberId().map(review.authorMemberId()::equals).orElse(false),
                         review.likedMemberIds().size(),

@@ -1,6 +1,6 @@
 package com.yrootlab.onmaru.community.moderation;
 
-import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
+import com.yrootlab.onmaru.community.query.VisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 
 import java.time.Clock;
@@ -22,13 +22,13 @@ public final class ModerationQueueService {
     private static final Duration STANDARD_SLA = Duration.ofHours(72);
     private static final int MAX_LIMIT = 100;
 
-    private final InMemoryVisitReviewStore reviewStore;
-    private final InMemoryReviewReportStore reportStore;
+    private final VisitReviewStore reviewStore;
+    private final ReviewReportStore reportStore;
     private final Clock clock;
 
     public ModerationQueueService(
-            InMemoryVisitReviewStore reviewStore,
-            InMemoryReviewReportStore reportStore,
+            VisitReviewStore reviewStore,
+            ReviewReportStore reportStore,
             Clock clock) {
         this.reviewStore = reviewStore;
         this.reportStore = reportStore;

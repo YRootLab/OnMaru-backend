@@ -5,6 +5,7 @@
 - [Runtime and reliability](runtime-and-reliability.md): sync lease/fence/LKG, journey run lifecycle, 실패·복구·관측성
 - [Content tags](content-tags.md): 자체 추출 태그 lexicon 튜닝, 품질 경고, 검증 기준
 - [VisitReview moderation](moderation.md): 신고 triage, 고위험 임시 숨김, SLA, Grafana alert, operator drill
+- [DataLab 지역 원천 코드](datalab-region-source-codes.md): 공식 코드 검증·등록과 유효기간 변경 절차
 - [Secret loading runbook](runbooks/secrets.md): server-only secret loading, rotation overlap, log redaction drill
 - [PostgreSQL restore runbook](runbooks/restore.md): encrypted full backup, isolated restore, deletion ledger replay, RPO/RTO evidence
 

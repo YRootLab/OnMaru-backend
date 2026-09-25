@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OnMaru Visit Reviews - proposal",
-    "version": "1.2.0",
-    "description": "Separate from historical warmth. Current map contract uses administrative-region aggregation and explicit ALL or REGION review lists. Implementation and FE fixtures pending."
+    "version": "1.3.0",
+    "description": "VisitReview map contract uses administrative-region aggregation and explicit ALL or REGION review lists. It also supports optional warmth display fields (mood, score, tags)."
   },
   "servers": [
     {
@@ -377,6 +377,16 @@
             "sessionCookie": []
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVisitReviewRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Success",
@@ -1128,6 +1138,30 @@
             "minLength": 1,
             "maxLength": 300
           },
+          "mood": {
+            "type": ["string", "null"],
+            "enum": ["북적", "한적", null]
+          },
+          "score": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 5
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20
+            }
+          },
+          "visitorCount": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "minimum": 0,
+            "description": "후기 장소 지역의 활성 DataLab 최신 일 방문자 관측값; 결측이면 null"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -1156,6 +1190,36 @@
           "likedByMe"
         ],
         "additionalProperties": false
+      },
+      "CreateVisitReviewRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "mood": {
+            "type": ["string", "null"],
+            "enum": ["북적", "한적", null]
+          },
+          "score": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 5
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20
+            }
+          }
+        },
+        "required": ["text"]
       },
       "ReviewPage": {
         "type": "object",

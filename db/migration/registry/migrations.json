@@ -149,6 +149,87 @@
       "checksum": "saved-resources-v017-20260921",
       "sha256": "ee7afd87636cb3bc0581d6b94f94a267c1d1027a04e3fc8c94d2d120ff05f2c1",
       "description": "Saved place and Odii story persistence with audio play event tracking"
+    },
+    {
+      "version": "018",
+      "reservedFor": "FE_VISIT_REVIEW_WARMTH",
+      "issueNumber": 342,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V018__342_visit_review_warmth_fields.sql",
+      "checksum": "visit-review-warmth-v018-20260923",
+      "sha256": "ebc37b34ad463cbaa320d0e867578576357b8307c8184d3d65e1982173819150",
+      "description": "Visit review mood, score, and warmth tags"
+    },
+    {
+      "version": "019",
+      "reservedFor": "SCREEN_HANOK_PLACEMENTS",
+      "issueNumber": 343,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V019__343_screen_hanok_placements.sql",
+      "checksum": "screen-hanok-placements-v019-20260923",
+      "sha256": "ecbd31cfff06b12e85c4b95f065748f7cad3d0917e2830af17c41390f84b9f9a",
+      "description": "Durable screen hanok placement snapshots"
+    },
+    {
+      "version": "020",
+      "reservedFor": "CATALOG_PUBLIC_PLACE_IDS",
+      "issueNumber": 346,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V020__346_catalog_public_place_ids.sql",
+      "checksum": "catalog-public-place-ids-v020-20260924",
+      "sha256": "07e0f8b4e79575729fcf26457af7d618ab54fef31b615a3774eae188b07ec2f7",
+      "description": "Stable public place identifiers mapped to catalog UUIDs"
+    },
+    {
+      "version": "021",
+      "reservedFor": "VISIT_REVIEW_PLACE_SNAPSHOTS",
+      "issueNumber": 346,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V021__346_visit_review_place_snapshots.sql",
+      "checksum": "visit-review-place-snapshots-v021-20260924",
+      "sha256": "e279ec73c10cde9e2d27e60358533190cbbe1fd71c7770a85180ad17e356e9f7",
+      "description": "Visit review catalog identity and immutable place snapshots"
+    },
+    {
+      "version": "022",
+      "reservedFor": "IDEMPOTENCY_RECEIPTS",
+      "issueNumber": 346,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V022__346_idempotency_receipts.sql",
+      "checksum": "idempotency-receipts-v022-20260924",
+      "sha256": "6d0606138973c533d0f03d021c43b9cf303db0449f359d30f74e0aece595e89c",
+      "description": "Durable command idempotency receipts"
+    },
+    {
+      "version": "023",
+      "reservedFor": "DATALAB_VISITOR_COVERAGE",
+      "issueNumber": 346,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V023__346_datalab_visitor_observation_coverage.sql",
+      "checksum": "datalab-visitor-coverage-v023-20260925",
+      "sha256": "5c301362e283a75918a2bc0c7e4b165ef5cad15a9c4e0a9109d307f989579e8c",
+      "description": "DataLab visitor observation coverage and active revision support"
+    },
+    {
+      "version": "024",
+      "reservedFor": "DATALAB_VERIFIED_REGION_CODES",
+      "issueNumber": 346,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V024__346_verified_datalab_region_source_codes.sql",
+      "checksum": "datalab-verified-region-codes-v024-20260925",
+      "sha256": "25e964d149d8c6c0f013979772c728b0b65c8407099e8d4c491c35261f8c1956",
+      "description": "Verified Catalog-to-DataLab region source code mappings"
+    },
+    {
+      "version": "025",
+      "reservedFor": "DATALAB_REGION_CODE_SEED",
+      "issueNumber": 346,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V025__346_seed_verified_datalab_region_source_codes.sql",
+      "checksum": "datalab-region-code-seed-v025-20260926",
+      "sha256": "342d803115ca76ded5cd569d762685f48c676775a1f104806d4b6a72a542e91b",
+      "description": "Official verified DataLab region mappings and deferred catalog registration"
+    },
+    {
+      "version": "026",
+      "reservedFor": "LEGACY_VISIT_REVIEW_BACKFILL",
+      "issueNumber": 393,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V026__393_backfill_legacy_visit_review_snapshots.sql",
+      "checksum": "legacy-visit-review-backfill-v026-20260926",
+      "sha256": "73f79f09fdcf22a86ce985d809cb11fd3c0e51b21950de3dca4ca91702366127",
+      "description": "Deterministic public IDs and catalog-backed snapshots for legacy visit reviews"
     }
   ]
 }

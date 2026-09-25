@@ -25,18 +25,18 @@
           "savedByMe": true
         },
         {
-          "placeId": "p-bukchon-hanok-cafe",
-          "name": "북촌 한옥 찻집",
-          "category": "HANOK_CAFE",
-          "regionName": "서울 종로구",
-          "thumbnailUrl": null,
-          "summary": "한옥 구조를 보존한 조용한 찻집입니다.",
-          "tags": ["카페", "북촌"],
+          "placeId": "p-gyeongju-gyochon",
+          "name": "경주 교촌 한옥마을",
+          "category": "HANOK",
+          "regionName": "경북 경주시",
+          "thumbnailUrl": "https://cdn.onmaru.example/places/p-gyeongju-gyochon/cover.jpg",
+          "summary": "월정교와 함께 둘러보기 좋은 전통 한옥 권역입니다.",
+          "tags": ["한옥", "경주"],
           "savedByMe": false
         }
       ],
-      "nextCursor": "r1.hanoks.cursor.2026-09-14T08:00:00Z.p-bukchon-hanok-cafe",
-      "hasMore": true
+      "nextCursor": null,
+      "hasMore": false
     }
   }
 }

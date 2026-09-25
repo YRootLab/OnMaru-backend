@@ -10,7 +10,7 @@ POST/PUT body 최대 16KiB, query trim+NFC 후 1..1000 code points. 인증/소�
 
 ## 지도와 후기: 1.2 단일 계약
 
-지도 게시글은 기존 온기와 별도인 `VisitReview` 장소 방문 짧은 후기다. 현재 지도에서는 행정구역 집계를 탐색하고, 사용자가 지역을 명시적으로 선택한 뒤에만 후기 본문을 읽는다. 지도 drag/zoom, 반경, viewport는 서버 본문 조회를 만들지 않는다.
+지도 게시글은 `VisitReview` 장소 방문 짧은 후기다. FE의 `visited`, “지도 게시글”, “온기 후기”는 모두 같은 VisitReview 모델을 뜻하며 별도 리소스가 아니다. 현재 지도에서는 행정구역 집계를 탐색하고, 사용자가 지역을 명시적으로 선택한 뒤에만 후기 본문을 읽는다. 지도 drag/zoom, 반경, viewport는 서버 본문 조회를 만들지 않는다.
 
 | GET | 요청 | 응답 |
 |---|---|---|
@@ -27,7 +27,7 @@ FE는 집계 선택 전 기존 결과를 유지하고, `이 지역 후기 보기
 
 | Method/path | 요청 | 응답 / 조건 |
 |---|---|---|
-| POST /places/{placeId}/visit-reviews | `{text}` | 201 VisitReview + Location; 회원/공개 장소; NFC/trim 후 1..300 code points, CRLF→LF, 개행 최대4개; 태그/별점/사진/댓글 없음 |
+| POST /places/{placeId}/visit-reviews | `{text,mood?,score?,tags?}` | 201 VisitReview + Location; 회원/공개 장소; text는 NFC/trim 후 1..300 code points, CRLF→LF, 개행 최대4개; mood는 북적/한적, score는 1..5, tags는 최대 5개·각 20 code points; 사진/댓글 없음 |
 | DELETE /visit-reviews/{id} | body 없음 | 204, 작성자만; 동일 본인 삭제 재호출 204, 타인 404 |
 | POST /visit-reviews/{id}/reports | `{reason,detail?}` | 202; 회원, 본인 후기는 403, 같은 회원의 열린 신고는 200 기존 상태 |
 | GET /places/{id} | canonical id | 200 기존 CanonicalPlace; 삭제/비공개 404 |

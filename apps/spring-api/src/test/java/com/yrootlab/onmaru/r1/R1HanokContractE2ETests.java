@@ -154,8 +154,9 @@ class R1HanokContractE2ETests {
                         .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
-                .andExpect(jsonPath("$.items[1].thumbnailUrl", nullValue()))
-                .andExpect(jsonPath("$.nextCursor").value("r1.hanoks.cursor.2026-09-14T08:00:00Z.p-bukchon-hanok-cafe"));
+                .andExpect(jsonPath("$.items[1].placeId").value("p-gyeongju-gyochon"))
+                .andExpect(jsonPath("$.nextCursor", nullValue()))
+                .andExpect(jsonPath("$.hasMore").value(false));
         mockMvc.perform(get("/api/v1/hanoks/monthly").param("month", "2026-10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))

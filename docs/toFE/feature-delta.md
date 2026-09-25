@@ -21,7 +21,7 @@ FE는 `RunAccepted.eventsUrl`을 사용하고, `run.stage`, `run.terminal`, `hea
 
 ## `/map`: VisitReview로 전환
 
-기존 `MAP-F003`의 온기 mood/score/localStorage 피드는 VisitReview와 별개다. 새 VisitReview는 한옥·한옥 숙박·한옥 카페·한옥 체험·전통시장에 대한 300자/5줄 짧은 공개 후기다. 댓글, 대댓글, 사진, 별점, mood tag는 이번 범위에 없다.
+기존 `MAP-F003`의 localStorage 피드는 사용하지 않는다. 지도 온기 후기 UI는 VisitReview를 사용하며, VisitReview는 한옥·한옥 숙박·한옥 카페·한옥 체험·전통시장에 대한 300자/5줄 짧은 공개 후기다. `mood`(`북적`/`한적`), 선택 `score`(1..5), 선택 `tags`(최대 5개)를 함께 제공한다. `visitorCount`는 후기 장소 지역의 활성 DataLab revision 최신 외지인 일 관측값이며 결측이면 `null`이다. DataLab 원천이 소수를 주는 경우 공개 정수 계약에 맞춰 가장 가까운 1명으로 반올림한다. 댓글, 대댓글, 사진은 이번 범위에 없다.
 
 1. 전국 진입 시 `GET /visit-review-regions`으로 시·도 count marker만 받는다.
 2. 시·도를 선택하면 해당 시·군·구 집계를 읽는다.

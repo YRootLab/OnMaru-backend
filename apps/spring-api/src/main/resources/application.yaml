@@ -51,6 +51,18 @@ onmaru:
       mobile-app: ${ONMARU_ODII_MOBILE_APP:OnMaru}
       keywords: ${ONMARU_ODII_KEYWORDS:한옥,고택,전통마을,궁궐,성곽,문화유산,역사문화,전통시장}
       page-size: ${ONMARU_ODII_PAGE_SIZE:100}
+  datalab:
+    visitor:
+      base-uri: "${ONMARU_DATALAB_VISITOR_BASE_URI:https://apis.data.go.kr/B551011/DataLabService}"
+      service-key: "${ONMARU_DATALAB_VISITOR_SERVICE_KEY:}"
+      mobile-app: "${ONMARU_DATALAB_VISITOR_MOBILE_APP:OnMaru}"
+      connect-timeout: "${ONMARU_DATALAB_VISITOR_CONNECT_TIMEOUT:1s}"
+      attempt-timeout: "${ONMARU_DATALAB_VISITOR_ATTEMPT_TIMEOUT:5s}"
+      page-timeout: "${ONMARU_DATALAB_VISITOR_PAGE_TIMEOUT:12s}"
+      retry-count: ${ONMARU_DATALAB_VISITOR_RETRY_COUNT:2}
+      page-size: ${ONMARU_DATALAB_VISITOR_PAGE_SIZE:100}
+      sync:
+        cron: "${ONMARU_DATALAB_VISITOR_SYNC_CRON:0 30 3 * * *}"
 
 management:
   otlp:
