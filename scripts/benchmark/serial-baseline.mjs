@@ -32,10 +32,15 @@ function validateRun(run) {
   validateIdentity(run.identity);
   if (!Array.isArray(run.commands) || run.commands.length === 0 || run.commands.some((command) => typeof command !== 'string' || !command)) fail(`run ${run.runId} commands are required`);
   if (!Array.isArray(run.steps) || run.steps.length === 0) fail(`run ${run.runId} steps are required`);
+  const resourceEvidence = run.resourceEvidence ?? 'available';
+  if (!['available', 'unavailable-from-actions-api'].includes(resourceEvidence)) fail(`run ${run.runId} has invalid resource evidence`);
   for (const step of run.steps) {
     if (!step?.name || !Number.isFinite(step.durationMillis) || step.durationMillis < 0) fail(`run ${run.runId} has invalid step duration`);
-    if (!Number.isFinite(step.cpuMillis) || step.cpuMillis < 0) fail(`run ${run.runId} has invalid step cpu evidence`);
-    if (!Number.isFinite(step.maxRssBytes) || step.maxRssBytes < 0) fail(`run ${run.runId} has invalid step memory evidence`);
+    const hasResourceMetrics = Number.isFinite(step.cpuMillis) && step.cpuMillis >= 0 && Number.isFinite(step.maxRssBytes) && step.maxRssBytes >= 0;
+    const lacksResourceMetrics = step.cpuMillis === null && step.maxRssBytes === null;
+    if (!hasResourceMetrics && !lacksResourceMetrics) fail(`run ${run.runId} has invalid resource evidence`);
+    if (resourceEvidence === 'available' && !hasResourceMetrics) fail(`run ${run.runId} has unavailable resource evidence`);
+    if (resourceEvidence === 'unavailable-from-actions-api' && !lacksResourceMetrics) fail(`run ${run.runId} has inconsistent resource evidence`);
   }
 }
 
@@ -51,7 +56,9 @@ export function createSerialBaseline({ suite, runs }) {
   for (const run of runs.slice(1)) {
     const mismatch = compareIdentity(first.identity, run.identity);
     if (mismatch) fail(`runs are not comparable: ${mismatch}`);
+    if ((run.resourceEvidence ?? 'available') !== (first.resourceEvidence ?? 'available')) fail('runs are not comparable: resourceEvidence');
   }
+  const resourceEvidence = first.resourceEvidence ?? 'available';
   const runDurations = runs.map((run) => run.steps.reduce((total, step) => total + step.durationMillis, 0));
   return {
     schemaVersion: 1,
@@ -62,9 +69,10 @@ export function createSerialBaseline({ suite, runs }) {
     artifactUrls: runs.map((run) => run.artifactUrl),
     metrics: {
       verifyWallClockMedianMillis: median(runDurations),
-      verifyWorkMedianMillis: median(runs.map((run) => run.steps.reduce((total, step) => total + step.cpuMillis, 0))),
-      peakRssBytes: Math.max(...runs.flatMap((run) => run.steps.map((step) => step.maxRssBytes))),
+      verifyWorkMedianMillis: resourceEvidence === 'available' ? median(runs.map((run) => run.steps.reduce((total, step) => total + step.cpuMillis, 0))) : null,
+      peakRssBytes: resourceEvidence === 'available' ? Math.max(...runs.flatMap((run) => run.steps.map((step) => step.maxRssBytes))) : null,
     },
+    resourceEvidence,
     runs: runs.map(({ runId, artifactUrl, commands, steps }) => ({ runId: String(runId), artifactUrl, commands, steps })),
   };
 }
