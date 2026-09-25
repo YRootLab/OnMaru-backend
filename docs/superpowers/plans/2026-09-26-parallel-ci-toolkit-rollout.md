@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Toolkit workflow ref와 `toolkit_ref`는 모두 `0f6049a59add9e97dff3d37671ee524c8f3b6ce8`을 사용한다.
+- Toolkit workflow ref와 `toolkit_ref`는 모두 output 줄바꿈 fix가 포함된 `v0.1.2` SHA `ff3028ae728de076ea38aa56135529c1566f25a8`을 사용한다. 최초 지정된 `v0.1.1` SHA는 reusable workflow output을 한 줄로 합치는 결함 때문에 대체했다.
 - Toolkit을 backend application에 import하지 않고 consumer-owned `.github/benchmark-modules.yml`의 명령만 실행한다.
 - 기존 `.github/workflows/ci.yml`의 직렬 `verify`는 shadow evidence가 승인되기 전 삭제·약화·대체하지 않는다.
 - caller 권한은 `contents: read`이며 `secrets: inherit`, write token, release/deploy environment, deployment credential을 금지한다.

@@ -3,14 +3,15 @@
 - **Date**: 2026-09-26 Toolkit 기반 병렬 CI rollout 시작
 - **Branch**: `feature/365-toolkit-module-caller-rollout`
 - **Related Issues**: #365 우선, 이후 #368 → #364 → #366
-- **Scope**: 최신 `develop`에서 Toolkit `v0.1.1` SHA `0f6049a59add9e97dff3d37671ee524c8f3b6ce8`을 고정한 shadow module benchmark caller를 구현한다. 기존 직렬 `CI / verify`는 변경하지 않는다.
+- **Scope**: 최신 `develop`에서 Toolkit `v0.1.2` SHA `ff3028ae728de076ea38aa56135529c1566f25a8`을 고정한 shadow module benchmark caller를 구현한다. 기존 직렬 `CI / verify`는 변경하지 않는다.
 - **Plan**: `docs/superpowers/plans/2026-09-26-parallel-ci-toolkit-rollout.md`
 - **Baseline**: Node 105/105, Gradle `test` 성공(8분 11초), AI pytest 212 passed/1 skipped.
 - **Open Risk**: #365 대체 PR의 실제 artifact와 성공 run이 확보되기 전에는 #374를 닫거나 #364 fan-in으로 전환하지 않는다.
 - **Task 1 Changed**: `.github/workflows/module-benchmark.yml`에 PR/develop/manual shadow caller와 읽기 전용 요약 job을 추가하고, `scripts/test/module-benchmark-caller.test.mjs`로 caller의 고정 SHA·입력·권한 계약을 검증한다.
 - **Task 1 Verified**: 계약 테스트 RED는 caller 파일 부재(`ENOENT`), GREEN은 1/1 통과. catalog 1/1, 전체 Node 106/106, YAML 파싱, `git diff --check`, 브랜치 Issue 파서(#365) 통과. 기존 `ci.yml` 불변성은 Node 테스트와 별도로 `origin/develop` 대비 바이트 비교로 확인했다.
-- **Task 1 Blocker**: 고정된 Toolkit `v0.1.1` SHA `0f6049a59add9e97dff3d37671ee524c8f3b6ce8`의 `.github/workflows/module-benchmark.yml` 222–224행이 `GITHUB_OUTPUT`에 실제 개행 대신 역슬래시와 `n` 문자를 기록한다. 출력이 `result` 한 필드에 합쳐져 모듈 테스트가 통과해도 Toolkit `verify`가 exit 2로 실패한다. Backend caller에서 안전하게 수정할 수 없으며, Toolkit 수정과 새 immutable release가 필요하다.
-- **Task 1 Next**: caller는 커밋된 상태다. Toolkit 수정 release가 나올 때까지 push/대체 PR을 보류한다. 새 고정 SHA가 확인되면 caller의 workflow ref와 `toolkit_ref`를 함께 교체하고 테스트를 재실행한 뒤 push/PR을 열어 Actions 성공 및 module/aggregate artifact를 확인한다.
+- **Task 1 Toolkit Fix**: 최초 지정된 Toolkit `v0.1.1` SHA의 output 줄바꿈 결함은 Toolkit Issue #99 / PR #102에서 수정했다. release 승격 PR #105와 generated metadata PR #106을 required `ci` 통과 후 병합했고, `v0.1.2` tag가 immutable SHA `ff3028ae728de076ea38aa56135529c1566f25a8`을 가리키는 것을 확인했다.
+- **Task 1 Release Verification**: caller의 workflow ref와 `toolkit_ref`를 `v0.1.2` SHA로 교체한 뒤 caller 1/1, catalog 1/1, 전체 Node 106/106, `git diff --check`, 브랜치 Issue 파서(#365), 기존 `ci.yml` 바이트 불변성을 다시 확인했다.
+- **Task 1 Next**: feature branch를 push하고 대체 PR을 열어 Actions 성공 및 module/aggregate artifact를 확인한다.
 
 - **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
 - **Branch**: `docs/390-ci-benchmark-report`
