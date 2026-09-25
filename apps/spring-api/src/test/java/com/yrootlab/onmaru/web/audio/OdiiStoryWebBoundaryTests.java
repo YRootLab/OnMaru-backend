@@ -118,6 +118,49 @@ class OdiiStoryWebBoundaryTests {
     }
 
     @Test
+    void exposesSingleSourceSearchNearbyAndRecommendationCompatibilityEndpoints() throws Exception {
+        mockMvc.perform(get("/api/stories")
+                        .param("keyword", "한옥")
+                        .param("language", "ko-KR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].storyId").value("odii-story-jeonju-hanok-01"))
+                .andExpect(jsonPath("$.hasMore").value(false));
+
+        mockMvc.perform(get("/api/stories/nearby")
+                        .param("lat", "35.817632")
+                        .param("lng", "127.152948")
+                        .param("radius", "5000"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].storyId").value("odii-story-jeonju-hanok-01"));
+
+        mockMvc.perform(get("/api/recommendation")
+                        .param("keyword", "한옥")
+                        .param("language", "ko-KR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].storyId").value("odii-story-jeonju-hanok-01"));
+    }
+
+    @Test
+    void rejectsInvalidSingleSourceParametersAndMapsUnavailableData() throws Exception {
+        mockMvc.perform(get("/api/stories"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.details.field").value("keyword"));
+
+        mockMvc.perform(get("/api/stories/nearby")
+                        .param("lat", "91")
+                        .param("lng", "127")
+                        .param("radius", "5000"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.field").value("lat"));
+
+        store.markUnavailable();
+        mockMvc.perform(get("/api/recommendation").param("keyword", "한옥"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+    }
+
+    @Test
     void regionGroupsExposeBroadRegionCountsAndCompatibilityAlias() throws Exception {
         mockMvc.perform(get("/api/v1/odii/regions")
                         .param("language", "ko-KR"))
