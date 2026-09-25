@@ -21,6 +21,14 @@ class OdiiCurationPolicyTests {
     }
 
     @Test
+    void includesTraditionalAccommodationButExcludesGenericAccommodation() {
+        assertThat(policy.decide(story("전주 한옥 숙박", "전통 한옥에서 머무는 문화 체험"), "한옥").status())
+                .isEqualTo(OdiiCurationDecision.Status.INCLUDED);
+        assertThat(policy.decide(story("도심 호텔 숙박", "편안한 객실과 부대시설 안내"), "한옥").reason())
+                .isEqualTo("EXCLUDED_GENERAL_COMMERCIAL_CONTENT");
+    }
+
+    @Test
     void requiresCulturalContextForFestivalKeyword() {
         assertThat(policy.decide(story("전주 축제", "지역 역사와 문화 해설"), "축제").status())
                 .isEqualTo(OdiiCurationDecision.Status.INCLUDED);

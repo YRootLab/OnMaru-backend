@@ -1,0 +1,82 @@
+name: Collect CI Baseline Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_ids:
+        description: Exactly three successful CI workflow run IDs from the same commit and execution identity, comma-separated.
+        required: true
+        type: string
+      runner_image:
+        description: Runner label shared by all three runs, for example ubuntu-latest.
+        required: true
+        default: ubuntu-latest
+        type: string
+      dependency_mode:
+        description: Dependency resolution identity shared by all three runs.
+        required: true
+        default: locked
+        type: string
+      cache_state:
+        description: Cache identity shared by all three runs, for example cold, warm, or unknown.
+        required: true
+        default: unknown
+        type: string
+      java_version:
+        description: Java version shared by all three runs.
+        required: true
+        default: '21'
+        type: string
+      python_version:
+        description: Python version shared by all three runs.
+        required: true
+        default: '3.12'
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch and normalize three completed CI runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_IDS: ${{ inputs.run_ids }}
+          RUNNER_IMAGE: ${{ inputs.runner_image }}
+          DEPENDENCY_MODE: ${{ inputs.dependency_mode }}
+          CACHE_STATE: ${{ inputs.cache_state }}
+          JAVA_VERSION: ${{ inputs.java_version }}
+          PYTHON_VERSION: ${{ inputs.python_version }}
+        run: |
+          IFS=',' read -r -a run_ids <<< "$RUN_IDS"
+          test "${#run_ids[@]}" -eq 3
+          mkdir -p baseline/raw baseline/evidence
+          node -e 'const fs=require("fs"); fs.writeFileSync("baseline/identity.json", JSON.stringify({runnerImage:process.env.RUNNER_IMAGE, dependencyMode:process.env.DEPENDENCY_MODE, cacheState:process.env.CACHE_STATE, javaVersion:process.env.JAVA_VERSION, pythonVersion:process.env.PYTHON_VERSION}))'
+          node -e 'const fs=require("fs"); fs.writeFileSync("baseline/commands.json", JSON.stringify([".github/workflows/ci.yml: verify"]))'
+          for run_id in "${run_ids[@]}"; do
+            [[ "$run_id" =~ ^[0-9]+$ ]]
+            gh api "repos/${{ github.repository }}/actions/runs/$run_id" > "baseline/raw/run-$run_id.json"
+            gh api "repos/${{ github.repository }}/actions/runs/$run_id/jobs?per_page=100" > "baseline/raw/jobs-$run_id.json"
+            node scripts/benchmark/ci-run-collector.mjs \
+              --run "baseline/raw/run-$run_id.json" --jobs "baseline/raw/jobs-$run_id.json" \
+              --identity baseline/identity.json --commands baseline/commands.json \
+              --output "baseline/evidence/$run_id.json"
+          done
+          node -e 'const fs=require("fs"); const files=fs.readdirSync("baseline/evidence").sort(); fs.writeFileSync("baseline/runs.json", JSON.stringify({suite:"verify-serial", runs:files.map((file)=>JSON.parse(fs.readFileSync(`baseline/evidence/${file}`,"utf8")))}, null, 2))'
+          node scripts/benchmark/serial-baseline.mjs --input baseline/runs.json --output baseline/serial-baseline.json
+      - name: Render sanitized baseline summary
+        run: |
+          node -e 'const fs=require("fs"); const b=JSON.parse(fs.readFileSync("baseline/serial-baseline.json","utf8")); const m=b.metrics; fs.writeFileSync("baseline/summary.md", `# Serial CI baseline\n\n- Samples: ${b.runCount}\n- Wall-clock median: ${m.verifyWallClockMedianMillis} ms\n- Work median: ${m.verifyWorkMedianMillis ?? "unavailable"}\n- Peak RSS: ${m.peakRssBytes ?? "unavailable"}\n- Resource evidence: ${b.resourceEvidence}\n- Run URLs:\n${b.artifactUrls.map((url)=>`  - ${url}`).join("\\n")}\n`)'
+          cat baseline/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-serial-baseline-${{ github.run_id }}
+          path: baseline/
+          retention-days: 30

@@ -23,6 +23,61 @@
 - **Implemented DataLab pipeline**: `JdbcVisitorObservationStore`와 전용 dataset revision publisher가 관측값을 PostgreSQL에 저장하고, 활성 revision만 조회한다. DataLab은 광역·기초 endpoint를 전국 단위로 수집한 뒤 Catalog의 공식 검증된 `SIDO:<code>`/`SIGUNGU:<code>` mapping으로 매핑하며 외지인(`touDivCd=2`)만 `visitorCount`로 제공한다. production은 in-memory fallback을 사용하지 않으며 매일 03:30 KST scheduler가 수집한다.
 - **Implemented DataLab official mapping (2026-09-26)**: 공식 v4.1 매뉴얼과 인증된 전국 응답을 대조해 `kr-11→SIDO:11`, `kr-11-jongno→SIGUNGU:11110`, `kr-45→SIDO:52`, `kr-45-jeonju→SIGUNGU:52110`을 V025로 등록했다. Catalog 행이 Flyway 이후 적재돼도 DB trigger가 mapping과 공식 URL·검증시각·검증자를 영속화한다. DataLab `touNum`의 소수 응답은 공개 `int64 visitorCount` 계약에 맞춰 가장 가까운 1명으로 반올림한다. `DataLabVisitorClientTests` 4건, source adapter 2건, JDBC publisher 3건과 `git diff --check`가 통과했다.
 - **PR readiness (2026-09-26)**: Issue #393의 legacy review snapshot backfill, SQL NULL 좌표 제외 정책, `SELECT ... FOR UPDATE` 기반 좋아요 갱신, 신고·멱등성의 공유 JDBC transaction, production Insights JDBC query를 보완했다. `./gradlew test --no-daemon --max-workers=1`(53 tasks), 계약 검증, AI 212 tests·lint·mypy·offline eval을 통과했다. Redis cache는 사용자 요청대로 이번 PR 범위에서 제외하며 Issue #392의 production DataLab smoke는 운영 배포 후 수행한다.
+- **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
+- **Branch**: `docs/390-ci-benchmark-report`
+- **Related Issue**: #390 (extends #368; feeds #364/#366)
+- **Scope**: 수집된 serial baseline 두 개를 비교하는 결정적 JSON/Markdown 도구와 README 사용 절차를 제공한다. 원시 로그·CI topology·배포 동작은 변경하지 않는다.
+- **Plan**: 비교 계약 테스트를 먼저 추가하고, identity 불일치와 수집 불가 resource metric을 fail-closed로 처리한다.
+
+- **Date**: 2026-09-25 CI baseline 자동 수집 시작
+- **Branch**: `feature/388-ci-baseline-collector`
+- **Related Issue**: #388 (extends #368; feeds #364/#366)
+- **Scope**: GitHub Actions run/job API를 정규화하고, 세 개의 동일 identity CI run을 baseline artifact와 Markdown summary로 수집하는 수동 workflow를 추가한다. 기존 `ci.yml` topology와 #374 module caller는 변경하지 않는다.
+
+- **Date**: 2026-09-25 릴리스 추세 증적 연동 시작
+- **Branch**: `feature/386-release-trend-adoption`
+- **Related Issue**: #386 (Toolkit coordination: YRootLab/OnMaru-backend-ci-toolkit#74, #77)
+- **Scope**: release benchmark 후보 `trend-manifest.json`을 생성·보존하고, immutable toolkit reusable workflow에 이전 release evidence 비교를 위임한다.
+- **Plan**: manifest contract 테스트를 먼저 추가하고, workflow 구성 계약과 release asset 보존을 검증한다. 사용자 로컬 checkout 변경사항은 별도 worktree로 격리한다.
+
+- **Date**: 2026-09-24 CI baseline and fan-out evidence report
+- **Branch**: `docs/376-ci-performance-evidence-report`
+- **Related Issue**: #376 (depends on #368 serial baseline and #365/#377 fan-out evidence)
+- **Scope**: sanitized aggregate report and measurement/decision contract only; no CI topology, runtime command, or release-gate changes
+- **Evidence**: serial CI run 35940692137; fan-out run 35941255870 (failed/incomparable because AI `uv` runtime is absent)
+- **Date**: 2026-09-24 AI module benchmark runtime preparation
+- **Branch**: `fix/377-ai-module-benchmark-runtime`
+- **Related Issue**: #377 (blocks #365)
+- **Scope**: consumer-owned AI catalog command and catalog contract test only; no reusable workflow permission/topology change
+- **Verification**: contract expectation first failed against bare `uv run pytest`; fresh runner now bootstraps `uv` and runs pytest from `ai/`
+
+- **Date**: 2026-09-23 serial CI baseline manifest 구현 시작
+- **Branch**: `feature/368-serial-baseline-manifest`
+- **Related Issue**: #255 root, #368 serial baseline manifest
+- **Planned**: serial run 입력 검증·comparable baseline manifest·운영 수집 절차
+- **Verification**: TDD로 `scripts/test/serial-baseline.test.mjs`부터 추가
+- **Open Risk**: 현재 CI에는 `workflow_dispatch`가 없으므로 실제 develop serial run 3회의 artifact URL은 자연 발생 develop run 또는 별도 dispatch 지원 후 수집해야 한다.
+- **Date**: 2026-09-23 Gradle CI 성능 profile 구현 및 PR 준비
+- **Branch**: `feature/369-gradle-ci-performance-profile`
+- **Related Issue**: #369
+- **Changed**: opt-in Gradle worker/cache profile, 실효 설정 JSON report task, 계약 테스트
+- **Verified**: `node --test scripts/test/gradle-ci-performance.test.mjs`, `./gradlew --init-script build-logic/ci-performance.gradle.kts ciPerformanceProfile -Ponmaru.ci.performance.enabled=true --no-daemon`
+- **Open Risk**: #364가 CI workflow에서 init script와 profile flag를 호출해야 실제 CI fan-out 실행에 적용된다.
+- **Date**: 2026-09-23 AI pytest worker profile 및 duration evidence 구현
+- **Branch**: `feature/370-pytest-ci-profile`
+- **Related Issue**: #370
+- **Changed**: `ai/pyproject.toml`, `ai/uv.lock`, `ai/scripts/pytest-ci-profile.py`, `scripts/test/pytest-ci-profile.test.mjs`
+- **Verified**: `uv run --project ai ruff check ai/scripts/pytest-ci-profile.py`, `uv run --project ai pytest ai/tests` (212 passed, 1 skipped), `node --test scripts/test/pytest-ci-profile.test.mjs` (3 passed), `ONMARU_PYTEST_WORKERS=2 uv run --project ai python ai/scripts/pytest-ci-profile.py --evidence-dir <tmp> --` (worker profile, JUnit/duration evidence 확인)
+- **CI Regression Fix**: setup-uv 이전 Node phase는 시스템 `python3`와 dry-run forced fallback만 사용하도록 fixture를 변경했다. `PATH=/usr/bin:/bin node --test scripts/test/pytest-ci-profile.test.mjs`에서 3건 통과했고, dry-run은 JUnit XML을 생성하지 않는다는 계약을 명시적으로 검증한다.
+- **Open Risk**: 저장소 루트 `uv run --project ai pytest`는 기존 `scripts/test/test_contract_validation.py`가 `openapi_spec_validator`를 요구하지만 AI dev dependency에 없어 7건 실패한다. #370 독점 범위 밖이며 AI 테스트 경로는 통과했다.
+
+- **Date**: 2026-09-23 모듈별 병렬 CI·benchmark control-plane Wave 0
+- **Branch**: `feature/363-ci-baseline-catalog`
+- **Related Issue**: #255 root, #363 catalog, toolkit #31/#33
+- **Changed**: `.github/benchmark-modules.yml`, catalog coverage test
+- **Verified**: `node --test scripts/test/module-catalog.test.mjs`, `node --test scripts/test/*.test.mjs` (88 passed)
+- **Verified CI**: PR #367 `verify` passed (2026-09-23).
+- **Open Risk**: serial baseline 3회 evidence 수집은 #368, CI fan-out은 #364에서 수행한다.
 
 - **Date**: 2026-09-23 소리마루 Single Source of Truth API 구현 및 PR 준비
 - **Branch**: `feature/345-sorimaru-single-source-of-truth`로 rename 예정
@@ -41,3 +96,10 @@
 - **Next Steps**:
   - Render 로그에서 `odii sync failed` 확인, `ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT` 유효성 점검 (#307)
   - `GET /api/v1/audio/regions` 지역 그룹 카운트 API 구현 (#306)
+# Issue #380 — CI 성과 보고 프롬프트와 비개발자용 기준선 보고서
+
+- Branch: `docs/380-accessible-ci-report-prompt`
+- Scope: 재사용 가능한 보고서 프롬프트를 추가하고, #376의 CI 기준선 보고서를 비개발자도 읽을 수 있는 문단형 보고서와 짧은 Mermaid로 재구성한다.
+- Changed: `docs/prompts/ci-performance-report.md`, `docs/reports/2026-09-24-ci-parallelization-baseline.md`
+- Verification: `node --test scripts/test/*.test.mjs` (94 passed), 보고서 표현 계약 검사(1 Mermaid, 6 nodes), `git diff --check`.
+- Next: PR을 열고 `verify`가 통과하면 develop으로 병합한 뒤 #380을 정리한다.

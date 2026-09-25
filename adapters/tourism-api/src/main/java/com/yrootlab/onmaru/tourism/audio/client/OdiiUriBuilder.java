@@ -35,6 +35,10 @@ public final class OdiiUriBuilder {
         return build("storySearchList", params);
     }
 
+    public URI storyBasedSync(String langCode, int pageNo, int numOfRows) {
+        return build("storyBasedSyncList", pageParams(langCode, pageNo, numOfRows));
+    }
+
     public URI storyLocationBased(
             String langCode,
             String longitude,
