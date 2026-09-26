@@ -41,11 +41,11 @@
 - Produces: `onmaru.stamp_definitions`, `stamp_region_rules`, `stamp_check_ins`, `stamp_awards`
 - Enforces: unique `(member_id, place_id, check_in_bucket)` and `(member_id, stamp_code)`
 
-- [ ] Add a PostgreSQL integration test that migrates from zero, asserts 12 definitions/10 region rules, rejects duplicate check-in/award, and cascades member deletion.
-- [ ] Run `./gradlew :apps:spring-api:test --tests '*JdbcStampMigrationTests'` and confirm failure because V027 tables do not exist.
-- [ ] Add enum/table/index/seed DDL, reservation row, registry SHA-256, and schema documentation.
-- [ ] Run the focused test and `node --test scripts/test/migration-policy.test.mjs`; confirm both pass.
-- [ ] Commit `feat(stamp): 수결첩 관계형 스키마 추가`.
+- [x] Add a PostgreSQL integration test that migrates from zero, asserts 12 definitions/10 region rules, rejects duplicate check-in/award, and cascades member deletion.
+- [x] Run `./gradlew :apps:spring-api:test --tests '*JdbcStampMigrationTests'` and confirm failure because V027 tables do not exist.
+- [x] Add enum/table/index/seed DDL, reservation row, registry SHA-256, and schema documentation.
+- [x] Run the focused test and `node --test scripts/test/migration-policy.test.mjs`; confirm both pass.
+- [x] Commit `feat(stamp): 수결첩 관계형 스키마 추가`.
 
 ### Task 2: framework 독립 수결 domain
 
@@ -62,11 +62,11 @@
 - `StampService.checkIn(UUID memberId, CheckInCommand command): StampCheckInResult`
 - `StampService.book(UUID memberId): StampBook`
 
-- [ ] Write tests proving invalid finite/range/accuracy input rejection, outside-radius rejection, exact boundary acceptance, duplicate bucket behavior, regional award, KST night award, and legendary award at five distinct groups.
-- [ ] Run `./gradlew :modules:stamp:test`; confirm compile/failing behavior because domain types are absent.
-- [ ] Add immutable records/enums/exceptions, `StampAwardPolicy`, `StampService`, and deterministic `InMemoryStampStore` with the signatures above.
-- [ ] Run `./gradlew :modules:stamp:test`; confirm all tests pass.
-- [ ] Commit `feat(stamp): 위치 체크인과 수결 지급 도메인 구현`.
+- [x] Write tests proving invalid finite/range/accuracy input rejection, outside-radius rejection, exact boundary acceptance, duplicate bucket behavior, regional award, KST night award, and legendary award at five distinct groups.
+- [x] Run `./gradlew :modules:stamp:test`; confirm compile/failing behavior because domain types are absent.
+- [x] Add immutable records/enums/exceptions, `StampAwardPolicy`, `StampService`, and deterministic `InMemoryStampStore` with the signatures above.
+- [x] Run `./gradlew :modules:stamp:test`; confirm all tests pass.
+- [x] Commit `feat(stamp): 위치 체크인과 수결 지급 도메인 구현`.
 
 ### Task 3: PostGIS 장소 검증과 JDBC transaction store
 
@@ -80,11 +80,11 @@
 - Consumes: Task 2 ports and shared `JdbcTransactionRunner`
 - Produces: active revision query using `ST_Distance(version.location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography)` and transactional record/book implementation
 
-- [ ] Write Testcontainers tests for active eligible place, hidden/wrong category/missing coordinate rejection, near/far distance, same-bucket convergence, concurrent award uniqueness, daily KST limit, and rollback.
-- [ ] Run `./gradlew :apps:spring-api:test --tests '*JdbcStampStoreTests'`; confirm failure because adapters are absent.
-- [ ] Implement parameterized SELECTs with explicit columns, member advisory transaction lock, conflict-safe inserts, bulk stamp-book join, and no coordinate persistence.
-- [ ] Run focused PostgreSQL tests and confirm pass.
-- [ ] Commit `feat(stamp): PostGIS 체크인 영속 파이프라인 구현`.
+- [x] Write Testcontainers tests for active eligible place, hidden/wrong category/missing coordinate rejection, near/far distance, same-bucket convergence, concurrent award uniqueness, daily KST limit, and rollback.
+- [x] Run `./gradlew :apps:spring-api:test --tests '*JdbcStampStoreTests'`; confirm failure because adapters are absent.
+- [x] Implement parameterized SELECTs with explicit columns, member advisory transaction lock, conflict-safe inserts, bulk stamp-book join, and no coordinate persistence.
+- [x] Run focused PostgreSQL tests and confirm pass.
+- [x] Commit `feat(stamp): PostGIS 체크인 영속 파이프라인 구현`.
 
 ### Task 4: REST API와 인증·멱등 경계
 
@@ -101,11 +101,11 @@
 - `POST /api/v1/places/{placeId}/check-ins`
 - Request: `{latitude: double, longitude: double, accuracyMeters: double}` plus UUID `Idempotency-Key`
 
-- [ ] Write MockMvc tests for public catalog, private book, 201 new check-in, 200 same bucket, 401, validation 400, missing/invalid key, 404, both 422 codes, 429, 503, replay/conflict, no-store, and coordinate non-disclosure.
-- [ ] Run `./gradlew :apps:spring-api:test --tests '*StampWebBoundaryTests'`; confirm missing endpoint failures.
-- [ ] Implement DTO validation, member resolution, fingerprinted `IdempotencyService` execution, response mapping, error mapping, and profile-specific in-memory/JDBC beans.
-- [ ] Run focused web tests and confirm pass.
-- [ ] Commit `feat(api): 위치 기반 수결첩 API 추가`.
+- [x] Write MockMvc tests for public catalog, private book, 201 new check-in, 200 same bucket, 401, validation 400, missing/invalid key, 404, both 422 codes, 429, 503, replay/conflict, no-store, and coordinate non-disclosure.
+- [x] Run `./gradlew :apps:spring-api:test --tests '*StampWebBoundaryTests'`; confirm missing endpoint failures.
+- [x] Implement DTO validation, member resolution, fingerprinted `IdempotencyService` execution, response mapping, error mapping, and profile-specific in-memory/JDBC beans.
+- [x] Run focused web tests and confirm pass.
+- [x] Commit `feat(api): 위치 기반 수결첩 API 추가`.
 
 ### Task 5: OpenAPI와 repository contract
 
@@ -118,11 +118,11 @@
 **Interfaces:**
 - Documents the three Task 4 endpoints, schemas, cookie auth, `Idempotency-Key`, and exact error codes.
 
-- [ ] Add a contract validation test that fails when the stamp OpenAPI file is absent or omits required operations/error schemas.
-- [ ] Run `python -m pytest scripts/test/test_contract_validation.py`; confirm RED.
-- [ ] Add OpenAPI 3.1 contract and validator registration, then update REST summary/privacy rules.
-- [ ] Run `./scripts/verify-contracts`; confirm GREEN.
-- [ ] Commit `docs(api): 수결첩 OpenAPI 계약 추가`.
+- [x] Add a contract validation test that fails when the stamp OpenAPI file is absent or omits required operations/error schemas.
+- [x] Run `python -m pytest scripts/test/test_contract_validation.py`; confirm RED.
+- [x] Add OpenAPI 3.1 contract and validator registration, then update REST summary/privacy rules.
+- [x] Run `./scripts/verify-contracts`; confirm GREEN.
+- [x] Commit `docs(api): 수결첩 OpenAPI 계약 추가`.
 
 ### Task 6: FE 인계와 운영 문서
 
@@ -133,11 +133,11 @@
 **Interfaces:**
 - Explains browser geolocation, authenticated fetch with credentials, UUID key reuse on retry, response rendering, error UX, and localStorage removal.
 
-- [ ] Write a non-developer overview and copy-paste `navigator.geolocation`/`fetch` example without real secrets.
-- [ ] Add a status/error handling table and explicit migration from `onmaru_hanok_stamps_v1` to server truth.
-- [ ] Record branch, Issue #262, touched paths, verification, open risk, and FE next step in `handoff.md`.
-- [ ] Run `git diff --check` and repository documentation checks.
-- [ ] Commit `docs(fe): 수결첩 API 연동 안내 추가`.
+- [x] Write a non-developer overview and copy-paste `navigator.geolocation`/`fetch` example without real secrets.
+- [x] Add a status/error handling table and explicit migration from `onmaru_hanok_stamps_v1` to server truth.
+- [x] Record branch, Issue #262, touched paths, verification, open risk, and FE next step in `handoff.md`.
+- [x] Run `git diff --check` and repository documentation checks.
+- [x] Commit `docs(fe): 수결첩 API 연동 안내 추가`.
 
 ### Task 7: 전체 회귀 검증과 완료 점검
 
@@ -147,8 +147,8 @@
 **Interfaces:**
 - Produces a clean branch ready for review; does not push, open, or merge a PR without a separate request.
 
-- [ ] Run `node scripts/print-branch-issue.mjs` and confirm `262`.
-- [ ] Run `npm test` and `./scripts/verify-contracts`.
-- [ ] Run `./gradlew test` and the Python baseline test command defined by CI.
-- [ ] Run `git diff --check`, `git status --short`, and inspect all commits/files against Issue #262.
-- [ ] Apply `verification-before-completion` and report exact commands/results plus remaining production/staging risks.
+- [x] Run `node scripts/print-branch-issue.mjs` and confirm `262`.
+- [x] Run `node --test scripts/test/*.test.mjs` and `bash scripts/verify-contracts`.
+- [x] Run `./gradlew test` and the Python baseline test command defined by CI.
+- [x] Run `git diff --check`, `git status --short`, and inspect all commits/files against Issue #262.
+- [x] Apply `verification-before-completion` and report exact commands/results plus remaining production/staging risks.

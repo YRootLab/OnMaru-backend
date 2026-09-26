@@ -5,8 +5,8 @@
 - **기준일**: 2026-09-26
 - **브랜치**: `feature/262-hanok-stamp-book`
 - **관련 이슈**: #262
-- **상태**: 스키마, 도메인, JDBC/PostGIS, REST API, OpenAPI, FE 인계 문서 구현 완료. 전체 회귀 검증 진행 예정
-- **주요 커밋**: `1a39a4d` 스키마, `dbe6e68` 도메인, `6ea8b90` JDBC, `192121b` REST API, `78bf3a3` OpenAPI
+- **상태**: 스키마, 도메인, JDBC/PostGIS, REST API, OpenAPI, FE 인계 및 전체 회귀 검증 완료
+- **주요 커밋**: `1a39a4d` 스키마, `dbe6e68` 도메인, `6ea8b90` JDBC, `192121b` REST API, `78bf3a3` OpenAPI, `dac4567` production 경계 보강, `2f6c288` 동시성 검증
 
 ## 구현 범위
 
@@ -37,6 +37,18 @@
 - `python3 -m pytest scripts/test/test_contract_validation.py -q` — 10 passed
 - `bash scripts/verify-contracts --contracts-only` — 성공
 
+## 최종 회귀 검증
+
+- `./gradlew test --no-daemon --max-workers=1` — 성공, 57 tasks
+- `node --test scripts/test/*.test.mjs` — 106 passed
+- `python3 -m pytest scripts/test/test_contract_validation.py -q` — 10 passed
+- `bash scripts/verify-contracts` — 성공, R1·identity/saved·Journey·R2·생성 DB artifact 포함
+- `uv run pytest` (`ai/`) — 212 passed, 1 skipped
+- `uv run ruff check && uv run mypy` (`ai/`) — 성공
+- offline AI evaluation gate — quality·safety·latency·cost·determinism 모두 PASS
+- `node scripts/verify-planning-inputs.mjs`와 `node scripts/validate-odii-fixtures.mjs` — 성공
+- 독립 코드 리뷰에서 발견한 Java time receipt 직렬화, domain exception 503 변환, 누락 좌표 필드, DB 반경 제약, 멱등성 오류 코드 불일치를 수정하고 production JDBC 집중 테스트를 재통과했다.
+
 ## FE 다음 단계
 
 1. `/stamps` 화면의 `onmaru_hanok_stamps_v1` 기반 획득 판정을 서버 API로 교체한다.
@@ -48,5 +60,4 @@
 
 - staging의 실제 Catalog 데이터에 수결 대상 지역 code와 한옥 category가 기대대로 들어오는지 smoke test가 필요하다.
 - GPS 오차와 도심 반사 환경에서 200m 정책이 적절한지는 운영 지표 없이 확정할 수 없으므로, 원문 좌표 없이 결과 code·latency만 계측해 조정한다.
-- 전체 저장소 회귀 검증 결과와 실패가 있으면 이 문서에 추가한다.
 - 이 브랜치에서 push, PR 생성, merge는 수행하지 않았다.
