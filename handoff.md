@@ -5,7 +5,7 @@
 - **기준일**: 2026-09-26
 - **브랜치**: `feature/399-datalab-registry-smoke`
 - **관련 이슈**: #399(DataLab mapping registry), #392(staging 운영 smoke)
-- **PR**: 생성 전, `develop` 대상
+- **PR**: #401 `feat(insights): DataLab registry와 staging smoke 구축` → `develop`
 - **설계/계획**: `docs/superpowers/specs/2026-09-26-datalab-registry-smoke-design.md`, `docs/superpowers/plans/2026-09-26-datalab-registry-smoke.md`
 
 ### 완료한 작업
@@ -28,7 +28,7 @@
 
 ### 다음 단계와 열린 위험
 
-1. PR을 `develop` 대상으로 생성하고 CI `verify`를 확인한다.
+1. PR #401의 CI `verify`와 review 결과를 확인한다.
 2. GitHub `staging` environment에 URL, operations token, DataLab service key, read-only DB URL을 설정한다.
 3. V027과 runtime을 staging에 배포한 뒤 `DataLab Staging Smoke`를 실행한다.
 4. #399는 PR 병합 후 reconcile한다. #392는 실제 staging smoke 성공 전까지 닫지 않는다.
