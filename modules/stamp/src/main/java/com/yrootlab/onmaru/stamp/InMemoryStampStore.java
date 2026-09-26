@@ -6,6 +6,7 @@ import com.yrootlab.onmaru.stamp.ranking.StampRankingIdentityConflictException;
 import com.yrootlab.onmaru.stamp.ranking.StampRankingRateLimitedException;
 import com.yrootlab.onmaru.stamp.ranking.StampRankingStatus;
 import com.yrootlab.onmaru.stamp.ranking.StampRankingStore;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingSortKey;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -170,17 +171,16 @@ public final class InMemoryStampStore implements StampStore, StampRankingStore {
     private List<RankingProfile> rankedProfiles() {
         var ranked = rankingProfiles.values().stream()
                 .filter(profile -> profile.identity() != null)
-                .sorted(Comparator
-                        .comparingInt((RankingProfile profile) -> summary(profile.memberId()).collectedCount())
-                        .reversed()
-                        .thenComparing(Comparator.comparingInt(
-                                (RankingProfile profile) -> summary(profile.memberId()).visitedRegionCount())
-                                .reversed())
-                        .thenComparing(profile -> lastAwardedAt(profile.memberId()),
-                                Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(profile -> profile.identity().publicId().toString()))
+                .sorted(Comparator.comparing(this::sortKey))
                 .toList();
         return ranked;
+    }
+
+    private StampRankingSortKey sortKey(RankingProfile profile) {
+        var summary = summary(profile.memberId());
+        return new StampRankingSortKey(
+                summary.collectedCount(), summary.visitedRegionCount(),
+                lastAwardedAt(profile.memberId()), profile.identity().publicId());
     }
 
     private Instant lastAwardedAt(UUID memberId) {

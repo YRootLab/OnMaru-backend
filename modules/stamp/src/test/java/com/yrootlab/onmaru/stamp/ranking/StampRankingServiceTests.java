@@ -10,7 +10,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
@@ -154,6 +156,81 @@ class StampRankingServiceTests {
                 .isEqualTo(store.book(MEMBER_ID).summary().visitedRegionCount());
         assertThat(store.status(OTHER_MEMBER_ID).rank()).isEqualTo(2);
         assertThat(store.status(OTHER_MEMBER_ID).participantCount()).isEqualTo(2);
+    }
+
+    @Test
+    void visitedRegionCountBreaksEqualStampCountBeforeTimeAndPublicId() {
+        var store = new InMemoryStampStore();
+        var lowerPublicId = UUID.fromString("550e8400-e29b-41d4-a716-446655440001");
+        var higherPublicId = UUID.fromString("550e8400-e29b-41d4-a716-446655440002");
+        store.participate(MEMBER_ID, identity(lowerPublicId, "서울산책가-A001"), NOW);
+        store.participate(OTHER_MEMBER_ID, identity(higherPublicId, "전국산책가-A002"), NOW);
+        award(store, MEMBER_ID, "p-bukchon", "kr-11-jongno", NOW);
+        award(store, MEMBER_ID, "p-eunpyeong", "kr-11-eunpyeong", NOW);
+        award(store, OTHER_MEMBER_ID, "p-bukchon", "kr-11-jongno", NOW.plusSeconds(1));
+        award(store, OTHER_MEMBER_ID, "p-suwon", "kr-41-suwon", NOW.plusSeconds(1));
+
+        var entries = store.leaderboard(20);
+
+        assertThat(entries).extracting(StampRankingEntry::publicId)
+                .containsExactly(higherPublicId, lowerPublicId);
+        assertThat(entries).extracting(StampRankingEntry::stampCount).containsExactly(2, 2);
+        assertThat(entries).extracting(StampRankingEntry::visitedRegionCount).containsExactly(2, 1);
+        assertThat(entries).extracting(StampRankingEntry::rank).containsExactly(1, 2);
+    }
+
+    @Test
+    void earlierLastAwardBreaksEqualCountsBeforePublicId() {
+        var store = new InMemoryStampStore();
+        var earlierPublicId = UUID.fromString("550e8400-e29b-41d4-a716-446655440002");
+        var laterPublicId = UUID.fromString("550e8400-e29b-41d4-a716-446655440001");
+        store.participate(MEMBER_ID, identity(earlierPublicId, "먼저산책가-A001"), NOW);
+        store.participate(OTHER_MEMBER_ID, identity(laterPublicId, "나중산책가-A002"), NOW);
+        award(store, MEMBER_ID, "p-bukchon", "kr-11-jongno", NOW);
+        award(store, OTHER_MEMBER_ID, "p-bukchon", "kr-11-jongno", NOW.plusSeconds(1));
+
+        var entries = store.leaderboard(20);
+
+        assertThat(entries).extracting(StampRankingEntry::publicId)
+                .containsExactly(earlierPublicId, laterPublicId);
+        assertThat(entries).extracting(StampRankingEntry::stampCount).containsExactly(1, 1);
+        assertThat(entries).extracting(StampRankingEntry::visitedRegionCount).containsExactly(1, 1);
+    }
+
+    @Test
+    void publicIdBreaksCompletelyEqualRanksWithNoAwards() {
+        var store = new InMemoryStampStore();
+        var higherPublicId = UUID.fromString("550e8400-e29b-41d4-a716-446655440002");
+        var lowerPublicId = UUID.fromString("550e8400-e29b-41d4-a716-446655440001");
+        store.participate(MEMBER_ID, identity(higherPublicId, "높은산책가-A001"), NOW);
+        store.participate(OTHER_MEMBER_ID, identity(lowerPublicId, "낮은산책가-A002"), NOW);
+
+        var entries = store.leaderboard(20);
+
+        assertThat(entries).extracting(StampRankingEntry::publicId)
+                .containsExactly(lowerPublicId, higherPublicId);
+        assertThat(entries).extracting(StampRankingEntry::rank).containsExactly(1, 2);
+        assertThat(entries).extracting(StampRankingEntry::stampCount).containsExactly(0, 0);
+    }
+
+    @Test
+    void absentLastAwardSortsAfterPresentLastAwardWhenCountsTie() {
+        var absent = new StampRankingSortKey(0, 0, null,
+                UUID.fromString("550e8400-e29b-41d4-a716-446655440001"));
+        var present = new StampRankingSortKey(0, 0, NOW,
+                UUID.fromString("550e8400-e29b-41d4-a716-446655440002"));
+
+        assertThat(List.of(absent, present).stream().sorted().map(StampRankingSortKey::publicId))
+                .containsExactly(present.publicId(), absent.publicId());
+    }
+
+    private static void award(InMemoryStampStore store, UUID memberId,
+                              String placeId, String regionCode, Instant now) {
+        CheckInPlaceLookup lookup = (requestedPlaceId, latitude, longitude) -> Optional.of(
+                new VerifiedPlace(UUID.nameUUIDFromBytes(placeId.getBytes(StandardCharsets.UTF_8)),
+                        requestedPlaceId, regionCode, 10));
+        new StampService(lookup, store, Clock.fixed(now, ZoneOffset.UTC)).checkIn(
+                memberId, new CheckInCommand(placeId, 37.5, 127.0, 10));
     }
 
     private static StampRankingIdentity identity(UUID publicId, String nickname) {
