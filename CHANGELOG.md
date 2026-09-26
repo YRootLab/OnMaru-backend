@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.4.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.13...v0.4.0) (2026-09-26)
+
+
+### Features
+
+* **audio:** broaden Odii curated synchronization ([551b8fa](https://github.com/YRootLab/OnMaru-backend/commit/551b8fa4bb7c4f68171fd7b002ffee8502aaa17b))
+* **audio:** Odii 전체 스토리 수집 및 제외 정책 적용 ([#362](https://github.com/YRootLab/OnMaru-backend/issues/362)) ([2843c8c](https://github.com/YRootLab/OnMaru-backend/commit/2843c8c2dd86e5f4e105f05446a5f2e4886a7f6d))
+* **audio:** 광역 지역 그룹별 오디오 스토리 카운트 조회 API 구현 ([04333f6](https://github.com/YRootLab/OnMaru-backend/commit/04333f657d081404bf55c4d59b2986d2967dbe72))
+* **audio:** 광역 지역 그룹별 오디오 스토리 카운트 조회 API 구현 ([#306](https://github.com/YRootLab/OnMaru-backend/issues/306)) ([2d1f649](https://github.com/YRootLab/OnMaru-backend/commit/2d1f649000de281dbd6f9257547d951a1adaf86b))
+* **audio:** 소리마루 Single Source of Truth API 구현 ([942e3d0](https://github.com/YRootLab/OnMaru-backend/commit/942e3d0c1d20a376a2924a5e4435f8d782ec8690))
+* **audio:** 소리마루 검색 근처 추천 API 추가 ([679b1e9](https://github.com/YRootLab/OnMaru-backend/commit/679b1e90bcab9391d48ac82e9700f36f02fedfc3))
+* **benchmark:** [#336](https://github.com/YRootLab/OnMaru-backend/issues/336) release metadata와 evidence manifest 구현 ([e0954ee](https://github.com/YRootLab/OnMaru-backend/commit/e0954ee8eb5518572ca85b04f3830dc5842a2088))
+* **benchmark:** [#338](https://github.com/YRootLab/OnMaru-backend/issues/338) release benchmark workflow 통합 ([d580db6](https://github.com/YRootLab/OnMaru-backend/commit/d580db6209967da137405821f1d2a2f179cad999))
+* **benchmark:** [#338](https://github.com/YRootLab/OnMaru-backend/issues/338) release benchmark workflow 통합 ([e22d28a](https://github.com/YRootLab/OnMaru-backend/commit/e22d28ae77423e6aa39bf669aea59a70b8076206))
+* **benchmark:** add serial verify baseline manifest ([#371](https://github.com/YRootLab/OnMaru-backend/issues/371)) ([afe6349](https://github.com/YRootLab/OnMaru-backend/commit/afe6349462e5fd224fb63f70c5f8e4b7a3294628))
+* **benchmark:** collect CI baseline evidence ([#389](https://github.com/YRootLab/OnMaru-backend/issues/389)) ([6a6b1de](https://github.com/YRootLab/OnMaru-backend/commit/6a6b1de6ad3aac1a93f59994d70fa5ee45e988be))
+* **benchmark:** implement release metadata and evidence manifest ([43891a9](https://github.com/YRootLab/OnMaru-backend/commit/43891a94cbb5c9acc0da2e85c51fb3de877a366d))
+* **benchmark:** pipeline-toolkit adapter 구현 ([32cde18](https://github.com/YRootLab/OnMaru-backend/commit/32cde1846e4b617e9a67cfc885fed80eab62d671))
+* **benchmark:** pipeline-toolkit adapter 구현 ([b6f5cbb](https://github.com/YRootLab/OnMaru-backend/commit/b6f5cbbcf0a3b455d7958b19ef9ae51a21af1601))
+* **ci:** Toolkit module benchmark shadow caller 추가 ([b74fe87](https://github.com/YRootLab/OnMaru-backend/commit/b74fe8753d79e89ca5ec2f344ef8091d24cab0e8))
+* **ci:** Toolkit module benchmark shadow caller 추가 ([7ced735](https://github.com/YRootLab/OnMaru-backend/commit/7ced735d62763c2777de03f33422d44b8f3fd19f))
+* **release:** connect trend evidence to toolkit ([#387](https://github.com/YRootLab/OnMaru-backend/issues/387)) ([3ee5122](https://github.com/YRootLab/OnMaru-backend/commit/3ee51228b82df3db3f2d73dd6bcad3567e152264))
+* **saved,audio:** 찜 데이터 Neon DB 영속화(V017)와 이번 주 인기 한옥 소리 TOP N API ([42f928c](https://github.com/YRootLab/OnMaru-backend/commit/42f928c036a409a3ab739b9ef9f34d73cf5f2a5a))
+* **saved,audio:** 찜 영속화(V017)와 이번 주 인기 한옥 소리 TOP N API ([#318](https://github.com/YRootLab/OnMaru-backend/issues/318),[#317](https://github.com/YRootLab/OnMaru-backend/issues/317)) ([8faa65e](https://github.com/YRootLab/OnMaru-backend/commit/8faa65e26626f5f8846532b4efede4e011ee1e8e))
+
+
+### Bug Fixes
+
+* **ai:** AI 이미지 pip CVE 및 Trivy 스캔 게이트 통과를 위한 예외 처리 ([a496a37](https://github.com/YRootLab/OnMaru-backend/commit/a496a3779765e942dd179e125ccea87925dfc1fd))
+* **ai:** pip 업그레이드 및 Trivy vendored-pkg 오탐 예외로 이미지 스캔 게이트 통과\n\n- ai/Dockerfile: 시스템 pip을 26.2.1로 업그레이드해 CVE-2026-8643(HIGH) 해소\n- .trivyignore 추가: pip vendored msgpack(GHSA-6v7p-g79w-8964)과 오탐 setuptools(CVE-2025-47273) 근거 문서화\n- deploy.yml AI 이미지 스캔에 trivyignores 연결\n- 로컬 검증: docker build + trivy CRITICAL,HIGH --exit-code 1 → EXIT 0\n\nCloses [#314](https://github.com/YRootLab/OnMaru-backend/issues/314) ([9eeb852](https://github.com/YRootLab/OnMaru-backend/commit/9eeb8521b9077b57262c622db1e3402a4992750b))
+* **ai:** setuptools 83.0.0+ 명시 설치로 CVE-2026-59890 이미지 스캔 게이트 통과 ([de30c14](https://github.com/YRootLab/OnMaru-backend/commit/de30c14d5409d149a827a27aacb34e43a27b1573))
+* **ai:** setuptools 83.0.0+ 명시 설치로 CVE-2026-59890 이미지 스캔 게이트 통과 ([78a3b8c](https://github.com/YRootLab/OnMaru-backend/commit/78a3b8ca51dd16f3ef1b8a1b69748bbef583619a))
+* **audio:** initialize Odii dataset before scheduled sync ([1470b85](https://github.com/YRootLab/OnMaru-backend/commit/1470b850c04ed83efa6bd2248e53eb691bc4aab2))
+* **audio:** Odii 동기화 적재 및 큐레이션 보강 ([a7611b5](https://github.com/YRootLab/OnMaru-backend/commit/a7611b53e7db2928f86c224ab93bfeb85a0e2905))
+* **audio:** PR 계약과 변경 범위 정리 ([f0fa1b3](https://github.com/YRootLab/OnMaru-backend/commit/f0fa1b3bd918dd73a56c16af8b30e9437e1efbf0))
+* **benchmark:** stabilize timeout fixture ([f27d048](https://github.com/YRootLab/OnMaru-backend/commit/f27d048d9634d3ec4f5893d8b79c1c112d91ae31))
+* **ci:** AI 이미지 미수정 취약점으로 배포 차단 해소 ([8aba126](https://github.com/YRootLab/OnMaru-backend/commit/8aba12696c77e4c2f4a8fc4b80148398c23f1df6))
+* **ci:** bootstrap uv for AI module benchmark ([#379](https://github.com/YRootLab/OnMaru-backend/issues/379)) ([f5b75f0](https://github.com/YRootLab/OnMaru-backend/commit/f5b75f0dff536358890344383bfd33791ac99607))
+* **ci:** ignore unfixed AI image vulnerabilities ([65523b9](https://github.com/YRootLab/OnMaru-backend/commit/65523b93b80c543edbc69ae4c98e17a93af79b8e))
+* **ci:** make staging scan and rollback gates deterministic ([27f8775](https://github.com/YRootLab/OnMaru-backend/commit/27f8775df746bf346e8e5270e9f8b1b53214f2ed))
+* **ci:** Toolkit v0.1.2 SHA로 caller 갱신 ([c687b40](https://github.com/YRootLab/OnMaru-backend/commit/c687b4033bab1ae3509f10ad17e41cbfd1cb498c))
+* **cors:** allow Render frontend Odii requests ([4ee0ff7](https://github.com/YRootLab/OnMaru-backend/commit/4ee0ff78907af76274fae57ec7c913dec76676d3))
+* **cors:** Render 프론트 Odii API 403 차단 해소 ([cf50bb0](https://github.com/YRootLab/OnMaru-backend/commit/cf50bb0e6e18871675d35144b31ba6c72a919978))
+* **db:** V017 migration registry 등록 ([ece8d5d](https://github.com/YRootLab/OnMaru-backend/commit/ece8d5d0da035f6e1d1db1c39d34f549f5e547e3))
+* **deploy:** Trivy SARIF 업로드 category 중복으로 staging 배포 실패하는 문제 수정 ([e24bb56](https://github.com/YRootLab/OnMaru-backend/commit/e24bb565aa5fc31f484a314d38170f2d657aa4bc))
+* **deploy:** Trivy SARIF 업로드 category 중복으로 staging 배포 실패하는 문제 수정\n\n- Spring API/ai-service SARIF 업로드에 각각 고유 category 지정\n- handoff.md에 릴리즈 v0.3.13 세션 결과 기록\n\nCloses [#310](https://github.com/YRootLab/OnMaru-backend/issues/310) ([e69095f](https://github.com/YRootLab/OnMaru-backend/commit/e69095fd7eafa4b3f055c69b7fe2ff353a6a938a))
+* **test:** V017 마이그레이션 계약 버전 갱신과 editorial 테스트 컨텍스트 격리 ([4b86a11](https://github.com/YRootLab/OnMaru-backend/commit/4b86a11ace5d68f22ef295da5f49be4983c9d953))
+
+## Changelog
+
 This project uses semantic version tags from `main`. Release notes should be generated from Conventional Commits through Release Please once releasable backend changes exist.
 
 ## Unreleased
