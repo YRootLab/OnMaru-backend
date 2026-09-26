@@ -5,7 +5,7 @@
 - **기준일**: 2026-09-26
 - **브랜치**: `feature/262-hanok-stamp-book`
 - **관련 이슈**: #262
-- **상태**: 스키마, 도메인, JDBC/PostGIS, REST API, OpenAPI, FE 인계 및 전체 회귀 검증 완료
+- **상태**: 스키마, 도메인, JDBC/PostGIS, REST API, OpenAPI, FE 인계 및 전체 회귀 검증 완료. `develop` 대상 PR 생성 준비 완료
 - **주요 커밋**: `1a39a4d` 스키마, `dbe6e68` 도메인, `6ea8b90` JDBC, `192121b` REST API, `78bf3a3` OpenAPI, `dac4567` production 경계 보강, `2f6c288` 동시성 검증
 
 ## 구현 범위
@@ -60,4 +60,4 @@
 
 - staging의 실제 Catalog 데이터에 수결 대상 지역 code와 한옥 category가 기대대로 들어오는지 smoke test가 필요하다.
 - GPS 오차와 도심 반사 환경에서 200m 정책이 적절한지는 운영 지표 없이 확정할 수 없으므로, 원문 좌표 없이 결과 code·latency만 계측해 조정한다.
-- 이 브랜치에서 push, PR 생성, merge는 수행하지 않았다.
+- PR merge 뒤 #262 상태를 조회하고, `develop`과 기본 브랜치 `master` 차이로 자동 종료되지 않으면 PR·검증 명령을 기록한 코멘트와 함께 수동 종료한다.
