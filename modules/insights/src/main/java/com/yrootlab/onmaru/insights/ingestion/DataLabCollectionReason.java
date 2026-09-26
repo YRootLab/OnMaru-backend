@@ -1,0 +1,13 @@
+package com.yrootlab.onmaru.insights.ingestion;
+
+public enum DataLabCollectionReason {
+    PENDING_MAPPING,
+    REJECTED_MAPPING,
+    NO_ACTIVE_MAPPING,
+    INVALID_MAPPING,
+    RESPONSE_SCOPE_MISMATCH,
+    DUPLICATE_RESPONSE,
+    MISSING_ACTIVE_REGION,
+    INVALID_PROVIDER_VALUE,
+    PROVIDER_FAILURE
+}

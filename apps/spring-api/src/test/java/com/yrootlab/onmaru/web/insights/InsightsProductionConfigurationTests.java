@@ -4,8 +4,9 @@ import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorRevisionWriter;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorSource;
 import com.yrootlab.onmaru.insights.query.InMemoryInsightsQueryStore;
 import com.yrootlab.onmaru.insights.query.InsightsQueryService;
-import com.yrootlab.onmaru.catalog.region.CatalogRegionSourceCodeLookup;
-import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogRegionSourceCodeLookup;
+import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingRegistry;
+import com.yrootlab.onmaru.persistence.catalog.JdbcDataLabRegionMappingRegistry;
+import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorFetchResult;
 import com.yrootlab.onmaru.persistence.insights.JdbcDataLabVisitorSnapshotPublisher;
 import com.yrootlab.onmaru.tourism.insights.DataLabVisitorClient;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,8 @@ class InsightsProductionConfigurationTests {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context.getBean(DataLabVisitorClient.class)).isNotNull();
-                    assertThat(context.getBean(CatalogRegionSourceCodeLookup.class))
-                            .isInstanceOf(JdbcCatalogRegionSourceCodeLookup.class);
+                    assertThat(context.getBean(DataLabRegionMappingRegistry.class))
+                            .isInstanceOf(JdbcDataLabRegionMappingRegistry.class);
                     assertThat(context.getBean(DataLabVisitorRevisionWriter.class))
                             .isInstanceOf(JdbcDataLabVisitorSnapshotPublisher.class);
                     assertThat(context.getBean(DataLabVisitorSource.class))
@@ -42,7 +43,8 @@ class InsightsProductionConfigurationTests {
     void productionUsesSuppliedDataLabBoundariesWithoutCreatingInsightFixtures() {
         new ApplicationContextRunner()
                 .withInitializer(context -> context.getEnvironment().setActiveProfiles("production"))
-                .withBean(DataLabVisitorSource.class, () -> () -> java.util.List.of())
+                .withBean(DataLabVisitorSource.class, () -> () ->
+                        new DataLabVisitorFetchResult(java.util.List.of(), java.util.List.of(), false))
                 .withBean(DataLabVisitorRevisionWriter.class, () -> observations -> { })
                 .withUserConfiguration(InsightsConfiguration.class)
                 .run(context -> {

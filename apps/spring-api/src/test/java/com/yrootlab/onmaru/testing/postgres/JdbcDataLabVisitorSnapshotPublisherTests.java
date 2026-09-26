@@ -1,11 +1,12 @@
 package com.yrootlab.onmaru.testing.postgres;
 
-import com.yrootlab.onmaru.catalog.region.CatalogRegionSourceCode;
+import com.yrootlab.onmaru.catalog.region.DataLabRegionMapping;
+import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingStatus;
 import com.yrootlab.onmaru.insights.observation.ObservationCoverageStatus;
 import com.yrootlab.onmaru.insights.observation.ObservationMetric;
 import com.yrootlab.onmaru.insights.observation.SpatialLevel;
 import com.yrootlab.onmaru.insights.observation.VisitorObservation;
-import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogRegionSourceCodeLookup;
+import com.yrootlab.onmaru.persistence.catalog.JdbcDataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.persistence.insights.JdbcDataLabVisitorSnapshotPublisher;
 import com.yrootlab.onmaru.persistence.insights.JdbcVisitorObservationStore;
 import org.flywaydb.core.Flyway;
@@ -73,10 +74,16 @@ class JdbcDataLabVisitorSnapshotPublisherTests {
 
     @Test
     void resolvesOnlyActiveCurrentRegionSourceCodesForTheProviderAndDataset() {
-        var sourceCodes = new JdbcCatalogRegionSourceCodeLookup(dataSource)
-                .findCurrent("KTO_DATALAB", "visitor", LocalDate.parse("2026-09-26"));
+        var sourceCodes = new JdbcDataLabRegionMappingRegistry(dataSource)
+                .findCurrent(LocalDate.parse("2026-09-26"));
 
-        assertThat(sourceCodes).containsExactly(new CatalogRegionSourceCode("kr-45-jeonju", "SIGUNGU:52110"));
+        assertThat(sourceCodes).containsExactly(new DataLabRegionMapping(
+                "kr-45-jeonju", "SIGUNGU:52110", DataLabRegionMapping.Level.SIGUNGU, "전주시",
+                "https://www.data.go.kr/data/15101972/openapi.do",
+                Instant.parse("2026-09-26T00:00:00Z"),
+                "onmaru-catalog-data-verification",
+                Instant.parse("2026-09-26T00:00:00Z"),
+                DataLabRegionMappingStatus.ACTIVE));
     }
 
     @Test
@@ -119,33 +126,48 @@ class JdbcDataLabVisitorSnapshotPublisherTests {
 
     private void seedRegionsAndCurrentSourceCodes() throws Exception {
         UUID activeRegionId = UUID.randomUUID();
+        UUID parentRegionId = UUID.randomUUID();
         UUID inactiveRegionId = UUID.randomUUID();
         UUID unverifiedActiveRegionId = UUID.randomUUID();
         try (var connection = dataSource.getConnection();
              var region = connection.prepareStatement("""
-                     INSERT INTO onmaru.catalog_regions (id, code, name, level, active)
-                     VALUES (?, ?, ?, 'SIGUNGU', ?)
+                     INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                     VALUES (?, ?, ?, ?, ?::onmaru.catalog_region_level, ?)
                      """);
              var sourceCode = connection.prepareStatement("""
                      INSERT INTO onmaru.catalog_region_source_codes
                          (provider, dataset, source_code, valid_from, valid_to, region_id)
                      VALUES ('KTO_DATALAB', 'visitor', ?, ?, ?, ?)
                      """)) {
-            insertRegion(region, activeRegionId, "kr-45-jeonju", "전북 전주시", true);
-            insertRegion(region, inactiveRegionId, "kr-11-jongno", "서울 종로구", false);
-            insertRegion(region, unverifiedActiveRegionId, "kr-48-jinju", "경남 진주시", true);
+            insertRegion(region, parentRegionId, null, "kr-test-parent", "테스트 광역", "SIDO", true);
+            insertRegion(region, activeRegionId, parentRegionId, "kr-45-jeonju", "전북 전주시", "SIGUNGU", true);
+            insertRegion(region, inactiveRegionId, parentRegionId, "kr-11-jongno", "서울 종로구", "SIGUNGU", false);
+            insertRegion(region, unverifiedActiveRegionId, parentRegionId, "kr-48-jinju", "경남 진주시", "SIGUNGU", true);
             insertSourceCode(sourceCode, "expired", LocalDate.parse("2020-01-01"), LocalDate.parse("2026-09-24"), activeRegionId);
             insertSourceCode(sourceCode, "11110", LocalDate.parse("2020-01-01"), null, inactiveRegionId);
             insertSourceCode(sourceCode, "48170", LocalDate.parse("2020-01-01"), null, unverifiedActiveRegionId);
         }
     }
 
-    private void insertRegion(java.sql.PreparedStatement statement, UUID id, String code, String name, boolean active)
+    private void insertRegion(
+            java.sql.PreparedStatement statement,
+            UUID id,
+            UUID parentId,
+            String code,
+            String name,
+            String level,
+            boolean active)
             throws Exception {
         statement.setObject(1, id);
-        statement.setString(2, code);
-        statement.setString(3, name);
-        statement.setBoolean(4, active);
+        if (parentId == null) {
+            statement.setNull(2, java.sql.Types.OTHER);
+        } else {
+            statement.setObject(2, parentId);
+        }
+        statement.setString(3, code);
+        statement.setString(4, name);
+        statement.setString(5, level);
+        statement.setBoolean(6, active);
         statement.executeUpdate();
     }
 

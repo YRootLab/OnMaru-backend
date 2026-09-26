@@ -1,8 +1,5 @@
 package com.yrootlab.onmaru.insights.ingestion;
 
-import com.yrootlab.onmaru.insights.observation.VisitorObservation;
-
-import java.util.List;
 import java.util.Objects;
 
 /** Coordinates fetch-before-replace so a failed fetch never changes the active revision. */
@@ -19,7 +16,9 @@ public final class DataLabVisitorIngestionService {
     }
 
     public void sync() {
-        List<VisitorObservation> observations = List.copyOf(source.fetchDailyVisitorObservations());
-        revisionWriter.replaceActive(observations);
+        DataLabVisitorFetchResult result = source.fetchDailyVisitorObservations();
+        if (result.publishable()) {
+            revisionWriter.replaceActive(result.observations());
+        }
     }
 }

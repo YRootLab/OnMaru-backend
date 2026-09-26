@@ -1,7 +1,7 @@
 package com.yrootlab.onmaru.web.insights;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yrootlab.onmaru.catalog.region.CatalogRegionSourceCodeLookup;
+import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorIngestionService;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorRevisionWriter;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorSource;
@@ -11,7 +11,7 @@ import com.yrootlab.onmaru.insights.query.InMemoryInsightsQueryStore;
 import com.yrootlab.onmaru.insights.query.InsightsQueryService;
 import com.yrootlab.onmaru.insights.query.Observation;
 import com.yrootlab.onmaru.insights.query.RegionRef;
-import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogRegionSourceCodeLookup;
+import com.yrootlab.onmaru.persistence.catalog.JdbcDataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.persistence.insights.JdbcDataLabVisitorSnapshotPublisher;
 import com.yrootlab.onmaru.persistence.insights.JdbcInsightsQueryStore;
 import com.yrootlab.onmaru.tourism.insights.DataLabClientProperties;
@@ -96,9 +96,9 @@ class InsightsConfiguration {
     @Bean
     @Profile("production")
     @ConditionalOnBean(DataSource.class)
-    @ConditionalOnMissingBean(CatalogRegionSourceCodeLookup.class)
-    CatalogRegionSourceCodeLookup catalogRegionSourceCodeLookup(DataSource dataSource) {
-        return new JdbcCatalogRegionSourceCodeLookup(dataSource);
+    @ConditionalOnMissingBean(DataLabRegionMappingRegistry.class)
+    DataLabRegionMappingRegistry dataLabRegionMappingRegistry(DataSource dataSource) {
+        return new JdbcDataLabRegionMappingRegistry(dataSource);
     }
 
     @Bean
@@ -115,10 +115,10 @@ class InsightsConfiguration {
     @ConditionalOnMissingBean(DataLabVisitorSource.class)
     DataLabVisitorSource dataLabVisitorSource(
             DataLabVisitorClient client,
-            CatalogRegionSourceCodeLookup regionSourceCodes,
+            DataLabRegionMappingRegistry regionMappings,
             Clock clock,
             DataLabVisitorSettings settings) {
-        return new DataLabVisitorSourceAdapter(client, regionSourceCodes, clock, settings.pageSize());
+        return new DataLabVisitorSourceAdapter(client, regionMappings, clock, settings.pageSize());
     }
 
     @ConfigurationProperties(prefix = "onmaru.datalab.visitor")

@@ -20,7 +20,8 @@ class DataLabVisitorIngestionServiceTests {
     void persistsTheFetchedDailyObservationBatch() {
         var fetched = List.of(complete("kr-45-jeonju", 18_240L));
         var writer = new FakeRevisionWriter(List.of());
-        var service = new DataLabVisitorIngestionService(() -> fetched, writer);
+        var service = new DataLabVisitorIngestionService(
+                () -> new DataLabVisitorFetchResult(fetched, List.of(), false), writer);
 
         service.sync();
 
