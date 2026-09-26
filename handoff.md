@@ -1,6 +1,13 @@
 # handoff.md
 
 ## 현재 작업: #307 / #382
+- **Date**: 2026-09-26 CI Toolkit shadow rollout v0.3.22 release
+- **Branch**: `feature/396-release-0-3-22` (`release/0.3.22`은 생성 시점 required-check ruleset 때문에 push 불가)
+- **Related Issues**: #396 release, #368 baseline artifact, 이후 #364 → #366
+- **Scope**: 검증된 `develop` SHA `b74fe8753d79e89ca5ec2f344ef8091d24cab0e8`을 `master`에 승격해 staging 배포하고, 기본 브랜치에 baseline collector를 등록한다.
+- **Verified Before PR**: 전체 Node 106/106, `git diff --check`, release branch가 대상 develop SHA를 포함함을 확인했다. #394 PR/develop run과 동일 SHA workflow dispatch 3회에서 module 12/12 및 artifact 13/13 성공을 확인했다.
+- **Next**: release PR required `verify` 통과 후 병합한다. master `CI`, `Staging Deploy`, `Release Please`를 확인하고, 성공 시 collector를 run `36159816646`, `36160594916`, `36161322635`로 dispatch한다.
+- **Open Risk**: Release Please의 Actions PR 생성 권한 제한은 기존 운영 위험이다. staging build/deploy/health check 또는 collector가 실패하면 release를 성공으로 간주하지 않는다.
 
 - **기준일**: 2026-09-27
 - **브랜치**: `fix/307-odii-production-jdbc-store`
