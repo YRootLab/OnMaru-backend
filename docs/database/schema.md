@@ -20,6 +20,33 @@
 // resource_id, reason unique index로 replay-safe 삭제 기록을 남기고,
 // identity_deletion_ledger가 REQUESTED/COMPLETED인 member의 saved resource와
 // saved journey write는 trigger에서 거절한다.
+// VisitReview의 최신 실행 스키마는 V007, V018, V021 Flyway migration을 기준으로 한다.
+// community_visit_reviews의 mood(varchar, nullable), score(smallint, nullable),
+// tags(jsonb array, 기본 [])는 지도 온기 후기 표시에 사용한다. mood는 북적/한적,
+// score는 1..5로 DB와 애플리케이션 경계에서 검증한다.
+// visitorCount는 V023 이후 활성 `kto-datalab-visitor` revision의 최신 COMPLETE
+// 지역 관측값을 조회해 제공한다. 원천 결측은 0이 아니라 null이며 후기 자체에는
+// 중복 저장하지 않는다.
+// V024 이후 DataLab 지역 호출에 쓰는 catalog_region_source_codes row는
+// catalog_region_source_code_verifications의 공식 HTTPS 근거, 검증 시각, 검증자를
+// 반드시 가져야 한다. 미검증 code는 JDBC lookup에서 제외한다.
+// V025는 공식 DataLab 지역별 방문자 수_GW의 전국 응답과 v4.1 활용 매뉴얼을 근거로
+// 내부 법정동 코드와 다른 DataLab 코드(`SIDO:11`, `SIDO:52`, `SIGUNGU:11110`,
+// `SIGUNGU:52110`)를 활성 Catalog 지역에 등록한다. Catalog 행이 Flyway 이후 적재되어도
+// trigger가 mapping과 공식 검증 이력을 같은 DB에 기록한다.
+// 스크린 한옥의 최신 게시 snapshot은 V019 Flyway migration을 기준으로 한다.
+// catalog_screen_hanok_placements는 FastAPI 리서치 결과 중 출처 URL이 있는 항목만
+// 저장하며, 전체 snapshot 교체 transaction으로 마지막 검증된 게시본을 보존한다.
+// Catalog의 FE 공개 장소 ID는 V020 Flyway migration을 기준으로 한다.
+// catalog_place_public_ids는 public_id(p-lowercase-kebab-case)와 catalog_place_identity UUID를
+// 각각 PK/UNIQUE로 묶는다. 같은 pair의 재시도만 허용하며, Community는 이 mapping을 생성하거나
+// 변경하지 않고 Catalog가 만든 mapping을 조회해서 VisitReview의 작성 시점 장소 snapshot에 사용한다.
+// V021은 community_visit_reviews에 public_place_id, place_name, region_code, latitude, longitude를
+// nullable migration으로 추가한다. 기존 row와의 호환을 위해 nullable로 도입하되 JDBC 신규 write는
+// active·visit_review_eligible Catalog version을 조회한 뒤 모든 snapshot 필드를 채운다.
+// V026은 V021 이전 VisitReview에 결정적 p-legacy-* 공개 ID를 등록하고 가능한 최신
+// published Catalog version의 장소명·지역·좌표 snapshot을 backfill해 JDBC 전환 시
+// 기존 후기가 조회에서 사라지지 않게 한다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

@@ -9,10 +9,10 @@ public final class InsightsQueryService {
 
     private static final String SCHEMA_VERSION = "1.2";
 
-    private final InMemoryInsightsQueryStore store;
+    private final InsightsQueryStore store;
     private final Clock clock;
 
-    public InsightsQueryService(InMemoryInsightsQueryStore store, Clock clock) {
+    public InsightsQueryService(InsightsQueryStore store, Clock clock) {
         this.store = store;
         this.clock = clock;
     }

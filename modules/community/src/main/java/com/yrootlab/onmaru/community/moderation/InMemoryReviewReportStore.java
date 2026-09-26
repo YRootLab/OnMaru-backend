@@ -6,12 +6,12 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
-public final class InMemoryReviewReportStore {
+public final class InMemoryReviewReportStore implements ReviewReportStore {
 
     private final List<ReviewReport> reports = new CopyOnWriteArrayList<>();
     private final List<ModerationAction> auditLog = new CopyOnWriteArrayList<>();
 
-    synchronized <T> T executeAtomically(Supplier<T> operation) {
+    public synchronized <T> T executeAtomically(Supplier<T> operation) {
         return operation.get();
     }
 

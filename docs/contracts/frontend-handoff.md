@@ -186,14 +186,14 @@ FE 동작은 다음 정책을 따른다.
 
 | Method/path | 인증 | 요청 | 성공 |
 |---|---|---|---|
-| `POST /api/v1/places/{placeId}/visit-reviews` | 회원+CSRF | `{text}` | `201 VisitReview` |
+| `POST /api/v1/places/{placeId}/visit-reviews` | 회원+CSRF | `{text,mood?,score?,tags?}` | `201 VisitReview` |
 | `DELETE /api/v1/visit-reviews/{id}` | 작성자 | body 없음 | `204` |
 | `POST /api/v1/visit-reviews/{id}/reports` | 회원+CSRF | `{reason,detail?}` | `202 {reportId,status}`; 본인 후기 신고는 403 |
 | `GET /api/v1/places/{placeId}/visit-reviews` | 공개 | limit,cursor | 장소별 후기 목록 |
 | `PUT /api/v1/visit-reviews/{id}/likes/me` | 회원+CSRF | body 없음 | `{likedByMe:true,likeCount}` |
 | `DELETE /api/v1/visit-reviews/{id}/likes/me` | 회원+CSRF | body 없음 | `{likedByMe:false,likeCount}` |
 
-후기 text는 NFC/trim 후 1..300 code points, 개행 최대 4개다. HTML 실행, URL 미리보기, 별점, mood, visitorCount는 없다. `mine`과 `likedByMe`는 서버 principal로 계산한다.
+후기 text는 NFC/trim 후 1..300 code points, 개행 최대 4개다. `mood`는 `북적` 또는 `한적`, `score`는 1..5, `tags`는 최대 5개·각 20 code points이며 모두 선택값이다. HTML 실행과 URL 미리보기는 없다. `visitorCount`는 활성 DataLab revision의 최신 지역 일 관측값이며 결측이면 `null`이다. `mine`과 `likedByMe`는 서버 principal로 계산한다.
 
 좋아요는 toggle API가 아니라 원하는 상태를 보내는 PUT/DELETE다. FE는 후기별 좋아요 요청을 직렬화하고 실패하면 optimistic UI를 이전 값으로 되돌린다. 본인 후기 좋아요는 403이다.
 

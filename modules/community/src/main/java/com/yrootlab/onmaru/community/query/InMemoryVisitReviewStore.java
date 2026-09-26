@@ -6,7 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
-public final class InMemoryVisitReviewStore implements VisitReviewStore {
+public final class InMemoryVisitReviewStore implements MutableVisitReviewStore {
 
     private final List<VisitReviewProjection> reviews = new CopyOnWriteArrayList<>();
     private volatile boolean unavailable;

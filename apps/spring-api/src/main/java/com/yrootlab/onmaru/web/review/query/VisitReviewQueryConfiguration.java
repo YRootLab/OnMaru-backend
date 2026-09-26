@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.web.review.query;
 
+import com.yrootlab.onmaru.catalog.publicid.CatalogPublicPlaceIdStore;
 import com.yrootlab.onmaru.community.command.review.ReviewIdGenerator;
 import com.yrootlab.onmaru.community.command.review.VisitReviewCommandService;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlace;
@@ -8,16 +9,30 @@ import com.yrootlab.onmaru.community.like.VisitReviewLikeService;
 import com.yrootlab.onmaru.community.moderation.InMemoryReviewReportStore;
 import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
 import com.yrootlab.onmaru.community.moderation.ReviewReportIdGenerator;
+import com.yrootlab.onmaru.community.moderation.ReviewReportStore;
 import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
+import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
+import com.yrootlab.onmaru.community.query.RegionVisitorCountLookup;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewQueryService;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
 import com.yrootlab.onmaru.web.common.idempotency.InMemoryIdempotencyStore;
+import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPublicPlaceIdStore;
+import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewPlaceLookup;
+import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewStore;
+import com.yrootlab.onmaru.persistence.community.JdbcReviewReportStore;
+import com.yrootlab.onmaru.persistence.web.JdbcIdempotencyStore;
+import com.yrootlab.onmaru.persistence.insights.JdbcVisitorObservationStore;
+import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
+import javax.sql.DataSource;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -29,6 +44,7 @@ import java.util.concurrent.atomic.AtomicLong;
 class VisitReviewQueryConfiguration {
 
     @Bean
+    @Profile("!production")
     InMemoryVisitReviewStore visitReviewStore() {
         var store = new InMemoryVisitReviewStore();
         var memberId = UUID.fromString("4de5c657-a606-4f37-93d4-0be9b7544712");
@@ -43,24 +59,75 @@ class VisitReviewQueryConfiguration {
     }
 
     @Bean
-    VisitReviewQueryService visitReviewQueryService(InMemoryVisitReviewStore store, Clock clock) {
-        return new VisitReviewQueryService(store, clock);
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    JdbcTransactionRunner jdbcTransactionRunner(DataSource dataSource) {
+        return new JdbcTransactionRunner(dataSource);
     }
 
     @Bean
-    VisitReviewLikeService visitReviewLikeService(InMemoryVisitReviewStore store) {
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnMissingBean(CatalogPublicPlaceIdStore.class)
+    CatalogPublicPlaceIdStore catalogPublicPlaceIdStore(DataSource dataSource) {
+        return new JdbcCatalogPublicPlaceIdStore(dataSource);
+    }
+
+    @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnMissingBean(MutableVisitReviewStore.class)
+    MutableVisitReviewStore jdbcVisitReviewStore(
+            DataSource dataSource,
+            CatalogPublicPlaceIdStore catalogPublicPlaceIdStore,
+            JdbcTransactionRunner jdbcTransactionRunner) {
+        return new JdbcVisitReviewStore(dataSource, catalogPublicPlaceIdStore, jdbcTransactionRunner);
+    }
+
+    @Bean
+    VisitReviewQueryService visitReviewQueryService(
+            MutableVisitReviewStore store,
+            RegionVisitorCountLookup visitorCountLookup,
+            Clock clock) {
+        return new VisitReviewQueryService(store, visitorCountLookup, clock);
+    }
+
+    @Bean
+    @Profile("!production")
+    RegionVisitorCountLookup emptyRegionVisitorCountLookup() {
+        return ignored -> java.util.Map.of();
+    }
+
+    @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    RegionVisitorCountLookup jdbcRegionVisitorCountLookup(DataSource dataSource) {
+        return new JdbcVisitorObservationStore(dataSource);
+    }
+
+    @Bean
+    VisitReviewLikeService visitReviewLikeService(MutableVisitReviewStore store) {
         return new VisitReviewLikeService(store);
     }
 
     @Bean
+    @Profile("!production")
     InMemoryReviewReportStore reviewReportStore() {
         return new InMemoryReviewReportStore();
     }
 
     @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    ReviewReportStore jdbcReviewReportStore(
+            DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
+        return new JdbcReviewReportStore(dataSource, jdbcTransactionRunner);
+    }
+
+    @Bean
     VisitReviewModerationService visitReviewModerationService(
-            InMemoryVisitReviewStore reviewStore,
-            InMemoryReviewReportStore reportStore,
+            MutableVisitReviewStore reviewStore,
+            ReviewReportStore reportStore,
             Clock clock) {
         return new VisitReviewModerationService(
                 reviewStore,
@@ -72,15 +139,15 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     ModerationQueueService moderationQueueService(
-            InMemoryVisitReviewStore reviewStore,
-            InMemoryReviewReportStore reportStore,
+            MutableVisitReviewStore reviewStore,
+            ReviewReportStore reportStore,
             Clock clock) {
         return new ModerationQueueService(reviewStore, reportStore, clock);
     }
 
     @Bean
     VisitReviewCommandService visitReviewCommandService(
-            InMemoryVisitReviewStore store,
+            MutableVisitReviewStore store,
             VisitReviewPlaceLookup placeLookup,
             ReviewIdGenerator reviewIdGenerator,
             Clock clock) {
@@ -88,6 +155,7 @@ class VisitReviewQueryConfiguration {
     }
 
     @Bean
+    @Profile("!production")
     VisitReviewPlaceLookup visitReviewPlaceLookup() {
         return placeId -> switch (placeId) {
             case "p-jeonju-hanok-village" -> Optional.of(new VisitReviewPlace(
@@ -107,6 +175,13 @@ class VisitReviewQueryConfiguration {
     }
 
     @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    VisitReviewPlaceLookup jdbcVisitReviewPlaceLookup(DataSource dataSource) {
+        return new JdbcVisitReviewPlaceLookup(dataSource);
+    }
+
+    @Bean
     ReviewIdGenerator reviewIdGenerator() {
         var sequence = new AtomicLong();
         return () -> new UUID(0, sequence.incrementAndGet());
@@ -118,8 +193,17 @@ class VisitReviewQueryConfiguration {
     }
 
     @Bean
+    @Profile("!production")
     IdempotencyService idempotencyService(Clock clock) {
         return new IdempotencyService(new InMemoryIdempotencyStore(), clock);
+    }
+
+    @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    IdempotencyService jdbcIdempotencyService(
+            DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner, Clock clock) {
+        return new IdempotencyService(new JdbcIdempotencyStore(dataSource, jdbcTransactionRunner), clock);
     }
 
     private VisitReviewProjection review(
@@ -142,4 +226,5 @@ class VisitReviewQueryConfiguration {
                 Set.of(likedBy),
                 VisitReviewStatus.PUBLISHED);
     }
+
 }
