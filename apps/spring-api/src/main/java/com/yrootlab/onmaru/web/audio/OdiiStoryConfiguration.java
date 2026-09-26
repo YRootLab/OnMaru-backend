@@ -56,6 +56,7 @@ public class OdiiStoryConfiguration {
     }
 
     @Bean
+    @Profile("!production")
     @ConditionalOnMissingBean(AudioRevisionStore.class)
     AudioRevisionStore odiiAudioRevisionStore(OdiiStorySettings settings) {
         var revisionId = UUID.nameUUIDFromBytes(
@@ -71,21 +72,10 @@ public class OdiiStoryConfiguration {
 
     @Bean
     OdiiStoryQueryStore odiiStoryQueryStore(
-            ObjectProvider<AudioRevisionStore> revisionStoreProvider,
+            AudioRevisionStore revisionStore,
             OdiiStorySettings settings,
             OdiiProjectionMetadataResolver metadataResolver,
             ObjectProvider<OdiiStoryQueryObserver> queryObservers) {
-        var revisionStore = revisionStoreProvider.getIfAvailable(() -> {
-            var revisionId = UUID.nameUUIDFromBytes(
-                    (settings.dataset() + ":bootstrap").getBytes(StandardCharsets.UTF_8));
-            return new InMemoryAudioRevisionStore(
-                    settings.dataset(),
-                    revisionId,
-                    AudioRevisionSnapshot.empty(),
-                    new SourceWatermark("bootstrap", "bootstrap", Instant.EPOCH),
-                    "odii-bootstrap",
-                    0);
-        });
         var store = new ActiveRevisionOdiiStoryQueryStore(
                 revisionStore,
                 settings.dataset(),
