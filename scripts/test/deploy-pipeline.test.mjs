@@ -70,6 +70,11 @@ describe('container and staging release pipeline', () => {
     assert.match(workflow, /concurrency:/);
     assert.match(workflow, /docker\/build-push-action@v6/);
     assert.match(workflow, /aquasecurity\/trivy-action@v0\.36\.0/);
+    assert.equal(
+      workflow.match(/limit-severities-for-sarif:\s+true/g)?.length,
+      2,
+      'both SARIF scans must limit the deploy gate to configured severities',
+    );
     assert.match(workflow, /Dockerfile/);
     assert.match(workflow, /ai\/Dockerfile/);
     assert.match(workflow, /migration-gate:/);
