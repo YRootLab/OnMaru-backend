@@ -29,6 +29,9 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -144,6 +147,39 @@ class JdbcStampStoreTests {
             }
         }
         assertThat(count("onmaru.stamp_check_ins")).isEqualTo(30);
+    }
+
+    @Test
+    void serializesConcurrentMemberCheckInsAndAwardsRegionalStampOnce() throws Exception {
+        var firstPlace = UUID.randomUUID();
+        var secondPlace = UUID.randomUUID();
+        seedPlaceIdentity(firstPlace);
+        seedPlaceIdentity(secondPlace);
+        var store = new JdbcStampStore(dataSource);
+        var start = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var first = executor.submit(() -> {
+                await(start);
+                return store.record(memberId,
+                        new VerifiedPlace(firstPlace, "p-concurrent-1", "kr-11-jongno", 10), NOW, 10);
+            });
+            var second = executor.submit(() -> {
+                await(start);
+                return store.record(memberId,
+                        new VerifiedPlace(secondPlace, "p-concurrent-2", "kr-11-jongno", 10), NOW, 10);
+            });
+            start.countDown();
+
+            var awardCount = first.get(10, TimeUnit.SECONDS).newAwards().size()
+                    + second.get(10, TimeUnit.SECONDS).newAwards().size();
+            assertThat(awardCount).isEqualTo(1);
+            assertThat(count("onmaru.stamp_check_ins")).isEqualTo(2);
+            assertThat(count("onmaru.stamp_awards")).isOne();
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -316,6 +352,15 @@ class JdbcStampStoreTests {
              var result = statement.executeQuery()) {
             result.next();
             return result.getLong(1);
+        }
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(exception);
         }
     }
 
