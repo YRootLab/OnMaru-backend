@@ -141,6 +141,52 @@ def collect_openapi_contracts(root: Path) -> list[dict[str, Any]]:
     return contracts
 
 
+def validate_required_openapi_contracts(root: Path) -> None:
+    manifest = root / "docs/contracts/required-openapi-files.txt"
+    if not manifest.exists():
+        return
+    directory = root / "docs/contracts/openapi"
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        name = line.strip()
+        if not name or name.startswith("#"):
+            continue
+        path = directory / name
+        if not path.is_file():
+            fail(f"required OpenAPI contract is missing: docs/contracts/openapi/{name}")
+        if name == "hanok-stamps.openapi.yaml":
+            validate_stamp_openapi(path, root)
+
+
+def validate_stamp_openapi(path: Path, root: Path) -> None:
+    document = load_document(path)
+    if not isinstance(document, dict):
+        fail(f"{path.relative_to(root)} must contain an OpenAPI object")
+    required_operations = {
+        "/stamps": {"get": {"200"}},
+        "/me/stamp-book": {"get": {"200", "401", "503"}},
+        "/places/{placeId}/check-ins": {
+            "post": {"200", "201", "400", "401", "403", "404", "409", "422", "429", "503"}
+        },
+    }
+    paths = document.get("paths", {})
+    for route, operations in required_operations.items():
+        path_item = paths.get(route) if isinstance(paths, dict) else None
+        if not isinstance(path_item, dict):
+            fail(f"{path.relative_to(root)} is missing required path {route}")
+        for method, statuses in operations.items():
+            operation = path_item.get(method)
+            if not isinstance(operation, dict):
+                fail(f"{path.relative_to(root)} is missing operation {method.upper()} {route}")
+            responses = operation.get("responses", {})
+            missing = statuses - set(responses) if isinstance(responses, dict) else statuses
+            if missing:
+                fail(f"{path.relative_to(root)} {method.upper()} {route} is missing responses {sorted(missing)}")
+    schemas = document.get("components", {}).get("schemas", {})
+    for name in ("StampCatalogResponse", "StampBookResponse", "CheckInRequest", "CheckInResponse", "ApiError"):
+        if not isinstance(schemas, dict) or name not in schemas:
+            fail(f"{path.relative_to(root)} is missing schema {name}")
+
+
 def validate_standalone_json_schemas(root: Path, schemas: dict[str, Any]) -> None:
     for path in iter_contract_files(root, "docs/contracts/schemas", (".json",)):
         document = load_document(path)
@@ -280,6 +326,7 @@ def validate_fixtures(
 
 
 def validate_contracts(root: Path) -> None:
+    validate_required_openapi_contracts(root)
     contracts = collect_openapi_contracts(root)
     standalone_schemas: dict[str, Any] = {}
     validate_standalone_json_schemas(root, standalone_schemas)

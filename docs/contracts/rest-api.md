@@ -8,6 +8,12 @@ POST/PUT body 최대 16KiB, query trim+NFC 후 1..1000 code points. 인증/소�
 
 오류 형식은 `{schemaVersion:"1.2",code,message,requestId,details:{...}}`; message는 진단용 plain text이며 FE는 code로 문구를 결정한다. 400 VALIDATION_ERROR/CURSOR_INVALID, 401 AUTH_REQUIRED, 403 CSRF_INVALID, 404 NOT_FOUND, 409 VERSION_CONFLICT/ACTIVE_RUN/PINNED_REF/IDEMPOTENCY_CONFLICT/PROPOSAL_EXPIRED/SAVE_LIMIT, 410 CURSOR_EXPIRED, 413 PAYLOAD_TOO_LARGE, 422 JOURNEY_SCOPE_UNSUPPORTED/PRIVACY_REDACT_REQUIRED/SAFETY_BLOCKED, 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE를 구분한다. 일일 AI quota가 없거나 provider가 실패해도 후보가 있으면 `AI_QUOTA_EXCEEDED`는 내부 degraded reason으로만 기록하고 같은 run을 BASELINE으로 완료한다. 422 입력 거절은 exploration run이나 원문 turn을 만들지 않는다. 429는 초 단위 Retry-After, details.retryAfterMs를 함께 준다. 알려진 비동기 run 실패는 SSE terminal event와 GET snapshot 모두에서 같은 error code를 보이며, SSE 연결 자체 실패는 GET 실패와 구분한다. 여정 AI의 intake와 provider 경계는 [AI guardrail·adapter harness](../ai/journey-guardrails.md)를 따른다.
 
+## 한옥 수결첩: 로그인 회원의 위치 체크인
+
+수결 정의는 `GET /stamps`에서 공개 조회하고, 개인 획득 상태는 로그인 후 `GET /me/stamp-book`에서만 조회한다. `POST /places/{placeId}/check-ins`는 세션, CSRF, UUID `Idempotency-Key`, 브라우저 위치가 모두 필요하다. 새 체크인은 201, 같은 회원·장소·UTC 15분 구간의 반복 체크인은 200이며 기존 row를 반환한다.
+
+서버는 active Catalog의 한옥 계열 장소에 대해서만 PostGIS 거리를 계산한다. 위치 정확도는 100m 이하여야 하며 성공 조건은 `distanceMeters - accuracyMeters <= 200`이다. 요청한 위도·경도 원문은 DB나 응답에 남기지 않는다. 개인 응답은 `no-store`이고, KST 하루 성공 체크인은 회원당 30회로 제한한다. 422는 `LOCATION_ACCURACY_TOO_LOW` 또는 `OUTSIDE_CHECK_IN_RADIUS`, 429는 `CHECK_IN_RATE_LIMITED`, 의존 서비스 장애는 503 `SERVICE_UNAVAILABLE`다. 기계 판독 계약과 상세 DTO는 [한옥 수결첩 OpenAPI](openapi/hanok-stamps.openapi.yaml)를 기준으로 한다.
+
 ## 지도와 후기: 1.2 단일 계약
 
 지도 게시글은 `VisitReview` 장소 방문 짧은 후기다. FE의 `visited`, “지도 게시글”, “온기 후기”는 모두 같은 VisitReview 모델을 뜻하며 별도 리소스가 아니다. 현재 지도에서는 행정구역 집계를 탐색하고, 사용자가 지역을 명시적으로 선택한 뒤에만 후기 본문을 읽는다. 지도 drag/zoom, 반경, viewport는 서버 본문 조회를 만들지 않는다.

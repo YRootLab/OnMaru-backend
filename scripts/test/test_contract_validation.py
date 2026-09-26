@@ -130,6 +130,16 @@ def test_contract_validator_accepts_valid_contract_tree(tmp_path: Path) -> None:
     validator.validate_contracts(root)
 
 
+def test_contract_validator_requires_manifested_stamp_openapi(tmp_path: Path) -> None:
+    validator = load_validator()
+    root = create_contract_tree(tmp_path)
+    manifest = root / "docs/contracts/required-openapi-files.txt"
+    manifest.write_text("hanok-stamps.openapi.yaml\n", encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="required OpenAPI contract is missing"):
+        validator.validate_contracts(root)
+
+
 def test_contract_validator_rejects_fixture_body_that_does_not_match_schema(tmp_path: Path) -> None:
     validator = load_validator()
     root = create_contract_tree(tmp_path)

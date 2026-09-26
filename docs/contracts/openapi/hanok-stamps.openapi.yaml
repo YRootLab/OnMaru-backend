@@ -1,0 +1,238 @@
+openapi: 3.1.0
+info:
+  title: OnMaru 한옥 수결첩 API
+  version: 1.2.0
+  description: 로그인 회원의 위치 기반 한옥 체크인과 수결 획득 계약입니다. 요청 좌표 원문은 저장하거나 응답하지 않습니다.
+servers:
+  - url: /api/v1
+tags:
+  - name: Stamp
+paths:
+  /stamps:
+    get:
+      tags: [Stamp]
+      operationId: listStamps
+      summary: 활성 수결 카탈로그 조회
+      responses:
+        '200':
+          description: sortOrder 순 수결 정의
+          headers:
+            Cache-Control:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StampCatalogResponse'}
+  /me/stamp-book:
+    get:
+      tags: [Stamp]
+      operationId: getMyStampBook
+      summary: 현재 로그인 회원의 수결첩 조회
+      security: [{memberSession: []}]
+      responses:
+        '200':
+          description: 개인 수결첩
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StampBookResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /places/{placeId}/check-ins:
+    post:
+      tags: [Stamp]
+      operationId: checkInPlace
+      summary: 현재 브라우저 위치로 한옥 장소 체크인
+      security: [{memberSession: []}]
+      parameters:
+        - name: placeId
+          in: path
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 160}
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CheckInRequest'}
+      responses:
+        '200':
+          description: 같은 회원·장소·15분 구간의 기존 체크인
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckInResponse'}
+        '201':
+          description: 새 체크인과 새로 획득한 수결
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+            Location:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckInResponse'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '429':
+          description: KST 하루 성공 체크인 30회 초과
+          headers:
+            Retry-After:
+              schema: {type: integer, minimum: 1}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
+        '503': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    memberSession:
+      type: apiKey
+      in: cookie
+      name: __Host-onmaru-session
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, format: uuid}
+    CsrfToken:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      schema: {type: string, minLength: 1}
+  responses:
+    Error:
+      description: 표준 API 오류
+      headers:
+        Cache-Control:
+          schema: {type: string, const: no-store}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+  schemas:
+    StampCatalogResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, stamps]
+      properties:
+        schemaVersion: {type: string, const: '1.2'}
+        stamps:
+          type: array
+          items: {$ref: '#/components/schemas/StampDefinition'}
+    StampBookResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, summary, stamps]
+      properties:
+        schemaVersion: {type: string, const: '1.2'}
+        summary: {$ref: '#/components/schemas/StampBookSummary'}
+        stamps:
+          type: array
+          items: {$ref: '#/components/schemas/StampBookItem'}
+    CheckInRequest:
+      type: object
+      additionalProperties: false
+      required: [latitude, longitude, accuracyMeters]
+      properties:
+        latitude: {type: number, minimum: -90, maximum: 90}
+        longitude: {type: number, minimum: -180, maximum: 180}
+        accuracyMeters: {type: number, exclusiveMinimum: 0}
+    CheckInResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, checkIn, newAwards, summary]
+      properties:
+        schemaVersion: {type: string, const: '1.2'}
+        checkIn: {$ref: '#/components/schemas/CheckIn'}
+        newAwards:
+          type: array
+          items: {$ref: '#/components/schemas/StampAward'}
+        summary: {$ref: '#/components/schemas/StampBookSummary'}
+    StampDefinition:
+      type: object
+      additionalProperties: false
+      required: [code, name, description, conditionLabel, sealText, iconName, color, rarity, conditionType, sortOrder]
+      properties:
+        code: {type: string}
+        name: {type: string}
+        description: {type: string}
+        conditionLabel: {type: string}
+        sealText: {type: string}
+        iconName: {type: string}
+        color: {type: string, pattern: '^#[0-9a-fA-F]{6}$'}
+        rarity: {$ref: '#/components/schemas/StampRarity'}
+        conditionType: {type: string, enum: [REGION_VISIT, NIGHT_VISIT, REGION_COUNT]}
+        requiredCount: {type: [integer, 'null'], minimum: 1}
+        regionGroup: {type: [string, 'null']}
+        sortOrder: {type: integer, minimum: 1}
+    StampBookItem:
+      type: object
+      additionalProperties: false
+      required: [code, name, rarity, conditionLabel, description, sealText, iconName, color, sortOrder, collected]
+      properties:
+        code: {type: string}
+        name: {type: string}
+        rarity: {$ref: '#/components/schemas/StampRarity'}
+        regionGroup: {type: [string, 'null']}
+        conditionLabel: {type: string}
+        description: {type: string}
+        sealText: {type: string}
+        iconName: {type: string}
+        color: {type: string}
+        sortOrder: {type: integer}
+        collected: {type: boolean}
+        collectedAt: {type: [string, 'null'], format: date-time}
+        triggerPlaceId: {type: [string, 'null']}
+    StampBookSummary:
+      type: object
+      additionalProperties: false
+      required: [collectedCount, totalCount, visitedRegionCount, requiredRegionCount, completionRate]
+      properties:
+        collectedCount: {type: integer, minimum: 0}
+        totalCount: {type: integer, minimum: 0}
+        visitedRegionCount: {type: integer, minimum: 0}
+        requiredRegionCount: {type: integer, minimum: 0}
+        completionRate: {type: integer, minimum: 0, maximum: 100}
+    CheckIn:
+      type: object
+      additionalProperties: false
+      required: [id, placeId, checkedInAt, distanceMeters, alreadyCheckedIn]
+      properties:
+        id: {type: string, format: uuid}
+        placeId: {type: string}
+        checkedInAt: {type: string, format: date-time}
+        distanceMeters: {type: integer, minimum: 0}
+        alreadyCheckedIn: {type: boolean}
+    StampAward:
+      type: object
+      additionalProperties: false
+      required: [code, name, sealText, rarity, collectedAt]
+      properties:
+        code: {type: string}
+        name: {type: string}
+        sealText: {type: string}
+        rarity: {$ref: '#/components/schemas/StampRarity'}
+        collectedAt: {type: string, format: date-time}
+    StampRarity:
+      type: string
+      enum: [COMMON, REGIONAL, RARE, LEGENDARY]
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, code, message, requestId, details]
+      properties:
+        schemaVersion: {type: string, const: '1.2'}
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, AUTH_REQUIRED, CSRF_INVALID, NOT_FOUND, IDEMPOTENCY_CONFLICT, LOCATION_ACCURACY_TOO_LOW, OUTSIDE_CHECK_IN_RADIUS, CHECK_IN_RATE_LIMITED, SERVICE_UNAVAILABLE]
+        message: {type: string}
+        requestId: {type: string}
+        details: {type: object, additionalProperties: true}
