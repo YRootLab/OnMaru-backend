@@ -119,6 +119,7 @@ CREATE TABLE "identity_oauth_states" (
   "state_hash" varchar PRIMARY KEY,
   "guest_id" uuid,
   "browser_nonce_hash" varchar NOT NULL,
+  "pkce_verifier_hash" varchar NOT NULL,
   "exploration_id" uuid,
   "provider" varchar NOT NULL,
   "return_path" varchar NOT NULL,
@@ -730,6 +731,7 @@ CREATE TABLE "ai_corpus_sync_runs" (
   "finished_at" timestamptz,
   "error_code" varchar
 );
+
 
 
 
