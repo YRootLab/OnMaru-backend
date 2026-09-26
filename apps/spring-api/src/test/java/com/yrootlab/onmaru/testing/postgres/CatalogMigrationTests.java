@@ -203,6 +203,24 @@ class CatalogMigrationTests {
                       AND verified_by = 'onmaru-catalog-data-verification'
                       AND verified_at = TIMESTAMPTZ '2026-09-26 09:00:00+09'
                     """)).isEqualTo(4);
+
+            assertThatThrownBy(() -> statement.execute("""
+                    UPDATE onmaru.catalog_region_source_code_verifications
+                    SET verified_by = 'tampered-operator'
+                    WHERE provider = 'KTO_DATALAB' AND dataset = 'visitor' AND source_code = 'SIDO:11'
+                    """))
+                    .hasMessageContaining("DataLab registry source or verification drift detected");
+            assertThatThrownBy(() -> statement.execute("""
+                    DELETE FROM onmaru.catalog_region_source_code_verifications
+                    WHERE provider = 'KTO_DATALAB' AND dataset = 'visitor' AND source_code = 'SIDO:11'
+                    """))
+                    .hasMessageContaining("DataLab registry source or verification drift detected");
+            assertThatThrownBy(() -> statement.execute("""
+                    UPDATE onmaru.catalog_region_source_codes
+                    SET valid_to = DATE '2026-09-30'
+                    WHERE provider = 'KTO_DATALAB' AND dataset = 'visitor' AND source_code = 'SIDO:11'
+                    """))
+                    .hasMessageContaining("DataLab registry source or verification drift detected");
         }
     }
 

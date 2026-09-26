@@ -40,6 +40,8 @@ verification URL·검증자·검증 시각과 정확히 일치해야 한다. `SI
 다르거나, 활성 mapping의 응답이 누락되거나 중복되거나, 값이 잘못되면 batch 전체를
 quarantine한다. 새 revision은 게시하지 않으며 직전 active revision을 유지한다. provider가
 `null`을 반환한 경우에는 `0`으로 바꾸지 않고 `NOT_AVAILABLE` 관측으로 보존한다.
+source mapping의 `valid_to` 또는 공식 verification을 나중에 바꾸거나 삭제해 registry와
+불일치시키는 변경도 deferred constraint trigger가 transaction commit 전에 거부한다.
 
 ## 안전한 등록 SQL 템플릿
 
@@ -149,7 +151,7 @@ ORDER BY region.code;
 1. 보호된 operations endpoint로 실제 DataLab 수집을 실행한다.
 2. read-only DB 연결로 `ACTIVE` registry의 provenance, active revision, `COMPLETE` 관측을 확인한다.
 3. 배포 image에 bake된 Git SHA가 `Staging Deploy`의 SHA와 같은지 확인한다.
-4. DB에서 선택한 지역·기준일·방문자 수와 Insights 및 VisitReview projection 값이 정확히 같은지 확인한다.
+4. 공개 후기 표본이 존재하는 ACTIVE 관측을 선택해 DB 지역·기준일·방문자 수와 Insights 및 VisitReview projection 값이 정확히 같은지 확인한다.
 5. 같은 SHA의 PostgreSQL 통합 테스트로 실패 batch가 기존 active revision을 보존함을 확인한다.
 6. token, service key, DB URL, provider payload, 지역 코드를 제거한 JSON 증적을 30일 artifact로 보관한다.
 

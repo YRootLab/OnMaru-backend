@@ -107,12 +107,13 @@ class JdbcDataLabVisitorSnapshotPublisherTests {
     void keepsThePreviousActiveRevisionWhenStagingFails() throws Exception {
         var publisher = new JdbcDataLabVisitorSnapshotPublisher(dataSource);
         var invalid = new VisitorObservation(
-                "KTO_DATALAB", "kr-45-jeonju", LocalDate.parse("2026-09-25"),
-                ObservationMetric.CONGESTION_SCORE, 50L, "persons", SpatialLevel.SIGUNGU,
+                "KTO_DATALAB", "kr-missing-region", LocalDate.parse("2026-09-25"),
+                ObservationMetric.VISITOR_COUNT, 50L, "persons", SpatialLevel.SIGUNGU,
                 ObservationCoverageStatus.COMPLETE, Instant.parse("2026-09-25T03:30:00Z"));
 
         assertThatThrownBy(() -> publisher.publish(Instant.parse("2026-09-25T03:30:00Z"), List.of(invalid)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No active Catalog region");
 
         assertThat(activeRevisionId()).isEqualTo(oldRevisionId);
         assertThat(revisionCount()).isEqualTo(1);

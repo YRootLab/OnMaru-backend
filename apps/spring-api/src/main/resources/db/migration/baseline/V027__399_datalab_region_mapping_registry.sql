@@ -114,6 +114,51 @@ BEFORE INSERT OR UPDATE ON onmaru.catalog_datalab_region_mappings
 FOR EACH ROW
 EXECUTE FUNCTION onmaru.validate_datalab_region_mapping_structure();
 
+CREATE FUNCTION onmaru.assert_datalab_region_mapping_integrity()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM onmaru.catalog_datalab_region_mappings mapping
+        LEFT JOIN onmaru.catalog_region_source_codes source
+          ON source.provider = mapping.provider
+         AND source.dataset = mapping.dataset
+         AND source.source_code = mapping.source_code
+         AND source.valid_from = mapping.valid_from
+        LEFT JOIN onmaru.catalog_region_source_code_verifications verification
+          ON verification.provider = mapping.provider
+         AND verification.dataset = mapping.dataset
+         AND verification.source_code = mapping.source_code
+         AND verification.valid_from = mapping.valid_from
+        WHERE mapping.valid_to IS DISTINCT FROM source.valid_to
+           OR (mapping.status = 'ACTIVE' AND (
+                verification.official_source_url IS DISTINCT FROM mapping.source_url
+                OR verification.verified_by IS DISTINCT FROM mapping.verified_by
+                OR verification.verified_at IS DISTINCT FROM mapping.verified_at
+           ))
+    ) THEN
+        RAISE EXCEPTION 'DataLab registry source or verification drift detected'
+            USING ERRCODE = '23514',
+                  CONSTRAINT = 'catalog_datalab_region_mapping_integrity';
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER catalog_datalab_source_mapping_integrity
+AFTER INSERT OR UPDATE OR DELETE ON onmaru.catalog_region_source_codes
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION onmaru.assert_datalab_region_mapping_integrity();
+
+CREATE CONSTRAINT TRIGGER catalog_datalab_verification_mapping_integrity
+AFTER INSERT OR UPDATE OR DELETE ON onmaru.catalog_region_source_code_verifications
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION onmaru.assert_datalab_region_mapping_integrity();
+
 -- Replace V025's deferred registration function without mutating the deployed migration.
 CREATE OR REPLACE FUNCTION onmaru.register_verified_datalab_visitor_region_source_codes()
 RETURNS void

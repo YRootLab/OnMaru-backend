@@ -43,6 +43,12 @@ WITH current_registry AS (
     FROM active_observations
     WHERE coverage_status = 'COMPLETE'
       AND visitor_count IS NOT NULL
+      AND EXISTS (
+          SELECT 1
+          FROM onmaru.community_visit_reviews review
+          WHERE review.region_code = active_observations.region_code
+            AND review.status = 'PUBLISHED'
+      )
     ORDER BY basis_date DESC, region_code
     LIMIT 1
 )
