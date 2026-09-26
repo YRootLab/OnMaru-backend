@@ -1,5 +1,17 @@
 # handoff.md
 
+## 현재 세션: #368 직렬 기준선 및 #364 required verify 전환
+
+- **기준일**: 2026-09-26
+- **브랜치**: `feature/364-verify-fan-in`
+- **관련 이슈**: #368, #364, 상위 #255
+- **사용자 요청**: #368 immutable baseline artifact를 완성하고, #364의 `CI / verify`를 Toolkit 기반 fan-out/fan-in으로 전환한다.
+- **설계**: `docs/superpowers/specs/2026-09-26-required-verify-fan-in-design.md`
+- **선행 증적**: develop SHA `34276f201ce6f7b5ffb6e7ab2784eb584a91a699`, serial run `36159816646`, `36160594916`, `36161322635`, 중앙값 400초
+- **다음 단계**: baseline collector dispatch 및 artifact 검증 후, `ci-fan-in` fixture를 RED로 만들고 `ci.yml`을 구현한다.
+
+---
+
 ## 현재 작업
 
 - **기준일**: 2026-09-26
