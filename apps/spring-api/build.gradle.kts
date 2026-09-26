@@ -35,6 +35,7 @@ dependencies {
     implementation(project(":modules:journey"))
     implementation(project(":modules:operations"))
     implementation(project(":modules:shared-web"))
+    implementation(project(":modules:stamp"))
 
     constraints {
         implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")

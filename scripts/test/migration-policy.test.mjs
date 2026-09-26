@@ -22,6 +22,14 @@ describe('Flyway migration policy', () => {
       assert.equal(fileVersion, migration.version, `${migration.path} filename version must match registry version`);
 
       const sql = readFileSync(join(root, migration.path), 'utf8');
+      const reservationVersion = sql.match(
+        /INSERT INTO onmaru_registry\.migration_version_reservations[\s\S]*?\)\s*VALUES\s*\(\s*'(\d{3})'/,
+      )?.[1];
+      assert.equal(
+        reservationVersion,
+        migration.version,
+        `${migration.path} inline reservation version must match registry version`,
+      );
       const actualSha256 = createHash('sha256').update(sql).digest('hex');
       assert.equal(migration.sha256, actualSha256, `${migration.path} sha256 must match registry`);
     }

@@ -6,6 +6,7 @@ import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPublicPlaceIdStore;
 import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewStore;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
 import com.yrootlab.onmaru.persistence.web.JdbcIdempotencyStore;
+import com.yrootlab.onmaru.stamp.OutsideCheckInRadiusException;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import org.flywaydb.core.Flyway;
@@ -36,6 +37,29 @@ class JdbcIdempotencyStoreTests {
     @BeforeAll static void start(){DB.start();} @AfterAll static void stop(){DB.stop();}
     @BeforeEach void reset() throws Exception {var url=url();try(var c=DriverManager.getConnection(url,"onmaru_test","onmaru_test")){PostgresTestDatabase.reset(c);} Flyway.configure().dataSource(url,"onmaru_test","onmaru_test").locations("classpath:db/migration/baseline").baselineOnMigrate(true).baselineVersion("0").load().migrate();ds=new DriverManagerDataSource(url,"onmaru_test","onmaru_test");}
     @Test void replaysStoredJsonResponseAcrossStoreInstances(){var command=new IdempotencyCommand(UUID.randomUUID(),"member-1","POST","/api/v1/places/p/reviews","hash"); var expected=IdempotentResponse.created("/reviews/1",Map.of("id","1")); var first=new JdbcIdempotencyStore(ds).execute(command, Clock.systemUTC(),()->expected); var replay=new JdbcIdempotencyStore(ds).execute(command,Clock.systemUTC(),()->IdempotentResponse.ok(Map.of("wrong",true))); assertThat(first).isEqualTo(expected);assertThat(replay).isEqualTo(expected);}
+
+    @Test
+    void storesJavaTimeResponseAndPreservesDomainExceptions() {
+        var command = new IdempotencyCommand(
+                UUID.randomUUID(), "member-1", "POST", "/api/v1/places/p/check-ins", "hash");
+        var time = Instant.parse("2026-09-26T02:30:00Z");
+
+        var first = new JdbcIdempotencyStore(ds).execute(
+                command, Clock.systemUTC(), () -> IdempotentResponse.created(
+                        "/api/v1/check-ins/1", new TimeBody(time)));
+        var replay = new JdbcIdempotencyStore(ds).execute(
+                command, Clock.systemUTC(), () -> IdempotentResponse.ok(Map.of()));
+
+        assertThat(first.body()).isEqualTo(new TimeBody(time));
+        assertThat(replay.body().toString()).contains("2026-09-26T02:30:00Z");
+
+        var failingCommand = new IdempotencyCommand(
+                UUID.randomUUID(), "member-1", "POST", "/api/v1/places/p/check-ins", "other");
+        assertThatThrownBy(() -> new JdbcIdempotencyStore(ds).execute(
+                failingCommand, Clock.systemUTC(), () -> {
+                    throw new OutsideCheckInRadiusException();
+                })).isInstanceOf(OutsideCheckInRadiusException.class);
+    }
 
     @Test
     void rollsBackReviewAndReceiptTogetherThenAllowsACompleteRetry() throws Exception {
@@ -141,4 +165,6 @@ class JdbcIdempotencyStoreTests {
     }
 
     static String url(){return "jdbc:postgresql://"+DB.getHost()+":"+DB.getMappedPort(5432)+"/onmaru_test";}
+
+    private record TimeBody(Instant checkedInAt) { }
 }

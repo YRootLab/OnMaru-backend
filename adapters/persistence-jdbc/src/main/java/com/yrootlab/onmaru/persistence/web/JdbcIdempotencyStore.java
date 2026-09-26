@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.persistence.web;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyConflictException;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyStorePort;
@@ -23,7 +24,9 @@ public final class JdbcIdempotencyStore implements IdempotencyStorePort {
 
     private final DataSource dataSource;
     private final JdbcTransactionRunner transactions;
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper()
+            .findAndRegisterModules()
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     public JdbcIdempotencyStore(DataSource dataSource) {
         this(dataSource, new JdbcTransactionRunner(dataSource));
@@ -53,7 +56,7 @@ public final class JdbcIdempotencyStore implements IdempotencyStorePort {
                 var response = handler.get();
                 insert(connection, command, response, clock);
                 return response;
-            } catch (IdempotencyConflictException exception) {
+            } catch (RuntimeException exception) {
                 throw exception;
             } catch (Exception exception) {
                 throw new IllegalStateException("Idempotency receipt database operation failed", exception);
