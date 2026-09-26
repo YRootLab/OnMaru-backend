@@ -1,5 +1,12 @@
 package com.yrootlab.onmaru.stamp;
 
+import com.yrootlab.onmaru.stamp.ranking.StampRankingEntry;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingIdentity;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingIdentityConflictException;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingRateLimitedException;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingStatus;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingStore;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -12,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public final class InMemoryStampStore implements StampStore {
+public final class InMemoryStampStore implements StampStore, StampRankingStore {
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
     private static final int DAILY_LIMIT = 30;
@@ -22,6 +29,7 @@ public final class InMemoryStampStore implements StampStore {
     private final StampAwardPolicy policy = new StampAwardPolicy();
     private final Map<CheckInKey, StoredCheckIn> checkIns = new HashMap<>();
     private final Map<UUID, LinkedHashMap<String, StoredAward>> awardsByMember = new HashMap<>();
+    private final Map<UUID, RankingProfile> rankingProfiles = new HashMap<>();
 
     public InMemoryStampStore() {
         this(StampCatalogDefaults.definitions(), StampCatalogDefaults.regionRules());
@@ -86,6 +94,101 @@ public final class InMemoryStampStore implements StampStore {
     public synchronized void clear() {
         checkIns.clear();
         awardsByMember.clear();
+        rankingProfiles.clear();
+    }
+
+    @Override
+    public synchronized List<StampRankingEntry> leaderboard(int limit) {
+        var ranked = rankedProfiles();
+        var entries = new ArrayList<StampRankingEntry>();
+        for (int i = 0; i < Math.min(limit, ranked.size()); i++) {
+            var profile = ranked.get(i);
+            var summary = summary(profile.memberId());
+            entries.add(new StampRankingEntry(
+                    i + 1, profile.identity().publicId(), profile.identity().publicNickname(),
+                    profile.identity().nicknameType(), summary.collectedCount(),
+                    summary.visitedRegionCount(), summary.completionRate()));
+        }
+        return List.copyOf(entries);
+    }
+
+    @Override
+    public synchronized StampRankingStatus status(UUID memberId) {
+        var profile = rankingProfiles.get(memberId);
+        var ranked = rankedProfiles();
+        Integer rank = null;
+        if (profile != null && profile.identity() != null) {
+            for (int i = 0; i < ranked.size(); i++) {
+                if (ranked.get(i).memberId().equals(memberId)) {
+                    rank = i + 1;
+                    break;
+                }
+            }
+        }
+        var summary = summary(memberId);
+        var identity = profile == null ? null : profile.identity();
+        return new StampRankingStatus(
+                identity != null,
+                identity == null ? null : identity.publicNickname(),
+                identity == null ? null : identity.nicknameType(),
+                rank, ranked.size(), summary.collectedCount(),
+                summary.visitedRegionCount(), summary.completionRate());
+    }
+
+    @Override
+    public synchronized StampRankingStatus participate(UUID memberId, StampRankingIdentity identity, Instant now) {
+        var current = rankingProfiles.get(memberId);
+        if (current != null && current.identity() != null) {
+            return status(memberId);
+        }
+        if (current != null && current.updatedAt().plusSeconds(5).isAfter(now)) {
+            long seconds = Math.max(1, (current.updatedAt().plusSeconds(5).toEpochMilli()
+                    - now.toEpochMilli() + 999) / 1000);
+            throw new StampRankingRateLimitedException(seconds);
+        }
+        boolean collision = rankingProfiles.values().stream()
+                .map(RankingProfile::identity)
+                .filter(candidate -> candidate != null)
+                .anyMatch(candidate -> candidate.publicId().equals(identity.publicId())
+                        || candidate.nicknameNormalized().equals(identity.nicknameNormalized()));
+        if (collision) {
+            throw new StampRankingIdentityConflictException();
+        }
+        rankingProfiles.put(memberId, new RankingProfile(memberId, identity, now));
+        return status(memberId);
+    }
+
+    @Override
+    public synchronized StampRankingStatus withdraw(UUID memberId, Instant now) {
+        var current = rankingProfiles.get(memberId);
+        if (current != null && current.identity() != null) {
+            rankingProfiles.put(memberId, new RankingProfile(memberId, null, now));
+        }
+        return status(memberId);
+    }
+
+    private List<RankingProfile> rankedProfiles() {
+        var ranked = rankingProfiles.values().stream()
+                .filter(profile -> profile.identity() != null)
+                .sorted(Comparator
+                        .comparingInt((RankingProfile profile) -> summary(profile.memberId()).collectedCount())
+                        .reversed()
+                        .thenComparing(Comparator.comparingInt(
+                                (RankingProfile profile) -> summary(profile.memberId()).visitedRegionCount())
+                                .reversed())
+                        .thenComparing(profile -> lastAwardedAt(profile.memberId()),
+                                Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(profile -> profile.identity().publicId().toString()))
+                .toList();
+        return ranked;
+    }
+
+    private Instant lastAwardedAt(UUID memberId) {
+        return awardsByMember.getOrDefault(memberId, new LinkedHashMap<>()).values().stream()
+                .filter(award -> award.definition().active())
+                .map(StoredAward::collectedAt)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
     }
 
     private StampBookSummary summary(UUID memberId) {
@@ -122,6 +225,9 @@ public final class InMemoryStampStore implements StampStore {
     }
 
     private record CheckInKey(UUID memberId, UUID placeId, Instant bucket) {
+    }
+
+    private record RankingProfile(UUID memberId, StampRankingIdentity identity, Instant updatedAt) {
     }
 
     private record StoredCheckIn(
