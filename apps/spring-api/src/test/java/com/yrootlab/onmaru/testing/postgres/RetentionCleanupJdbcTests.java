@@ -90,14 +90,17 @@ class RetentionCleanupJdbcTests {
 
         var first = store.cleanup(policy, NOW);
         var replay = store.cleanup(policy, NOW);
+        var settledReplay = store.cleanup(policy, NOW);
 
         assertThat(first.expiredGuests()).isEqualTo(1);
         assertThat(first.expiredSessions()).isEqualTo(1);
         assertThat(first.expiredRuns()).isEqualTo(1);
         assertThat(first.expiredProposals()).isEqualTo(1);
         assertThat(first.inactiveRevisions()).isEqualTo(1);
-        assertThat(first.memberDeletionResources()).isEqualTo(5);
-        assertThat(replay.ledgerEntries()).isZero();
+        assertThat(first.memberDeletionResources()).isEqualTo(4);
+        assertThat(replay.memberDeletionResources()).isEqualTo(2);
+        assertThat(replay.ledgerEntries()).isEqualTo(2);
+        assertThat(settledReplay.ledgerEntries()).isZero();
         assertRemainingRows(activeRevisionId, freshGuestId, memberId);
 
         var dataSource = dataSource();
@@ -219,10 +222,10 @@ class RetentionCleanupJdbcTests {
             statement.execute("""
                     INSERT INTO onmaru.stamp_awards (
                         id, member_id, stamp_code, trigger_check_in_id, awarded_at
-                    ) VALUES (
-                        gen_random_uuid(), '%s', 'stamp_bukchon', '%s', '2026-09-16T00:00:00Z'
-                    )
-                    """.formatted(memberId, checkInId));
+                    ) VALUES
+                        (gen_random_uuid(), '%s', 'stamp_bukchon', '%s', '2026-09-16T00:00:00Z'),
+                        (gen_random_uuid(), '%s', 'stamp_night_hanok', '%s', '2026-09-16T00:00:01Z')
+                    """.formatted(memberId, checkInId, memberId, checkInId));
             statement.execute("""
                     INSERT INTO onmaru.stamp_ranking_profiles (
                         member_id, ranking_public_id, public_nickname, nickname_normalized,
@@ -275,7 +278,7 @@ class RetentionCleanupJdbcTests {
                     SELECT COUNT(*) FROM onmaru.identity_deletion_ledger WHERE status = 'COMPLETED'
                     """)).isEqualTo(1);
             assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.operations_retention_deletion_ledger"))
-                    .isEqualTo(10);
+                    .isEqualTo(11);
         }
     }
 

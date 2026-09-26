@@ -275,11 +275,17 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
             Instant now
     ) throws SQLException {
         var awards = deleteMemberResource(
-                connection, policy, now, "stamp_awards", "STAMP_AWARD", "awarded_at");
+                connection, policy, now, "stamp_awards", "STAMP_AWARD", "awarded_at", "TRUE");
         var checkIns = deleteMemberResource(
-                connection, policy, now, "stamp_check_ins", "STAMP_CHECK_IN", "checked_in_at");
+                connection, policy, now, "stamp_check_ins", "STAMP_CHECK_IN", "checked_in_at", """
+                        NOT EXISTS (
+                            SELECT 1 FROM onmaru.stamp_awards award
+                            WHERE award.member_id = resource.member_id
+                              AND award.trigger_check_in_id = resource.id
+                        )
+                        """);
         var profiles = deleteMemberResource(
-                connection, policy, now, "stamp_ranking_profiles", "STAMP_RANKING_PROFILE", "updated_at");
+                connection, policy, now, "stamp_ranking_profiles", "STAMP_RANKING_PROFILE", "updated_at", "TRUE");
         return new MutationCount(
                 awards.deleted() + checkIns.deleted() + profiles.deleted(),
                 awards.ledgerEntries() + checkIns.ledgerEntries() + profiles.ledgerEntries());
@@ -291,7 +297,8 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
             Instant now,
             String table,
             String resourceType,
-            String orderColumn
+            String orderColumn,
+            String eligibility
     ) throws SQLException {
         var sql = """
                 WITH doomed AS (
@@ -301,6 +308,7 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                       ON member_deletion.member_id = resource.member_id
                     JOIN onmaru.identity_members member ON member.id = resource.member_id
                     WHERE member_deletion.status = 'REQUESTED' AND member.status = 'DELETING'
+                      AND (%s)
                     ORDER BY resource.%s, resource.%s
                     LIMIT ?
                     FOR UPDATE OF resource, member SKIP LOCKED
@@ -326,6 +334,7 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 """.formatted(
                 table.equals("stamp_ranking_profiles") ? "member_id" : "id",
                 table,
+                eligibility,
                 orderColumn,
                 table.equals("stamp_ranking_profiles") ? "member_id" : "id",
                 table,
