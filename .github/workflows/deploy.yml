@@ -48,6 +48,7 @@ jobs:
           file: Dockerfile
           push: true
           tags: ${{ env.SPRING_IMAGE }}:${{ github.sha }}
+          build-args: ONMARU_BUILD_GIT_SHA=${{ github.sha }}
           cache-from: type=gha,scope=spring-api
           cache-to: type=gha,mode=max,scope=spring-api
 

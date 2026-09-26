@@ -1,8 +1,8 @@
 # handoff.md
 
-## 현재 작업
+## 현재 작업: #307 / #382
 
-- **기준일**: 2026-09-26
+- **기준일**: 2026-09-27
 - **브랜치**: `fix/307-odii-production-jdbc-store`
 - **관련 이슈**: #307, #382
 - **상태**: production의 in-memory `AudioRevisionStore` 선택 경쟁 재현 및 수정, 운영 재배포 전
@@ -33,7 +33,7 @@
 
 ## 다음 단계
 
-1. PR을 `develop` 대상으로 생성하고 `verify` 통과를 확인한다.
+1. `develop` 대상 PR의 `verify` 통과와 병합 가능 상태를 확인한다.
 2. `master` 릴리스 및 Render 재배포 후 bootstrap revision → stage → story → active pointer 순서로 Neon을 확인한다.
 3. stage가 `SOURCE_FAILED`이면 Render provider 오류와 `storyBasedSyncList` 실제 응답을 추가 진단한다.
 4. 모든 Odii API 200 확인 후 #307을 종료한다. #382의 run 이력·phase 관측성은 별도 구현을 계속한다.
