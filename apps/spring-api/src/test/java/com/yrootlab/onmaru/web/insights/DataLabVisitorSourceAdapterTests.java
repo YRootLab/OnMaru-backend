@@ -148,6 +148,29 @@ class DataLabVisitorSourceAdapterTests {
                         DataLabCollectionReason.MISSING_ACTIVE_REGION);
     }
 
+    @Test
+    void quarantinesTheBatchWhenTheRegistryContainsDuplicateActiveSourceCodes() {
+        var fetchCalls = new AtomicInteger();
+        var source = new DataLabVisitorSourceAdapter(
+                request -> {
+                    fetchCalls.incrementAndGet();
+                    return List.of();
+                },
+                asOf -> List.of(
+                        active("kr-45", "SIDO:52", DataLabRegionMapping.Level.SIDO, "전북특별자치도"),
+                        active("kr-48", "SIDO:52", DataLabRegionMapping.Level.SIDO, "경상남도")),
+                CLOCK,
+                100);
+
+        var result = source.fetchDailyVisitorObservations();
+
+        assertThat(fetchCalls).hasValue(0);
+        assertThat(result.publishable()).isFalse();
+        assertThat(result.quarantined()).isTrue();
+        assertThat(result.exclusions()).extracting(exclusion -> exclusion.reason())
+                .contains(DataLabCollectionReason.INVALID_MAPPING);
+    }
+
     private DataLabRegionMapping active(
             String internalCode,
             String sourceCode,

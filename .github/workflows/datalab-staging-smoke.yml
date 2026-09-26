@@ -1,0 +1,75 @@
+name: DataLab Staging Smoke
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Staging Deploy]
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: datalab-staging-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+
+      - name: Mask staging credentials
+        env:
+          OPERATIONS_TOKEN: ${{ secrets.ONMARU_DATALAB_OPERATIONS_TOKEN }}
+          VISITOR_SERVICE_KEY: ${{ secrets.ONMARU_DATALAB_VISITOR_SERVICE_KEY }}
+          DATABASE_URL: ${{ secrets.ONMARU_STAGING_READONLY_DB_URL }}
+        run: |
+          echo "::add-mask::$OPERATIONS_TOKEN"
+          echo "::add-mask::$VISITOR_SERVICE_KEY"
+          echo "::add-mask::$DATABASE_URL"
+
+      - name: Run DataLab staging smoke
+        id: smoke
+        continue-on-error: true
+        env:
+          STAGING_SPRING_URL: ${{ vars.STAGING_SPRING_URL }}
+          ONMARU_DATALAB_OPERATIONS_TOKEN: ${{ secrets.ONMARU_DATALAB_OPERATIONS_TOKEN }}
+          ONMARU_DATALAB_VISITOR_SERVICE_KEY: ${{ secrets.ONMARU_DATALAB_VISITOR_SERVICE_KEY }}
+          ONMARU_STAGING_READONLY_DB_URL: ${{ secrets.ONMARU_STAGING_READONLY_DB_URL }}
+          DATALAB_SMOKE_EVIDENCE_PATH: ${{ runner.temp }}/datalab-staging-smoke.json
+        run: node scripts/datalab-staging-smoke.mjs
+
+      - name: Upload sanitized smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: datalab-staging-smoke-${{ github.run_id }}
+          path: ${{ runner.temp }}/datalab-staging-smoke.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Reconcile Issue 392
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$SMOKE_OUTCOME" = "success" ]; then
+            gh issue close 392 --comment "staging DataLab smoke가 성공했습니다. 실제 수집, ACTIVE registry/provenance, active revision, Insights·VisitReview 공개 계약을 검증했습니다. Sanitized evidence와 로그: $RUN_URL"
+          else
+            gh issue comment 392 --body "staging DataLab smoke가 실패했습니다. Issue는 열린 상태로 유지합니다. Sanitized evidence와 로그: $RUN_URL"
+          fi
+
+      - name: Fail workflow when smoke failed
+        if: steps.smoke.outcome != 'success'
+        run: exit 1

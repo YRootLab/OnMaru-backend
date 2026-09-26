@@ -66,13 +66,15 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
         LocalDate basisDate = LocalDate.now(clock.withZone(KOREA_STANDARD_TIME));
         var exclusions = new ArrayList<DataLabCollectionExclusion>();
         var activeMappings = activeMappings(basisDate, exclusions);
+        boolean invalidRegistry = exclusions.stream().anyMatch(exclusion ->
+                exclusion.reason() == DataLabCollectionReason.INVALID_MAPPING);
         if (activeMappings.isEmpty()) {
             exclusions.add(new DataLabCollectionExclusion(null, DataLabCollectionReason.NO_ACTIVE_MAPPING));
-            return new DataLabVisitorFetchResult(List.of(), exclusions, false);
+            return new DataLabVisitorFetchResult(List.of(), exclusions, invalidRegistry);
         }
 
         var observations = new LinkedHashMap<String, VisitorObservation>();
-        boolean quarantined = false;
+        boolean quarantined = invalidRegistry;
         for (DataLabVisitorRequest.Scope scope : requestedScopes(activeMappings.keySet())) {
             try {
                 for (DataLabVisitorRecord record : recordFetcher.fetch(request(scope, basisDate))) {
