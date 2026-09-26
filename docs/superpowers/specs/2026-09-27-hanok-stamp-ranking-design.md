@@ -252,7 +252,7 @@ Flyway `V029__262_hanok_stamp_ranking.sql`과 migration registry를 추가한다
 - `docs/contracts/openapi/hanok-stamps.openapi.yaml`
 - `docs/contracts/rest-api.md`
 - `docs/database/schema.md`
-- `docs/handoffs/hanok-stamp-book-fe.md`
+- `docs/toFE/hanok-stamp-book-api-handoff-2026-09-26.md`
 - `handoff.md`
 - `CHANGELOG.md`
 
