@@ -3,69 +3,50 @@
 ## 현재 작업
 
 - **기준일**: 2026-09-26
-- **브랜치**: `feature/342-fe-api-contract-fixes`
-- **PR**: #395 `feat: FE 요청 API 계약과 JDBC 파이프라인 완성` → `develop`
-- **커밋**: 기능 구현 `fcf53ca`; 최신 `develop` 병합 완료
-- **관련 이슈**: #342, #343, #344, #346, #393
-- **후속 이슈**: #392(DataLab 운영 smoke), #360(Redis cache)
+- **브랜치**: `feature/262-hanok-stamp-book`
+- **관련 이슈**: #262
+- **상태**: 스키마, 도메인, JDBC/PostGIS, REST API, OpenAPI, FE 인계 문서 구현 완료. 전체 회귀 검증 진행 예정
+- **주요 커밋**: `1a39a4d` 스키마, `dbe6e68` 도메인, `6ea8b90` JDBC, `192121b` REST API, `78bf3a3` OpenAPI
 
-## 이 브랜치에서 완료한 작업
+## 구현 범위
 
-### FE API 계약
+- V027에 수결 정의·지역 규칙·체크인·지급 테이블과 12개 초기 수결을 추가했다.
+- 로그인 회원만 개인 수결첩을 읽고 위치 체크인을 수행한다. 공개 수결 카탈로그에는 개인 상태가 없다.
+- active Catalog의 한옥 계열 장소를 PostGIS로 확인하며 `distance - accuracy <= 200m`, accuracy 100m 이하를 적용한다.
+- 위도·경도 원문은 저장·응답하지 않는다. 회원당 KST 하루 30회, 같은 장소·15분 구간 중복 방지, UUID 멱등성 키를 적용한다.
+- 지역 방문, KST 야간 방문, 서로 다른 5개 권역 방문 수결을 같은 transaction에서 지급한다.
+- 공개 랭킹은 개인정보 정책 부재로 제외했다.
 
-- 기존 versioned API를 FE 호환 경로 `/api/map/places`, `/api/map/heat`, `/api/place/{placeId}`에서도 제공한다.
-- 지도 `visited`는 장소 자체 속성이 아니라 사용자의 방문/온기 후기 존재 의미로 정리했다.
-- `/api/map/warmth` 별도 모델을 만들지 않고 VisitReview를 온기 후기의 단일 API로 사용하도록 FE 문서에 명시했다.
-- 한옥 도감 목록에서는 `HANOK_CAFE`를 제외하되 홈 큐레이션 정책은 변경하지 않았다.
+## API와 문서
 
-### VisitReview와 JDBC 영속화
+- `GET /api/v1/stamps`: 공개 수결 정의
+- `GET /api/v1/me/stamp-book`: 로그인 회원 개인 수결첩, `no-store`
+- `POST /api/v1/places/{placeId}/check-ins`: 세션·CSRF·`Idempotency-Key` 필수 위치 체크인
+- 기계 판독 계약: `docs/contracts/openapi/hanok-stamps.openapi.yaml`
+- FE 인계: `docs/toFE/hanok-stamp-book-api-handoff-2026-09-26.md`
+- 설계: `docs/superpowers/specs/2026-09-26-hanok-stamp-book-design.md`
+- 구현 계획: `docs/superpowers/plans/2026-09-26-hanok-stamp-book.md`
 
-- VisitReview에 선택 필드 `mood`, `score`, `tags`를 추가하고 validation·OpenAPI·fixture를 갱신했다.
-- 공개 `placeId`와 Catalog UUID의 안정적인 일대일 mapping, 작성 시점 장소명·지역·좌표 snapshot을 PostgreSQL에 저장한다.
-- 후기·좋아요·신고·moderation audit·멱등성 receipt를 JDBC로 전환했으며 production에서 in-memory fallback을 사용하지 않는다.
-- 후기 생성과 idempotency receipt는 같은 `JdbcTransactionRunner`를 공유한다. 실패 시 둘 다 rollback되고 동일 키 재시도가 가능함을 PostgreSQL 통합 테스트로 검증했다.
-- 좋아요 갱신은 `SELECT ... FOR UPDATE`로 직렬화해 lost update를 방지한다.
-- legacy 후기는 V026에서 공개 ID와 장소 snapshot을 backfill한다. 좌표를 복구할 수 없는 행은 `(0, 0)`으로 노출하지 않고 공개 조회에서 제외한다.
+## 완료된 집중 검증
 
-### 스크린 한옥
+- `./gradlew :modules:stamp:test --no-daemon` — 성공
+- `./gradlew :apps:spring-api:test --tests '*JdbcStampMigrationTests' --no-daemon` — 성공
+- `./gradlew :apps:spring-api:test --tests '*JdbcStampStoreTests' --no-daemon` — 성공
+- `./gradlew :apps:spring-api:test --tests '*StampWebBoundaryTests' --no-daemon` — 성공
+- `node --test scripts/test/migration-policy.test.mjs` — 성공
+- `python3 -m pytest scripts/test/test_contract_validation.py -q` — 10 passed
+- `bash scripts/verify-contracts --contracts-only` — 성공
 
-- 스크린 한옥 placement snapshot을 `catalog_screen_hanok_placements`에 저장하는 JDBC store를 추가했다.
-- production profile은 JDBC store를 사용하며 `mediaType`·`region` 필터 계약과 재생성 store 조회를 검증했다.
+## FE 다음 단계
 
-### DataLab 방문자 수
+1. `/stamps` 화면의 `onmaru_hanok_stamps_v1` 기반 획득 판정을 서버 API로 교체한다.
+2. 브라우저 위치 권한 → CSRF 발급 → 같은 UUID key를 재사용하는 체크인 흐름을 연결한다.
+3. 개인 수결첩 조회가 성공한 뒤 legacy localStorage 키를 제거한다. 데모 도장을 서버로 이전하지 않는다.
+4. 공개 랭킹 탭은 숨기거나 데모 표시한다.
 
-- DataLab 광역·기초 방문자 API를 전국 단위로 수집하고 외지인(`touDivCd=2`) 관측만 `visitorCount`로 제공한다.
-- 공식 v4.1 매뉴얼과 실제 응답을 근거로 다음 mapping을 V025에 등록했다: `kr-11→SIDO:11`, `kr-11-jongno→SIGUNGU:11110`, `kr-45→SIDO:52`, `kr-45-jeonju→SIGUNGU:52110`.
-- 관측값은 전용 dataset revision에 JDBC로 저장하고, 모든 활성 검증 지역의 관측이 완전할 때만 원자적으로 게시한다. 실패하면 이전 정상 revision을 유지한다.
-- production Insights 조회와 VisitReview 지역 응답은 활성 revision만 읽는다. 매일 03:30 KST 수집 scheduler를 연결했다.
-- DataLab 소수 방문자 수는 공개 `int64` 계약에 맞춰 가장 가까운 1명으로 반올림한다.
+## 열린 운영 확인 사항
 
-### 구조·문서·마이그레이션
-
-- V018~V026 Flyway migration과 checksum registry를 추가했다.
-- ADR-0014에서 VisitReview의 Catalog UUID + immutable snapshot 결정을, ADR-0015에서 DataLab 전용 revision 게시 결정을 기록했다.
-- DB schema, 운영 runbook, FE handoff, API delta 문서를 구현 상태에 맞게 갱신했다.
-
-## 검증 기록
-
-- `./gradlew test --no-daemon --max-workers=1` — 성공, 53 tasks
-- `JdbcIdempotencyStoreTests` — 후기/receipt 동시 rollback 및 재시도 성공
-- `node --test scripts/test/*.test.mjs` — 106 passed(최신 `develop` 병합 후 재검증)
-- `python3 -m pytest scripts/test/test_contract_validation.py` — 9 passed
-- `bash scripts/verify-contracts` — 성공
-- `uv run pytest` (`ai/`) — 212 passed, 1 skipped
-- `uv run ruff check && uv run mypy` (`ai/`) — 성공
-- offline AI evaluation gate — 성공
-- ADR toolkit validate — 15 ADR, 오류 없음
-- PR #395의 `verify`, PostgreSQL Restore Drill, CodeRabbit — 성공(이전 head 기준)
-
-## 다음 단계와 열린 위험
-
-1. 이 handoff 정리와 최신 `develop` 병합 커밋을 push한 뒤 PR #395의 새 `verify`가 통과하는지 확인한다.
-2. PR #395 병합 후 #393 acceptance criteria와 이슈 상태를 재확인하고, `develop` 대상 PR의 자동 종료 제한에 따라 필요하면 검증 명령과 PR을 적은 코멘트로 수동 종료한다.
-3. 배포 후 #392에서 실제 운영 키와 Catalog 데이터로 DataLab 수집·활성 revision·`visitorCount`를 smoke 검증한다.
-4. #343은 운영 screen-hanok 게시 데이터가 1건 이상인지 확인한 뒤 종료 여부를 판단한다.
-5. Redis cache는 사용자 요청대로 이번 PR에서 제외했다. 필요 시 #360에서 별도로 구현한다.
-6. #342, #344, #346은 Redis 및 별도 계약이 필요한 umbrella 항목이 남아 있어 현재 열린 상태를 유지한다.
-
-저장소에는 공공데이터·Gemini 비밀 키를 커밋하지 않는다. 로컬 또는 배포 환경변수로만 주입한다.
+- staging의 실제 Catalog 데이터에 수결 대상 지역 code와 한옥 category가 기대대로 들어오는지 smoke test가 필요하다.
+- GPS 오차와 도심 반사 환경에서 200m 정책이 적절한지는 운영 지표 없이 확정할 수 없으므로, 원문 좌표 없이 결과 code·latency만 계측해 조정한다.
+- 전체 저장소 회귀 검증 결과와 실패가 있으면 이 문서에 추가한다.
+- 이 브랜치에서 push, PR 생성, merge는 수행하지 않았다.
