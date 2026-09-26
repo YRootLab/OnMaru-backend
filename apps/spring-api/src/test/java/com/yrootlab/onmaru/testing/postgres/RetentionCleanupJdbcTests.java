@@ -1,12 +1,15 @@
 package com.yrootlab.onmaru.testing.postgres;
 
 import com.yrootlab.onmaru.operations.retention.RetentionCleanupPolicy;
+import com.yrootlab.onmaru.persistence.web.JdbcIdempotencyStore;
 import com.yrootlab.onmaru.persistence.operations.retention.JdbcRetentionCleanupStore;
 import com.yrootlab.onmaru.persistence.stamp.JdbcStampRankingStore;
 import com.yrootlab.onmaru.persistence.stamp.JdbcStampStore;
 import com.yrootlab.onmaru.stamp.VerifiedPlace;
 import com.yrootlab.onmaru.stamp.ranking.StampRankingIdentity;
 import com.yrootlab.onmaru.stamp.ranking.StampRankingNicknameType;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -21,8 +24,11 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -97,7 +103,7 @@ class RetentionCleanupJdbcTests {
         assertThat(first.expiredRuns()).isEqualTo(1);
         assertThat(first.expiredProposals()).isEqualTo(1);
         assertThat(first.inactiveRevisions()).isEqualTo(1);
-        assertThat(first.memberDeletionResources()).isEqualTo(4);
+        assertThat(first.memberDeletionResources()).isEqualTo(5);
         assertThat(replay.memberDeletionResources()).isEqualTo(2);
         assertThat(replay.ledgerEntries()).isEqualTo(2);
         assertThat(settledReplay.ledgerEntries()).isZero();
@@ -128,6 +134,7 @@ class RetentionCleanupJdbcTests {
             UUID savedResourceId,
             UUID stampPlaceId
     ) throws Exception {
+        var checkInId = UUID.randomUUID();
         try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
              var statement = connection.createStatement()) {
             statement.execute("""
@@ -209,7 +216,6 @@ class RetentionCleanupJdbcTests {
                     INSERT INTO onmaru.catalog_place_identity (id, created_at)
                     VALUES ('%s', '2026-09-01T00:00:00Z')
                     """.formatted(stampPlaceId));
-            var checkInId = UUID.randomUUID();
             statement.execute("""
                     INSERT INTO onmaru.stamp_check_ins (
                         id, member_id, place_id, public_place_id, region_code, checked_in_at,
@@ -236,6 +242,23 @@ class RetentionCleanupJdbcTests {
                         '2026-09-16T00:00:00Z', '2026-09-16T00:00:00Z'
                     )
                     """.formatted(memberId));
+        }
+
+        new JdbcIdempotencyStore(dataSource()).execute(
+                new IdempotencyCommand(
+                        UUID.randomUUID(), memberId.toString(), "POST",
+                        "/api/v1/places/p-cleanup-stamp/check-ins", "cleanup-receipt"),
+                Clock.fixed(Instant.parse("2026-09-16T00:00:02Z"), ZoneOffset.UTC),
+                () -> IdempotentResponse.created(
+                        "/api/v1/check-ins/" + checkInId,
+                        Map.of(
+                                "placeId", "p-cleanup-stamp",
+                                "checkedInAt", "2026-09-16T00:00:00Z",
+                                "distanceMeters", 10,
+                                "awardedStampCodes", java.util.List.of("stamp_bukchon", "stamp_night_hanok"))));
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
             statement.execute("UPDATE onmaru.identity_members SET status = 'DELETING' WHERE id = '%s'"
                     .formatted(memberId));
             statement.execute("""
@@ -270,6 +293,8 @@ class RetentionCleanupJdbcTests {
                     .isZero();
             assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.stamp_ranking_profiles"))
                     .isZero();
+            assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.web_idempotency_receipts"))
+                    .isZero();
             assertThat(countRows(statement, """
                     SELECT COUNT(*) FROM onmaru.identity_members
                     WHERE id = '%s' AND status = 'DELETING'
@@ -278,7 +303,7 @@ class RetentionCleanupJdbcTests {
                     SELECT COUNT(*) FROM onmaru.identity_deletion_ledger WHERE status = 'COMPLETED'
                     """)).isEqualTo(1);
             assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.operations_retention_deletion_ledger"))
-                    .isEqualTo(11);
+                    .isEqualTo(12);
         }
     }
 

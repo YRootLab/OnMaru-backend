@@ -29,6 +29,7 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 var run = deleteExpiredRuns(connection, policy, now);
                 var saved = deleteSavedResourcesForDeletingMembers(connection, policy, now);
                 var stamps = deleteStampResourcesForDeletingMembers(connection, policy, now);
+                var receipts = deleteIdempotencyReceiptsForDeletingMembers(connection, policy, now);
                 completeMemberDeletionLedgers(connection, now);
                 var session = deleteExpiredSessions(connection, policy, now);
                 var guest = deleteExpiredGuests(connection, policy, now);
@@ -40,14 +41,15 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                         run.deleted(),
                         proposal.deleted(),
                         revision.deleted(),
-                        saved.deleted() + stamps.deleted(),
+                        saved.deleted() + stamps.deleted() + receipts.deleted(),
                         session.ledgerEntries()
                                 + guest.ledgerEntries()
                                 + run.ledgerEntries()
                                 + proposal.ledgerEntries()
                                 + revision.ledgerEntries()
                                 + saved.ledgerEntries()
-                                + stamps.ledgerEntries());
+                                + stamps.ledgerEntries()
+                                + receipts.ledgerEntries());
             } catch (RuntimeException | SQLException exception) {
                 connection.rollback();
                 if (exception instanceof RuntimeException runtimeException) {
@@ -291,6 +293,55 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 awards.ledgerEntries() + checkIns.ledgerEntries() + profiles.ledgerEntries());
     }
 
+    private MutationCount deleteIdempotencyReceiptsForDeletingMembers(
+            Connection connection,
+            RetentionCleanupPolicy policy,
+            Instant now
+    ) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                WITH doomed AS (
+                    SELECT receipt.subject_id, receipt.idempotency_key, receipt.method, receipt.path
+                    FROM onmaru.web_idempotency_receipts receipt
+                    JOIN onmaru.identity_deletion_ledger member_deletion
+                      ON receipt.subject_id = member_deletion.member_id::text
+                    JOIN onmaru.identity_members member ON member.id = member_deletion.member_id
+                    WHERE member_deletion.status = 'REQUESTED' AND member.status = 'DELETING'
+                    ORDER BY receipt.created_at, receipt.subject_id, receipt.idempotency_key,
+                             receipt.method, receipt.path
+                    LIMIT ?
+                    FOR UPDATE OF receipt, member SKIP LOCKED
+                ),
+                deleted AS (
+                    DELETE FROM onmaru.web_idempotency_receipts receipt
+                    USING doomed
+                    WHERE receipt.subject_id = doomed.subject_id
+                      AND receipt.idempotency_key = doomed.idempotency_key
+                      AND receipt.method = doomed.method
+                      AND receipt.path = doomed.path
+                    RETURNING receipt.subject_id, receipt.idempotency_key, receipt.method, receipt.path
+                ),
+                ledger AS (
+                    INSERT INTO onmaru.operations_retention_deletion_ledger (
+                        id, resource_type, resource_id, reason, deleted_at, details
+                    )
+                    SELECT gen_random_uuid(), 'WEB_IDEMPOTENCY_RECEIPT',
+                           encode(digest(
+                               concat_ws(E'\\x1f', subject_id, idempotency_key::text, method, path),
+                               'sha256'), 'hex'),
+                           'MEMBER_DELETION_REQUESTED', ?, '{}'::jsonb
+                    FROM deleted
+                    ON CONFLICT (resource_type, resource_id, reason) DO NOTHING
+                    RETURNING 1
+                )
+                SELECT (SELECT COUNT(*) FROM deleted) AS deleted,
+                       (SELECT COUNT(*) FROM ledger) AS ledger_entries
+                """)) {
+            statement.setInt(1, policy.batchSize());
+            statement.setObject(2, utc(now));
+            return count(statement.executeQuery());
+        }
+    }
+
     private MutationCount deleteMemberResource(
             Connection connection,
             RetentionCleanupPolicy policy,
@@ -452,6 +503,10 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                   AND NOT EXISTS (
                       SELECT 1 FROM onmaru.stamp_ranking_profiles profile
                       WHERE profile.member_id = ledger.member_id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM onmaru.web_idempotency_receipts receipt
+                      WHERE receipt.subject_id = ledger.member_id::text
                   )
                 """)) {
             statement.setObject(1, utc(now));
