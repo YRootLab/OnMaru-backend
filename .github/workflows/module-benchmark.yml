@@ -1,0 +1,49 @@
+name: Module Benchmark
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@ff3028ae728de076ea38aa56135529c1566f25a8
+    with:
+      catalog_path: .github/benchmark-modules.yml
+      toolkit_ref: ff3028ae728de076ea38aa56135529c1566f25a8
+      mode: ${{ github.event_name == 'pull_request' && 'pr' || 'develop' }}
+      max_parallel: 4
+      baseline_ref: develop
+      comment_mode: none
+
+  summary:
+    needs: benchmark
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Summarize module benchmark evidence
+        env:
+          BENCHMARK_JOB: ${{ needs.benchmark.result }}
+          RESULT: ${{ needs.benchmark.outputs.result }}
+          COMPARISON_ID: ${{ needs.benchmark.outputs.comparison_id }}
+          MANIFEST_URI: ${{ needs.benchmark.outputs.manifest_uri }}
+          REPORT_ARTIFACT: ${{ needs.benchmark.outputs.report_artifact }}
+          CRITICAL_PATH_SECONDS: ${{ needs.benchmark.outputs.critical_path_seconds }}
+        run: |
+          {
+            printf '## Module Benchmark\n\n'
+            printf '| Field | Value |\n| --- | --- |\n'
+            printf '| Job | %s |\n' "${BENCHMARK_JOB:-unavailable}"
+            printf '| Result | %s |\n' "${RESULT:-unavailable}"
+            printf '| Comparison ID | %s |\n' "${COMPARISON_ID:-unavailable}"
+            printf '| Manifest URI | %s |\n' "${MANIFEST_URI:-unavailable}"
+            printf '| Report artifact | %s |\n' "${REPORT_ARTIFACT:-unavailable}"
+            printf '| Critical path (seconds) | %s |\n' "${CRITICAL_PATH_SECONDS:-unavailable}"
+          } >> "$GITHUB_STEP_SUMMARY"

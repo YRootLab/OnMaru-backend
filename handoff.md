@@ -23,6 +23,22 @@
 - **Implemented DataLab pipeline**: `JdbcVisitorObservationStore`와 전용 dataset revision publisher가 관측값을 PostgreSQL에 저장하고, 활성 revision만 조회한다. DataLab은 광역·기초 endpoint를 전국 단위로 수집한 뒤 Catalog의 공식 검증된 `SIDO:<code>`/`SIGUNGU:<code>` mapping으로 매핑하며 외지인(`touDivCd=2`)만 `visitorCount`로 제공한다. production은 in-memory fallback을 사용하지 않으며 매일 03:30 KST scheduler가 수집한다.
 - **Implemented DataLab official mapping (2026-09-26)**: 공식 v4.1 매뉴얼과 인증된 전국 응답을 대조해 `kr-11→SIDO:11`, `kr-11-jongno→SIGUNGU:11110`, `kr-45→SIDO:52`, `kr-45-jeonju→SIGUNGU:52110`을 V025로 등록했다. Catalog 행이 Flyway 이후 적재돼도 DB trigger가 mapping과 공식 URL·검증시각·검증자를 영속화한다. DataLab `touNum`의 소수 응답은 공개 `int64 visitorCount` 계약에 맞춰 가장 가까운 1명으로 반올림한다. `DataLabVisitorClientTests` 4건, source adapter 2건, JDBC publisher 3건과 `git diff --check`가 통과했다.
 - **PR readiness (2026-09-26)**: Issue #393의 legacy review snapshot backfill, SQL NULL 좌표 제외 정책, `SELECT ... FOR UPDATE` 기반 좋아요 갱신, 신고·멱등성의 공유 JDBC transaction, production Insights JDBC query를 보완했다. `./gradlew test --no-daemon --max-workers=1`(53 tasks), 계약 검증, AI 212 tests·lint·mypy·offline eval을 통과했다. Redis cache는 사용자 요청대로 이번 PR 범위에서 제외하며 Issue #392의 production DataLab smoke는 운영 배포 후 수행한다.
+- **Date**: 2026-09-26 Toolkit 기반 병렬 CI rollout 시작
+- **Branch**: `feature/365-toolkit-module-caller-rollout`
+- **Related Issues**: #365 우선, 이후 #368 → #364 → #366
+- **Scope**: 최신 `develop`에서 Toolkit `v0.1.2` SHA `ff3028ae728de076ea38aa56135529c1566f25a8`을 고정한 shadow module benchmark caller를 구현한다. 기존 직렬 `CI / verify`는 변경하지 않는다.
+- **Plan**: `docs/superpowers/plans/2026-09-26-parallel-ci-toolkit-rollout.md`
+- **Baseline**: Node 105/105, Gradle `test` 성공(8분 11초), AI pytest 212 passed/1 skipped.
+- **Open Risk**: #365 대체 PR의 실제 artifact와 성공 run이 확보되기 전에는 #374를 닫거나 #364 fan-in으로 전환하지 않는다.
+- **Task 1 Changed**: `.github/workflows/module-benchmark.yml`에 PR/develop/manual shadow caller와 읽기 전용 요약 job을 추가하고, `scripts/test/module-benchmark-caller.test.mjs`로 caller의 고정 SHA·입력·권한 계약을 검증한다.
+- **Task 1 Verified**: 계약 테스트 RED는 caller 파일 부재(`ENOENT`), GREEN은 1/1 통과. catalog 1/1, 전체 Node 106/106, YAML 파싱, `git diff --check`, 브랜치 Issue 파서(#365) 통과. 기존 `ci.yml` 불변성은 Node 테스트와 별도로 `origin/develop` 대비 바이트 비교로 확인했다.
+- **Task 1 Toolkit Fix**: 최초 지정된 Toolkit `v0.1.1` SHA의 output 줄바꿈 결함은 Toolkit Issue #99 / PR #102에서 수정했다. release 승격 PR #105와 generated metadata PR #106을 required `ci` 통과 후 병합했고, `v0.1.2` tag가 immutable SHA `ff3028ae728de076ea38aa56135529c1566f25a8`을 가리키는 것을 확인했다.
+- **Task 1 Release Verification**: caller의 workflow ref와 `toolkit_ref`를 `v0.1.2` SHA로 교체한 뒤 caller 1/1, catalog 1/1, 전체 Node 106/106, `git diff --check`, 브랜치 Issue 파서(#365), 기존 `ci.yml` 바이트 불변성을 다시 확인했다.
+- **Task 1 Remote Evidence**: 대체 PR #394의 `CI / verify`와 Module Benchmark run `36173605097`이 성공했다. full-suite 12개 module, aggregate, Toolkit verify, caller summary가 모두 성공했고 module evidence 12개와 `module-benchmark-report` artifact를 확인했다. PR critical path는 287.51초다.
+- **Task 1 Selection Evidence**: consumer catalog를 `module-plan`에 전달해 docs-only와 unknown path는 `unknown-path` full-suite, workflow path는 `always-full-path` full-suite, catalog module 변경은 `catalog`, `audio`, `tourism-api`, `spring-api` affected plan임을 확인했다.
+- **Task 1 Parallel Samples**: 동일 branch SHA `c687b4033bab1ae3509f10ad17e41cbfd1cb498c`의 `workflow_dispatch` run `36174802637`, `36175843868`, `36176943133`이 모두 성공했다. 각 run은 12/12 execution 성공 및 artifact 13개 완전성을 충족했고 critical path는 316.71초, 351.36초, 317.58초(중앙값 317.58초)다. 직렬 중앙값 400초 대비 관측 개선율은 20.605%지만 baseline artifact 비교가 아직 연결되지 않아 공식 판정은 `inconclusive`다.
+- **Task 1 Next**: merge 전 cleanup과 최종 PR checks를 확인한 뒤 #394를 shadow mode로 병합한다. 병합 후 `develop` push run과 artifact를 확인한 다음 PR #374를 superseded로 종료한다.
+
 - **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
 - **Branch**: `docs/390-ci-benchmark-report`
 - **Related Issue**: #390 (extends #368; feeds #364/#366)
