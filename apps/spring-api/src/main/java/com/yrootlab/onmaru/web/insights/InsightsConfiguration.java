@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.web.insights;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorIngestionService;
+import com.yrootlab.onmaru.insights.ingestion.DataLabCollectionObserver;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorRevisionWriter;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorSource;
 import com.yrootlab.onmaru.insights.query.Coordinates;
@@ -18,6 +19,7 @@ import com.yrootlab.onmaru.tourism.insights.DataLabClientProperties;
 import com.yrootlab.onmaru.tourism.insights.DataLabVisitorClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +27,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 import javax.sql.DataSource;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -81,8 +84,19 @@ class InsightsConfiguration {
     @Profile("production")
     DataLabVisitorIngestionService dataLabVisitorIngestionService(
             DataLabVisitorSource source,
-            DataLabVisitorRevisionWriter revisionWriter) {
-        return new DataLabVisitorIngestionService(source, revisionWriter);
+            DataLabVisitorRevisionWriter revisionWriter,
+            DataLabCollectionObserver observer) {
+        return new DataLabVisitorIngestionService(source, revisionWriter, observer);
+    }
+
+    @Bean
+    @Profile("production")
+    @ConditionalOnMissingBean(DataLabCollectionObserver.class)
+    DataLabCollectionObserver dataLabCollectionObserver(ObjectProvider<MeterRegistry> meterRegistryProvider) {
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+        return meterRegistry == null
+                ? DataLabCollectionObserver.NOOP
+                : new MicrometerDataLabCollectionObserver(meterRegistry);
     }
 
     @Bean
