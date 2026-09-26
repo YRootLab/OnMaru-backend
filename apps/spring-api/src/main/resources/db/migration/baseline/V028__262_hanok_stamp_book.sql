@@ -114,7 +114,7 @@ INSERT INTO onmaru.stamp_region_rules (stamp_code, region_code) VALUES
 INSERT INTO onmaru_registry.migration_version_reservations (
     version, reserved_for, issue_number, description
 ) VALUES (
-    '027', 'HANOK_STAMP_BOOK', 262,
+    '028', 'HANOK_STAMP_BOOK', 262,
     'Location-verified member check-ins and relational Hanok stamp awards'
 ) ON CONFLICT (version) DO UPDATE
 SET reserved_for = EXCLUDED.reserved_for,

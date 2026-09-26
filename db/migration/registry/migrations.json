@@ -246,7 +246,7 @@
       "issueNumber": 262,
       "path": "apps/spring-api/src/main/resources/db/migration/baseline/V028__262_hanok_stamp_book.sql",
       "checksum": "hanok-stamp-book-v028-20260926",
-      "sha256": "c01fc4f0b3a48f2805096065649f07b5a7b3cd95a30e1eceae9b26b4abbeb4d0",
+      "sha256": "4d424de6b05fea0040156f46a72d6b57f50037ef78c00a26988eb55c77c67f1a",
       "description": "Location-verified member check-ins and relational Hanok stamp awards"
     }
   ]
