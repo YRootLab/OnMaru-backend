@@ -1,5 +1,30 @@
 # handoff.md
 
+## 현재 작업: #403
+
+- **기준일**: 2026-09-26
+- **브랜치**: `feature/403-ci-hybrid-lanes`
+- **관련 이슈**: #403(PR CI 대기 시간 단축)
+- **목표**: 모듈당 독립 runner shadow benchmark를 필수 CI로 전환하지 않고, Java 공유 workspace lane과 독립 hygiene/contract/AI lane으로 기존 직렬 `verify`보다 빠른 PR 검증을 만든다.
+
+### 설계와 검증 기준
+
+- Java는 단일 Gradle invocation으로 묶어 Spring API가 의존 모듈의 compile/test 산출물을 재사용한다.
+- hygiene와 contract는 항상 실행하고, Java/AI는 PR 변경 경로에 따라 선택한다. workflow·Gradle·CI test 변경은 fail-safe full-suite로 승격한다.
+- 최종 `verify`는 선택된 lane이 `success`, 선택되지 않은 lane이 `skipped`일 때만 성공한다.
+- 전환 성과는 동일 SHA의 GitHub Actions 3회 측정 중앙값이 기존 직렬 CI 중앙값 5분 04초보다 작은 경우에만 인정한다.
+
+### 현재 검증
+
+- `node --test scripts/test/*.test.mjs` — 117 passed
+- Java shared lane command — 성공, 로컬 cold build 6분 56초(로컬 수치는 GitHub runner 성능 비교에서 제외)
+
+### 다음 단계
+
+1. PR을 열어 GitHub Actions의 full-suite 후보 CI를 확인한다.
+2. 통과한 동일 SHA를 수동으로 3회 실행해 기존 직렬 baseline과 비교한다.
+3. 중앙값이 개선되지 않으면 merge하지 않고 #403에 증적과 다음 병목을 남긴다.
+
 ## 현재 작업: #392 / #399
 
 - **기준일**: 2026-09-26
