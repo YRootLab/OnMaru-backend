@@ -9,7 +9,7 @@ Issue #368은 fan-out 이전의 serial `verify` 실행을 비교 가능한 basel
 - 각 run은 immutable `https://github.com/YRootLab/OnMaru-backend/actions/runs/<run-id>` URL, 실행 command, step duration, CPU time, peak RSS를 제공해야 한다.
 - 실패, 취소, artifact 누락, 조건 불일치는 candidate를 폐기한다. 이를 성능 회귀로 해석하지 않는다.
 
-현재 CI workflow에는 `workflow_dispatch`가 없으므로, 세 run은 자연 발생 `develop` run에서 수집한다. fan-out 전 baseline을 조작하기 위해 직접 push하거나 workflow topology를 변경하지 않는다.
+직렬 `CI` workflow에는 `workflow_dispatch`가 있어 같은 `develop` SHA를 세 번 실행할 수 있다. `Collect CI Baseline Evidence` workflow는 기본 브랜치에 등록되어야 하며, 수집 대상 run은 fan-out 전 직렬 topology에서 생성된 성공 run이어야 한다.
 
 ## Manifest 생성
 
@@ -28,6 +28,18 @@ node scripts/benchmark/serial-baseline.mjs \
 Actions API는 step duration을 제공하지만 CPU와 peak RSS를 제공하지 않는다. 이 경우 수집기는 해당 값을 `0`으로 만들지 않고 `unavailable-from-actions-api`로 표시한다. 자원 수치 비교가 필요하면 이후 CI lane에서 명시적 resource collector artifact를 추가해야 한다.
 
 출력 manifest에는 commit/configuration identity, 세 Actions artifact URL, wall-clock median, work median, peak RSS와 step evidence가 포함된다. `/tmp/serial-baseline.json`을 Actions artifact로 올리고 Issue #368에 세 run URL 및 artifact URL을 기록한다.
+
+## 2026-09-26 확정 기준선
+
+- collector run: [36212018558](https://github.com/YRootLab/OnMaru-backend/actions/runs/36212018558)
+- artifact: `ci-serial-baseline-36212018558` (artifact ID `10895259847`, 30일 보관)
+- source commit: `34276f201ce6f7b5ffb6e7ab2784eb584a91a699`
+- source runs: `36159816646` 413초, `36160594916` 361초, `36161322635` 400초
+- wall-clock 중앙값: 400,000ms
+- identity: `ubuntu-latest`, dependency mode `locked`, cache state `unknown`, Java 21, Python 3.12
+- resource evidence: `unavailable-from-actions-api`
+
+최초 collector 결과는 성공 step 합계를 job wall-clock으로 잘못 사용해 396,000ms를 기록했다. collector가 `verify` job의 `started_at`과 `completed_at`을 보존하도록 수정하고 다시 수집했으며, 위 artifact는 413초·361초·400초의 실제 job duration과 400초 중앙값을 포함한다. summary의 run URL도 실제 줄바꿈으로 렌더링된다.
 
 ## 종료 기준
 

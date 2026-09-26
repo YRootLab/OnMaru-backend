@@ -8,7 +8,11 @@
 - **사용자 요청**: #368 immutable baseline artifact를 완성하고, #364의 `CI / verify`를 Toolkit 기반 fan-out/fan-in으로 전환한다.
 - **설계**: `docs/superpowers/specs/2026-09-26-required-verify-fan-in-design.md`
 - **선행 증적**: develop SHA `34276f201ce6f7b5ffb6e7ab2784eb584a91a699`, serial run `36159816646`, `36160594916`, `36161322635`, 중앙값 400초
-- **다음 단계**: baseline collector dispatch 및 artifact 검증 후, `ci-fan-in` fixture를 RED로 만들고 `ci.yml`을 구현한다.
+- **구현 커밋**: baseline 수정 `1879d0e`; required fan-in `031d84d`
+- **기준선 증적**: collector run `36212018558`, artifact `ci-serial-baseline-36212018558`, artifact ID `10895259847`, 중앙값 400초
+- **구현 상태**: `hygiene`, `contract`, pinned Toolkit `module-tests`, final `verify` DAG와 fail-closed verifier를 구현했다. AI catalog는 pytest·Ruff·mypy·offline evaluation을 모두 보존한다.
+- **검증**: Node 116 passed; contract pytest 9 passed; Gradle 53 tasks 성공; AI pytest 212 passed/1 skipped; Ruff·mypy·offline evaluation 성공; `git diff --check` 성공
+- **다음 단계**: 문서 커밋을 push하고 develop 대상 PR을 만든 뒤 실제 Actions 병렬 실행, aggregate artifact, 최종 `CI / verify`를 확인한다. PR을 #368에 연결한 뒤 해당 이슈 종료 조건을 재검증한다.
 
 ---
 
