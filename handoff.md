@@ -1,5 +1,15 @@
 # handoff.md
 
+## 현재 작업: #411
+
+- **Date**: 2026-09-27
+- **Branch**: `docs/411-ci-performance-prediction`
+- **Related Issue**: #411
+- **Scope**: Java 모듈 선택 실행, Spring 통합 테스트 계층화, Testcontainers 최적화의 가능성·예측 범위·중단 기준을 문서화한다.
+- **Files**: `docs/reports/2026-09-27-java-ci-performance-forecast.md`, `handoff.md`
+- **Verification plan**: Markdown 내용의 run URL·수치·workflow/Gradle 구조를 다시 대조하고 `git diff --check`를 실행한다.
+- **Important limitation**: 이 작업은 CI 구현이 아니라 예측 보고서다. 12.4%만 반복 측정된 완료 성과이며, 선택 실행과 Testcontainers 단축률은 구현·비교 검증 전 확정값이 아니다.
+
 ## 현재 작업: #307 / #382
 - **Date**: 2026-09-26 CI Toolkit shadow rollout v0.3.22 release
 - **Branch**: `feature/396-release-0-3-22` (`release/0.3.22`은 생성 시점 required-check ruleset 때문에 push 불가)
