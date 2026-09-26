@@ -16,7 +16,8 @@ public class OnMaruSecretProperties {
             "gemini.api-key",
             "oauth.client-secret",
             "otlp.exporter-token",
-            "moderation.operator-token"));
+            "moderation.operator-token",
+            "datalab.operations-token"));
 
     public Source getSource() {
         return source;

@@ -4,6 +4,17 @@ plugins {
     alias(libs.plugins.spring.dependency.management)
 }
 
+springBoot {
+    buildInfo {
+        properties {
+            excludes.set(setOf("time"))
+            additional = mapOf(
+                "gitSha" to providers.environmentVariable("ONMARU_BUILD_GIT_SHA").getOrElse("unknown")
+            )
+        }
+    }
+}
+
 dependencyManagement {
     dependencies {
         dependency("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")

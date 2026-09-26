@@ -55,7 +55,7 @@ Issue #262의 `/stamps` 화면을 브라우저 `localStorage` 기반 데모에�
 
 ## 5. 관계형 데이터 모델
 
-Flyway `V027__262_hanok_stamp_book.sql`을 추가하고 migration registry와 `docs/database/schema.md`를 함께 갱신한다.
+Flyway `V028__262_hanok_stamp_book.sql`을 추가하고 migration registry와 `docs/database/schema.md`를 함께 갱신한다.
 
 ### `stamp_definitions`
 

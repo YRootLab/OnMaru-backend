@@ -54,4 +54,10 @@ class SecretConfigurationTests {
         assertThat(new OnMaruSecretProperties().getRequiredNames())
                 .contains("moderation.operator-token");
     }
+
+    @Test
+    void dataLabOperationsTokenIsRequiredByDefault() {
+        assertThat(new OnMaruSecretProperties().getRequiredNames())
+                .contains("datalab.operations-token");
+    }
 }

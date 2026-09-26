@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.scheduling.insights;
 
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorIngestionService;
+import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorFetchResult;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorRevisionWriter;
 import com.yrootlab.onmaru.insights.observation.ObservationCoverageStatus;
 import com.yrootlab.onmaru.insights.observation.ObservationMetric;
@@ -21,10 +22,11 @@ class DataLabVisitorSchedulingAdapterTests {
     void runsTheIngestionServiceAtTheDefaultDailyKstSchedule() throws Exception {
         var writer = new RecordingWriter();
         var service = new DataLabVisitorIngestionService(
-                () -> List.of(new VisitorObservation(
+                () -> new DataLabVisitorFetchResult(List.of(new VisitorObservation(
                         "KTO_DATALAB", "kr-45-jeonju", LocalDate.parse("2026-09-25"),
                         ObservationMetric.VISITOR_COUNT, 18_240L, "persons", SpatialLevel.SIGUNGU,
                         ObservationCoverageStatus.COMPLETE, Instant.parse("2026-09-26T00:00:00Z"))),
+                        List.of(), false),
                 writer);
         var adapter = new DataLabVisitorSchedulingAdapter(service);
 

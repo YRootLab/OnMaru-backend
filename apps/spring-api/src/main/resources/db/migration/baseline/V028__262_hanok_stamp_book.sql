@@ -1,4 +1,4 @@
--- onmaru-checksum: hanok-stamp-book-v027-20260926
+-- onmaru-checksum: hanok-stamp-book-v028-20260926
 -- Issue: #262 Server-owned, location-verified Hanok stamp book.
 
 CREATE TYPE onmaru.stamp_rarity AS ENUM ('COMMON', 'REGIONAL', 'RARE', 'LEGENDARY');

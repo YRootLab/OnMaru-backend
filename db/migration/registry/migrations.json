@@ -233,11 +233,20 @@
     },
     {
       "version": "027",
+      "reservedFor": "DATALAB_REGION_MAPPING_REGISTRY",
+      "issueNumber": 399,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V027__399_datalab_region_mapping_registry.sql",
+      "checksum": "datalab-region-mapping-registry-v027-20260926",
+      "sha256": "c1874b8c72a34f1a4a9c90fbfaf86728b32cea4c1ad6c0c7f821aed820d60451",
+      "description": "Auditable DataLab region mapping registry with fail-closed status and provenance"
+    },
+    {
+      "version": "028",
       "reservedFor": "HANOK_STAMP_BOOK",
       "issueNumber": 262,
-      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V027__262_hanok_stamp_book.sql",
-      "checksum": "hanok-stamp-book-v027-20260926",
-      "sha256": "73d0c5256415c8a94021e94ccce52f0dfae2f86973074a1156f0a9933715703a",
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V028__262_hanok_stamp_book.sql",
+      "checksum": "hanok-stamp-book-v028-20260926",
+      "sha256": "c01fc4f0b3a48f2805096065649f07b5a7b3cd95a30e1eceae9b26b4abbeb4d0",
       "description": "Location-verified member check-ins and relational Hanok stamp awards"
     }
   ]

@@ -24,14 +24,14 @@
 - `modules/stamp/**`: 수결 definition, 위치 검증 결과, award policy, service, store port, in-memory test adapter
 - `adapters/persistence-jdbc/**/stamp`: active Catalog/PostGIS lookup과 PostgreSQL stamp store
 - `apps/spring-api/**/web/stamp`: REST controller, DTO, exception mapping, Spring wiring
-- `apps/spring-api/src/main/resources/db/migration/baseline/V027__262_hanok_stamp_book.sql`: enum/table/index/seed
+- `apps/spring-api/src/main/resources/db/migration/baseline/V028__262_hanok_stamp_book.sql`: enum/table/index/seed
 - `docs/contracts/openapi/hanok-stamps.openapi.yaml`: canonical API contract
 - `docs/toFE/hanok-stamp-book-api-handoff-2026-09-26.md`: FE 연동 안내
 
 ### Task 1: 수결 schema와 migration contract
 
 **Files:**
-- Create: `apps/spring-api/src/main/resources/db/migration/baseline/V027__262_hanok_stamp_book.sql`
+- Create: `apps/spring-api/src/main/resources/db/migration/baseline/V028__262_hanok_stamp_book.sql`
 - Modify: `db/migration/registry/migrations.json`
 - Modify: `docs/database/schema.md`
 - Test: `scripts/test/migration-policy.test.mjs`
@@ -42,7 +42,7 @@
 - Enforces: unique `(member_id, place_id, check_in_bucket)` and `(member_id, stamp_code)`
 
 - [x] Add a PostgreSQL integration test that migrates from zero, asserts 12 definitions/10 region rules, rejects duplicate check-in/award, and cascades member deletion.
-- [x] Run `./gradlew :apps:spring-api:test --tests '*JdbcStampMigrationTests'` and confirm failure because V027 tables do not exist.
+- [x] Run `./gradlew :apps:spring-api:test --tests '*JdbcStampMigrationTests'` and confirm failure because V028 tables do not exist.
 - [x] Add enum/table/index/seed DDL, reservation row, registry SHA-256, and schema documentation.
 - [x] Run the focused test and `node --test scripts/test/migration-policy.test.mjs`; confirm both pass.
 - [x] Commit `feat(stamp): 수결첩 관계형 스키마 추가`.

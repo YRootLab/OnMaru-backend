@@ -34,6 +34,11 @@
 // 내부 법정동 코드와 다른 DataLab 코드(`SIDO:11`, `SIDO:52`, `SIGUNGU:11110`,
 // `SIGUNGU:52110`)를 활성 Catalog 지역에 등록한다. Catalog 행이 Flyway 이후 적재되어도
 // trigger가 mapping과 공식 검증 이력을 같은 DB에 기록한다.
+// V027은 catalog_datalab_region_mappings를 source-code row의 DataLab 전용 기간 registry로
+// 추가한다. 내부 지역과 DataLab code의 유효기간 중복, SIDO/SIGUNGU 계층·parent 불일치,
+// 공식 verification row와 다른 ACTIVE provenance를 DB에서 거부한다. 종료된 mapping 뒤에는
+// 새 valid_from 이력을 추가할 수 있다. PENDING/REJECTED mapping은 감사 이력에는 남지만 운영
+// 수집 대상으로 선택되지 않는다.
 // 스크린 한옥의 최신 게시 snapshot은 V019 Flyway migration을 기준으로 한다.
 // catalog_screen_hanok_placements는 FastAPI 리서치 결과 중 출처 URL이 있는 항목만
 // 저장하며, 전체 snapshot 교체 transaction으로 마지막 검증된 게시본을 보존한다.
@@ -47,7 +52,7 @@
 // V026은 V021 이전 VisitReview에 결정적 p-legacy-* 공개 ID를 등록하고 가능한 최신
 // published Catalog version의 장소명·지역·좌표 snapshot을 backfill해 JDBC 전환 시
 // 기존 후기가 조회에서 사라지지 않게 한다.
-// 한옥 수결첩의 실행 스키마는 V027을 기준으로 한다. stamp_definitions와
+// 한옥 수결첩의 실행 스키마는 V028을 기준으로 한다. stamp_definitions와
 // stamp_region_rules가 수결 표시 정보와 canonical 지역 조건을 소유하고,
 // stamp_check_ins는 회원·Catalog 장소·15분 bucket 관계와 서버 판정 거리/정확도만 저장하며,
 // CHECK(distance_meters - accuracy_meters <= 200)로 성공 판정 반경도 DB에서 보호한다.
