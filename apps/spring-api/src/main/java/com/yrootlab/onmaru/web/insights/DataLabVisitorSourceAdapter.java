@@ -1,7 +1,11 @@
 package com.yrootlab.onmaru.web.insights;
 
-import com.yrootlab.onmaru.catalog.region.CatalogRegionSourceCode;
-import com.yrootlab.onmaru.catalog.region.CatalogRegionSourceCodeLookup;
+import com.yrootlab.onmaru.catalog.region.DataLabRegionMapping;
+import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingRegistry;
+import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingStatus;
+import com.yrootlab.onmaru.insights.ingestion.DataLabCollectionExclusion;
+import com.yrootlab.onmaru.insights.ingestion.DataLabCollectionReason;
+import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorFetchResult;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorSource;
 import com.yrootlab.onmaru.insights.observation.ObservationCoverageStatus;
 import com.yrootlab.onmaru.insights.observation.ObservationMetric;
@@ -16,39 +20,39 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
-/** Maps Catalog's scoped DataLab source codes into outsider-only visitor observations. */
+/** Maps only ACTIVE registry entries to observations and quarantines unsafe batches. */
 final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
 
-    static final String PROVIDER = "KTO_DATALAB";
-    static final String DATASET = "visitor";
     private static final String OUTSIDER_DIVISION_CODE = "2";
     private static final ZoneId KOREA_STANDARD_TIME = ZoneId.of("Asia/Seoul");
 
     private final DataLabVisitorRecordFetcher recordFetcher;
-    private final CatalogRegionSourceCodeLookup regionSourceCodes;
+    private final DataLabRegionMappingRegistry mappingRegistry;
     private final Clock clock;
     private final int pageSize;
 
     DataLabVisitorSourceAdapter(
             DataLabVisitorClient client,
-            CatalogRegionSourceCodeLookup regionSourceCodes,
+            DataLabRegionMappingRegistry mappingRegistry,
             Clock clock,
             int pageSize) {
-        this(client::fetchAll, regionSourceCodes, clock, pageSize);
+        this(client::fetchAll, mappingRegistry, clock, pageSize);
     }
 
     DataLabVisitorSourceAdapter(
             DataLabVisitorRecordFetcher recordFetcher,
-            CatalogRegionSourceCodeLookup regionSourceCodes,
+            DataLabRegionMappingRegistry mappingRegistry,
             Clock clock,
             int pageSize) {
         this.recordFetcher = Objects.requireNonNull(recordFetcher);
-        this.regionSourceCodes = Objects.requireNonNull(regionSourceCodes);
+        this.mappingRegistry = Objects.requireNonNull(mappingRegistry);
         this.clock = Objects.requireNonNull(clock);
         if (pageSize < 1 || pageSize > 1_000) {
             throw new IllegalArgumentException("DataLab pageSize must be between 1 and 1000");
@@ -57,51 +61,119 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
     }
 
     @Override
-    public List<VisitorObservation> fetchDailyVisitorObservations() {
+    public DataLabVisitorFetchResult fetchDailyVisitorObservations() {
         Instant observedAt = clock.instant();
         LocalDate basisDate = LocalDate.now(clock.withZone(KOREA_STANDARD_TIME));
-        var observations = new ArrayList<VisitorObservation>();
-        Map<ScopedCode, String> catalogRegionCodes = catalogRegionCodes(basisDate);
-        if (catalogRegionCodes.isEmpty()) {
-            throw new IllegalStateException("No verified DataLab visitor region mappings are active");
+        var exclusions = new ArrayList<DataLabCollectionExclusion>();
+        var activeMappings = activeMappings(basisDate, exclusions);
+        boolean invalidRegistry = exclusions.stream().anyMatch(exclusion ->
+                exclusion.reason() == DataLabCollectionReason.INVALID_MAPPING);
+        if (activeMappings.isEmpty()) {
+            exclusions.add(new DataLabCollectionExclusion(null, DataLabCollectionReason.NO_ACTIVE_MAPPING));
+            return new DataLabVisitorFetchResult(List.of(), exclusions, invalidRegistry);
         }
-        for (DataLabVisitorRequest.Scope scope : DataLabVisitorRequest.Scope.values()) {
-            var request = request(scope, basisDate);
+
+        var observations = new LinkedHashMap<String, VisitorObservation>();
+        boolean quarantined = invalidRegistry;
+        for (DataLabVisitorRequest.Scope scope : requestedScopes(activeMappings.keySet())) {
             try {
-                for (DataLabVisitorRecord record : recordFetcher.fetch(request)) {
+                for (DataLabVisitorRecord record : recordFetcher.fetch(request(scope, basisDate))) {
                     if (record == null || record.scope() != scope) {
-                        throw new IllegalStateException("DataLab visitor response scope does not match request");
+                        exclusions.add(new DataLabCollectionExclusion(
+                                null, DataLabCollectionReason.RESPONSE_SCOPE_MISMATCH));
+                        quarantined = true;
+                        continue;
                     }
-                    if (OUTSIDER_DIVISION_CODE.equals(record.visitorDivisionCode())) {
-                        String regionCode = catalogRegionCodes.get(new ScopedCode(regionScope(scope), record.providerRegionCode()));
-                        if (regionCode != null) {
-                            observations.add(observation(regionCode, scope, record, observedAt));
-                        }
+                    if (!basisDate.equals(record.basisDate())) {
+                        exclusions.add(new DataLabCollectionExclusion(
+                                null, DataLabCollectionReason.RESPONSE_BASIS_DATE_MISMATCH));
+                        quarantined = true;
+                        continue;
+                    }
+                    if (!OUTSIDER_DIVISION_CODE.equals(record.visitorDivisionCode())) {
+                        continue;
+                    }
+                    DataLabRegionMapping mapping = activeMappings.get(
+                            new ScopedCode(regionLevel(scope), record.providerRegionCode()));
+                    if (mapping == null) {
+                        continue;
+                    }
+                    if (observations.containsKey(mapping.internalRegionCode())) {
+                        exclusions.add(new DataLabCollectionExclusion(
+                                mapping.internalRegionCode(), DataLabCollectionReason.DUPLICATE_RESPONSE));
+                        quarantined = true;
+                        continue;
+                    }
+                    try {
+                        observations.put(mapping.internalRegionCode(),
+                                observation(mapping, record, observedAt));
+                    } catch (IllegalArgumentException exception) {
+                        exclusions.add(new DataLabCollectionExclusion(
+                                mapping.internalRegionCode(), DataLabCollectionReason.INVALID_PROVIDER_VALUE));
+                        quarantined = true;
                     }
                 }
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException("DataLab visitor fetch was interrupted", exception);
+                exclusions.add(new DataLabCollectionExclusion(null, DataLabCollectionReason.PROVIDER_FAILURE));
+                quarantined = true;
+            } catch (RuntimeException exception) {
+                exclusions.add(new DataLabCollectionExclusion(null, DataLabCollectionReason.PROVIDER_FAILURE));
+                quarantined = true;
             }
         }
-        var observedRegions = observations.stream().map(VisitorObservation::regionCode).collect(java.util.stream.Collectors.toSet());
-        var missingRegions = catalogRegionCodes.values().stream().filter(region -> !observedRegions.contains(region)).toList();
-        if (!missingRegions.isEmpty()) {
-            throw new IllegalStateException("DataLab visitor response is incomplete for verified regions: " + missingRegions);
+
+        Set<String> observedRegions = observations.keySet();
+        activeMappings.values().stream()
+                .map(DataLabRegionMapping::internalRegionCode)
+                .distinct()
+                .filter(region -> !observedRegions.contains(region))
+                .forEach(region -> exclusions.add(new DataLabCollectionExclusion(
+                        region, DataLabCollectionReason.MISSING_ACTIVE_REGION)));
+        if (exclusions.stream().anyMatch(exclusion ->
+                exclusion.reason() == DataLabCollectionReason.MISSING_ACTIVE_REGION)) {
+            quarantined = true;
         }
-        return List.copyOf(observations);
+        return new DataLabVisitorFetchResult(
+                quarantined ? List.of() : List.copyOf(observations.values()),
+                exclusions,
+                quarantined);
     }
 
-    private Map<ScopedCode, String> catalogRegionCodes(LocalDate basisDate) {
-        var mappings = new LinkedHashMap<ScopedCode, String>();
-        for (CatalogRegionSourceCode sourceCode : regionSourceCodes.findCurrent(PROVIDER, DATASET, basisDate)) {
-            ScopedCode scopedCode = parseScopedCode(sourceCode.sourceCode());
-            String existing = mappings.putIfAbsent(scopedCode, sourceCode.regionCode());
-            if (existing != null && !existing.equals(sourceCode.regionCode())) {
-                throw new IllegalStateException("DataLab source code is mapped to multiple Catalog regions: " + sourceCode.sourceCode());
+    private Map<ScopedCode, DataLabRegionMapping> activeMappings(
+            LocalDate basisDate,
+            List<DataLabCollectionExclusion> exclusions) {
+        var active = new LinkedHashMap<ScopedCode, DataLabRegionMapping>();
+        for (DataLabRegionMapping mapping : mappingRegistry.findCurrent(basisDate)) {
+            if (mapping.status() == DataLabRegionMappingStatus.PENDING) {
+                exclusions.add(new DataLabCollectionExclusion(
+                        mapping.internalRegionCode(), DataLabCollectionReason.PENDING_MAPPING));
+                continue;
+            }
+            if (mapping.status() == DataLabRegionMappingStatus.REJECTED) {
+                exclusions.add(new DataLabCollectionExclusion(
+                        mapping.internalRegionCode(), DataLabCollectionReason.REJECTED_MAPPING));
+                continue;
+            }
+            ScopedCode key = scopedCode(mapping);
+            DataLabRegionMapping previous = active.putIfAbsent(key, mapping);
+            if (previous != null) {
+                exclusions.add(new DataLabCollectionExclusion(
+                        mapping.internalRegionCode(), DataLabCollectionReason.INVALID_MAPPING));
+                active.remove(key);
             }
         }
-        return Map.copyOf(mappings);
+        return Map.copyOf(active);
+    }
+
+    private EnumSet<DataLabVisitorRequest.Scope> requestedScopes(Set<ScopedCode> codes) {
+        var scopes = EnumSet.noneOf(DataLabVisitorRequest.Scope.class);
+        for (ScopedCode code : codes) {
+            scopes.add(code.level() == DataLabRegionMapping.Level.SIDO
+                    ? DataLabVisitorRequest.Scope.METROPOLITAN
+                    : DataLabVisitorRequest.Scope.LOCAL_GOVERNMENT);
+        }
+        return scopes;
     }
 
     private DataLabVisitorRequest request(DataLabVisitorRequest.Scope scope, LocalDate basisDate) {
@@ -111,51 +183,38 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
         };
     }
 
-    private ScopedCode parseScopedCode(String encodedSourceCode) {
-        if (encodedSourceCode == null) {
-            throw invalidSourceCode(null);
+    private ScopedCode scopedCode(DataLabRegionMapping mapping) {
+        int separator = mapping.dataLabRegionCode().indexOf(':');
+        if (separator < 1 || separator == mapping.dataLabRegionCode().length() - 1) {
+            throw new IllegalArgumentException("invalid DataLab registry source code");
         }
-        int separator = encodedSourceCode.indexOf(':');
-        if (separator <= 0 || separator != encodedSourceCode.lastIndexOf(':')
-                || separator == encodedSourceCode.length() - 1) {
-            throw invalidSourceCode(encodedSourceCode);
-        }
-        String scope = encodedSourceCode.substring(0, separator).trim();
-        String providerCode = encodedSourceCode.substring(separator + 1).trim();
-        return switch (scope) {
-            case "SIDO" -> new ScopedCode(RegionScope.SIDO, providerCode);
-            case "SIGUNGU" -> new ScopedCode(RegionScope.SIGUNGU, providerCode);
-            default -> throw invalidSourceCode(encodedSourceCode);
-        };
+        return new ScopedCode(mapping.level(), mapping.dataLabRegionCode().substring(separator + 1));
     }
 
     private VisitorObservation observation(
-            String regionCode,
-            DataLabVisitorRequest.Scope scope,
+            DataLabRegionMapping mapping,
             DataLabVisitorRecord record,
             Instant observedAt) {
         Long count = record.visitorCount();
         if (count != null && count < 0) {
-            throw new IllegalStateException("DataLab visitor count must not be negative");
+            throw new IllegalArgumentException("DataLab visitor count must not be negative");
         }
         return new VisitorObservation(
-                PROVIDER,
-                regionCode,
+                "KTO_DATALAB",
+                mapping.internalRegionCode(),
                 record.basisDate(),
                 ObservationMetric.VISITOR_COUNT,
                 count,
                 "persons",
-                scope == DataLabVisitorRequest.Scope.METROPOLITAN ? SpatialLevel.SIDO : SpatialLevel.SIGUNGU,
+                mapping.level() == DataLabRegionMapping.Level.SIDO ? SpatialLevel.SIDO : SpatialLevel.SIGUNGU,
                 count == null ? ObservationCoverageStatus.NOT_AVAILABLE : ObservationCoverageStatus.COMPLETE,
                 observedAt);
     }
 
-    private RegionScope regionScope(DataLabVisitorRequest.Scope scope) {
-        return scope == DataLabVisitorRequest.Scope.METROPOLITAN ? RegionScope.SIDO : RegionScope.SIGUNGU;
-    }
-
-    private IllegalArgumentException invalidSourceCode(String sourceCode) {
-        return new IllegalArgumentException("DataLab source code must use SIDO:<code> or SIGUNGU:<code>: " + sourceCode);
+    private DataLabRegionMapping.Level regionLevel(DataLabVisitorRequest.Scope scope) {
+        return scope == DataLabVisitorRequest.Scope.METROPOLITAN
+                ? DataLabRegionMapping.Level.SIDO
+                : DataLabRegionMapping.Level.SIGUNGU;
     }
 
     @FunctionalInterface
@@ -163,11 +222,6 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
         List<DataLabVisitorRecord> fetch(DataLabVisitorRequest request) throws InterruptedException;
     }
 
-    private enum RegionScope {
-        SIDO,
-        SIGUNGU
-    }
-
-    private record ScopedCode(RegionScope scope, String providerCode) {
+    private record ScopedCode(DataLabRegionMapping.Level level, String providerCode) {
     }
 }
