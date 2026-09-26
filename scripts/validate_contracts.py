@@ -163,7 +163,12 @@ def validate_stamp_openapi(path: Path, root: Path) -> None:
         fail(f"{path.relative_to(root)} must contain an OpenAPI object")
     required_operations = {
         "/stamps": {"get": {"200"}},
+        "/stamps/leaderboard": {"get": {"200", "400", "503"}},
         "/me/stamp-book": {"get": {"200", "401", "503"}},
+        "/me/stamp-ranking": {
+            "get": {"200", "401", "503"},
+            "put": {"200", "400", "401", "403", "429", "503"},
+        },
         "/places/{placeId}/check-ins": {
             "post": {"200", "201", "400", "401", "403", "404", "409", "422", "429", "503"}
         },
@@ -182,7 +187,11 @@ def validate_stamp_openapi(path: Path, root: Path) -> None:
             if missing:
                 fail(f"{path.relative_to(root)} {method.upper()} {route} is missing responses {sorted(missing)}")
     schemas = document.get("components", {}).get("schemas", {})
-    for name in ("StampCatalogResponse", "StampBookResponse", "CheckInRequest", "CheckInResponse", "ApiError"):
+    for name in (
+        "StampCatalogResponse", "StampBookResponse", "CheckInRequest", "CheckInResponse",
+        "StampLeaderboardResponse", "StampRankingStatusResponse", "StampRankingUpdateRequest",
+        "StampRankingEntry", "ApiError",
+    ):
         if not isinstance(schemas, dict) or name not in schemas:
             fail(f"{path.relative_to(root)} is missing schema {name}")
 

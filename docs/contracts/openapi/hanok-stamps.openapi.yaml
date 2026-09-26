@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: OnMaru 한옥 수결첩 API
-  version: 1.2.0
-  description: 로그인 회원의 위치 기반 한옥 체크인과 수결 획득 계약입니다. 요청 좌표 원문은 저장하거나 응답하지 않습니다.
+  version: 1.3.0
+  description: 한옥 수결 획득, 익명 랭킹, 회원의 랭킹 참여 계약입니다. 요청 좌표 원문은 저장하거나 응답하지 않습니다.
 servers:
   - url: /api/v1
 tags:
@@ -22,6 +22,27 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/StampCatalogResponse'}
+  /stamps/leaderboard:
+    get:
+      tags: [Stamp]
+      operationId: getStampLeaderboard
+      summary: 익명 수결 랭킹 조회
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, default: 20, minimum: 1, maximum: 100}
+      responses:
+        '200':
+          description: 현재 참여 중인 회원의 익명 랭킹
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StampLeaderboardResponse'}
+        '400': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /me/stamp-book:
     get:
       tags: [Stamp]
@@ -38,6 +59,58 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/StampBookResponse'}
         '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /me/stamp-ranking:
+    get:
+      tags: [Stamp]
+      operationId: getMyStampRanking
+      summary: 내 수결 랭킹 참여 상태 조회
+      security: [{memberSession: []}]
+      responses:
+        '200':
+          description: 내 수결 랭킹 참여 상태
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StampRankingStatusResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+    put:
+      tags: [Stamp]
+      operationId: updateMyStampRanking
+      summary: 내 수결 랭킹 참여 설정 변경
+      security: [{memberSession: []}]
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StampRankingUpdateRequest'}
+      responses:
+        '200':
+          description: 변경 후 참여 상태
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StampRankingStatusResponse'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '429':
+          description: 탈퇴 직후 재참여 대기 중
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+            Retry-After:
+              schema: {type: integer, minimum: 1}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApiError'}
         '503': {$ref: '#/components/responses/Error'}
   /places/{placeId}/check-ins:
     post:
@@ -85,6 +158,8 @@ paths:
         '429':
           description: KST 하루 성공 체크인 30회 초과
           headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
             Retry-After:
               schema: {type: integer, minimum: 1}
           content:
@@ -123,7 +198,7 @@ components:
       additionalProperties: false
       required: [schemaVersion, stamps]
       properties:
-        schemaVersion: {type: string, const: '1.2'}
+        schemaVersion: {type: string, const: '1.3'}
         stamps:
           type: array
           items: {$ref: '#/components/schemas/StampDefinition'}
@@ -132,11 +207,53 @@ components:
       additionalProperties: false
       required: [schemaVersion, summary, stamps]
       properties:
-        schemaVersion: {type: string, const: '1.2'}
+        schemaVersion: {type: string, const: '1.3'}
         summary: {$ref: '#/components/schemas/StampBookSummary'}
         stamps:
           type: array
           items: {$ref: '#/components/schemas/StampBookItem'}
+    StampLeaderboardResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, generatedAt, entries]
+      properties:
+        schemaVersion: {type: string, const: '1.3'}
+        generatedAt: {type: string, format: date-time}
+        entries:
+          type: array
+          items: {$ref: '#/components/schemas/StampRankingEntry'}
+    StampRankingEntry:
+      type: object
+      additionalProperties: false
+      required: [rank, publicId, nickname, nicknameType, stampCount, visitedRegionCount, completionRate]
+      properties:
+        rank: {type: integer, minimum: 1}
+        publicId: {type: string, format: uuid}
+        nickname: {type: string}
+        nicknameType: {type: string, enum: [GENERATED]}
+        stampCount: {type: integer, minimum: 0}
+        visitedRegionCount: {type: integer, minimum: 0}
+        completionRate: {type: integer, minimum: 0, maximum: 100}
+    StampRankingStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, participating, publicNickname, nicknameType, rank, participantCount, stampCount, visitedRegionCount, completionRate]
+      properties:
+        schemaVersion: {type: string, const: '1.3'}
+        participating: {type: boolean}
+        publicNickname: {type: [string, 'null']}
+        nicknameType: {type: [string, 'null'], enum: [GENERATED, null]}
+        rank: {type: [integer, 'null'], minimum: 1}
+        participantCount: {type: integer, minimum: 0}
+        stampCount: {type: integer, minimum: 0}
+        visitedRegionCount: {type: integer, minimum: 0}
+        completionRate: {type: integer, minimum: 0, maximum: 100}
+    StampRankingUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [participating]
+      properties:
+        participating: {type: boolean}
     CheckInRequest:
       type: object
       additionalProperties: false
@@ -150,7 +267,7 @@ components:
       additionalProperties: false
       required: [schemaVersion, checkIn, newAwards, summary]
       properties:
-        schemaVersion: {type: string, const: '1.2'}
+        schemaVersion: {type: string, const: '1.3'}
         checkIn: {$ref: '#/components/schemas/CheckIn'}
         newAwards:
           type: array
@@ -229,10 +346,10 @@ components:
       additionalProperties: false
       required: [schemaVersion, code, message, requestId, details]
       properties:
-        schemaVersion: {type: string, const: '1.2'}
+        schemaVersion: {type: string, const: '1.3'}
         code:
           type: string
-          enum: [VALIDATION_ERROR, IDEMPOTENCY_KEY_MISSING, IDEMPOTENCY_KEY_INVALID, AUTH_REQUIRED, CSRF_INVALID, NOT_FOUND, IDEMPOTENCY_CONFLICT, LOCATION_ACCURACY_TOO_LOW, OUTSIDE_CHECK_IN_RADIUS, CHECK_IN_RATE_LIMITED, SERVICE_UNAVAILABLE]
+          enum: [VALIDATION_ERROR, IDEMPOTENCY_KEY_MISSING, IDEMPOTENCY_KEY_INVALID, AUTH_REQUIRED, CSRF_INVALID, NOT_FOUND, IDEMPOTENCY_CONFLICT, LOCATION_ACCURACY_TOO_LOW, OUTSIDE_CHECK_IN_RADIUS, CHECK_IN_RATE_LIMITED, RATE_LIMITED, SERVICE_UNAVAILABLE]
         message: {type: string}
         requestId: {type: string}
         details: {type: object, additionalProperties: true}

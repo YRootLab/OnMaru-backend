@@ -140,6 +140,14 @@ def test_contract_validator_requires_manifested_stamp_openapi(tmp_path: Path) ->
         validator.validate_contracts(root)
 
 
+def test_repository_stamp_openapi_declares_required_ranking_contract() -> None:
+    validator = load_validator()
+
+    validator.validate_stamp_openapi(
+        ROOT / "docs/contracts/openapi/hanok-stamps.openapi.yaml", ROOT
+    )
+
+
 def test_contract_validator_rejects_fixture_body_that_does_not_match_schema(tmp_path: Path) -> None:
     validator = load_validator()
     root = create_contract_tree(tmp_path)
