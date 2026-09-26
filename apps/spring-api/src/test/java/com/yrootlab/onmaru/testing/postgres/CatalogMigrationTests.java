@@ -221,6 +221,12 @@ class CatalogMigrationTests {
                     WHERE provider = 'KTO_DATALAB' AND dataset = 'visitor' AND source_code = 'SIDO:11'
                     """))
                     .hasMessageContaining("DataLab registry source or verification drift detected");
+            assertThatThrownBy(() -> statement.execute("""
+                    UPDATE onmaru.catalog_region_source_codes
+                    SET region_id = '10000000-0000-0000-0000-000000000045'
+                    WHERE provider = 'KTO_DATALAB' AND dataset = 'visitor' AND source_code = 'SIDO:11'
+                    """))
+                    .hasMessageContaining("DataLab registry source or verification drift detected");
         }
     }
 

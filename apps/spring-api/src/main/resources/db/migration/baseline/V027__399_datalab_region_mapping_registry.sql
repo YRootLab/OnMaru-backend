@@ -132,7 +132,8 @@ BEGIN
          AND verification.dataset = mapping.dataset
          AND verification.source_code = mapping.source_code
          AND verification.valid_from = mapping.valid_from
-        WHERE mapping.valid_to IS DISTINCT FROM source.valid_to
+        WHERE mapping.region_id IS DISTINCT FROM source.region_id
+           OR mapping.valid_to IS DISTINCT FROM source.valid_to
            OR (mapping.status = 'ACTIVE' AND (
                 verification.official_source_url IS DISTINCT FROM mapping.source_url
                 OR verification.verified_by IS DISTINCT FROM mapping.verified_by
