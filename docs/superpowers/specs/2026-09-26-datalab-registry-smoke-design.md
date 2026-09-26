@@ -24,7 +24,7 @@ Issue #399의 검증 가능한 지역 mapping registry와 fail-closed 수집 정
 
 동일 내부 region은 registry에 한 번만 존재하고 DataLab source code도 한 번만 존재한다. DB constraint와 trigger는 source code의 `SIDO:`/`SIGUNGU:` prefix, Catalog region level, SIDO의 parent 부재, SIGUNGU의 SIDO parent 존재를 검증한다. `ACTIVE`는 HTTPS source URL과 모든 관측·검증 필드가 반드시 있어야 한다. `PENDING`과 `REJECTED`는 provenance가 아직 없을 수 있지만 빈 문자열과 잘못된 URL은 허용하지 않는다.
 
-기존 네 공식 mapping은 migration에서 `ACTIVE`로 backfill한다. seed 함수는 generic mapping, verification 이력, registry row를 한 transaction 안에서 만들며 다른 region에 이미 연결된 source code는 덮어쓰지 않는다.
+기존 네 공식 mapping은 신규 migration에서 `ACTIVE`로 backfill한다. 신규 migration은 기존 seed 함수를 같은 이름으로 교체해 이후 실행부터 generic mapping, verification 이력, registry row를 한 transaction 안에서 만들며 다른 region에 이미 연결된 source code는 덮어쓰지 않는다. 이미 배포된 V025 migration 파일은 변경하지 않는다.
 
 ## 수집 흐름과 실패 처리
 
