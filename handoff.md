@@ -1,6 +1,16 @@
 # handoff.md
 
-## 현재 작업: #392 / #399
+## 현재 작업: Issue #262 익명 수결 랭킹 후속
+
+- **기준일/브랜치**: 2026-09-27 / `feature/262-hanok-stamp-book`
+- **상태**: V029 `stamp_ranking_profiles`, 익명 프로필 생성·철회, JDBC 실시간 집계, 공개·개인 REST API와 OpenAPI 1.3 구현. FE 인계 및 운영 계약 문서를 현재 구현에 맞춰 갱신했다. 원격 PR은 이번 작업에서 갱신하지 않았다.
+- **API**: 공개 `GET /api/v1/stamps/leaderboard`, 회원 `GET/PUT /api/v1/me/stamp-ranking`. 개인 PUT은 session cookie와 CSRF가 필요하고 철회는 재참여 5초 제한과 무관하다.
+- **변경 파일**: `docs/contracts/rest-api.md`, `docs/toFE/hanok-stamp-book-api-handoff-2026-09-26.md`, `docs/superpowers/specs/2026-09-26-hanok-stamp-book-design.md`, `handoff.md`, `CHANGELOG.md`.
+- **구현 커밋**: `a79e7c3` V029, `afd0a22` domain, `041392a` JDBC, `af7b59e` REST, `860d699` OpenAPI. 검증 결과는 각 작업 보고서와 해당 커밋을 확인한다.
+- **문서 검증**: `bash scripts/verify-contracts --contracts-only`, 변경 문서의 로컬 Markdown 링크 경로 확인, `git diff --check` 모두 통과.
+- **다음 단계/열린 위험**: FE가 실제 세션·CSRF·429·철회 후 재조회 흐름을 연결하고 staging에서 동의/철회 화면과 운영 데이터 성능을 확인한다. PR 생성·갱신 및 배포는 미실시다.
+
+## 이전 작업 기록: #392 / #399
 
 - **기준일**: 2026-09-26
 - **브랜치**: `feature/262-hanok-stamp-book`
@@ -15,7 +25,7 @@
 - active Catalog의 한옥 계열 장소를 PostGIS로 확인하며 `distance - accuracy <= 200m`, accuracy 100m 이하를 적용한다.
 - 위도·경도 원문은 저장·응답하지 않는다. 회원당 KST 하루 30회, 같은 장소·15분 구간 중복 방지, UUID 멱등성 키를 적용한다.
 - 지역 방문, KST 야간 방문, 서로 다른 5개 권역 방문 수결을 같은 transaction에서 지급한다.
-- 공개 랭킹은 개인정보 정책 부재로 제외했다.
+- 당시 체크인 범위에서는 공개 랭킹을 제외했다. 2026-09-27 후속 설계와 구현에서 명시적 참여형 익명 랭킹을 추가했다.
 
 ## API와 문서
 
@@ -54,7 +64,7 @@
 1. `/stamps` 화면의 `onmaru_hanok_stamps_v1` 기반 획득 판정을 서버 API로 교체한다.
 2. 브라우저 위치 권한 → CSRF 발급 → 같은 UUID key를 재사용하는 체크인 흐름을 연결한다.
 3. 개인 수결첩 조회가 성공한 뒤 legacy localStorage 키를 제거한다. 데모 도장을 서버로 이전하지 않는다.
-4. 공개 랭킹 탭은 숨기거나 데모 표시한다.
+4. 공개 랭킹 탭은 후속 `GET /api/v1/stamps/leaderboard`와 개인 참여 API에 연결한다.
 
 ## 열린 운영 확인 사항
 

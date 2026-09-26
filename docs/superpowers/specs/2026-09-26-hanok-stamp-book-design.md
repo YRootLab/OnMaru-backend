@@ -225,6 +225,8 @@ Flyway `V028__262_hanok_stamp_book.sql`을 추가하고 migration registry와 `d
 
 공개 leaderboard는 이번 범위에서 제외한다. 현재 production identity schema에는 공개 nickname과 랭킹 공개 동의가 없으므로 member ID나 OAuth 이름을 노출하면 privacy 문제가 생긴다. `GET /me/stamp-book`의 개인 진행률을 먼저 제공하고, nickname 영속화·opt-in 정책이 승인되면 별도 Issue로 leaderboard를 추가한다. FE는 그때까지 랭킹 탭을 숨기거나 명확한 demo 표시를 해야 한다.
 
+후속 결정(2026-09-27): [한옥 수결첩 공개 랭킹 설계](2026-09-27-hanok-stamp-ranking-design.md)에서 명시적 opt-in과 서버 생성 익명 별명 정책을 승인했고, Issue #262의 후속 구현으로 공개 랭킹·개인 참여 설정을 추가했다. 위 제외 판단은 원래 체크인·지급 범위의 당시 결정으로 보존한다. 현재 FE 계약은 [OpenAPI 1.3](../../contracts/openapi/hanok-stamps.openapi.yaml)과 [FE 인계서](../../toFE/hanok-stamp-book-api-handoff-2026-09-26.md#익명-공개-랭킹-연동)를 따른다.
+
 ## 8. 오류 계약
 
 공통 `ApiErrorResponse`와 request ID를 사용한다.
