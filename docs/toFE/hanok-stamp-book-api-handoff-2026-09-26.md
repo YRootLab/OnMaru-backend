@@ -73,7 +73,7 @@ type CheckInResponse = {
 };
 
 async function getCsrfToken(): Promise<string> {
-  const response = await fetch('/api/v1/auth/csrf', {
+  const response = await fetch('/auth/csrf', {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -239,7 +239,7 @@ type StampRankingUpdateRequest = { participating: boolean };
 
 예를 들어 공개 항목은 `{"rank":1,"publicId":"550e8400-e29b-41d4-a716-446655440000","nickname":"고즈넉한여행자-A7K2","nicknameType":"GENERATED","stampCount":12,"visitedRegionCount":7,"completionRate":100}`입니다. 미참여 개인 응답은 `{"schemaVersion":"1.3","participating":false,"publicNickname":null,"nicknameType":null,"rank":null,"participantCount":143,"stampCount":8,"visitedRegionCount":5,"completionRate":66}`처럼 개인 진행률은 유지하고 공개 별명과 순위만 비웁니다.
 
-브라우저에서는 다음 함수를 사용할 수 있습니다. 로그인 세션과 CSRF cookie는 브라우저가 `credentials: 'include'`로 전달합니다. CSRF cookie는 `HttpOnly`이므로 JavaScript에서 읽지 말고 `/api/v1/auth/csrf`의 JSON `token`을 헤더에 넣습니다. 이 예제는 API와 같은 origin에서 실행하는 HTTPS 페이지 기준입니다.
+브라우저에서는 다음 함수를 사용할 수 있습니다. 로그인 세션과 CSRF cookie는 브라우저가 `credentials: 'include'`로 전달합니다. CSRF cookie는 `HttpOnly`이므로 JavaScript에서 읽지 말고 `/auth/csrf`의 JSON `token`을 헤더에 넣습니다. 이 예제는 API와 같은 origin에서 실행하는 HTTPS 페이지 기준입니다.
 
 ```ts
 async function rankingJson<T>(response: Response): Promise<T> {
@@ -262,7 +262,7 @@ export async function getMyRanking(): Promise<StampRankingStatusResponse> {
 }
 
 export async function setRankingParticipation(participating: boolean): Promise<StampRankingStatusResponse> {
-  const token = await getCsrfToken(); // 위 체크인 예제와 같은 /api/v1/auth/csrf 호출
+  const token = await getCsrfToken(); // 위 체크인 예제와 같은 /auth/csrf 호출
   const body: StampRankingUpdateRequest = { participating };
   const response = await fetch('/api/v1/me/stamp-ranking', {
     method: 'PUT',
@@ -286,7 +286,7 @@ export async function setRankingParticipation(participating: boolean): Promise<S
 ```bash
 curl -b cookies.txt -c cookies.txt 'https://YOUR_HOST/api/v1/stamps/leaderboard?limit=20'
 curl -b cookies.txt -c cookies.txt 'https://YOUR_HOST/api/v1/me/stamp-ranking'
-curl -b cookies.txt -c cookies.txt 'https://YOUR_HOST/api/v1/auth/csrf'
+curl -b cookies.txt -c cookies.txt 'https://YOUR_HOST/auth/csrf'
 # 위 응답의 token 값을 아래에 넣습니다. 응답 headerName은 X-CSRF-TOKEN입니다.
 curl -i -b cookies.txt -c cookies.txt -X PUT 'https://YOUR_HOST/api/v1/me/stamp-ranking' \
   -H 'Content-Type: application/json' -H 'X-CSRF-TOKEN: YOUR_CSRF_TOKEN' \
