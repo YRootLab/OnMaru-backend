@@ -39,12 +39,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.yrootlab.onmaru.web.stamp.StampApiContract.SCHEMA_VERSION;
+
 @Tag(name = "수결첩", description = "한옥 방문 수결 카탈로그, 개인 수결첩, 위치 체크인 API")
 @RestController
 public final class StampController {
 
     private static final String SESSION_COOKIE = "__Host-onmaru-session";
-    private static final String SCHEMA_VERSION = "1.2";
 
     private final StampService stamps;
     private final MemberLifecycleService members;

@@ -3,11 +3,16 @@ package com.yrootlab.onmaru.web.stamp;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
 import com.yrootlab.onmaru.persistence.stamp.JdbcCheckInPlaceLookup;
 import com.yrootlab.onmaru.persistence.stamp.JdbcStampStore;
+import com.yrootlab.onmaru.persistence.stamp.JdbcStampRankingStore;
 import com.yrootlab.onmaru.stamp.CheckInPlaceLookup;
 import com.yrootlab.onmaru.stamp.InMemoryStampStore;
 import com.yrootlab.onmaru.stamp.StampService;
 import com.yrootlab.onmaru.stamp.StampStore;
 import com.yrootlab.onmaru.stamp.VerifiedPlace;
+import com.yrootlab.onmaru.stamp.ranking.RandomStampRankingIdentityGenerator;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingIdentityGenerator;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingService;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -61,6 +66,24 @@ class StampConfiguration {
     @Bean
     StampService stampService(CheckInPlaceLookup placeLookup, StampStore store, Clock clock) {
         return new StampService(placeLookup, store, clock);
+    }
+
+    @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    StampRankingStore jdbcStampRankingStore(DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
+        return new JdbcStampRankingStore(dataSource, jdbcTransactionRunner);
+    }
+
+    @Bean
+    StampRankingIdentityGenerator stampRankingIdentityGenerator() {
+        return new RandomStampRankingIdentityGenerator();
+    }
+
+    @Bean
+    StampRankingService stampRankingService(
+            StampRankingStore store, StampRankingIdentityGenerator identities, Clock clock) {
+        return new StampRankingService(store, identities, clock);
     }
 
     private static double distanceMeters(double fromLat, double fromLon, double toLat, double toLon) {

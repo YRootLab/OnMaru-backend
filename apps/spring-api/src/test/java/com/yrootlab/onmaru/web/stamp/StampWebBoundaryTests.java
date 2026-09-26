@@ -75,7 +75,7 @@ class StampWebBoundaryTests {
     void publicCatalogAndPrivateBookHaveSeparatePrivacyBoundaries() throws Exception {
         mockMvc.perform(get("/api/v1/stamps"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.schemaVersion").value("1.3"))
                 .andExpect(jsonPath("$.stamps.length()").value(12))
                 .andExpect(jsonPath("$.stamps[0].code").value("stamp_bukchon"))
                 .andExpect(jsonPath("$.stamps[0].collected").doesNotExist());
@@ -136,6 +136,7 @@ class StampWebBoundaryTests {
                         .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-session", SESSION))
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.schemaVersion").value("1.3"))
                 .andExpect(jsonPath("$.code").value("CSRF_INVALID"));
 
         checkIn(PLACE, null, 37.5826, 126.9831, 18.4)
@@ -179,6 +180,7 @@ class StampWebBoundaryTests {
         checkIn(PLACE, key, 37.5826, 126.9831, 18.4).andExpect(status().isCreated());
         checkIn(PLACE, key, 37.5827, 126.9831, 18.4)
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.schemaVersion").value("1.3"))
                 .andExpect(jsonPath("$.code").value("IDEMPOTENCY_CONFLICT"));
 
         placeLookup.fail(true);

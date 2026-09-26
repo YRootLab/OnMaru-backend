@@ -5,10 +5,13 @@ import com.yrootlab.onmaru.stamp.CheckInPlaceNotFoundException;
 import com.yrootlab.onmaru.stamp.CheckInRateLimitedException;
 import com.yrootlab.onmaru.stamp.LocationAccuracyTooLowException;
 import com.yrootlab.onmaru.stamp.OutsideCheckInRadiusException;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingInputInvalidException;
+import com.yrootlab.onmaru.stamp.ranking.StampRankingRateLimitedException;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKeyInvalidException;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKeyMissingException;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyConflictException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -16,15 +19,55 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
 import java.util.UUID;
 
-@RestControllerAdvice(assignableTypes = StampController.class)
+import static com.yrootlab.onmaru.web.stamp.StampApiContract.SCHEMA_VERSION;
+
+@RestControllerAdvice(assignableTypes = {StampController.class, StampRankingController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 final class StampExceptionHandler {
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    ResponseEntity<ApiErrorResponse> idempotencyConflict(HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT",
+                "Idempotency key was already used for a different request", request, Map.of());
+    }
+
+    @ExceptionHandler(StampRankingInputInvalidException.class)
+    ResponseEntity<ApiErrorResponse> rankingInvalid(
+            StampRankingInputInvalidException exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Request validation failed",
+                request, Map.of("field", exception.getMessage()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ApiErrorResponse> unreadable(HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Request validation failed",
+                request, Map.of("field", "body"));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiErrorResponse> typeMismatch(
+            MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Request validation failed",
+                request, Map.of("field", exception.getName()));
+    }
+
+    @ExceptionHandler(StampRankingRateLimitedException.class)
+    ResponseEntity<ApiErrorResponse> rankingRateLimited(
+            StampRankingRateLimitedException exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(exception.retryAfterSeconds()))
+                .body(body("RATE_LIMITED", "Wait before joining the ranking again", request,
+                        Map.of("retryAfterSeconds", exception.retryAfterSeconds())));
+    }
 
     @ExceptionHandler(IdempotencyKeyMissingException.class)
     ResponseEntity<ApiErrorResponse> idempotencyKeyMissing(HttpServletRequest request) {
@@ -92,6 +135,6 @@ final class StampExceptionHandler {
         var requestId = value instanceof String existing && !existing.isBlank()
                 ? existing
                 : UUID.randomUUID().toString();
-        return new ApiErrorResponse("1.2", code, message, requestId, details);
+        return new ApiErrorResponse(SCHEMA_VERSION, code, message, requestId, details);
     }
 }
