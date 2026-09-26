@@ -49,3 +49,14 @@ test('rejects failed or non-comparable candidates instead of creating a baseline
     /not comparable/,
   );
 });
+
+test('keeps resource metrics unavailable when the Actions API cannot provide them', () => {
+  const apiRun = (id) => ({ ...run(id, 1200), steps: [
+    { name: 'verify', durationMillis: 1200, cpuMillis: null, maxRssBytes: null },
+  ], resourceEvidence: 'unavailable-from-actions-api' });
+  const baseline = createSerialBaseline({ suite: 'verify-serial', runs: [apiRun('201'), apiRun('202'), apiRun('203')] });
+  assert.equal(baseline.metrics.verifyWallClockMedianMillis, 1200);
+  assert.equal(baseline.metrics.verifyWorkMedianMillis, null);
+  assert.equal(baseline.metrics.peakRssBytes, null);
+  assert.equal(baseline.resourceEvidence, 'unavailable-from-actions-api');
+});

@@ -1,5 +1,30 @@
 # handoff.md
 
+- **Date**: 2026-09-26 CI Toolkit shadow rollout v0.3.22 release
+- **Branch**: `feature/396-release-0-3-22` (`release/0.3.22`은 생성 시점 required-check ruleset 때문에 push 불가)
+- **Related Issues**: #396 release, #368 baseline artifact, 이후 #364 → #366
+- **Scope**: 검증된 `develop` SHA `b74fe8753d79e89ca5ec2f344ef8091d24cab0e8`을 `master`에 승격해 staging 배포하고, 기본 브랜치에 baseline collector를 등록한다.
+- **Verified Before PR**: 전체 Node 106/106, `git diff --check`, release branch가 대상 develop SHA를 포함함을 확인했다. #394 PR/develop run과 동일 SHA workflow dispatch 3회에서 module 12/12 및 artifact 13/13 성공을 확인했다.
+- **Next**: release PR required `verify` 통과 후 병합한다. master `CI`, `Staging Deploy`, `Release Please`를 확인하고, 성공 시 collector를 run `36159816646`, `36160594916`, `36161322635`로 dispatch한다.
+- **Open Risk**: Release Please의 Actions PR 생성 권한 제한은 기존 운영 위험이다. staging build/deploy/health check 또는 collector가 실패하면 release를 성공으로 간주하지 않는다.
+
+- **Date**: 2026-09-26 CI 기준선 비교 도구와 사용 안내 시작
+- **Branch**: `docs/390-ci-benchmark-report`
+- **Related Issue**: #390 (extends #368; feeds #364/#366)
+- **Scope**: 수집된 serial baseline 두 개를 비교하는 결정적 JSON/Markdown 도구와 README 사용 절차를 제공한다. 원시 로그·CI topology·배포 동작은 변경하지 않는다.
+- **Plan**: 비교 계약 테스트를 먼저 추가하고, identity 불일치와 수집 불가 resource metric을 fail-closed로 처리한다.
+
+- **Date**: 2026-09-25 CI baseline 자동 수집 시작
+- **Branch**: `feature/388-ci-baseline-collector`
+- **Related Issue**: #388 (extends #368; feeds #364/#366)
+- **Scope**: GitHub Actions run/job API를 정규화하고, 세 개의 동일 identity CI run을 baseline artifact와 Markdown summary로 수집하는 수동 workflow를 추가한다. 기존 `ci.yml` topology와 #374 module caller는 변경하지 않는다.
+
+- **Date**: 2026-09-25 릴리스 추세 증적 연동 시작
+- **Branch**: `feature/386-release-trend-adoption`
+- **Related Issue**: #386 (Toolkit coordination: YRootLab/OnMaru-backend-ci-toolkit#74, #77)
+- **Scope**: release benchmark 후보 `trend-manifest.json`을 생성·보존하고, immutable toolkit reusable workflow에 이전 release evidence 비교를 위임한다.
+- **Plan**: manifest contract 테스트를 먼저 추가하고, workflow 구성 계약과 release asset 보존을 검증한다. 사용자 로컬 checkout 변경사항은 별도 worktree로 격리한다.
+
 - **Date**: 2026-09-24 CI baseline and fan-out evidence report
 - **Branch**: `docs/376-ci-performance-evidence-report`
 - **Related Issue**: #376 (depends on #368 serial baseline and #365/#377 fan-out evidence)
