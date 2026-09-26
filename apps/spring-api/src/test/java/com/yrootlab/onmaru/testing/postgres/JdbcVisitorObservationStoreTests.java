@@ -98,11 +98,15 @@ class JdbcVisitorObservationStoreTests {
     private void seedRegion(String code) throws Exception {
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
-                     INSERT INTO onmaru.catalog_regions (id, code, name, level, active)
-                     VALUES (?, ?, '전북 전주시', 'SIGUNGU', true)
+                     INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                     VALUES (?, NULL, 'kr-test-parent', '테스트 광역', 'SIDO', true),
+                            (?, ?, ?, '전북 전주시', 'SIGUNGU', true)
                      """)) {
-            statement.setObject(1, UUID.randomUUID());
-            statement.setString(2, code);
+            UUID parentId = UUID.randomUUID();
+            statement.setObject(1, parentId);
+            statement.setObject(2, UUID.randomUUID());
+            statement.setObject(3, parentId);
+            statement.setString(4, code);
             statement.executeUpdate();
         }
     }
