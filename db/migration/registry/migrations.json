@@ -230,6 +230,15 @@
       "checksum": "legacy-visit-review-backfill-v026-20260926",
       "sha256": "73f79f09fdcf22a86ce985d809cb11fd3c0e51b21950de3dca4ca91702366127",
       "description": "Deterministic public IDs and catalog-backed snapshots for legacy visit reviews"
+    },
+    {
+      "version": "027",
+      "reservedFor": "HANOK_STAMP_BOOK",
+      "issueNumber": 262,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V027__262_hanok_stamp_book.sql",
+      "checksum": "hanok-stamp-book-v027-20260926",
+      "sha256": "4eb506106902ab97a26754330e20eb7c492457a371bef2577c6e14cec57fe2b5",
+      "description": "Location-verified member check-ins and relational Hanok stamp awards"
     }
   ]
 }
