@@ -30,6 +30,8 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.MapPropertySource;
 
 import javax.sql.DataSource;
@@ -196,6 +198,59 @@ class JdbcAudioRevisionStoreIntegrationTests {
             assertThat(context.getBean(AudioRevisionStore.class))
                     .isInstanceOf(JdbcAudioRevisionStore.class)
                     .isNotInstanceOf(InMemoryAudioRevisionStore.class);
+        }
+    }
+
+    @Test
+    void productionProfileSelectsJdbcRevisionStoreRegardlessOfConfigurationRegistrationOrder() throws Exception {
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().setActiveProfiles("production");
+            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
+                    "odii-profile-order-test",
+                    Map.of("onmaru.audio.dataset", "odii-profile-order-test")));
+            context.registerBean(DataSource.class, JdbcAudioRevisionStoreIntegrationTests::dataSource);
+            context.registerBean(ObjectMapper.class, () -> new ObjectMapper());
+            context.registerBean(Clock.class, Clock::systemUTC);
+            context.registerBean(SecretProvider.class, () -> name ->
+                    new SecretBundle(name, "profile-test-secret-value-32-bytes-min", Optional.empty()));
+            context.register(OdiiStoryConfiguration.class, AudioPersistenceConfiguration.class);
+            context.refresh();
+
+            assertThat(context.getBean(AudioRevisionStore.class))
+                    .isInstanceOf(JdbcAudioRevisionStore.class)
+                    .isNotInstanceOf(InMemoryAudioRevisionStore.class);
+        }
+    }
+
+    @Test
+    void productionProfileSelectsJdbcRevisionStoreWhenDataSourceConfigurationIsProcessedLater() throws Exception {
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().setActiveProfiles("production");
+            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
+                    "odii-late-datasource-test",
+                    Map.of("onmaru.audio.dataset", "odii-late-datasource-test")));
+            context.registerBean(ObjectMapper.class, () -> new ObjectMapper());
+            context.registerBean(Clock.class, Clock::systemUTC);
+            context.registerBean(SecretProvider.class, () -> name ->
+                    new SecretBundle(name, "profile-test-secret-value-32-bytes-min", Optional.empty()));
+            context.register(
+                    AudioPersistenceConfiguration.class,
+                    OdiiStoryConfiguration.class,
+                    LateDataSourceConfiguration.class);
+            context.refresh();
+
+            assertThat(context.getBean(AudioRevisionStore.class))
+                    .isInstanceOf(JdbcAudioRevisionStore.class)
+                    .isNotInstanceOf(InMemoryAudioRevisionStore.class);
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class LateDataSourceConfiguration {
+
+        @Bean
+        DataSource lateDataSource() {
+            return JdbcAudioRevisionStoreIntegrationTests.dataSource();
         }
     }
 
