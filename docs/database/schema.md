@@ -52,6 +52,27 @@
 // V026은 V021 이전 VisitReview에 결정적 p-legacy-* 공개 ID를 등록하고 가능한 최신
 // published Catalog version의 장소명·지역·좌표 snapshot을 backfill해 JDBC 전환 시
 // 기존 후기가 조회에서 사라지지 않게 한다.
+// 한옥 수결첩의 실행 스키마는 V028을 기준으로 한다. stamp_definitions와
+// stamp_region_rules가 수결 표시 정보와 canonical 지역 조건을 소유하고,
+// stamp_check_ins는 회원·Catalog 장소·15분 bucket 관계와 서버 판정 거리/정확도만 저장하며,
+// CHECK(distance_meters - accuracy_meters <= 200)로 성공 판정 반경도 DB에서 보호한다.
+// 요청 latitude/longitude 원문은 저장하지 않는다. stamp_awards는 회원별 수결을 한 번만
+// 허용하며 trigger_check_in_id와 member_id의 복합 FK로 다른 회원의 체크인을 참조하지 못한다.
+// 체크인·수결·idempotency receipt는 동일 JdbcTransactionRunner transaction으로 commit한다.
+// V029의 stamp_ranking_profiles는 회원별 익명 랭킹 참여 설정을 저장한다. 참여 기본값은 false이며
+// 미참여 시 ranking_public_id와 공개 닉네임 필드는 null이다. 참여 시에만 랜덤 공개 UUID,
+// 생성형 닉네임과 정규화 닉네임, 동의 시각이 필수이고 withdrawn_at은 null이어야 한다.
+// 참여 중인 공개 UUID와 정규화 닉네임에만 partial unique index가 적용된다. 회원 삭제는
+// ON DELETE CASCADE로 설정 row를 함께 제거한다. 순위 점수는 stamp_awards에서 조회 시
+// 계산하며 profile이나 별도 테이블에 저장하지 않는다.
+// V030부터 production OAuth와 회원 lifecycle은 identity_members를 포함한 JDBC 원장을
+// 단일 Source of Truth로 사용한다. identity_oauth_states.pkce_verifier_hash는 PKCE 검증값의
+// SHA-256 hash만 저장하고 상태 consume 시 nonce/provider와 함께 원자적으로 검증한다.
+// 탈퇴 cleanup은 DELETING 회원 row를 잠근 뒤 수결 획득·체크인·랭킹 profile과 회원 UUID를
+// subject_id로 가진 HTTP idempotency receipt를 삭제한다. 각 receipt는 복합 키의 SHA-256으로
+// 식별해 개인정보를 복제하지 않고 deletion ledger에 기록하며, 모든 대상이 사라진 뒤에만
+// 회원 deletion ledger를 COMPLETED로 전환한다. DELETING tombstone은
+// cleanup과 경합한 체크인 또는 랭킹 참여가 개인정보 row를 다시 만들지 못하게 한다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

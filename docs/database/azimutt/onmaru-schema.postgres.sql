@@ -119,6 +119,7 @@ CREATE TABLE "identity_oauth_states" (
   "state_hash" varchar PRIMARY KEY,
   "guest_id" uuid,
   "browser_nonce_hash" varchar NOT NULL,
+  "pkce_verifier_hash" varchar NOT NULL,
   "exploration_id" uuid,
   "provider" varchar NOT NULL,
   "return_path" varchar NOT NULL,
@@ -882,6 +883,8 @@ CREATE UNIQUE INDEX ON "ai_chunks" ("document_id", "revision", "position");
 CREATE UNIQUE INDEX ON "ai_corpus_sync_runs" ("source_revision", "source_manifest_hash");
 
 COMMENT ON COLUMN "identity_external_accounts"."provider" IS 'KAKAO active for MVP; GOOGLE/NAVER can be added through allowlist';
+
+COMMENT ON COLUMN "identity_oauth_states"."pkce_verifier_hash" IS 'SHA-256 hash used for one-time OAuth PKCE verification';
 
 COMMENT ON COLUMN "catalog_region_boundaries"."geometry" IS 'PostGIS MultiPolygon(4326)';
 

@@ -239,6 +239,33 @@
       "checksum": "datalab-region-mapping-registry-v027-20260926",
       "sha256": "c1874b8c72a34f1a4a9c90fbfaf86728b32cea4c1ad6c0c7f821aed820d60451",
       "description": "Auditable DataLab region mapping registry with fail-closed status and provenance"
+    },
+    {
+      "version": "028",
+      "reservedFor": "HANOK_STAMP_BOOK",
+      "issueNumber": 262,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V028__262_hanok_stamp_book.sql",
+      "checksum": "hanok-stamp-book-v028-20260926",
+      "sha256": "4d424de6b05fea0040156f46a72d6b57f50037ef78c00a26988eb55c77c67f1a",
+      "description": "Location-verified member check-ins and relational Hanok stamp awards"
+    },
+    {
+      "version": "029",
+      "reservedFor": "HANOK_STAMP_RANKING",
+      "issueNumber": 262,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V029__262_hanok_stamp_ranking.sql",
+      "checksum": "hanok-stamp-ranking-v029-20260927",
+      "sha256": "5d215dcad35d8bd5acf7f2cc5d9124e2501d9f295918471184e30f4b2c6451f0",
+      "description": "Opt-in anonymous Hanok stamp ranking profiles"
+    },
+    {
+      "version": "030",
+      "reservedFor": "HANOK_STAMP_IDENTITY",
+      "issueNumber": 262,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V030__262_jdbc_identity_store.sql",
+      "checksum": "hanok-stamp-identity-v030-20260927",
+      "sha256": "0a584cda9d66ee18fda9c36431da639bb4103b891086e63d73928f74fe481bf2",
+      "description": "Production JDBC identity store PKCE verification persistence"
     }
   ]
 }

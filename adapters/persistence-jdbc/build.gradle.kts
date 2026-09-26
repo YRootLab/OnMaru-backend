@@ -10,7 +10,9 @@ dependencies {
     implementation(project(":modules:catalog"))
     implementation(project(":modules:community"))
     implementation(project(":modules:insights"))
+    implementation(project(":modules:identity"))
     implementation(project(":modules:shared-web"))
+    implementation(project(":modules:stamp"))
     implementation("com.fasterxml.jackson.core:jackson-databind")
 
     testImplementation("org.junit.jupiter:junit-jupiter")

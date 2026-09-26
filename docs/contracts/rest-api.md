@@ -1,12 +1,26 @@
 # Public REST API contract
 
-2026-09-12 구현 전 계약. `/api/v1`, HTTPS JSON, `schemaVersion: "1.2"`를 현재 지도/후기 계약으로 고정한다. 여정은 REST command와 SSE 알림을 함께 사용한다. 아직 배포된 API가 아니며, 계약·scaffold Issue는 먼저 발행할 수 있지만 각 기능 구현은 해당 OpenAPI와 FE fixture가 동결된 뒤 시작한다.
+2026-09-12 구현 전 계약. `/api/v1`, HTTPS JSON, `schemaVersion: "1.2"`를 현재 지도/후기 계약으로 고정한다. 한옥 수결첩 계약은 `1.3`이다. 여정은 REST command와 SSE 알림을 함께 사용한다. 아직 배포된 API가 아니며, 계약·scaffold Issue는 먼저 발행할 수 있지만 각 기능 구현은 해당 OpenAPI와 FE fixture가 동결된 뒤 시작한다.
 
 ## 공통 계약
 
 POST/PUT body 최대 16KiB, query trim+NFC 후 1..1000 code points. 인증/소유권은 [identity](../spring/identity-and-journey.md)를 따른다. 개인 응답은 `Cache-Control: no-store`. 모든 command POST는 `Idempotency-Key`(UUID), unsafe method는 CSRF header 필수다. OAuth redirect는 별도 state flow다. method/path/resource까지 operation scope로 hash한다. 같은 key/payload retry는 최초 응답을 반환하고 hash가 다르면 409. 인증·소유권 재검증 후에만 저장된 응답을 반환한다.
 
 오류 형식은 `{schemaVersion:"1.2",code,message,requestId,details:{...}}`; message는 진단용 plain text이며 FE는 code로 문구를 결정한다. 400 VALIDATION_ERROR/CURSOR_INVALID, 401 AUTH_REQUIRED, 403 CSRF_INVALID, 404 NOT_FOUND, 409 VERSION_CONFLICT/ACTIVE_RUN/PINNED_REF/IDEMPOTENCY_CONFLICT/PROPOSAL_EXPIRED/SAVE_LIMIT, 410 CURSOR_EXPIRED, 413 PAYLOAD_TOO_LARGE, 422 JOURNEY_SCOPE_UNSUPPORTED/PRIVACY_REDACT_REQUIRED/SAFETY_BLOCKED, 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE를 구분한다. 일일 AI quota가 없거나 provider가 실패해도 후보가 있으면 `AI_QUOTA_EXCEEDED`는 내부 degraded reason으로만 기록하고 같은 run을 BASELINE으로 완료한다. 422 입력 거절은 exploration run이나 원문 turn을 만들지 않는다. 429는 초 단위 Retry-After, details.retryAfterMs를 함께 준다. 알려진 비동기 run 실패는 SSE terminal event와 GET snapshot 모두에서 같은 error code를 보이며, SSE 연결 자체 실패는 GET 실패와 구분한다. 여정 AI의 intake와 provider 경계는 [AI guardrail·adapter harness](../ai/journey-guardrails.md)를 따른다.
+
+## 한옥 수결첩: 로그인 회원의 위치 체크인
+
+수결 정의는 `GET /stamps`에서 공개 조회하고, 개인 획득 상태는 로그인 후 `GET /me/stamp-book`에서만 조회한다. `POST /places/{placeId}/check-ins`는 세션, CSRF, UUID `Idempotency-Key`, 브라우저 위치가 모두 필요하다. 새 체크인은 201, 같은 회원·장소·UTC 15분 구간의 반복 체크인은 200이며 기존 row를 반환한다.
+
+서버는 active Catalog의 한옥 계열 장소에 대해서만 PostGIS 거리를 계산한다. 위치 정확도는 100m 이하여야 하며 성공 조건은 `distanceMeters - accuracyMeters <= 200`이다. 요청한 위도·경도 원문은 DB나 응답에 남기지 않는다. 개인 응답은 `no-store`이고, KST 하루 성공 체크인은 회원당 30회로 제한한다. 422는 `LOCATION_ACCURACY_TOO_LOW` 또는 `OUTSIDE_CHECK_IN_RADIUS`, 429는 `CHECK_IN_RATE_LIMITED`, 의존 서비스 장애는 503 `SERVICE_UNAVAILABLE`다. 기계 판독 계약과 상세 DTO는 [한옥 수결첩 OpenAPI](openapi/hanok-stamps.openapi.yaml)를 기준으로 한다.
+
+### 수결 공개 랭킹과 참여 설정 (`1.3`)
+
+`GET /stamps/leaderboard?limit=20`은 비로그인도 조회할 수 있다. `limit`은 기본 20, 허용 범위 1~100이다. 목록에는 명시적으로 참여한 활성 회원만 서버 생성 익명 별명과 공개 UUID로 나타난다. 동의하지 않은 회원, 철회한 회원, 비활성 회원은 점수가 있어도 목록에 없다. `GET /me/stamp-ranking`은 로그인 회원의 참여 여부, 본인 진행률, 참여 중인 경우의 순위와 별명, 전체 참여자 수를 반환한다. 미참여도 200이며 `publicNickname`, `nicknameType`, `rank`가 `null`이다.
+
+`PUT /me/stamp-ranking`은 세션 cookie, `/auth/csrf`에서 받은 token과 CSRF cookie, `X-CSRF-TOKEN` header, JSON `{"participating":true}` 또는 `{"participating":false}`를 요구한다. 성공하면 개인 조회와 같은 `1.3` snapshot을 200으로 반환한다. 같은 상태의 재요청은 멱등적이다. 참여 시작·재참여는 마지막 실제 변경 후 5초 제한이 있으며, 너무 이르면 429 `RATE_LIMITED`와 초 단위 `Retry-After`, `details.retryAfterSeconds`를 준다. 철회에는 이 제한이 없다. 요청 형식과 `limit` 오류는 400 `VALIDATION_ERROR`, 세션 없음은 401 `AUTH_REQUIRED`, CSRF 오류는 403 `CSRF_INVALID`, 일시 장애는 503 `SERVICE_UNAVAILABLE`이다.
+
+순위는 활성 수결 획득 수 내림차순 → 서로 다른 활성 지역 수결 권역 수 내림차순 → 마지막 활성 수결 획득 시각 오름차순(`null` 마지막) → 공개 UUID 오름차순으로 결정하는 중복 없는 ordinal 순위다. 전체 참여자에게 순위를 매긴 뒤 `limit`을 적용한다. 세 응답은 모두 `Cache-Control: no-store`이며, 철회가 commit된 뒤 시작한 새 공개 조회에서 해당 프로필이 빠진다. 회원 ID, OAuth 정보, 위치·장소·체크인 기록과 마지막 수결 시각은 공개 응답에 없다. FE 호출 예제와 화면 상태는 [한옥 수결첩 API 인계서](../toFE/hanok-stamp-book-api-handoff-2026-09-26.md#익명-공개-랭킹-연동)를 따른다.
 
 ## 지도와 후기: 1.2 단일 계약
 

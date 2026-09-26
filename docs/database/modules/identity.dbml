@@ -52,6 +52,7 @@ Table identity_oauth_states [headercolor: #4E79A7] {
   state_hash varchar [pk]
   guest_id uuid
   browser_nonce_hash varchar [not null]
+  pkce_verifier_hash varchar [not null, note: 'SHA-256 hash used for one-time OAuth PKCE verification']
   exploration_id uuid
   provider varchar [not null]
   return_path varchar [not null]
