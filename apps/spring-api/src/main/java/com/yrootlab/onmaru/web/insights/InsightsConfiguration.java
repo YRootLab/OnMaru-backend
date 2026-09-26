@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorIngestionService;
 import com.yrootlab.onmaru.insights.ingestion.DataLabCollectionObserver;
+import com.yrootlab.onmaru.insights.ingestion.DataLabCollectionGuard;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorRevisionWriter;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorSource;
 import com.yrootlab.onmaru.insights.query.Coordinates;
@@ -15,6 +16,7 @@ import com.yrootlab.onmaru.insights.query.Observation;
 import com.yrootlab.onmaru.insights.query.RegionRef;
 import com.yrootlab.onmaru.persistence.catalog.JdbcDataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.persistence.insights.JdbcDataLabVisitorSnapshotPublisher;
+import com.yrootlab.onmaru.persistence.insights.JdbcDataLabCollectionGuard;
 import com.yrootlab.onmaru.persistence.insights.JdbcInsightsQueryStore;
 import com.yrootlab.onmaru.tourism.insights.DataLabClientProperties;
 import com.yrootlab.onmaru.tourism.insights.DataLabVisitorClient;
@@ -86,8 +88,17 @@ class InsightsConfiguration {
     DataLabVisitorIngestionService dataLabVisitorIngestionService(
             DataLabVisitorSource source,
             DataLabVisitorRevisionWriter revisionWriter,
-            DataLabCollectionObserver observer) {
-        return new DataLabVisitorIngestionService(source, revisionWriter, observer);
+            DataLabCollectionObserver observer,
+            DataLabCollectionGuard guard) {
+        return new DataLabVisitorIngestionService(source, revisionWriter, observer, guard);
+    }
+
+    @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnMissingBean(DataLabCollectionGuard.class)
+    DataLabCollectionGuard dataLabCollectionGuard(DataSource dataSource) {
+        return new JdbcDataLabCollectionGuard(dataSource);
     }
 
     @Bean

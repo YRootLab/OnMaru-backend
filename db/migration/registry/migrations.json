@@ -237,7 +237,7 @@
       "issueNumber": 399,
       "path": "apps/spring-api/src/main/resources/db/migration/baseline/V027__399_datalab_region_mapping_registry.sql",
       "checksum": "datalab-region-mapping-registry-v027-20260926",
-      "sha256": "571553a1238e50f81716a69a46d6d8b064974fdd29437ef2dbf57de9706242c6",
+      "sha256": "bf4a7d2f3c0d53c65f57520aa9fad382e1ee328aa9a2493190aabc25580a751d",
       "description": "Auditable DataLab region mapping registry with fail-closed status and provenance"
     }
   ]

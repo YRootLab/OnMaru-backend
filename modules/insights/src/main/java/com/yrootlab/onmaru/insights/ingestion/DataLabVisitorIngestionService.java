@@ -9,23 +9,41 @@ public final class DataLabVisitorIngestionService {
     private final DataLabVisitorSource source;
     private final DataLabVisitorRevisionWriter revisionWriter;
     private final DataLabCollectionObserver observer;
+    private final DataLabCollectionGuard guard;
 
     public DataLabVisitorIngestionService(
             DataLabVisitorSource source,
             DataLabVisitorRevisionWriter revisionWriter) {
-        this(source, revisionWriter, DataLabCollectionObserver.NOOP);
+        this(source, revisionWriter, DataLabCollectionObserver.NOOP, new InMemoryDataLabCollectionGuard());
     }
 
     public DataLabVisitorIngestionService(
             DataLabVisitorSource source,
             DataLabVisitorRevisionWriter revisionWriter,
             DataLabCollectionObserver observer) {
+        this(source, revisionWriter, observer, new InMemoryDataLabCollectionGuard());
+    }
+
+    public DataLabVisitorIngestionService(
+            DataLabVisitorSource source,
+            DataLabVisitorRevisionWriter revisionWriter,
+            DataLabCollectionObserver observer,
+            DataLabCollectionGuard guard) {
         this.source = Objects.requireNonNull(source);
         this.revisionWriter = Objects.requireNonNull(revisionWriter);
         this.observer = Objects.requireNonNull(observer);
+        this.guard = Objects.requireNonNull(guard);
     }
 
     public DataLabVisitorSyncResult sync() {
+        DataLabCollectionGuard.Lease lease = guard.tryAcquire()
+                .orElseThrow(DataLabCollectionAlreadyRunningException::new);
+        try (lease) {
+            return syncWhileLocked();
+        }
+    }
+
+    private DataLabVisitorSyncResult syncWhileLocked() {
         DataLabVisitorFetchResult result = source.fetchDailyVisitorObservations();
         var reasons = new EnumMap<DataLabCollectionReason, Long>(DataLabCollectionReason.class);
         int skipped = 0;

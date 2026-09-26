@@ -84,6 +84,12 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
                         quarantined = true;
                         continue;
                     }
+                    if (!basisDate.equals(record.basisDate())) {
+                        exclusions.add(new DataLabCollectionExclusion(
+                                null, DataLabCollectionReason.RESPONSE_BASIS_DATE_MISMATCH));
+                        quarantined = true;
+                        continue;
+                    }
                     if (!OUTSIDER_DIVISION_CODE.equals(record.visitorDivisionCode())) {
                         continue;
                     }

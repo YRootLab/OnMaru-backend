@@ -211,30 +211,39 @@ class CatalogMigrationTests {
         resetAndMigrate();
         var sidoId = UUID.randomUUID();
         var otherSidoId = UUID.randomUUID();
+        var thirdSidoId = UUID.randomUUID();
 
         try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
              var statement = connection.createStatement()) {
             statement.execute("""
                     INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active) VALUES
                         ('%s', NULL, 'kr-48', '경상남도', 'SIDO', true),
-                        ('%s', NULL, 'kr-50', '제주특별자치도', 'SIDO', true)
-                    """.formatted(sidoId, otherSidoId));
-            insertDataLabSourceCode(statement, sidoId, "SIDO:48", "2026-09-26");
+                        ('%s', NULL, 'kr-50', '제주특별자치도', 'SIDO', true),
+                        ('%s', NULL, 'kr-49', '경기도', 'SIDO', true)
+                    """.formatted(sidoId, otherSidoId, thirdSidoId));
+            insertDataLabSourceCode(statement, sidoId, "SIDO:48", "2026-09-26", "2026-09-26");
             insertDataLabSourceCode(statement, sidoId, "SIDO:481", "2026-09-27");
             insertDataLabSourceCode(statement, otherSidoId, "SIDO:48", "2026-09-27");
             insertDataLabSourceCode(statement, otherSidoId, "SIGUNGU:50", "2026-09-26");
+            insertDataLabSourceCode(statement, sidoId, "SIDO:482", "2026-09-28");
+            insertDataLabSourceCode(statement, thirdSidoId, "SIDO:481", "2026-09-28");
 
-            statement.execute(pendingDataLabMappingSql(sidoId, "SIDO:48", "2026-09-26", "SIDO"));
+            statement.execute(pendingDataLabMappingSql(
+                    sidoId, "SIDO:48", "2026-09-26", "2026-09-26", "SIDO"));
+            statement.execute(pendingDataLabMappingSql(sidoId, "SIDO:481", "2026-09-27", null, "SIDO"));
+            statement.execute(pendingDataLabMappingSql(otherSidoId, "SIDO:48", "2026-09-27", null, "SIDO"));
 
             assertThatThrownBy(() -> statement.execute(
-                    pendingDataLabMappingSql(sidoId, "SIDO:481", "2026-09-27", "SIDO")))
-                    .hasMessageContaining("catalog_datalab_region_mappings_region_id_key");
-            assertThatThrownBy(() -> statement.execute(
-                    pendingDataLabMappingSql(otherSidoId, "SIDO:48", "2026-09-27", "SIDO")))
-                    .hasMessageContaining("catalog_datalab_region_mappings_source_code_key");
-            assertThatThrownBy(() -> statement.execute(
-                    pendingDataLabMappingSql(otherSidoId, "SIGUNGU:50", "2026-09-26", "SIGUNGU")))
+                    pendingDataLabMappingSql(otherSidoId, "SIGUNGU:50", "2026-09-26", null, "SIGUNGU")))
                     .hasMessageContaining("invalid DataLab region mapping structure");
+            assertThatThrownBy(() -> statement.execute(
+                    pendingDataLabMappingSql(sidoId, "SIDO:482", "2026-09-28", null, "SIDO")))
+                    .hasMessageContaining("catalog_datalab_region_mappings_region_period_excl");
+            assertThatThrownBy(() -> statement.execute(
+                    pendingDataLabMappingSql(thirdSidoId, "SIDO:481", "2026-09-28", null, "SIDO")))
+                    .hasMessageContaining("catalog_datalab_region_mappings_source_period_excl");
+            assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.catalog_datalab_region_mappings"))
+                    .isEqualTo(3);
         }
     }
 
@@ -263,6 +272,44 @@ class CatalogMigrationTests {
         }
     }
 
+    @Test
+    void rejectsActiveDataLabMappingWhoseProvenanceDiffersFromVerification() throws Exception {
+        resetAndMigrate();
+        var regionId = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                    VALUES ('%s', NULL, 'kr-48', '경상남도', 'SIDO', true)
+                    """.formatted(regionId));
+            insertDataLabSourceCode(statement, regionId, "SIDO:48", "2026-09-26");
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_region_source_code_verifications (
+                        provider, dataset, source_code, valid_from,
+                        official_source_url, verified_at, verified_by
+                    ) VALUES (
+                        'KTO_DATALAB', 'visitor', 'SIDO:48', DATE '2026-09-26',
+                        'https://official.example/codebook', TIMESTAMPTZ '2026-09-26T00:00:00Z',
+                        'catalog-reviewer'
+                    )
+                    """);
+
+            assertThatThrownBy(() -> statement.execute("""
+                    INSERT INTO onmaru.catalog_datalab_region_mappings (
+                        provider, dataset, source_code, valid_from, region_id, level, name,
+                        source_url, source_observed_at, verified_by, verified_at, status
+                    ) VALUES (
+                        'KTO_DATALAB', 'visitor', 'SIDO:48', DATE '2026-09-26', '%s',
+                        'SIDO', '경상남도', 'https://tampered.example/codebook',
+                        TIMESTAMPTZ '2026-09-26T00:00:00Z', 'catalog-reviewer',
+                        TIMESTAMPTZ '2026-09-26T00:00:00Z', 'ACTIVE'
+                    )
+                    """.formatted(regionId)))
+                    .hasMessageContaining("invalid DataLab region mapping structure");
+        }
+    }
+
     private static void insertDataLabSourceCode(
             java.sql.Statement statement,
             UUID regionId,
@@ -275,18 +322,37 @@ class CatalogMigrationTests {
                 """.formatted(sourceCode, validFrom, regionId));
     }
 
+    private static void insertDataLabSourceCode(
+            java.sql.Statement statement,
+            UUID regionId,
+            String sourceCode,
+            String validFrom,
+            String validTo) throws Exception {
+        statement.execute("""
+                INSERT INTO onmaru.catalog_region_source_codes (
+                    provider, dataset, source_code, valid_from, valid_to, region_id
+                ) VALUES ('KTO_DATALAB', 'visitor', '%s', DATE '%s', DATE '%s', '%s')
+                """.formatted(sourceCode, validFrom, validTo, regionId));
+    }
+
     private static String pendingDataLabMappingSql(
             UUID regionId,
             String sourceCode,
             String validFrom,
+            String validTo,
             String level) {
         return """
                 INSERT INTO onmaru.catalog_datalab_region_mappings (
-                    provider, dataset, source_code, valid_from, region_id, level, name, status
+                    provider, dataset, source_code, valid_from, valid_to, region_id, level, name, status
                 ) VALUES (
-                    'KTO_DATALAB', 'visitor', '%s', DATE '%s', '%s', '%s', '검증 대기 지역', 'PENDING'
+                    'KTO_DATALAB', 'visitor', '%s', DATE '%s', %s, '%s', '%s', '검증 대기 지역', 'PENDING'
                 )
-                """.formatted(sourceCode, validFrom, regionId, level);
+                """.formatted(
+                sourceCode,
+                validFrom,
+                validTo == null ? "NULL" : "DATE '" + validTo + "'",
+                regionId,
+                level);
     }
 
     private static void resetAndMigrate() throws Exception {

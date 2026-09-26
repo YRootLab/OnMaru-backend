@@ -7,6 +7,8 @@ import com.yrootlab.onmaru.insights.query.InsightsQueryService;
 import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.persistence.catalog.JdbcDataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorFetchResult;
+import com.yrootlab.onmaru.insights.ingestion.DataLabCollectionGuard;
+import com.yrootlab.onmaru.persistence.insights.JdbcDataLabCollectionGuard;
 import com.yrootlab.onmaru.persistence.insights.JdbcDataLabVisitorSnapshotPublisher;
 import com.yrootlab.onmaru.tourism.insights.DataLabVisitorClient;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,8 @@ class InsightsProductionConfigurationTests {
                             .isInstanceOf(JdbcDataLabVisitorSnapshotPublisher.class);
                     assertThat(context.getBean(DataLabVisitorSource.class))
                             .isInstanceOf(DataLabVisitorSourceAdapter.class);
+                    assertThat(context.getBean(DataLabCollectionGuard.class))
+                            .isInstanceOf(JdbcDataLabCollectionGuard.class);
                     assertThat(context).hasSingleBean(InsightsQueryService.class);
                 });
     }
@@ -46,6 +50,8 @@ class InsightsProductionConfigurationTests {
                 .withBean(DataLabVisitorSource.class, () -> () ->
                         new DataLabVisitorFetchResult(java.util.List.of(), java.util.List.of(), false))
                 .withBean(DataLabVisitorRevisionWriter.class, () -> observations -> { })
+                .withBean(DataLabCollectionGuard.class,
+                        com.yrootlab.onmaru.insights.ingestion.InMemoryDataLabCollectionGuard::new)
                 .withUserConfiguration(InsightsConfiguration.class)
                 .run(context -> {
                     assertThat(context).hasNotFailed();

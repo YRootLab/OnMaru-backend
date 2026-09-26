@@ -10,6 +10,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -92,6 +95,40 @@ class DataLabVisitorIngestionServiceTests {
         assertThat(observer.events).containsExactly(new ObservationEvent(
                 DataLabCollectionOutcome.QUARANTINED,
                 DataLabCollectionReason.RESPONSE_SCOPE_MISMATCH));
+    }
+
+    @Test
+    void oneGuardSerializesSchedulerAndOperationsServiceInstances() throws Exception {
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var guard = new InMemoryDataLabCollectionGuard();
+        DataLabVisitorSource blockingSource = () -> {
+            entered.countDown();
+            try {
+                if (!release.await(5, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("timed out waiting for test release");
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(exception);
+            }
+            return new DataLabVisitorFetchResult(List.of(), List.of(), false);
+        };
+        var schedulerService = new DataLabVisitorIngestionService(
+                blockingSource, observations -> { }, DataLabCollectionObserver.NOOP, guard);
+        var operationsService = new DataLabVisitorIngestionService(
+                blockingSource, observations -> { }, DataLabCollectionObserver.NOOP, guard);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var running = executor.submit(schedulerService::sync);
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+
+            assertThatThrownBy(operationsService::sync)
+                    .isInstanceOf(DataLabCollectionAlreadyRunningException.class);
+
+            release.countDown();
+            running.get(5, TimeUnit.SECONDS);
+        }
     }
 
     private VisitorObservation complete(String regionCode, long count) {

@@ -7,9 +7,11 @@ import com.yrootlab.onmaru.insights.ingestion.DataLabCollectionReason;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorFetchResult;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorIngestionService;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.info.BuildProperties;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -45,7 +47,7 @@ class DataLabOperationsControllerTests {
         assertThat(current.getStatusCode().value()).isEqualTo(200);
         assertThat(previous.getStatusCode().value()).isEqualTo(200);
         assertThat(current.getBody()).isEqualTo(new DataLabOperationsResponse(
-                false, 0, 2, 0,
+                "a".repeat(40), false, 0, 2, 0,
                 java.util.Map.of(
                         DataLabCollectionReason.PENDING_MAPPING, 1L,
                         DataLabCollectionReason.NO_ACTIVE_MAPPING, 1L)));
@@ -84,7 +86,10 @@ class DataLabOperationsControllerTests {
         SecretProvider secrets = name -> new SecretBundle(
                 name, CURRENT_TOKEN, Optional.of(PREVIOUS_TOKEN));
         var service = new DataLabVisitorIngestionService(source, observations -> { });
-        return new DataLabOperationsController(new DataLabOperationsAuthenticator(secrets), service);
+        var properties = new Properties();
+        properties.setProperty("gitSha", "a".repeat(40));
+        return new DataLabOperationsController(
+                new DataLabOperationsAuthenticator(secrets), service, new BuildProperties(properties));
     }
 
     private static DataLabVisitorFetchResult skipped() {

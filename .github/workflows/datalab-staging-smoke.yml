@@ -23,6 +23,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: gradle
 
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install --yes postgresql-client
@@ -37,14 +46,25 @@ jobs:
           echo "::add-mask::$VISITOR_SERVICE_KEY"
           echo "::add-mask::$DATABASE_URL"
 
+      - name: Verify failed-batch active revision preservation
+        id: preservation
+        continue-on-error: true
+        run: >-
+          ./gradlew :apps:spring-api:test
+          --tests '*JdbcDataLabVisitorSnapshotPublisherTests.keepsThePreviousActiveRevisionWhenStagingFails'
+          --no-daemon --max-workers=1
+
       - name: Run DataLab staging smoke
         id: smoke
+        if: steps.preservation.outcome == 'success'
         continue-on-error: true
         env:
           STAGING_SPRING_URL: ${{ vars.STAGING_SPRING_URL }}
           ONMARU_DATALAB_OPERATIONS_TOKEN: ${{ secrets.ONMARU_DATALAB_OPERATIONS_TOKEN }}
           ONMARU_DATALAB_VISITOR_SERVICE_KEY: ${{ secrets.ONMARU_DATALAB_VISITOR_SERVICE_KEY }}
           ONMARU_STAGING_READONLY_DB_URL: ${{ secrets.ONMARU_STAGING_READONLY_DB_URL }}
+          EXPECTED_DEPLOYED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          DATALAB_FAILED_BATCH_TEST_VERIFIED: "true"
           DATALAB_SMOKE_EVIDENCE_PATH: ${{ runner.temp }}/datalab-staging-smoke.json
         run: node scripts/datalab-staging-smoke.mjs
 
@@ -54,7 +74,7 @@ jobs:
         with:
           name: datalab-staging-smoke-${{ github.run_id }}
           path: ${{ runner.temp }}/datalab-staging-smoke.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Reconcile Issue 392
@@ -62,14 +82,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          PRESERVATION_OUTCOME: ${{ steps.preservation.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$SMOKE_OUTCOME" = "success" ]; then
+          if [ "$PRESERVATION_OUTCOME" = "success" ] && [ "$SMOKE_OUTCOME" = "success" ]; then
             gh issue close 392 --comment "staging DataLab smoke가 성공했습니다. 실제 수집, ACTIVE registry/provenance, active revision, Insights·VisitReview 공개 계약을 검증했습니다. Sanitized evidence와 로그: $RUN_URL"
           else
             gh issue comment 392 --body "staging DataLab smoke가 실패했습니다. Issue는 열린 상태로 유지합니다. Sanitized evidence와 로그: $RUN_URL"
           fi
 
       - name: Fail workflow when smoke failed
-        if: steps.smoke.outcome != 'success'
+        if: steps.preservation.outcome != 'success' || steps.smoke.outcome != 'success'
         run: exit 1

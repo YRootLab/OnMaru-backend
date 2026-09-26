@@ -1,20 +1,44 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import {
-  assertRevisionPreserved,
   sanitize,
   validateConfig,
   validateDatabaseEvidence,
+  validateDeploymentIdentity,
   validatePublicResponses,
 } from '../datalab-staging-smoke.mjs';
 
 describe('DataLab staging smoke contract', () => {
+  it('binds workflow checkout, deployed identity, and preservation evidence to one SHA', () => {
+    const workflow = readFileSync(fileURLToPath(new URL(
+      '../../.github/workflows/datalab-staging-smoke.yml', import.meta.url,
+    )), 'utf8');
+
+    assert.match(workflow, /ref:.*workflow_run\.head_sha/);
+    assert.match(workflow, /EXPECTED_DEPLOYED_SHA:.*workflow_run\.head_sha/);
+    assert.match(workflow, /keepsThePreviousActiveRevisionWhenStagingFails/);
+    assert.match(workflow, /PRESERVATION_OUTCOME.*steps\.preservation\.outcome/);
+  });
+
   it('fails closed while naming only missing environment keys', () => {
     assert.throws(
       () => validateConfig({ STAGING_SPRING_URL: 'https://staging.example' }),
-      /ONMARU_DATALAB_OPERATIONS_TOKEN, ONMARU_DATALAB_VISITOR_SERVICE_KEY, ONMARU_STAGING_READONLY_DB_URL/,
+      /ONMARU_DATALAB_OPERATIONS_TOKEN/,
     );
+  });
+
+  it('binds smoke evidence to the deployed workflow SHA and verified failure test', () => {
+    assert.doesNotThrow(() => validateDeploymentIdentity(
+      { buildGitSha: 'a'.repeat(40) },
+      'a'.repeat(40),
+    ));
+    assert.throws(() => validateDeploymentIdentity(
+      { buildGitSha: 'b'.repeat(40) },
+      'a'.repeat(40),
+    ), /deployed Spring SHA/);
   });
 
   it('requires an active official mapping, active revision, and complete observation', () => {
@@ -28,6 +52,8 @@ describe('DataLab staging smoke contract', () => {
       completeObservationCount: 4,
       notAvailableObservationCount: 0,
       smokeRegionCode: 'kr-45-jeonju',
+      smokeBasisDate: '2026-09-26',
+      smokeVisitorCount: 100,
     }));
     assert.throws(() => validateDatabaseEvidence({
       registryTotal: 4,
@@ -38,23 +64,21 @@ describe('DataLab staging smoke contract', () => {
     }), /COMPLETE observation/);
   });
 
-  it('detects an active revision change during failure-preservation verification', () => {
-    assert.doesNotThrow(() => assertRevisionPreserved('revision-1', 'revision-1'));
-    assert.throws(() => assertRevisionPreserved('revision-1', 'revision-2'), /active revision changed/);
-  });
-
   it('validates public observations and nullable VisitReview visitorCount', () => {
     assert.doesNotThrow(() => validatePublicResponses(
-      { items: [{ metric: 'VISITOR_COUNT', coverageStatus: 'COMPLETE', value: 100 }] },
-      { items: [{ visitorCount: 100 }, { visitorCount: null }] },
+      { items: [{ region: { regionCode: 'kr-45-jeonju' }, observedDate: '2026-09-26', metric: 'VISITOR_COUNT', coverageStatus: 'COMPLETE', value: 100 }] },
+      { items: [{ visitorCount: 100 }] },
+      { smokeRegionCode: 'kr-45-jeonju', smokeBasisDate: '2026-09-26', smokeVisitorCount: 100 },
     ));
     assert.throws(() => validatePublicResponses(
       { items: [] },
       { items: [] },
+      { smokeRegionCode: 'kr-45-jeonju', smokeBasisDate: '2026-09-26', smokeVisitorCount: 100 },
     ), /VISITOR_COUNT observation/);
     assert.throws(() => validatePublicResponses(
-      { items: [{ metric: 'VISITOR_COUNT', coverageStatus: 'COMPLETE', value: 100 }] },
-      { items: [{ visitorCount: '100' }] },
+      { items: [{ region: { regionCode: 'kr-45-jeonju' }, observedDate: '2026-09-26', metric: 'VISITOR_COUNT', coverageStatus: 'COMPLETE', value: 100 }] },
+      { items: [{ visitorCount: 99 }] },
+      { smokeRegionCode: 'kr-45-jeonju', smokeBasisDate: '2026-09-26', smokeVisitorCount: 100 },
     ), /visitorCount/);
   });
 

@@ -167,4 +167,4 @@ REGION 목록은 published place의 canonical `region_id`와 공개 후기의 `c
 
 `POST /api/v1/operations/datalab/visitor-sync`는 production profile에서만 노출되는 staging 운영 명령이다. 요청 body와 provider URL override는 받지 않으며 `Authorization: Bearer <token>`으로 `datalab.operations-token` secret을 검증한다. 현재 token과 rotation overlap 중인 이전 token만 허용한다.
 
-성공 응답은 `published`, `observationCount`, `skippedCount`, `quarantinedCount`, `reasons`만 반환한다. region code, DataLab source code, source URL, credential, 원본 응답은 포함하지 않는다. 같은 instance에서 이미 수집 중이면 `409 Conflict`, 인증 실패는 `401 Unauthorized`다. skip 또는 quarantine 결과는 새 revision을 게시하지 않으며 이전 `kto-datalab-visitor` active revision을 유지한다.
+성공 응답은 배포 동일성 검증용 `buildGitSha`와 `published`, `observationCount`, `skippedCount`, `quarantinedCount`, `reasons`만 반환한다. region code, DataLab source code, source URL, credential, 원본 응답은 포함하지 않는다. scheduler·운영 endpoint·replica 전체에서 이미 수집 중이면 PostgreSQL advisory lock으로 `409 Conflict`, 인증 실패는 `401 Unauthorized`다. skip 또는 quarantine 결과는 새 revision을 게시하지 않으며 이전 `kto-datalab-visitor` active revision을 유지한다.

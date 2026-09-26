@@ -149,6 +149,24 @@ class DataLabVisitorSourceAdapterTests {
     }
 
     @Test
+    void quarantinesAProviderRowForAnotherBasisDate() {
+        var source = new DataLabVisitorSourceAdapter(
+                request -> List.of(new DataLabVisitorRecord(
+                        request.scope(), LocalDate.parse("2026-09-25"), "52", "전북특별자치도",
+                        "2", "외지인", 10L)),
+                asOf -> List.of(active(
+                        "kr-45", "SIDO:52", DataLabRegionMapping.Level.SIDO, "전북특별자치도")),
+                CLOCK,
+                100);
+
+        var result = source.fetchDailyVisitorObservations();
+
+        assertThat(result.publishable()).isFalse();
+        assertThat(result.exclusions()).extracting(exclusion -> exclusion.reason())
+                .contains(DataLabCollectionReason.RESPONSE_BASIS_DATE_MISMATCH);
+    }
+
+    @Test
     void quarantinesTheBatchWhenTheRegistryContainsDuplicateActiveSourceCodes() {
         var fetchCalls = new AtomicInteger();
         var source = new DataLabVisitorSourceAdapter(

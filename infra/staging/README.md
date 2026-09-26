@@ -39,3 +39,5 @@ DataLab staging smoke workflow는 같은 `staging` environment에서 다음 값�
 배포된 Spring runtime에는 동일한 operations token을
 `ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT`로 주입한다. 모든 값은 GitHub
 environment secret 또는 secret manager에만 두며 workflow artifact에는 원문을 남기지 않는다.
+Spring image는 build 시 `ONMARU_BUILD_GIT_SHA`를 build-info에 고정한다. DataLab smoke는
+operations 응답의 이 값이 triggering `Staging Deploy` SHA와 다르면 #392를 닫지 않는다.

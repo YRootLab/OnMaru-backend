@@ -33,7 +33,9 @@ DataLab 방문자 수집은 `catalog_region_source_codes`의 값을 추측하거
 - `ACTIVE`: HTTPS 공식 출처, 원천 관측 시각, 검증자, 검증 시각이 모두 있고 계층 구조가 유효하다. 이 상태만 수집한다.
 - `REJECTED`: 잘못되었거나 폐기한 후보이다. provider 요청과 게시에서 제외한다.
 
-`region_id`와 `source_code`는 각각 유일해야 하며 `SIDO:*`는 최상위 SIDO,
+같은 기간의 `region_id`와 `source_code`는 각각 유일해야 하며, 종료된 mapping 뒤에는
+겹치지 않는 새 이력을 등록할 수 있다. `ACTIVE` provenance는 같은 source mapping의 공식
+verification URL·검증자·검증 시각과 정확히 일치해야 한다. `SIDO:*`는 최상위 SIDO,
 `SIGUNGU:*`는 SIDO 부모를 둔 SIGUNGU에만 연결할 수 있다. provider 응답의 scope가
 다르거나, 활성 mapping의 응답이 누락되거나 중복되거나, 값이 잘못되면 batch 전체를
 quarantine한다. 새 revision은 게시하지 않으며 직전 active revision을 유지한다. provider가
@@ -91,11 +93,11 @@ INSERT INTO onmaru.catalog_region_source_code_verifications (
 
 -- 5. 검토가 끝난 mapping만 ACTIVE로 등록한다. 원천 관측 시각은 검증 시각과 별개다.
 INSERT INTO onmaru.catalog_datalab_region_mappings (
-    provider, dataset, source_code, valid_from, region_id, level, name,
+    provider, dataset, source_code, valid_from, valid_to, region_id, level, name,
     source_url, source_observed_at, verified_by, verified_at, status
 )
 SELECT
-    source.provider, source.dataset, source.source_code, source.valid_from,
+    source.provider, source.dataset, source.source_code, source.valid_from, source.valid_to,
     source.region_id, '<SIDO_OR_SIGUNGU>', '<OFFICIAL_PROVIDER_REGION_NAME>',
     verification.official_source_url, TIMESTAMPTZ '<SOURCE_OBSERVED_AT>',
     verification.verified_by, verification.verified_at, 'ACTIVE'
@@ -146,16 +148,19 @@ ORDER BY region.code;
 
 1. 보호된 operations endpoint로 실제 DataLab 수집을 실행한다.
 2. read-only DB 연결로 `ACTIVE` registry의 provenance, active revision, `COMPLETE` 관측을 확인한다.
-3. Insights와 VisitReview 공개 API를 호출해 `visitorCount`가 음이 아닌 정수 또는 `null`인지 확인한다.
-4. token, service key, DB URL, provider payload, 지역 코드를 제거한 JSON 증적을 30일 artifact로 보관한다.
+3. 배포 image에 bake된 Git SHA가 `Staging Deploy`의 SHA와 같은지 확인한다.
+4. DB에서 선택한 지역·기준일·방문자 수와 Insights 및 VisitReview projection 값이 정확히 같은지 확인한다.
+5. 같은 SHA의 PostgreSQL 통합 테스트로 실패 batch가 기존 active revision을 보존함을 확인한다.
+6. token, service key, DB URL, provider payload, 지역 코드를 제거한 JSON 증적을 30일 artifact로 보관한다.
 
 필수 staging 설정은 `STAGING_SPRING_URL` variable과
 `ONMARU_DATALAB_OPERATIONS_TOKEN`, `ONMARU_DATALAB_VISITOR_SERVICE_KEY`,
 `ONMARU_STAGING_READONLY_DB_URL` secrets다. 실행 전에 배포 runtime의
 `ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT`가 workflow token과 같은지 확인한다.
 
-성공한 실행만 검증 링크와 함께 Issue #392를 닫는다. 실패하면 #392에 실패 실행 링크를
-남기고 열린 상태를 유지한다. 실패 batch의 active revision 보존은 PostgreSQL 통합 테스트
+성공한 실행만 검증 링크와 함께 Issue #392를 닫는다. 배포 SHA 불일치, 공개 projection
+불일치, 빈 VisitReview 검증 표본도 실패로 처리한다. 실패하면 #392에 실행 링크를 남기고
+열린 상태를 유지한다. 실패 batch의 active revision 보존은 같은 workflow의 PostgreSQL 통합 테스트
 `JdbcDataLabVisitorSnapshotPublisherTests.keepsThePreviousActiveRevisionWhenStagingFails`가
 보장하며, 운영 복구는 registry/provenance 또는 provider 설정을 고친 뒤 smoke를 재실행한다.
 

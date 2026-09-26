@@ -8,6 +8,7 @@ import com.yrootlab.onmaru.insights.observation.SpatialLevel;
 import com.yrootlab.onmaru.insights.observation.VisitorObservation;
 import com.yrootlab.onmaru.persistence.catalog.JdbcDataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.persistence.insights.JdbcDataLabVisitorSnapshotPublisher;
+import com.yrootlab.onmaru.persistence.insights.JdbcDataLabCollectionGuard;
 import com.yrootlab.onmaru.persistence.insights.JdbcVisitorObservationStore;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
@@ -115,6 +116,20 @@ class JdbcDataLabVisitorSnapshotPublisherTests {
 
         assertThat(activeRevisionId()).isEqualTo(oldRevisionId);
         assertThat(revisionCount()).isEqualTo(1);
+    }
+
+    @Test
+    void serializesCollectionAcrossIndependentApplicationInstances() {
+        var firstInstance = new JdbcDataLabCollectionGuard(dataSource);
+        var secondInstance = new JdbcDataLabCollectionGuard(dataSource);
+
+        try (var firstLease = firstInstance.tryAcquire().orElseThrow()) {
+            assertThat(secondInstance.tryAcquire()).isEmpty();
+        }
+
+        try (var secondLease = secondInstance.tryAcquire().orElseThrow()) {
+            assertThat(secondLease).isNotNull();
+        }
     }
 
     private VisitorObservation complete(String basisDate, long count) {

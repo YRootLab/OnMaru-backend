@@ -10,6 +10,8 @@ const REQUIRED_ENV = [
   'ONMARU_DATALAB_OPERATIONS_TOKEN',
   'ONMARU_DATALAB_VISITOR_SERVICE_KEY',
   'ONMARU_STAGING_READONLY_DB_URL',
+  'EXPECTED_DEPLOYED_SHA',
+  'DATALAB_FAILED_BATCH_TEST_VERIFIED',
 ];
 
 const DATABASE_EVIDENCE_SQL = String.raw`
@@ -37,7 +39,7 @@ WITH current_registry AS (
       ON observation.revision_id = active.revision_id
     JOIN onmaru.catalog_regions region ON region.id = observation.region_id
 ), smoke_region AS (
-    SELECT region_code
+    SELECT region_code, basis_date, visitor_count
     FROM active_observations
     WHERE coverage_status = 'COMPLETE'
       AND visitor_count IS NOT NULL
@@ -66,7 +68,9 @@ SELECT jsonb_build_object(
         SELECT count(*) FROM active_observations
         WHERE coverage_status = 'NOT_AVAILABLE' AND visitor_count IS NULL
     ),
-    'smokeRegionCode', (SELECT region_code FROM smoke_region)
+    'smokeRegionCode', (SELECT region_code FROM smoke_region),
+    'smokeBasisDate', (SELECT basis_date::text FROM smoke_region),
+    'smokeVisitorCount', (SELECT visitor_count FROM smoke_region)
 )::text;
 `;
 
@@ -75,10 +79,17 @@ export function validateConfig(environment) {
   if (missing.length > 0) {
     throw new Error(`missing required staging configuration: ${missing.join(', ')}`);
   }
+  if (!/^[0-9a-f]{40}$/.test(environment.EXPECTED_DEPLOYED_SHA)) {
+    throw new Error('EXPECTED_DEPLOYED_SHA must be a full lowercase Git SHA');
+  }
+  if (environment.DATALAB_FAILED_BATCH_TEST_VERIFIED !== 'true') {
+    throw new Error('failed-batch preservation integration test was not verified');
+  }
   return {
     springUrl: environment.STAGING_SPRING_URL.replace(/\/+$/, ''),
     operationsToken: environment.ONMARU_DATALAB_OPERATIONS_TOKEN,
     databaseUrl: environment.ONMARU_STAGING_READONLY_DB_URL,
+    expectedDeployedSha: environment.EXPECTED_DEPLOYED_SHA,
   };
 }
 
@@ -100,26 +111,35 @@ export function validateDatabaseEvidence(evidence) {
   if (!evidence?.smokeRegionCode) {
     throw new Error('no region is available for public API smoke');
   }
-}
-
-export function assertRevisionPreserved(beforeRevisionId, afterRevisionId) {
-  if (!beforeRevisionId || beforeRevisionId !== afterRevisionId) {
-    throw new Error('active revision changed during failed collection');
+  if (!evidence?.smokeBasisDate
+      || !Number.isInteger(Number(evidence?.smokeVisitorCount))
+      || Number(evidence.smokeVisitorCount) < 0) {
+    throw new Error('smoke observation identity is incomplete');
   }
 }
 
-export function validatePublicResponses(insights, reviews) {
+export function validateDeploymentIdentity(sync, expectedSha) {
+  if (sync?.buildGitSha !== expectedSha) {
+    throw new Error('deployed Spring SHA does not match the staging deployment SHA');
+  }
+}
+
+export function validatePublicResponses(insights, reviews, expected) {
   const observations = Array.isArray(insights?.items) ? insights.items : [];
   if (!observations.some((item) => item?.metric === 'VISITOR_COUNT'
       && item?.coverageStatus === 'COMPLETE'
-      && typeof item?.value === 'number')) {
-    throw new Error('public Insights response has no COMPLETE VISITOR_COUNT observation');
+      && item?.region?.regionCode === expected.smokeRegionCode
+      && item?.observedDate === expected.smokeBasisDate
+      && item?.value === Number(expected.smokeVisitorCount))) {
+    throw new Error('public Insights response has no matching COMPLETE VISITOR_COUNT observation');
   }
   const reviewItems = Array.isArray(reviews?.items) ? reviews.items : [];
+  if (reviewItems.length === 0) {
+    throw new Error('public VisitReview response has no item for visitorCount projection verification');
+  }
   for (const item of reviewItems) {
-    if (item?.visitorCount !== null
-        && (!Number.isInteger(item?.visitorCount) || item.visitorCount < 0)) {
-      throw new Error('VisitReview visitorCount must be a non-negative integer or null');
+    if (item?.visitorCount !== Number(expected.smokeVisitorCount)) {
+      throw new Error('VisitReview visitorCount does not match the active DataLab observation');
     }
   }
 }
@@ -178,6 +198,7 @@ async function main(environment = process.env) {
       method: 'POST',
       headers: { Authorization: `Bearer ${config.operationsToken}` },
     });
+    validateDeploymentIdentity(sync, config.expectedDeployedSha);
     if (sync.published !== true || Number(sync.observationCount ?? 0) < 1
         || Number(sync.quarantinedCount ?? 0) !== 0) {
       throw new Error('staging DataLab sync did not publish a clean observation batch');
@@ -192,13 +213,13 @@ async function main(environment = process.env) {
     const reviews = await fetchJson(
       `${config.springUrl}/api/v1/visit-reviews?scope=REGION&regionCode=${encodedRegion}&limit=20`,
     );
-    validatePublicResponses(insights, reviews);
+    validatePublicResponses(insights, reviews, database);
 
     const evidence = {
       schemaVersion: '1.0',
       status: 'passed',
       observedAt: new Date().toISOString(),
-      gitSha: environment.GITHUB_SHA ?? null,
+      gitSha: config.expectedDeployedSha,
       workflowRunId: environment.GITHUB_RUN_ID ?? null,
       sync,
       database,
@@ -208,6 +229,7 @@ async function main(environment = process.env) {
         visitorCountContract: 'non-negative integer or null',
       },
       failedBatchPreservation: {
+        verified: true,
         verification: 'JdbcDataLabVisitorSnapshotPublisherTests.keepsThePreviousActiveRevisionWhenStagingFails',
         recovery: 'Keep the current active revision, fix registry/provider configuration, and rerun this workflow.',
       },
@@ -219,7 +241,7 @@ async function main(environment = process.env) {
       schemaVersion: '1.0',
       status: 'failed',
       observedAt: new Date().toISOString(),
-      gitSha: environment.GITHUB_SHA ?? null,
+      gitSha: environment.EXPECTED_DEPLOYED_SHA ?? null,
       workflowRunId: environment.GITHUB_RUN_ID ?? null,
       error: { message: error instanceof Error ? error.message : 'unknown smoke failure' },
     });
