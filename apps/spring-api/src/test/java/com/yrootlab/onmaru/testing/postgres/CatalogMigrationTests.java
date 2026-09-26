@@ -180,6 +180,115 @@ class CatalogMigrationTests {
         }
     }
 
+    @Test
+    void registersOfficialDataLabMappingsWithCompleteActiveProvenance() throws Exception {
+        resetAndMigrate();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active) VALUES
+                        ('10000000-0000-0000-0000-000000000011', NULL, 'kr-11', '서울특별시', 'SIDO', true),
+                        ('10000000-0000-0000-0000-000000000045', NULL, 'kr-45', '전북특별자치도', 'SIDO', true),
+                        ('20000000-0000-0000-0000-000000000011', '10000000-0000-0000-0000-000000000011', 'kr-11-jongno', '종로구', 'SIGUNGU', true),
+                        ('20000000-0000-0000-0000-000000000045', '10000000-0000-0000-0000-000000000045', 'kr-45-jeonju', '전주시', 'SIGUNGU', true)
+                    """);
+
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*)
+                    FROM onmaru.catalog_datalab_region_mappings
+                    WHERE status = 'ACTIVE'
+                      AND source_url = 'https://www.data.go.kr/data/15101972/openapi.do'
+                      AND source_observed_at = TIMESTAMPTZ '2026-09-26 09:00:00+09'
+                      AND verified_by = 'onmaru-catalog-data-verification'
+                      AND verified_at = TIMESTAMPTZ '2026-09-26 09:00:00+09'
+                    """)).isEqualTo(4);
+        }
+    }
+
+    @Test
+    void rejectsDuplicateAndStructurallyInvalidDataLabMappings() throws Exception {
+        resetAndMigrate();
+        var sidoId = UUID.randomUUID();
+        var otherSidoId = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active) VALUES
+                        ('%s', NULL, 'kr-48', '경상남도', 'SIDO', true),
+                        ('%s', NULL, 'kr-50', '제주특별자치도', 'SIDO', true)
+                    """.formatted(sidoId, otherSidoId));
+            insertDataLabSourceCode(statement, sidoId, "SIDO:48", "2026-09-26");
+            insertDataLabSourceCode(statement, sidoId, "SIDO:481", "2026-09-27");
+            insertDataLabSourceCode(statement, otherSidoId, "SIDO:48", "2026-09-27");
+            insertDataLabSourceCode(statement, otherSidoId, "SIGUNGU:50", "2026-09-26");
+
+            statement.execute(pendingDataLabMappingSql(sidoId, "SIDO:48", "2026-09-26", "SIDO"));
+
+            assertThatThrownBy(() -> statement.execute(
+                    pendingDataLabMappingSql(sidoId, "SIDO:481", "2026-09-27", "SIDO")))
+                    .hasMessageContaining("catalog_datalab_region_mappings_region_id_key");
+            assertThatThrownBy(() -> statement.execute(
+                    pendingDataLabMappingSql(otherSidoId, "SIDO:48", "2026-09-27", "SIDO")))
+                    .hasMessageContaining("catalog_datalab_region_mappings_source_code_key");
+            assertThatThrownBy(() -> statement.execute(
+                    pendingDataLabMappingSql(otherSidoId, "SIGUNGU:50", "2026-09-26", "SIGUNGU")))
+                    .hasMessageContaining("invalid DataLab region mapping structure");
+        }
+    }
+
+    @Test
+    void rejectsActiveDataLabMappingWithoutCompleteProvenance() throws Exception {
+        resetAndMigrate();
+        var regionId = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                    VALUES ('%s', NULL, 'kr-48', '경상남도', 'SIDO', true)
+                    """.formatted(regionId));
+            insertDataLabSourceCode(statement, regionId, "SIDO:48", "2026-09-26");
+
+            assertThatThrownBy(() -> statement.execute("""
+                    INSERT INTO onmaru.catalog_datalab_region_mappings (
+                        provider, dataset, source_code, valid_from, region_id, level, name, status
+                    ) VALUES (
+                        'KTO_DATALAB', 'visitor', 'SIDO:48', DATE '2026-09-26', '%s',
+                        'SIDO', '경상남도', 'ACTIVE'
+                    )
+                    """.formatted(regionId)))
+                    .hasMessageContaining("catalog_datalab_region_mappings_active_provenance_ck");
+        }
+    }
+
+    private static void insertDataLabSourceCode(
+            java.sql.Statement statement,
+            UUID regionId,
+            String sourceCode,
+            String validFrom) throws Exception {
+        statement.execute("""
+                INSERT INTO onmaru.catalog_region_source_codes (
+                    provider, dataset, source_code, valid_from, valid_to, region_id
+                ) VALUES ('KTO_DATALAB', 'visitor', '%s', DATE '%s', NULL, '%s')
+                """.formatted(sourceCode, validFrom, regionId));
+    }
+
+    private static String pendingDataLabMappingSql(
+            UUID regionId,
+            String sourceCode,
+            String validFrom,
+            String level) {
+        return """
+                INSERT INTO onmaru.catalog_datalab_region_mappings (
+                    provider, dataset, source_code, valid_from, region_id, level, name, status
+                ) VALUES (
+                    'KTO_DATALAB', 'visitor', '%s', DATE '%s', '%s', '%s', '검증 대기 지역', 'PENDING'
+                )
+                """.formatted(sourceCode, validFrom, regionId, level);
+    }
+
     private static void resetAndMigrate() throws Exception {
         try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD)) {
             PostgresTestDatabase.reset(connection);

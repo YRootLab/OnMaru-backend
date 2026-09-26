@@ -230,6 +230,15 @@
       "checksum": "legacy-visit-review-backfill-v026-20260926",
       "sha256": "73f79f09fdcf22a86ce985d809cb11fd3c0e51b21950de3dca4ca91702366127",
       "description": "Deterministic public IDs and catalog-backed snapshots for legacy visit reviews"
+    },
+    {
+      "version": "027",
+      "reservedFor": "DATALAB_REGION_MAPPING_REGISTRY",
+      "issueNumber": 399,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V027__399_datalab_region_mapping_registry.sql",
+      "checksum": "datalab-region-mapping-registry-v027-20260926",
+      "sha256": "3abc1ca4acac9dea522f6eff1d95be589da8a0b7920722dae8d71f46f354efd7",
+      "description": "Auditable DataLab region mapping registry with fail-closed status and provenance"
     }
   ]
 }
