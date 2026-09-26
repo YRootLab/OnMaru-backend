@@ -12,5 +12,7 @@ test('baseline collection workflow reads completed CI runs without logs or eleva
   assert.match(workflow, /ci-run-collector\.mjs/);
   assert.match(workflow, /serial-baseline\.mjs/);
   assert.match(workflow, /actions\/upload-artifact@v4/);
+  assert.ok(workflow.includes('.join("\\n")'), 'run URLs must be separated by real newlines');
+  assert.ok(!workflow.includes('.join("\\\\n")'), 'run URLs must not contain literal \\n separators');
   assert.doesNotMatch(workflow, /secrets\./);
 });

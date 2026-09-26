@@ -73,7 +73,7 @@ jobs:
           node scripts/benchmark/serial-baseline.mjs --input baseline/runs.json --output baseline/serial-baseline.json
       - name: Render sanitized baseline summary
         run: |
-          node -e 'const fs=require("fs"); const b=JSON.parse(fs.readFileSync("baseline/serial-baseline.json","utf8")); const m=b.metrics; fs.writeFileSync("baseline/summary.md", `# Serial CI baseline\n\n- Samples: ${b.runCount}\n- Wall-clock median: ${m.verifyWallClockMedianMillis} ms\n- Work median: ${m.verifyWorkMedianMillis ?? "unavailable"}\n- Peak RSS: ${m.peakRssBytes ?? "unavailable"}\n- Resource evidence: ${b.resourceEvidence}\n- Run URLs:\n${b.artifactUrls.map((url)=>`  - ${url}`).join("\\n")}\n`)'
+          node -e 'const fs=require("fs"); const b=JSON.parse(fs.readFileSync("baseline/serial-baseline.json","utf8")); const m=b.metrics; fs.writeFileSync("baseline/summary.md", `# Serial CI baseline\n\n- Samples: ${b.runCount}\n- Wall-clock median: ${m.verifyWallClockMedianMillis} ms\n- Work median: ${m.verifyWorkMedianMillis ?? "unavailable"}\n- Peak RSS: ${m.peakRssBytes ?? "unavailable"}\n- Resource evidence: ${b.resourceEvidence}\n- Run URLs:\n${b.artifactUrls.map((url)=>`  - ${url}`).join("\n")}\n`)'
           cat baseline/summary.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:

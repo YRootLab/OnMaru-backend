@@ -11,11 +11,12 @@ const identity = {
   pythonVersion: '3.12',
 };
 
-function run(id, verifyDurationMillis) {
+function run(id, verifyDurationMillis, jobDurationMillis = verifyDurationMillis + 500) {
   return {
     runId: id,
     artifactUrl: `https://github.com/YRootLab/OnMaru-backend/actions/runs/${id}`,
     status: 'success',
+    durationMillis: jobDurationMillis,
     identity,
     commands: ['./gradlew :apps:spring-api:test --no-daemon', 'uv run pytest'],
     steps: [
@@ -26,12 +27,12 @@ function run(id, verifyDurationMillis) {
 }
 
 test('creates a comparable baseline only from exactly three successful serial runs', () => {
-  const baseline = createSerialBaseline({ suite: 'verify-serial', runs: [run('101', 1300), run('102', 1100), run('103', 1200)] });
+  const baseline = createSerialBaseline({ suite: 'verify-serial', runs: [run('101', 1300, 2300), run('102', 1100, 2100), run('103', 1200, 2200)] });
 
   assert.equal(baseline.status, 'valid');
   assert.equal(baseline.runCount, 3);
   assert.equal(baseline.identity.commitSha, identity.commitSha);
-  assert.equal(baseline.metrics.verifyWallClockMedianMillis, 1700);
+  assert.equal(baseline.metrics.verifyWallClockMedianMillis, 2200);
   assert.deepEqual(baseline.artifactUrls, [
     'https://github.com/YRootLab/OnMaru-backend/actions/runs/101',
     'https://github.com/YRootLab/OnMaru-backend/actions/runs/102',
@@ -51,7 +52,7 @@ test('rejects failed or non-comparable candidates instead of creating a baseline
 });
 
 test('keeps resource metrics unavailable when the Actions API cannot provide them', () => {
-  const apiRun = (id) => ({ ...run(id, 1200), steps: [
+  const apiRun = (id) => ({ ...run(id, 1200, 1200), steps: [
     { name: 'verify', durationMillis: 1200, cpuMillis: null, maxRssBytes: null },
   ], resourceEvidence: 'unavailable-from-actions-api' });
   const baseline = createSerialBaseline({ suite: 'verify-serial', runs: [apiRun('201'), apiRun('202'), apiRun('203')] });

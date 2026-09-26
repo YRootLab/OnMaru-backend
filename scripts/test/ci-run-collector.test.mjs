@@ -10,16 +10,21 @@ const identity = {
 test('normalizes a successful GitHub Actions CI run into serial baseline evidence without inventing resource metrics', () => {
   const evidence = normalizeCiRun({
     run: { id: 123, conclusion: 'success', head_sha: sha, html_url: 'https://github.com/YRootLab/OnMaru-backend/actions/runs/123' },
-    jobs: { jobs: [{ name: 'verify', conclusion: 'success', steps: [
+    jobs: { jobs: [{
+      name: 'verify', conclusion: 'success',
+      started_at: '2026-09-25T00:00:00Z', completed_at: '2026-09-25T00:02:10Z',
+      steps: [
       { name: 'Checkout', conclusion: 'success', started_at: '2026-09-25T00:00:00Z', completed_at: '2026-09-25T00:00:05Z' },
       { name: 'Spring API tests', conclusion: 'success', started_at: '2026-09-25T00:00:05Z', completed_at: '2026-09-25T00:02:05Z' },
-    ] }] },
+      ],
+    }] },
     identity,
     commands: ['./gradlew :apps:spring-api:test --no-daemon'],
   });
 
   assert.equal(evidence.runId, '123');
   assert.equal(evidence.identity.commitSha, sha);
+  assert.equal(evidence.durationMillis, 130000);
   assert.equal(evidence.steps[1].durationMillis, 120000);
   assert.equal(evidence.steps[1].cpuMillis, null);
   assert.equal(evidence.steps[1].maxRssBytes, null);

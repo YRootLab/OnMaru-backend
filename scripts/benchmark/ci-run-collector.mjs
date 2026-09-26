@@ -37,6 +37,7 @@ export function normalizeCiRun({ run, jobs, identity, commands }) {
   if (steps.length === 0) fail('successful timed steps are required');
   return {
     runId: String(run.id), artifactUrl: run.html_url, status: 'success',
+    durationMillis: durationMillis(verify),
     identity: { commitSha: run.head_sha, ...identity }, commands, steps,
     resourceEvidence: 'unavailable-from-actions-api',
   };

@@ -29,6 +29,7 @@ function validateRun(run) {
   if (!/^\d+$/.test(String(run.runId ?? ''))) fail('runId is required');
   if (!ACTION_RUN_URL.test(run.artifactUrl ?? '')) fail('artifactUrl must be an immutable OnMaruBE Actions run URL');
   if (run.status !== 'success') fail(`run ${run.runId} must succeed`);
+  if (!Number.isFinite(run.durationMillis) || run.durationMillis < 0) fail(`run ${run.runId} has invalid wall-clock duration`);
   validateIdentity(run.identity);
   if (!Array.isArray(run.commands) || run.commands.length === 0 || run.commands.some((command) => typeof command !== 'string' || !command)) fail(`run ${run.runId} commands are required`);
   if (!Array.isArray(run.steps) || run.steps.length === 0) fail(`run ${run.runId} steps are required`);
@@ -59,7 +60,7 @@ export function createSerialBaseline({ suite, runs }) {
     if ((run.resourceEvidence ?? 'available') !== (first.resourceEvidence ?? 'available')) fail('runs are not comparable: resourceEvidence');
   }
   const resourceEvidence = first.resourceEvidence ?? 'available';
-  const runDurations = runs.map((run) => run.steps.reduce((total, step) => total + step.durationMillis, 0));
+  const runDurations = runs.map((run) => run.durationMillis);
   return {
     schemaVersion: 1,
     status: 'valid',
@@ -73,7 +74,7 @@ export function createSerialBaseline({ suite, runs }) {
       peakRssBytes: resourceEvidence === 'available' ? Math.max(...runs.flatMap((run) => run.steps.map((step) => step.maxRssBytes))) : null,
     },
     resourceEvidence,
-    runs: runs.map(({ runId, artifactUrl, commands, steps }) => ({ runId: String(runId), artifactUrl, commands, steps })),
+    runs: runs.map(({ runId, artifactUrl, durationMillis, commands, steps }) => ({ runId: String(runId), artifactUrl, durationMillis, commands, steps })),
   };
 }
 
