@@ -162,3 +162,9 @@ FE는 후기별 좋아요 변경 요청을 직렬화하고 마지막 사용자 �
 Catalog의 `place_identity`에 연결된 현재 published `place_versions`에서 공간 eligibility를 읽는다. Community repository가 catalog table을 직접 수정하지 않으며 Catalog의 공개 read view/port를 사용한다. 장소 좌표가 없는 글은 지도 범위에 포함할 수 없으므로 방문 후기 작성 eligibility는 유효 좌표를 요구한다.
 
 REGION 목록은 published place의 canonical `region_id`와 공개 후기의 `created_at DESC,id DESC` keyset을 함께 적용한다. 위치 동의는 `/regions/resolve`의 경계 조회에만 사용하며, 후기 본문 SQL에 반경·bbox predicate를 넣지 않는다. 전국 ALL과 밀집/희소 REGION의 실행 계획을 10만건 fixture에서 비교한다. 부모 집계는 공개 leaf region GROUP BY로 계산하며, 필요할 때만 별도 projection을 검토한다. SQL timeout2초를 넘으면503, FE는 기존 결과+재시도 안내를 유지한다. 지도목록 목표p95 500ms는 측정할 목표이며 현재실측값이 아니다.
+
+## DataLab 운영 수집 명령
+
+`POST /api/v1/operations/datalab/visitor-sync`는 production profile에서만 노출되는 staging 운영 명령이다. 요청 body와 provider URL override는 받지 않으며 `Authorization: Bearer <token>`으로 `datalab.operations-token` secret을 검증한다. 현재 token과 rotation overlap 중인 이전 token만 허용한다.
+
+성공 응답은 `published`, `observationCount`, `skippedCount`, `quarantinedCount`, `reasons`만 반환한다. region code, DataLab source code, source URL, credential, 원본 응답은 포함하지 않는다. 같은 instance에서 이미 수집 중이면 `409 Conflict`, 인증 실패는 `401 Unauthorized`다. skip 또는 quarantine 결과는 새 revision을 게시하지 않으며 이전 `kto-datalab-visitor` active revision을 유지한다.

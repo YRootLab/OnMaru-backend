@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.web.insights;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.catalog.region.DataLabRegionMappingRegistry;
 import com.yrootlab.onmaru.insights.ingestion.DataLabVisitorIngestionService;
 import com.yrootlab.onmaru.insights.ingestion.DataLabCollectionObserver;
@@ -97,6 +98,13 @@ class InsightsConfiguration {
         return meterRegistry == null
                 ? DataLabCollectionObserver.NOOP
                 : new MicrometerDataLabCollectionObserver(meterRegistry);
+    }
+
+    @Bean
+    @Profile("production")
+    @ConditionalOnBean(SecretProvider.class)
+    DataLabOperationsAuthenticator dataLabOperationsAuthenticator(SecretProvider secretProvider) {
+        return new DataLabOperationsAuthenticator(secretProvider);
     }
 
     @Bean
