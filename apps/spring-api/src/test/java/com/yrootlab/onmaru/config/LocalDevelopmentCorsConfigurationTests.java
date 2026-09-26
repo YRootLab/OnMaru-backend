@@ -47,6 +47,18 @@ class LocalDevelopmentCorsConfigurationTests {
     }
 
     @Test
+    void allowsCorsPreflightFromBothVercelProductionDomains() throws Exception {
+        for (var origin : new String[]{"https://www.onmaru.site", "https://onmaru.site"}) {
+            mockMvc.perform(options("/api/v1/map/places")
+                            .header("Origin", origin)
+                            .header("Access-Control-Request-Method", "GET"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Access-Control-Allow-Origin", origin))
+                    .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+        }
+    }
+
+    @Test
     void rejectsCorsPreflightFromOriginsOutsideTheLocalDevelopmentAllowlist() throws Exception {
         mockMvc.perform(options("/api/v1/home/curated-courses")
                         .header("Origin", "http://localhost:3008")
