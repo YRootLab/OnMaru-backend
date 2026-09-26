@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #307의 production Odii 저장소 선택 경쟁을 제거하고, JDBC store 필수 구성·fail-fast와 설정 순서 회귀 테스트를 추가했다.
 - Issues #342, #343, #344, #346의 FE 호환 API, 온기 후기 필드, 스크린 한옥 JDBC 저장, 방문자 수 조회를 구현했다.
 - VisitReview·신고·멱등성·DataLab 관측의 PostgreSQL 영속화와 원자적 revision 게시, 공식 지역 코드 매핑을 추가했다.
 - Issue #228의 Journey 탐색 thread 기억 보존·LLM enrichment 계약 설계 및 FE 전달 문서를 추가했다.
