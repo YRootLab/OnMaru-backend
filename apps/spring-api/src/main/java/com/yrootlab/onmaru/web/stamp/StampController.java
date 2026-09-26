@@ -1,5 +1,8 @@
 package com.yrootlab.onmaru.web.stamp;
 
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.security.web.PrivateResponse;
 import com.yrootlab.onmaru.stamp.CheckInCommand;
@@ -36,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -123,6 +127,9 @@ public final class StampController {
         if (body == null) {
             throw new CheckInInputInvalidException("body");
         }
+        if (!body.unknownFields().isEmpty()) {
+            throw new CheckInInputInvalidException("body");
+        }
         if (body.latitude() == null) {
             throw new CheckInInputInvalidException("latitude");
         }
@@ -156,7 +163,25 @@ public final class StampController {
                 : UUID.randomUUID().toString();
     }
 
-    record CheckInRequest(Double latitude, Double longitude, Double accuracyMeters) {
+    record CheckInRequest(
+            Double latitude,
+            Double longitude,
+            Double accuracyMeters,
+            Map<String, Object> unknownFields
+    ) {
+        @JsonCreator
+        CheckInRequest(
+                @JsonProperty("latitude") Double latitude,
+                @JsonProperty("longitude") Double longitude,
+                @JsonProperty("accuracyMeters") Double accuracyMeters
+        ) {
+            this(latitude, longitude, accuracyMeters, new LinkedHashMap<>());
+        }
+
+        @JsonAnySetter
+        void unknown(String name, Object value) {
+            unknownFields.put(name, value);
+        }
     }
 
     record StampCatalogResponse(String schemaVersion, List<StampDefinitionResponse> stamps) {

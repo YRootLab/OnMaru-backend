@@ -3,10 +3,10 @@
 ## 현재 작업: Issue #262 익명 수결 랭킹 후속
 
 - **기준일/브랜치**: 2026-09-27 / `feature/262-hanok-stamp-book`
-- **상태**: V029 `stamp_ranking_profiles`, 익명 프로필 생성·철회, JDBC 실시간 집계, 공개·개인 REST API와 OpenAPI 1.3 구현. FE 인계 및 운영 계약 문서를 현재 구현에 맞춰 갱신했다. 원격 PR은 이번 작업에서 갱신하지 않았다.
+- **상태**: V029 `stamp_ranking_profiles`, 익명 프로필 생성·철회, JDBC 실시간 집계, 공개·개인 REST API와 OpenAPI 1.3 구현. V030과 production `JdbcIdentityStore`로 OAuth 회원 원장을 수결 FK와 연결하고, 탈퇴 cleanup에 체크인·수결·랭킹 profile 삭제와 DELETING 회원 재생성 차단을 포함했다. FE 인계 및 운영 계약 문서를 현재 구현에 맞춰 갱신했다. 원격 PR은 이번 작업에서 갱신하지 않았다.
 - **API**: 공개 `GET /api/v1/stamps/leaderboard`, 회원 `GET/PUT /api/v1/me/stamp-ranking`. 개인 PUT은 session cookie와 CSRF가 필요하고 철회는 재참여 5초 제한과 무관하다.
 - **변경 파일**: `docs/contracts/rest-api.md`, `docs/toFE/hanok-stamp-book-api-handoff-2026-09-26.md`, `docs/superpowers/specs/2026-09-26-hanok-stamp-book-design.md`, `handoff.md`, `CHANGELOG.md`.
-- **구현 커밋**: `a79e7c3` V029, `afd0a22` domain, `041392a` JDBC, `af7b59e` REST, `860d699` OpenAPI. 검증 결과는 각 작업 보고서와 해당 커밋을 확인한다.
+- **구현 커밋**: `a79e7c3` V029, `afd0a22` domain, `041392a` JDBC, `af7b59e` REST, `860d699` OpenAPI. V030 identity 연결과 탈퇴 cleanup 보강 커밋은 최종 리뷰 수정 보고서를 확인한다.
 - **문서 검증**: `bash scripts/verify-contracts --contracts-only`, 변경 문서의 로컬 Markdown 링크 경로 확인, `git diff --check` 모두 통과.
 - **다음 단계/열린 위험**: FE가 실제 세션·CSRF·429·철회 후 재조회 흐름을 연결하고 staging에서 동의/철회 화면과 운영 데이터 성능을 확인한다. PR 생성·갱신 및 배포는 미실시다.
 

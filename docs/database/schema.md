@@ -65,6 +65,12 @@
 // 참여 중인 공개 UUID와 정규화 닉네임에만 partial unique index가 적용된다. 회원 삭제는
 // ON DELETE CASCADE로 설정 row를 함께 제거한다. 순위 점수는 stamp_awards에서 조회 시
 // 계산하며 profile이나 별도 테이블에 저장하지 않는다.
+// V030부터 production OAuth와 회원 lifecycle은 identity_members를 포함한 JDBC 원장을
+// 단일 Source of Truth로 사용한다. identity_oauth_states.pkce_verifier_hash는 PKCE 검증값의
+// SHA-256 hash만 저장하고 상태 consume 시 nonce/provider와 함께 원자적으로 검증한다.
+// 탈퇴 cleanup은 DELETING 회원 row를 잠근 뒤 수결 획득·체크인·랭킹 profile을 삭제하고,
+// 모든 대상이 사라진 뒤에만 deletion ledger를 COMPLETED로 전환한다. DELETING tombstone은
+// cleanup과 경합한 체크인 또는 랭킹 참여가 개인정보 row를 다시 만들지 못하게 한다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

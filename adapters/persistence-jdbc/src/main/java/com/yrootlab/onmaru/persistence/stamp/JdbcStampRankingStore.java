@@ -116,6 +116,7 @@ public final class JdbcStampRankingStore implements StampRankingStore {
         return transactions.execute(connection -> {
             try {
                 lockMember(connection, memberId);
+                requireActiveMember(connection, memberId);
                 var current = profile(connection, memberId);
                 if (current != null && current.participating()) {
                     return status(connection, memberId);
@@ -138,6 +139,7 @@ public final class JdbcStampRankingStore implements StampRankingStore {
         return transactions.execute(connection -> {
             try {
                 lockMember(connection, memberId);
+                requireActiveMember(connection, memberId);
                 var current = profile(connection, memberId);
                 if (current != null && current.participating()) {
                     try (var statement = connection.prepareStatement("""
@@ -182,6 +184,19 @@ public final class JdbcStampRankingStore implements StampRankingStore {
         try (var statement = connection.prepareStatement("SELECT pg_advisory_xact_lock(hashtext('stamp-ranking|' || ?))")) {
             statement.setString(1, memberId.toString());
             statement.execute();
+        }
+    }
+
+    private void requireActiveMember(Connection connection, UUID memberId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT status::text FROM onmaru.identity_members WHERE id = ? FOR UPDATE
+                """)) {
+            statement.setObject(1, memberId);
+            try (var result = statement.executeQuery()) {
+                if (!result.next() || !"ACTIVE".equals(result.getString(1))) {
+                    throw new IllegalStateException("Inactive member cannot change stamp ranking participation");
+                }
+            }
         }
     }
 

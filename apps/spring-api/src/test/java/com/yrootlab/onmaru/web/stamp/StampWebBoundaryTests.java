@@ -148,6 +148,19 @@ class StampWebBoundaryTests {
         checkIn(PLACE, UUID.randomUUID().toString(), 91, 126.9831, 18.4)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details.field").value("latitude"));
+
+        mockMvc.perform(post("/api/v1/places/{placeId}/check-ins", PLACE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"latitude":37.5826,"longitude":126.9831,"accuracyMeters":18.4,"memberId":"leak"}
+                                """)
+                        .cookie(
+                                new jakarta.servlet.http.Cookie("__Host-onmaru-session", SESSION),
+                                new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
         checkIn("p-not-found", UUID.randomUUID().toString(), 37.5826, 126.9831, 18.4)
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));

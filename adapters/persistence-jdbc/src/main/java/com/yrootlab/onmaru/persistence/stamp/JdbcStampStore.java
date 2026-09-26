@@ -59,6 +59,7 @@ public final class JdbcStampStore implements StampStore {
         return transactions.execute(connection -> {
             try {
                 lockMember(connection, memberId);
+                requireActiveMember(connection, memberId);
                 var bucket = bucket(now);
                 var existing = findCheckIn(connection, memberId, place.internalPlaceId(), bucket);
                 if (existing != null) {
@@ -195,6 +196,19 @@ public final class JdbcStampStore implements StampStore {
         try (var statement = connection.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))")) {
             statement.setString(1, "stamp|" + memberId);
             statement.execute();
+        }
+    }
+
+    private void requireActiveMember(Connection connection, UUID memberId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT status::text FROM onmaru.identity_members WHERE id = ? FOR UPDATE
+                """)) {
+            statement.setObject(1, memberId);
+            try (var result = statement.executeQuery()) {
+                if (!result.next() || !"ACTIVE".equals(result.getString(1))) {
+                    throw new IllegalStateException("Inactive member cannot create stamp history");
+                }
+            }
         }
     }
 

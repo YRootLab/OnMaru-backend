@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.testing.postgres;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
 import com.yrootlab.onmaru.persistence.stamp.JdbcStampRankingStore;
 import com.yrootlab.onmaru.persistence.stamp.JdbcStampStore;
@@ -244,13 +245,17 @@ class JdbcStampRankingStoreTests {
                 explain.setInt(1, 20);
                 try (var result = explain.executeQuery()) {
                     assertThat(result.next()).isTrue();
-                    var plan = result.getString(1);
-                    assertThat(plan).contains("\"Relation Name\": \"stamp_ranking_profiles\"");
+                    var plan = new ObjectMapper().readTree(result.getString(1));
+                    assertThat(plan.findValuesAsText("Relation Name"))
+                            .contains("stamp_ranking_profiles", "stamp_awards");
                     // All three indexes have the same participating predicate; the planner may pick any.
-                    assertThat(plan).containsAnyOf("stamp_ranking_profiles_participating_idx",
+                    assertThat(plan.findValuesAsText("Index Name")).containsAnyOf(
+                            "stamp_ranking_profiles_participating_idx",
                             "stamp_ranking_profiles_public_id_uq", "stamp_ranking_profiles_nickname_uq");
-                    assertThat(plan).containsAnyOf("stamp_awards_member_awarded_idx", "stamp_awards_member_stamp_uq");
-                    assertThat(plan).contains("\"Index Cond\": \"(member_id = profile.member_id)\"");
+                    assertThat(plan.findValuesAsText("Index Name")).containsAnyOf(
+                            "stamp_awards_member_awarded_idx", "stamp_awards_member_stamp_uq");
+                    assertThat(plan.findValuesAsText("Index Cond"))
+                            .anyMatch(condition -> condition.contains("member_id"));
                 }
             }
         }

@@ -28,6 +28,7 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 var proposal = deleteExpiredProposals(connection, policy, now);
                 var run = deleteExpiredRuns(connection, policy, now);
                 var saved = deleteSavedResourcesForDeletingMembers(connection, policy, now);
+                var stamps = deleteStampResourcesForDeletingMembers(connection, policy, now);
                 completeMemberDeletionLedgers(connection, now);
                 var session = deleteExpiredSessions(connection, policy, now);
                 var guest = deleteExpiredGuests(connection, policy, now);
@@ -39,13 +40,14 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                         run.deleted(),
                         proposal.deleted(),
                         revision.deleted(),
-                        saved.deleted(),
+                        saved.deleted() + stamps.deleted(),
                         session.ledgerEntries()
                                 + guest.ledgerEntries()
                                 + run.ledgerEntries()
                                 + proposal.ledgerEntries()
                                 + revision.ledgerEntries()
-                                + saved.ledgerEntries());
+                                + saved.ledgerEntries()
+                                + stamps.ledgerEntries());
             } catch (RuntimeException | SQLException exception) {
                 connection.rollback();
                 if (exception instanceof RuntimeException runtimeException) {
@@ -267,6 +269,78 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 resources.ledgerEntries() + journeys.ledgerEntries());
     }
 
+    private MutationCount deleteStampResourcesForDeletingMembers(
+            Connection connection,
+            RetentionCleanupPolicy policy,
+            Instant now
+    ) throws SQLException {
+        var awards = deleteMemberResource(
+                connection, policy, now, "stamp_awards", "STAMP_AWARD", "awarded_at");
+        var checkIns = deleteMemberResource(
+                connection, policy, now, "stamp_check_ins", "STAMP_CHECK_IN", "checked_in_at");
+        var profiles = deleteMemberResource(
+                connection, policy, now, "stamp_ranking_profiles", "STAMP_RANKING_PROFILE", "updated_at");
+        return new MutationCount(
+                awards.deleted() + checkIns.deleted() + profiles.deleted(),
+                awards.ledgerEntries() + checkIns.ledgerEntries() + profiles.ledgerEntries());
+    }
+
+    private MutationCount deleteMemberResource(
+            Connection connection,
+            RetentionCleanupPolicy policy,
+            Instant now,
+            String table,
+            String resourceType,
+            String orderColumn
+    ) throws SQLException {
+        var sql = """
+                WITH doomed AS (
+                    SELECT resource.%s
+                    FROM onmaru.%s resource
+                    JOIN onmaru.identity_deletion_ledger member_deletion
+                      ON member_deletion.member_id = resource.member_id
+                    JOIN onmaru.identity_members member ON member.id = resource.member_id
+                    WHERE member_deletion.status = 'REQUESTED' AND member.status = 'DELETING'
+                    ORDER BY resource.%s, resource.%s
+                    LIMIT ?
+                    FOR UPDATE OF resource, member SKIP LOCKED
+                ),
+                deleted AS (
+                    DELETE FROM onmaru.%s resource
+                    USING doomed
+                    WHERE resource.%s = doomed.%s
+                    RETURNING resource.%s
+                ),
+                ledger AS (
+                    INSERT INTO onmaru.operations_retention_deletion_ledger (
+                        id, resource_type, resource_id, reason, deleted_at, details
+                    )
+                    SELECT gen_random_uuid(), ?, %s::text,
+                           'MEMBER_DELETION_REQUESTED', ?, '{}'::jsonb
+                    FROM deleted
+                    ON CONFLICT (resource_type, resource_id, reason) DO NOTHING
+                    RETURNING 1
+                )
+                SELECT (SELECT COUNT(*) FROM deleted) AS deleted,
+                       (SELECT COUNT(*) FROM ledger) AS ledger_entries
+                """.formatted(
+                table.equals("stamp_ranking_profiles") ? "member_id" : "id",
+                table,
+                orderColumn,
+                table.equals("stamp_ranking_profiles") ? "member_id" : "id",
+                table,
+                table.equals("stamp_ranking_profiles") ? "member_id" : "id",
+                table.equals("stamp_ranking_profiles") ? "member_id" : "id",
+                table.equals("stamp_ranking_profiles") ? "member_id" : "id",
+                table.equals("stamp_ranking_profiles") ? "member_id" : "id");
+        try (var statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, policy.batchSize());
+            statement.setString(2, resourceType);
+            statement.setObject(3, utc(now));
+            return count(statement.executeQuery());
+        }
+    }
+
     private MutationCount deleteSavedResources(Connection connection, RetentionCleanupPolicy policy, Instant now)
             throws SQLException {
         try (var statement = connection.prepareStatement("""
@@ -357,6 +431,18 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                       SELECT 1
                       FROM onmaru.journey_saved_journeys saved
                       WHERE saved.member_id = ledger.member_id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM onmaru.stamp_check_ins stamp
+                      WHERE stamp.member_id = ledger.member_id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM onmaru.stamp_awards award
+                      WHERE award.member_id = ledger.member_id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM onmaru.stamp_ranking_profiles profile
+                      WHERE profile.member_id = ledger.member_id
                   )
                 """)) {
             statement.setObject(1, utc(now));
