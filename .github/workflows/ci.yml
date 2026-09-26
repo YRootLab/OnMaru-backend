@@ -16,11 +16,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  hygiene:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Repository hygiene
         run: |
@@ -34,40 +37,6 @@ jobs:
         if: github.event_name == 'pull_request'
         run: node scripts/print-branch-issue.mjs "${{ github.head_ref }}"
 
-      - name: Set up JDK 21 for backend
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: temurin
-          cache: gradle
-
-      - name: TourAPI adapter tests
-        run: ./gradlew :adapters:tourism-api:test --no-daemon
-
-      - name: Insights module tests
-        run: ./gradlew :modules:insights:test --no-daemon
-
-      - name: Catalog module tests
-        run: ./gradlew :modules:catalog:test --no-daemon
-
-      - name: Audio module tests
-        run: ./gradlew :modules:audio:test --no-daemon
-
-      - name: Community module tests
-        run: ./gradlew :modules:community:test --no-daemon
-
-      - name: Identity module tests
-        run: ./gradlew :modules:identity:test --no-daemon
-
-      - name: Journey module tests
-        run: ./gradlew :modules:journey:test --no-daemon
-
-      - name: Operations module tests
-        run: ./gradlew :modules:operations:test --no-daemon
-
-      - name: Spring API tests
-        run: ./gradlew :apps:spring-api:test --no-daemon
-
       - name: Node script tests
         run: node --test scripts/test/*.test.mjs
 
@@ -76,6 +45,15 @@ jobs:
 
       - name: Odii fixture manifest validation
         run: node scripts/validate-odii-fixtures.mjs
+
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python for public contract validation
         uses: actions/setup-python@v5
@@ -98,29 +76,46 @@ jobs:
       - name: Public contract and generated artifact validation
         run: bash scripts/verify-contracts
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+  module-tests:
+    permissions:
+      contents: read
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@ff3028ae728de076ea38aa56135529c1566f25a8
+    with:
+      catalog_path: .github/benchmark-modules.yml
+      toolkit_ref: ff3028ae728de076ea38aa56135529c1566f25a8
+      mode: ${{ github.event_name == 'pull_request' && 'pr' || 'develop' }}
+      max_parallel: 4
+      baseline_ref: develop
+      comment_mode: none
+
+  verify:
+    needs: [hygiene, contract, module-tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout fan-in verifier
+        uses: actions/checkout@v4
         with:
-          enable-cache: true
+          persist-credentials: false
 
-      - name: Install Python 3.12 for FastAPI service
-        run: uv python install 3.12
-
-      - name: FastAPI service quality gates
-        working-directory: ai
-        run: uv run pytest
-
-      - name: Offline AI evaluation gates
+      - name: Enforce required fan-in result
+        env:
+          HYGIENE_RESULT: ${{ needs.hygiene.result }}
+          CONTRACT_RESULT: ${{ needs.contract.result }}
+          MODULE_JOB_RESULT: ${{ needs.module-tests.result }}
+          TOOLKIT_RESULT: ${{ needs.module-tests.outputs.result }}
+          MANIFEST_URI: ${{ needs.module-tests.outputs.manifest_uri }}
+          REPORT_ARTIFACT: ${{ needs.module-tests.outputs.report_artifact }}
         run: |
-          bash scripts/test/run-ai-evals.test.sh
-          uv run --project ai python scripts/run-ai-evals \
-            --input ai/evals/journey-held-out-v1.json \
-            --output "${RUNNER_TEMP}/ai-eval-report.json" \
-            --schema-output "${RUNNER_TEMP}/ai-eval-report.schema.json"
-          cmp ai/evals/report.schema.json "${RUNNER_TEMP}/ai-eval-report.schema.json"
-
-      - name: FastAPI lint and typecheck
-        working-directory: ai
-        run: |
-          uv run ruff check
-          uv run mypy
+          {
+            printf '## Required CI fan-in\n\n'
+            printf '| Lane | Result |\n| --- | --- |\n'
+            printf '| hygiene | `%s` |\n' "$HYGIENE_RESULT"
+            printf '| contract | `%s` |\n' "$CONTRACT_RESULT"
+            printf '| module-tests | `%s` |\n' "$MODULE_JOB_RESULT"
+            printf '| Toolkit result | `%s` |\n' "$TOOLKIT_RESULT"
+            printf '| Manifest | `%s` |\n' "$MANIFEST_URI"
+            printf '| Report artifact | `%s` |\n' "$REPORT_ARTIFACT"
+          } >> "$GITHUB_STEP_SUMMARY"
+          node scripts/ci/verify-fan-in.mjs

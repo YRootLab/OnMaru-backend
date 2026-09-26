@@ -12,8 +12,17 @@ test('benchmark catalog covers every current backend test entrypoint and full-su
   assert.ok(catalog.always_full_paths.includes('build-logic/**'));
   assert.ok(catalog.always_full_paths.includes('.github/workflows/**'));
   assert.equal(catalog.modules.find((module) => module.id === 'spring-api').resource_profile, 'heavy');
-  assert.equal(
-    catalog.modules.find((module) => module.id === 'ai').test_command,
-    'python3 -m pip install --user uv && export PATH="$HOME/.local/bin:$PATH" && cd ai && uv run pytest',
-  );
+  const aiCommand = catalog.modules.find((module) => module.id === 'ai').test_command;
+  for (const requiredCommand of [
+    'python3 -m pip install --user uv',
+    'uv python install 3.12',
+    'uv run pytest',
+    'bash scripts/test/run-ai-evals.test.sh',
+    'uv run --project ai python scripts/run-ai-evals',
+    'cmp ai/evals/report.schema.json',
+    'uv run ruff check',
+    'uv run mypy',
+  ]) {
+    assert.ok(aiCommand.includes(requiredCommand), `AI module command must include ${requiredCommand}`);
+  }
 });
