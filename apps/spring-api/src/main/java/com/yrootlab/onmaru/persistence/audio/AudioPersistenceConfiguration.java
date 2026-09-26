@@ -19,8 +19,6 @@ public class AudioPersistenceConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
-    @ConditionalOnMissingBean(AudioRevisionStore.class)
     AudioRevisionStore jdbcAudioRevisionStore(
             DataSource dataSource,
             @Value("${onmaru.audio.dataset:odii-audio}") String dataset
