@@ -248,6 +248,15 @@
       "checksum": "hanok-stamp-book-v028-20260926",
       "sha256": "4d424de6b05fea0040156f46a72d6b57f50037ef78c00a26988eb55c77c67f1a",
       "description": "Location-verified member check-ins and relational Hanok stamp awards"
+    },
+    {
+      "version": "029",
+      "reservedFor": "HANOK_STAMP_RANKING",
+      "issueNumber": 262,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V029__262_hanok_stamp_ranking.sql",
+      "checksum": "hanok-stamp-ranking-v029-20260927",
+      "sha256": "5d215dcad35d8bd5acf7f2cc5d9124e2501d9f295918471184e30f4b2c6451f0",
+      "description": "Opt-in anonymous Hanok stamp ranking profiles"
     }
   ]
 }

@@ -59,6 +59,12 @@
 // 요청 latitude/longitude 원문은 저장하지 않는다. stamp_awards는 회원별 수결을 한 번만
 // 허용하며 trigger_check_in_id와 member_id의 복합 FK로 다른 회원의 체크인을 참조하지 못한다.
 // 체크인·수결·idempotency receipt는 동일 JdbcTransactionRunner transaction으로 commit한다.
+// V029의 stamp_ranking_profiles는 회원별 익명 랭킹 참여 설정을 저장한다. 참여 기본값은 false이며
+// 미참여 시 ranking_public_id와 공개 닉네임 필드는 null이다. 참여 시에만 랜덤 공개 UUID,
+// 생성형 닉네임과 정규화 닉네임, 동의 시각이 필수이고 withdrawn_at은 null이어야 한다.
+// 참여 중인 공개 UUID와 정규화 닉네임에만 partial unique index가 적용된다. 회원 삭제는
+// ON DELETE CASCADE로 설정 row를 함께 제거한다. 순위 점수는 stamp_awards에서 조회 시
+// 계산하며 profile이나 별도 테이블에 저장하지 않는다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

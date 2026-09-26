@@ -113,6 +113,129 @@ class JdbcStampMigrationTests {
         }
     }
 
+    @Test
+    void defaultsToPrivateProfileAndDeletesItWithMember() throws Exception {
+        var memberId = UUID.randomUUID();
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            seedMember(connection, memberId);
+            try (var statement = connection.createStatement()) {
+                statement.executeUpdate("""
+                        INSERT INTO onmaru.stamp_ranking_profiles (member_id, created_at, updated_at)
+                        VALUES ('%s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        """.formatted(memberId));
+                try (var result = statement.executeQuery("""
+                        SELECT participating, ranking_public_id, public_nickname, nickname_normalized,
+                               nickname_type, consented_at
+                        FROM onmaru.stamp_ranking_profiles WHERE member_id = '%s'
+                        """.formatted(memberId))) {
+                    assertThat(result.next()).isTrue();
+                    assertThat(result.getBoolean("participating")).isFalse();
+                    assertThat(result.getObject("ranking_public_id")).isNull();
+                    assertThat(result.getString("public_nickname")).isNull();
+                    assertThat(result.getString("nickname_normalized")).isNull();
+                    assertThat(result.getString("nickname_type")).isNull();
+                    assertThat(result.getObject("consented_at")).isNull();
+                }
+                statement.executeUpdate("DELETE FROM onmaru.identity_members WHERE id = '%s'".formatted(memberId));
+            }
+            assertThat(count(connection, "onmaru.stamp_ranking_profiles")).isZero();
+        }
+    }
+
+    @Test
+    void requiresCompleteGeneratedIdentityOnlyDuringParticipation() throws Exception {
+        var memberId = UUID.randomUUID();
+        var publicId = UUID.randomUUID();
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            seedMember(connection, memberId);
+            assertThatThrownBy(() -> insertProfile(connection, memberId, publicId,
+                    "한옥여행", "한옥여행", "GENERATED", false, true))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_state_ck");
+            assertThatThrownBy(() -> insertProfile(connection, memberId, null,
+                    "한옥여행", "한옥여행", "GENERATED", true, true))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_state_ck");
+            assertThatThrownBy(() -> insertProfile(connection, memberId, publicId,
+                    "한옥여행", "한옥여행", "CUSTOM", true, true))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_state_ck");
+            assertThatThrownBy(() -> insertProfile(connection, memberId, publicId,
+                    "한옥여행", "한옥여행", null, true, true))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_state_ck");
+            assertThatThrownBy(() -> insertProfile(connection, memberId, publicId,
+                    " 한옥여행", "한옥여행", "GENERATED", true, true))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_nickname_ck");
+            assertThatThrownBy(() -> insertProfile(connection, memberId, publicId,
+                    "한", "한", "GENERATED", true, true))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_nickname_ck");
+            assertThatThrownBy(() -> insertProfile(connection, memberId, publicId,
+                    "한옥여행", "한옥여행", "GENERATED", true, false))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_state_ck");
+            insertProfile(connection, memberId, publicId, "한옥여행", "한옥여행", "GENERATED", true, true);
+        }
+    }
+
+    @Test
+    void keepsParticipatingPublicIdsAndNormalizedNicknamesUnique() throws Exception {
+        var firstMember = UUID.randomUUID();
+        var secondMember = UUID.randomUUID();
+        var thirdMember = UUID.randomUUID();
+        var publicId = UUID.randomUUID();
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            seedMember(connection, firstMember);
+            seedMember(connection, secondMember);
+            seedMember(connection, thirdMember);
+            insertProfile(connection, firstMember, publicId, "한옥여행", "한옥여행", "GENERATED", true, true);
+            assertThatThrownBy(() -> insertProfile(connection, secondMember, publicId,
+                    "기와산책", "기와산책", "GENERATED", true, true))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_public_id_uq");
+            assertThatThrownBy(() -> insertProfile(connection, secondMember, UUID.randomUUID(),
+                    "한옥여행", "한옥여행", "GENERATED", true, true))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("stamp_ranking_profiles_nickname_uq");
+            insertProfile(connection, secondMember, UUID.randomUUID(),
+                    "기와산책", "기와산책", "GENERATED", true, true);
+            insertProfile(connection, thirdMember, null, null, null, null, false, false);
+            assertThat(count(connection, "onmaru.stamp_ranking_profiles")).isEqualTo(3);
+        }
+    }
+
+    private void seedMember(java.sql.Connection connection, UUID memberId) throws SQLException {
+        try (var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.identity_members (id, status, created_at)
+                    VALUES ('%s', 'ACTIVE', CURRENT_TIMESTAMP)
+                    """.formatted(memberId));
+        }
+    }
+
+    private void insertProfile(java.sql.Connection connection, UUID memberId, UUID publicId,
+            String nickname, String normalizedNickname, String nicknameType,
+            boolean participating, boolean consented) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                INSERT INTO onmaru.stamp_ranking_profiles (
+                    member_id, ranking_public_id, public_nickname, nickname_normalized,
+                    nickname_type, participating, consented_at, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE NULL END,
+                          CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """)) {
+            statement.setObject(1, memberId);
+            statement.setObject(2, publicId);
+            statement.setString(3, nickname);
+            statement.setString(4, normalizedNickname);
+            statement.setString(5, nicknameType);
+            statement.setBoolean(6, participating);
+            statement.setBoolean(7, consented);
+            statement.executeUpdate();
+        }
+    }
+
     private void duplicateCheckIn(java.sql.Connection connection, UUID memberId, UUID placeId, OffsetDateTime now)
             throws SQLException {
         try (var statement = connection.prepareStatement("""
