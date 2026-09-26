@@ -157,6 +157,7 @@ BEGIN
     JOIN onmaru.catalog_regions region
       ON region.code = mapping.region_code
      AND region.active
+    LEFT JOIN onmaru.catalog_regions parent ON parent.id = region.parent_id
     JOIN onmaru.catalog_region_source_codes source
       ON source.region_id = region.id
      AND source.provider = 'KTO_DATALAB'
@@ -168,6 +169,11 @@ BEGIN
      AND verification.dataset = source.dataset
      AND verification.source_code = source.source_code
      AND verification.valid_from = source.valid_from
+    WHERE region.level = mapping.level
+      AND (
+          (mapping.level = 'SIDO' AND region.parent_id IS NULL)
+          OR (mapping.level = 'SIGUNGU' AND parent.level = 'SIDO')
+      )
     ON CONFLICT (provider, dataset, source_code, valid_from) DO NOTHING;
 END;
 $$;
