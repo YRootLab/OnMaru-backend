@@ -59,6 +59,7 @@ CREATE TABLE onmaru.stamp_check_ins (
     CONSTRAINT stamp_check_ins_region_code_ck CHECK (region_code ~ '^kr-[a-z0-9]+(?:-[a-z0-9]+)*$'),
     CONSTRAINT stamp_check_ins_distance_ck CHECK (distance_meters >= 0 AND distance_meters <= 300),
     CONSTRAINT stamp_check_ins_accuracy_ck CHECK (accuracy_meters > 0 AND accuracy_meters <= 100),
+    CONSTRAINT stamp_check_ins_verified_radius_ck CHECK (distance_meters - accuracy_meters <= 200),
     CONSTRAINT stamp_check_ins_bucket_ck CHECK (
         check_in_bucket = date_bin('15 minutes', checked_in_at, '2000-01-01 00:00:00+00'::timestamptz)
     )

@@ -49,7 +49,8 @@
 // 기존 후기가 조회에서 사라지지 않게 한다.
 // 한옥 수결첩의 실행 스키마는 V027을 기준으로 한다. stamp_definitions와
 // stamp_region_rules가 수결 표시 정보와 canonical 지역 조건을 소유하고,
-// stamp_check_ins는 회원·Catalog 장소·15분 bucket 관계와 서버 판정 거리/정확도만 저장한다.
+// stamp_check_ins는 회원·Catalog 장소·15분 bucket 관계와 서버 판정 거리/정확도만 저장하며,
+// CHECK(distance_meters - accuracy_meters <= 200)로 성공 판정 반경도 DB에서 보호한다.
 // 요청 latitude/longitude 원문은 저장하지 않는다. stamp_awards는 회원별 수결을 한 번만
 // 허용하며 trigger_check_in_id와 member_id의 복합 FK로 다른 회원의 체크인을 참조하지 못한다.
 // 체크인·수결·idempotency receipt는 동일 JdbcTransactionRunner transaction으로 commit한다.

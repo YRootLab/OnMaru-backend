@@ -7,7 +7,11 @@ import com.yrootlab.onmaru.stamp.LocationAccuracyTooLowException;
 import com.yrootlab.onmaru.stamp.OutsideCheckInRadiusException;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKeyInvalidException;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKeyMissingException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -19,7 +23,20 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestControllerAdvice(assignableTypes = StampController.class)
+@Order(Ordered.HIGHEST_PRECEDENCE)
 final class StampExceptionHandler {
+
+    @ExceptionHandler(IdempotencyKeyMissingException.class)
+    ResponseEntity<ApiErrorResponse> idempotencyKeyMissing(HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "IDEMPOTENCY_KEY_MISSING",
+                "Idempotency-Key header is required", request, Map.of());
+    }
+
+    @ExceptionHandler(IdempotencyKeyInvalidException.class)
+    ResponseEntity<ApiErrorResponse> idempotencyKeyInvalid(HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "IDEMPOTENCY_KEY_INVALID",
+                "Idempotency-Key header must be a UUID", request, Map.of());
+    }
 
     @ExceptionHandler(CheckInInputInvalidException.class)
     ResponseEntity<ApiErrorResponse> invalid(CheckInInputInvalidException exception, HttpServletRequest request) {

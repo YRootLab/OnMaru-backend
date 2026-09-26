@@ -101,6 +101,8 @@ class JdbcStampMigrationTests {
                     .isInstanceOf(SQLException.class);
             assertThatThrownBy(() -> duplicateAward(connection, memberId, checkInId, now))
                     .isInstanceOf(SQLException.class);
+            assertThatThrownBy(() -> impossibleSuccessfulDistance(connection, memberId, placeId, now))
+                    .isInstanceOf(SQLException.class);
 
             try (var delete = connection.prepareStatement("DELETE FROM onmaru.identity_members WHERE id = ?")) {
                 delete.setObject(1, memberId);
@@ -139,6 +141,23 @@ class JdbcStampMigrationTests {
             statement.setObject(2, memberId);
             statement.setObject(3, checkInId);
             statement.setObject(4, now);
+            statement.executeUpdate();
+        }
+    }
+
+    private void impossibleSuccessfulDistance(
+            java.sql.Connection connection, UUID memberId, UUID placeId, OffsetDateTime now) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                INSERT INTO onmaru.stamp_check_ins
+                    (id, member_id, place_id, public_place_id, region_code, checked_in_at,
+                     check_in_bucket, distance_meters, accuracy_meters)
+                VALUES (?, ?, ?, 'p-invalid-distance', 'kr-11-jongno', ?, ?, 300, 1)
+                """)) {
+            statement.setObject(1, UUID.randomUUID());
+            statement.setObject(2, memberId);
+            statement.setObject(3, placeId);
+            statement.setObject(4, now.plusMinutes(15));
+            statement.setObject(5, now.plusMinutes(15));
             statement.executeUpdate();
         }
     }

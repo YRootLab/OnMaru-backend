@@ -3,10 +3,15 @@ package com.yrootlab.onmaru.testing.postgres;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
 import com.yrootlab.onmaru.persistence.stamp.JdbcCheckInPlaceLookup;
 import com.yrootlab.onmaru.persistence.stamp.JdbcStampStore;
+import com.yrootlab.onmaru.persistence.web.JdbcIdempotencyStore;
 import com.yrootlab.onmaru.stamp.CheckInCommand;
 import com.yrootlab.onmaru.stamp.CheckInPlaceNotFoundException;
+import com.yrootlab.onmaru.stamp.CheckInRateLimitedException;
 import com.yrootlab.onmaru.stamp.OutsideCheckInRadiusException;
 import com.yrootlab.onmaru.stamp.StampService;
+import com.yrootlab.onmaru.stamp.VerifiedPlace;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -99,6 +104,8 @@ class JdbcStampStoreTests {
         seedPlace("p-far-hanok", "kr-11-jongno", "HANOK", 37.5826, 126.9831, true);
         seedPlace("p-general-place", "kr-11-jongno", "HISTORIC_SITE", 37.5826, 126.9831, true);
         seedPlace("p-hidden-hanok", "kr-11-jongno", "HANOK", 37.5826, 126.9831, false);
+        seedPlace("p-no-location", "kr-11-jongno", "HANOK", 37.5826, 126.9831, true);
+        clearPlaceLocation("p-no-location");
         var transactions = new JdbcTransactionRunner(dataSource);
         var service = new StampService(
                 new JdbcCheckInPlaceLookup(dataSource, transactions),
@@ -114,7 +121,66 @@ class JdbcStampStoreTests {
         assertThatThrownBy(() -> service.checkIn(memberId,
                 new CheckInCommand("p-hidden-hanok", 37.5826, 126.9831, 10)))
                 .isInstanceOf(CheckInPlaceNotFoundException.class);
+        assertThatThrownBy(() -> service.checkIn(memberId,
+                new CheckInCommand("p-no-location", 37.5826, 126.9831, 10)))
+                .isInstanceOf(CheckInPlaceNotFoundException.class);
         assertThat(count("onmaru.stamp_check_ins")).isZero();
+    }
+
+    @Test
+    void enforcesThirtySuccessfulCheckInsPerKoreaDayInJdbcStore() throws Exception {
+        var store = new JdbcStampStore(dataSource);
+        for (int index = 0; index < 31; index++) {
+            var placeId = UUID.randomUUID();
+            seedPlaceIdentity(placeId);
+            var verified = new VerifiedPlace(placeId, "p-rate-" + index, "kr-11-jongno", 10);
+            var checkedInAt = NOW.plusSeconds(index);
+            if (index < 30) {
+                assertThat(store.record(memberId, verified, checkedInAt, 10).checkIn())
+                        .isNotNull();
+            } else {
+                assertThatThrownBy(() -> store.record(memberId, verified, checkedInAt, 10))
+                        .isInstanceOf(CheckInRateLimitedException.class);
+            }
+        }
+        assertThat(count("onmaru.stamp_check_ins")).isEqualTo(30);
+    }
+
+    @Test
+    void sharesTransactionWithJdbcReceiptAndRollsBackThenReplaysJavaTimeResponse() throws Exception {
+        seedPlace("p-transaction-hanok", "kr-11-jongno", "HANOK", 37.5826, 126.9831, true);
+        var transactions = new JdbcTransactionRunner(dataSource);
+        var service = new StampService(
+                new JdbcCheckInPlaceLookup(dataSource, transactions),
+                new JdbcStampStore(dataSource, transactions),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        var receipts = new JdbcIdempotencyStore(dataSource, transactions);
+        var command = new IdempotencyCommand(
+                UUID.randomUUID(), memberId.toString(), "POST",
+                "/api/v1/places/p-transaction-hanok/check-ins", "same-payload");
+        var checkIn = new CheckInCommand("p-transaction-hanok", 37.5826, 126.9831, 18.4);
+
+        assertThatThrownBy(() -> receipts.execute(command, Clock.fixed(NOW, ZoneOffset.UTC), () -> {
+            service.checkIn(memberId, checkIn);
+            throw new IllegalStateException("force rollback after stamp insert");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(count("onmaru.stamp_check_ins")).isZero();
+        assertThat(count("onmaru.stamp_awards")).isZero();
+        assertThat(count("onmaru.web_idempotency_receipts")).isZero();
+
+        var created = receipts.execute(command, Clock.fixed(NOW, ZoneOffset.UTC), () -> {
+            var result = service.checkIn(memberId, checkIn);
+            return IdempotentResponse.created("/api/v1/check-ins/" + result.checkIn().id(), result);
+        });
+        var replay = new JdbcIdempotencyStore(dataSource).execute(
+                command, Clock.fixed(NOW, ZoneOffset.UTC), () -> IdempotentResponse.ok("wrong"));
+
+        assertThat(created.status()).isEqualTo(201);
+        assertThat(replay.status()).isEqualTo(201);
+        assertThat(replay.body().toString()).contains("2026-09-26T02:30:00Z");
+        assertThat(count("onmaru.stamp_check_ins")).isOne();
+        assertThat(count("onmaru.stamp_awards")).isOne();
+        assertThat(count("onmaru.web_idempotency_receipts")).isOne();
     }
 
     private void seedMember(UUID id) throws Exception {
@@ -203,6 +269,29 @@ class JdbcStampStoreTests {
                 connection.rollback();
                 throw exception;
             }
+        }
+    }
+
+    private void seedPlaceIdentity(UUID placeId) throws Exception {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement(
+                     "INSERT INTO onmaru.catalog_place_identity (id, created_at) VALUES (?, ?)")) {
+            statement.setObject(1, placeId);
+            statement.setObject(2, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+            statement.executeUpdate();
+        }
+    }
+
+    private void clearPlaceLocation(String publicId) throws Exception {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     UPDATE onmaru.catalog_place_versions version
+                     SET location = NULL
+                     FROM onmaru.catalog_place_public_ids mapping
+                     WHERE mapping.place_id = version.place_id AND mapping.public_id = ?
+                     """)) {
+            statement.setString(1, publicId);
+            statement.executeUpdate();
         }
     }
 

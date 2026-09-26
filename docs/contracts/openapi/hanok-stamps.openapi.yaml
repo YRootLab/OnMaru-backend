@@ -232,7 +232,7 @@ components:
         schemaVersion: {type: string, const: '1.2'}
         code:
           type: string
-          enum: [VALIDATION_ERROR, AUTH_REQUIRED, CSRF_INVALID, NOT_FOUND, IDEMPOTENCY_CONFLICT, LOCATION_ACCURACY_TOO_LOW, OUTSIDE_CHECK_IN_RADIUS, CHECK_IN_RATE_LIMITED, SERVICE_UNAVAILABLE]
+          enum: [VALIDATION_ERROR, IDEMPOTENCY_KEY_MISSING, IDEMPOTENCY_KEY_INVALID, AUTH_REQUIRED, CSRF_INVALID, NOT_FOUND, IDEMPOTENCY_CONFLICT, LOCATION_ACCURACY_TOO_LOW, OUTSIDE_CHECK_IN_RADIUS, CHECK_IN_RATE_LIMITED, SERVICE_UNAVAILABLE]
         message: {type: string}
         requestId: {type: string}
         details: {type: object, additionalProperties: true}

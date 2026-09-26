@@ -151,7 +151,8 @@ FE는 영문 `message`가 아니라 안정적인 `code`로 문구를 선택합�
 
 | HTTP / code | 사용자에게 보여 줄 의미 | 권장 동작 |
 |---|---|---|
-| 400 `VALIDATION_ERROR` | 위치 값 또는 요청 형식이 잘못됨 | 위치를 새로 얻어 다시 시도. 멱등성 키 오류면 UUID 생성 로직 점검 |
+| 400 `VALIDATION_ERROR` | 위치 값 또는 요청 형식이 잘못됨 | 위치를 새로 얻어 다시 시도 |
+| 400 `IDEMPOTENCY_KEY_MISSING` / `IDEMPOTENCY_KEY_INVALID` | 멱등성 키가 없거나 UUID가 아님 | `crypto.randomUUID()` 생성·전달 로직 점검 |
 | 401 `AUTH_REQUIRED` | 로그인 필요 | 로그인 후 사용자가 눌렀던 체크인 의도를 다시 확인시켜 실행 |
 | 403 `CSRF_INVALID` | 보안 토큰 만료·불일치 | CSRF token을 한 번 새로 받은 뒤 재시도 |
 | 404 `NOT_FOUND` | 공개 중인 체크인 가능 한옥 장소가 아님 | 장소 정보 새로고침, 계속되면 체크인 버튼 숨김 |

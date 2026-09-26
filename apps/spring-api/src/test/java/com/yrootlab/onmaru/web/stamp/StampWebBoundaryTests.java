@@ -140,10 +140,10 @@ class StampWebBoundaryTests {
 
         checkIn(PLACE, null, 37.5826, 126.9831, 18.4)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.details.fieldErrors.Idempotency-Key").value("is required"));
+                .andExpect(jsonPath("$.code").value("IDEMPOTENCY_KEY_MISSING"));
         checkIn(PLACE, "not-a-uuid", 37.5826, 126.9831, 18.4)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.details.fieldErrors.Idempotency-Key").value("must be a UUID"));
+                .andExpect(jsonPath("$.code").value("IDEMPOTENCY_KEY_INVALID"));
         checkIn(PLACE, UUID.randomUUID().toString(), 91, 126.9831, 18.4)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details.field").value("latitude"));
@@ -160,6 +160,17 @@ class StampWebBoundaryTests {
                 .andExpect(jsonPath("$.code").value("OUTSIDE_CHECK_IN_RADIUS"))
                 .andExpect(jsonPath("$.details.allowedRadiusMeters").value(200))
                 .andExpect(jsonPath("$.details.distanceMeters").doesNotExist());
+
+        mockMvc.perform(post("/api/v1/places/{placeId}/check-ins", PLACE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accuracyMeters\":18.4}")
+                        .cookie(
+                                new jakarta.servlet.http.Cookie("__Host-onmaru-session", SESSION),
+                                new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.field").value("latitude"));
     }
 
     @Test

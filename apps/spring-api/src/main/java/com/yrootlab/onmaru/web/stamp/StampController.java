@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.web.stamp;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.security.web.PrivateResponse;
 import com.yrootlab.onmaru.stamp.CheckInCommand;
+import com.yrootlab.onmaru.stamp.CheckInInputInvalidException;
 import com.yrootlab.onmaru.stamp.StampAwardSummary;
 import com.yrootlab.onmaru.stamp.StampBook;
 import com.yrootlab.onmaru.stamp.StampBookItem;
@@ -99,9 +100,7 @@ public final class StampController {
             CheckInRequest body,
             String idempotencyKey,
             HttpServletRequest request) {
-        var command = body == null
-                ? null
-                : new CheckInCommand(placeId, body.latitude(), body.longitude(), body.accuracyMeters());
+        var command = command(placeId, body);
         var path = request.getRequestURI();
         var response = idempotency.execute(new IdempotencyCommand(
                 IdempotencyKey.fromHeader(idempotencyKey).value(),
@@ -117,6 +116,22 @@ public final class StampController {
             return IdempotentResponse.created("/api/v1/check-ins/" + result.checkIn().id(), responseBody);
         });
         return toResponse(response);
+    }
+
+    private CheckInCommand command(String placeId, CheckInRequest body) {
+        if (body == null) {
+            throw new CheckInInputInvalidException("body");
+        }
+        if (body.latitude() == null) {
+            throw new CheckInInputInvalidException("latitude");
+        }
+        if (body.longitude() == null) {
+            throw new CheckInInputInvalidException("longitude");
+        }
+        if (body.accuracyMeters() == null) {
+            throw new CheckInInputInvalidException("accuracyMeters");
+        }
+        return new CheckInCommand(placeId, body.latitude(), body.longitude(), body.accuracyMeters());
     }
 
     private ResponseEntity<?> toResponse(IdempotentResponse response) {
@@ -140,7 +155,7 @@ public final class StampController {
                 : UUID.randomUUID().toString();
     }
 
-    record CheckInRequest(double latitude, double longitude, double accuracyMeters) {
+    record CheckInRequest(Double latitude, Double longitude, Double accuracyMeters) {
     }
 
     record StampCatalogResponse(String schemaVersion, List<StampDefinitionResponse> stamps) {
