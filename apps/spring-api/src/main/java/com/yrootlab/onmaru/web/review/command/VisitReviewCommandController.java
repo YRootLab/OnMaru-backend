@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.community.command.review.VisitReviewCommandService;
 import com.yrootlab.onmaru.community.command.review.VisitReviewNotFoundException;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlaceNotEligibleException;
 import com.yrootlab.onmaru.community.command.review.VisitReviewTextInvalidException;
+import com.yrootlab.onmaru.community.command.review.VisitReviewWarmthInvalidException;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -119,7 +121,11 @@ public final class VisitReviewCommandController {
             String idempotencyKey,
             HttpServletRequest request) {
         try {
-            var command = new CreateVisitReviewCommand(body == null ? null : body.text());
+            var command = new CreateVisitReviewCommand(
+                    body == null ? null : body.text(),
+                    body == null ? null : body.mood(),
+                    body == null ? null : body.score(),
+                    body == null ? List.of() : body.tags());
             var path = request.getRequestURI();
             var fingerprint = IdempotencyFingerprint.sha256(request.getMethod(), path, memberId.toString(), command);
             var response = idempotencyService.execute(new IdempotencyCommand(
@@ -134,6 +140,8 @@ public final class VisitReviewCommandController {
             return toResponse(response);
         } catch (VisitReviewTextInvalidException exception) {
             return validationError(request, "text");
+        } catch (VisitReviewWarmthInvalidException exception) {
+            return validationError(request, exception.field());
         } catch (VisitReviewPlaceNotEligibleException exception) {
             return notFound(request);
         }
@@ -175,7 +183,13 @@ public final class VisitReviewCommandController {
 
     @Schema(description = "방문 후기 작성 요청 DTO")
     record CreateReviewRequest(
-            @Schema(description = "후기 본문 내용 (최대 1,000자)", example = "한옥의 고즈넉한 정취와 마당의 풍경이 정말 인상 깊었습니다.")
-            String text) {
+            @Schema(description = "후기 본문 내용 (최대 300 code points, 최대 5줄)", example = "한옥의 고즈넉한 정취와 마당의 풍경이 정말 인상 깊었습니다.")
+            String text,
+            @Schema(description = "장소의 체감 분위기. 생략 가능", allowableValues = {"북적", "한적"}, example = "한적")
+            String mood,
+            @Schema(description = "정취 점수. 1부터 5까지, 생략 가능", minimum = "1", maximum = "5", example = "5")
+            Integer score,
+            @Schema(description = "감성 키워드. 최대 5개, 항목당 최대 20 code points", example = "[\"고즈넉함\", \"처마\"]")
+            List<String> tags) {
     }
 }

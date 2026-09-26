@@ -10,9 +10,21 @@ public record HanokListQuery(
         boolean hasImage,
         int limit,
         String cursor,
-        Optional<UUID> memberId) {
+        Optional<UUID> memberId,
+        boolean includeHanokCafe) {
+
+    public HanokListQuery(
+            String keyword,
+            String regionCode,
+            HanokListCategory category,
+            boolean hasImage,
+            int limit,
+            String cursor,
+            Optional<UUID> memberId) {
+        this(keyword, regionCode, category, hasImage, limit, cursor, memberId, true);
+    }
 
     public static HanokListQuery firstPage(int limit, Optional<UUID> memberId) {
-        return new HanokListQuery(null, null, null, false, limit, null, memberId);
+        return new HanokListQuery(null, null, null, false, limit, null, memberId, true);
     }
 }

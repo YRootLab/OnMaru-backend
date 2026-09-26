@@ -4,6 +4,13 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #262의 로그인 회원용 위치 기반 한옥 수결첩, PostGIS 체크인, 관계형 수결 지급, OpenAPI와 FE 연동 문서를 추가했다.
+- Issue #262의 명시적 참여형 익명 수결 랭킹, 참여·철회 API, OpenAPI 1.3과 FE 연동 안내를 추가했다.
+- Issue #262의 production OAuth 회원 원장을 JDBC로 연결하고, 탈퇴 시 수결 체크인·획득·랭킹 및 체크인 멱등성 응답 개인정보 삭제와 재생성 차단을 보강했다.
+- Issue #307의 production Odii 저장소 선택 경쟁을 제거하고, JDBC store 필수 구성·fail-fast와 설정 순서 회귀 테스트를 추가했다.
+- Issue #399의 검증 가능한 DataLab 지역 registry, fail-closed 수집, skip/quarantine metric과 staging smoke 자동화를 추가했다.
+- Issues #342, #343, #344, #346의 FE 호환 API, 온기 후기 필드, 스크린 한옥 JDBC 저장, 방문자 수 조회를 구현했다.
+- VisitReview·신고·멱등성·DataLab 관측의 PostgreSQL 영속화와 원자적 revision 게시, 공식 지역 코드 매핑을 추가했다.
 - Issue #228의 Journey 탐색 thread 기억 보존·LLM enrichment 계약 설계 및 FE 전달 문서를 추가했다.
 - Issue #125의 TTL cleanup, revision GC, 회원 탈퇴 saved-data 정리, replay-safe deletion ledger와 late saved write 차단을 추가했다.
 - Issue #124의 Saved journey 생성·목록·상세·재개·삭제 API, owner-scoped 404, cursor 목록, unavailableRefs 재개 응답과 구조화 로그를 추가했다.

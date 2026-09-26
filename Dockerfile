@@ -1,4 +1,6 @@
 FROM eclipse-temurin:21-jdk-alpine AS builder
+ARG ONMARU_BUILD_GIT_SHA=unknown
+ENV ONMARU_BUILD_GIT_SHA=${ONMARU_BUILD_GIT_SHA}
 WORKDIR /workspace
 
 COPY gradlew gradlew

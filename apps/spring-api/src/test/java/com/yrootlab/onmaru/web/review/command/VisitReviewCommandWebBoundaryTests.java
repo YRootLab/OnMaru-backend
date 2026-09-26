@@ -55,25 +55,31 @@ class VisitReviewCommandWebBoundaryTests {
 
     @Test
     void createReviewNormalizesTextAndReplaysSamePostOnce() throws Exception {
-        var response = create("00000000-0000-0000-0000-000000000118", "  전주\r\n처마가 좋았습니다.  ")
+        var response = create("00000000-0000-0000-0000-000000000118", "  전주\r\n처마가 좋았습니다.  ", "한적", 5, "고즈넉함", "처마")
                 .andExpect(status().isCreated())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(header().string(HttpHeaders.LOCATION, startsWith("/api/v1/visit-reviews/")))
                 .andExpect(jsonPath("$.placeId").value("p-jeonju-hanok-village"))
                 .andExpect(jsonPath("$.text").value("전주\n처마가 좋았습니다."))
+                .andExpect(jsonPath("$.mood").value("한적"))
+                .andExpect(jsonPath("$.score").value(5))
+                .andExpect(jsonPath("$.tags[0]").value("고즈넉함"))
                 .andExpect(jsonPath("$.mine").value(true))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
         var reviewId = response.replaceAll("(?s).*\"id\":\"([^\"]+)\".*", "$1");
 
-        create("00000000-0000-0000-0000-000000000118", "  전주\r\n처마가 좋았습니다.  ")
+        create("00000000-0000-0000-0000-000000000118", "  전주\r\n처마가 좋았습니다.  ", "한적", 5, "고즈넉함", "처마")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(reviewId));
 
         mockMvc.perform(get("/api/v1/places/p-jeonju-hanok-village/visit-reviews"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items.length()").value(1));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].mood").value("한적"))
+                .andExpect(jsonPath("$.items[0].score").value(5))
+                .andExpect(jsonPath("$.items[0].tags[1]").value("처마"));
     }
 
     @Test
@@ -91,6 +97,14 @@ class VisitReviewCommandWebBoundaryTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.details.field").value("text"));
+
+        create("00000000-0000-0000-0000-000000000125", "좋았습니다.", "조용", 5)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.field").value("mood"));
+
+        create("00000000-0000-0000-0000-000000000126", "좋았습니다.", "한적", 6)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.field").value("score"));
 
         mockMvc.perform(post("/api/v1/places/p-jeonju-hanok-village/visit-reviews")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -139,9 +153,18 @@ class VisitReviewCommandWebBoundaryTests {
     }
 
     private org.springframework.test.web.servlet.ResultActions create(String key, String text) throws Exception {
+        return create(key, text, null, null);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions create(String key, String text, String mood, Integer score, String... tags) throws Exception {
+        var payload = "{\"text\":\"" + text.replace("\r", "\\r").replace("\n", "\\n") + "\""
+                + (mood == null ? "" : ",\"mood\":\"" + mood + "\"")
+                + (score == null ? "" : ",\"score\":" + score)
+                + (tags.length == 0 ? "" : ",\"tags\":[\"" + String.join("\",\"", tags) + "\"]")
+                + "}";
         return mockMvc.perform(post("/api/v1/places/p-jeonju-hanok-village/visit-reviews")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"text\":\"" + text.replace("\r", "\\r").replace("\n", "\\n") + "\"}")
+                .content(payload)
                 .cookie(
                         new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session"),
                         new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))

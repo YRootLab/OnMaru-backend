@@ -3,7 +3,7 @@ package com.yrootlab.onmaru.insights.query;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public final class InMemoryInsightsQueryStore {
+public final class InMemoryInsightsQueryStore implements InsightsQueryStore {
 
     private final List<Observation> observations = new CopyOnWriteArrayList<>();
     private final List<HeatSpot> heatSpots = new CopyOnWriteArrayList<>();
@@ -21,11 +21,13 @@ public final class InMemoryInsightsQueryStore {
         heatSpots.clear();
     }
 
-    List<Observation> observations() {
+    @Override
+    public List<Observation> observations() {
         return List.copyOf(observations);
     }
 
-    List<HeatSpot> heatSpots() {
+    @Override
+    public List<HeatSpot> heatSpots() {
         return List.copyOf(heatSpots);
     }
 }

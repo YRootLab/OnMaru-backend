@@ -64,6 +64,17 @@ class InsightsWebBoundaryTests {
     }
 
     @Test
+    void legacyMapHeatPathKeepsTheHeatmapContract() throws Exception {
+        mockMvc.perform(get("/api/map/heat")
+                        .param("regionCode", "kr-45-jeonju")
+                        .param("date", "2026-09-14")
+                        .param("metric", "CONGESTION_SCORE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.spots[0].congestionScore").value(72.4));
+    }
+
+    @Test
     void invalidDateReturnsValidationEnvelope() throws Exception {
         mockMvc.perform(get("/api/v1/insights/heatmap")
                         .param("date", "not-a-date")

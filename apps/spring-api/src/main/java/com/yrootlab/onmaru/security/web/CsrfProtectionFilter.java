@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.security.web;
 
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import com.yrootlab.onmaru.web.stamp.StampApiContract;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -83,8 +84,16 @@ public final class CsrfProtectionFilter extends OncePerRequestFilter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setHeader(HttpHeaders.CACHE_CONTROL, CacheControl.noStore().getHeaderValue());
         response.getWriter().write("""
-                {"schemaVersion":"1.2","code":"CSRF_INVALID","message":"%s","requestId":"%s","details":{}}
-                """.formatted(ApiErrorCode.CSRF_INVALID.message(), escapeJson(requestId(request))).trim());
+                {"schemaVersion":"%s","code":"CSRF_INVALID","message":"%s","requestId":"%s","details":{}}
+                """.formatted(schemaVersion(request), ApiErrorCode.CSRF_INVALID.message(),
+                        escapeJson(requestId(request))).trim());
+    }
+
+    private String schemaVersion(HttpServletRequest request) {
+        var path = request.getRequestURI();
+        return path.equals("/api/v1/me/stamp-ranking")
+                || path.matches("/api/v1/places/[^/]+/check-ins")
+                ? StampApiContract.SCHEMA_VERSION : "1.2";
     }
 
     private String requestId(HttpServletRequest request) {

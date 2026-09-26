@@ -63,7 +63,7 @@ class HanokListWebBoundaryTests {
     }
 
     @Test
-    void listHanoksMatchesNormalFixtureWithSavedState() throws Exception {
+    void defaultListExcludesHanokCafesAndKeepsSavedState() throws Exception {
         mockMvc.perform(get("/api/v1/hanoks")
                         .param("limit", "2")
                         .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session")))
@@ -72,11 +72,10 @@ class HanokListWebBoundaryTests {
                 .andExpect(jsonPath("$.items[0].placeId").value("p-jeonju-hanok-village"))
                 .andExpect(jsonPath("$.items[0].category").value("HANOK"))
                 .andExpect(jsonPath("$.items[0].savedByMe").value(true))
-                .andExpect(jsonPath("$.items[1].placeId").value("p-bukchon-hanok-cafe"))
-                .andExpect(jsonPath("$.items[1].thumbnailUrl", nullValue()))
+                .andExpect(jsonPath("$.items[1].placeId").value("p-gyeongju-gyochon"))
                 .andExpect(jsonPath("$.items[1].savedByMe").value(false))
-                .andExpect(jsonPath("$.nextCursor").value("r1.hanoks.cursor.2026-09-14T08:00:00Z.p-bukchon-hanok-cafe"))
-                .andExpect(jsonPath("$.hasMore").value(true));
+                .andExpect(jsonPath("$.nextCursor", nullValue()))
+                .andExpect(jsonPath("$.hasMore").value(false));
     }
 
     @Test

@@ -95,6 +95,14 @@ class PlaceDetailWebBoundaryTests {
     }
 
     @Test
+    void legacySingularPlacePathKeepsTheCanonicalPlaceContract() throws Exception {
+        mockMvc.perform(get("/api/place/p-jeonju-hanok-village"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.placeId").value("p-jeonju-hanok-village"));
+    }
+
+    @Test
     void hanokDetailUsesSameCanonicalPlaceIdForLinkedCards() throws Exception {
         mockMvc.perform(get("/api/v1/hanoks/p-jeonju-hanok-village")
                         .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session")))

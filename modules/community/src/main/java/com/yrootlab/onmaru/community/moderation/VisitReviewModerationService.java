@@ -1,6 +1,6 @@
 package com.yrootlab.onmaru.community.moderation;
 
-import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
+import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 
@@ -11,15 +11,15 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public final class VisitReviewModerationService {
 
-    private final InMemoryVisitReviewStore reviewStore;
-    private final InMemoryReviewReportStore reportStore;
+    private final MutableVisitReviewStore reviewStore;
+    private final ReviewReportStore reportStore;
     private final ReviewReportIdGenerator reportIdGenerator;
     private final ReviewReportIdGenerator actionIdGenerator;
     private final Clock clock;
 
     public VisitReviewModerationService(
-            InMemoryVisitReviewStore reviewStore,
-            InMemoryReviewReportStore reportStore,
+            MutableVisitReviewStore reviewStore,
+            ReviewReportStore reportStore,
             ReviewReportIdGenerator reportIdGenerator,
             ReviewReportIdGenerator actionIdGenerator,
             Clock clock) {
@@ -110,6 +110,9 @@ public final class VisitReviewModerationService {
                     current.lat(),
                     current.lng(),
                     current.text(),
+                    current.mood(),
+                    current.score(),
+                    current.tags(),
                     current.createdAt(),
                     current.authorMemberId(),
                     current.likedMemberIds(),

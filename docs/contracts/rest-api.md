@@ -1,6 +1,6 @@
 # Public REST API contract
 
-2026-09-12 구현 전 계약. `/api/v1`, HTTPS JSON, `schemaVersion: "1.2"`를 현재 지도/후기 계약으로 고정한다. 여정은 REST command와 SSE 알림을 함께 사용한다. 아직 배포된 API가 아니며, 계약·scaffold Issue는 먼저 발행할 수 있지만 각 기능 구현은 해당 OpenAPI와 FE fixture가 동결된 뒤 시작한다.
+2026-09-12 구현 전 계약. `/api/v1`, HTTPS JSON, `schemaVersion: "1.2"`를 현재 지도/후기 계약으로 고정한다. 한옥 수결첩 계약은 `1.3`이다. 여정은 REST command와 SSE 알림을 함께 사용한다. 아직 배포된 API가 아니며, 계약·scaffold Issue는 먼저 발행할 수 있지만 각 기능 구현은 해당 OpenAPI와 FE fixture가 동결된 뒤 시작한다.
 
 ## 공통 계약
 
@@ -8,9 +8,23 @@ POST/PUT body 최대 16KiB, query trim+NFC 후 1..1000 code points. 인증/소�
 
 오류 형식은 `{schemaVersion:"1.2",code,message,requestId,details:{...}}`; message는 진단용 plain text이며 FE는 code로 문구를 결정한다. 400 VALIDATION_ERROR/CURSOR_INVALID, 401 AUTH_REQUIRED, 403 CSRF_INVALID, 404 NOT_FOUND, 409 VERSION_CONFLICT/ACTIVE_RUN/PINNED_REF/IDEMPOTENCY_CONFLICT/PROPOSAL_EXPIRED/SAVE_LIMIT, 410 CURSOR_EXPIRED, 413 PAYLOAD_TOO_LARGE, 422 JOURNEY_SCOPE_UNSUPPORTED/PRIVACY_REDACT_REQUIRED/SAFETY_BLOCKED, 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE를 구분한다. 일일 AI quota가 없거나 provider가 실패해도 후보가 있으면 `AI_QUOTA_EXCEEDED`는 내부 degraded reason으로만 기록하고 같은 run을 BASELINE으로 완료한다. 422 입력 거절은 exploration run이나 원문 turn을 만들지 않는다. 429는 초 단위 Retry-After, details.retryAfterMs를 함께 준다. 알려진 비동기 run 실패는 SSE terminal event와 GET snapshot 모두에서 같은 error code를 보이며, SSE 연결 자체 실패는 GET 실패와 구분한다. 여정 AI의 intake와 provider 경계는 [AI guardrail·adapter harness](../ai/journey-guardrails.md)를 따른다.
 
+## 한옥 수결첩: 로그인 회원의 위치 체크인
+
+수결 정의는 `GET /stamps`에서 공개 조회하고, 개인 획득 상태는 로그인 후 `GET /me/stamp-book`에서만 조회한다. `POST /places/{placeId}/check-ins`는 세션, CSRF, UUID `Idempotency-Key`, 브라우저 위치가 모두 필요하다. 새 체크인은 201, 같은 회원·장소·UTC 15분 구간의 반복 체크인은 200이며 기존 row를 반환한다.
+
+서버는 active Catalog의 한옥 계열 장소에 대해서만 PostGIS 거리를 계산한다. 위치 정확도는 100m 이하여야 하며 성공 조건은 `distanceMeters - accuracyMeters <= 200`이다. 요청한 위도·경도 원문은 DB나 응답에 남기지 않는다. 개인 응답은 `no-store`이고, KST 하루 성공 체크인은 회원당 30회로 제한한다. 422는 `LOCATION_ACCURACY_TOO_LOW` 또는 `OUTSIDE_CHECK_IN_RADIUS`, 429는 `CHECK_IN_RATE_LIMITED`, 의존 서비스 장애는 503 `SERVICE_UNAVAILABLE`다. 기계 판독 계약과 상세 DTO는 [한옥 수결첩 OpenAPI](openapi/hanok-stamps.openapi.yaml)를 기준으로 한다.
+
+### 수결 공개 랭킹과 참여 설정 (`1.3`)
+
+`GET /stamps/leaderboard?limit=20`은 비로그인도 조회할 수 있다. `limit`은 기본 20, 허용 범위 1~100이다. 목록에는 명시적으로 참여한 활성 회원만 서버 생성 익명 별명과 공개 UUID로 나타난다. 동의하지 않은 회원, 철회한 회원, 비활성 회원은 점수가 있어도 목록에 없다. `GET /me/stamp-ranking`은 로그인 회원의 참여 여부, 본인 진행률, 참여 중인 경우의 순위와 별명, 전체 참여자 수를 반환한다. 미참여도 200이며 `publicNickname`, `nicknameType`, `rank`가 `null`이다.
+
+`PUT /me/stamp-ranking`은 세션 cookie, `/auth/csrf`에서 받은 token과 CSRF cookie, `X-CSRF-TOKEN` header, JSON `{"participating":true}` 또는 `{"participating":false}`를 요구한다. 성공하면 개인 조회와 같은 `1.3` snapshot을 200으로 반환한다. 같은 상태의 재요청은 멱등적이다. 참여 시작·재참여는 마지막 실제 변경 후 5초 제한이 있으며, 너무 이르면 429 `RATE_LIMITED`와 초 단위 `Retry-After`, `details.retryAfterSeconds`를 준다. 철회에는 이 제한이 없다. 요청 형식과 `limit` 오류는 400 `VALIDATION_ERROR`, 세션 없음은 401 `AUTH_REQUIRED`, CSRF 오류는 403 `CSRF_INVALID`, 일시 장애는 503 `SERVICE_UNAVAILABLE`이다.
+
+순위는 활성 수결 획득 수 내림차순 → 서로 다른 활성 지역 수결 권역 수 내림차순 → 마지막 활성 수결 획득 시각 오름차순(`null` 마지막) → 공개 UUID 오름차순으로 결정하는 중복 없는 ordinal 순위다. 전체 참여자에게 순위를 매긴 뒤 `limit`을 적용한다. 세 응답은 모두 `Cache-Control: no-store`이며, 철회가 commit된 뒤 시작한 새 공개 조회에서 해당 프로필이 빠진다. 회원 ID, OAuth 정보, 위치·장소·체크인 기록과 마지막 수결 시각은 공개 응답에 없다. FE 호출 예제와 화면 상태는 [한옥 수결첩 API 인계서](../toFE/hanok-stamp-book-api-handoff-2026-09-26.md#익명-공개-랭킹-연동)를 따른다.
+
 ## 지도와 후기: 1.2 단일 계약
 
-지도 게시글은 기존 온기와 별도인 `VisitReview` 장소 방문 짧은 후기다. 현재 지도에서는 행정구역 집계를 탐색하고, 사용자가 지역을 명시적으로 선택한 뒤에만 후기 본문을 읽는다. 지도 drag/zoom, 반경, viewport는 서버 본문 조회를 만들지 않는다.
+지도 게시글은 `VisitReview` 장소 방문 짧은 후기다. FE의 `visited`, “지도 게시글”, “온기 후기”는 모두 같은 VisitReview 모델을 뜻하며 별도 리소스가 아니다. 현재 지도에서는 행정구역 집계를 탐색하고, 사용자가 지역을 명시적으로 선택한 뒤에만 후기 본문을 읽는다. 지도 drag/zoom, 반경, viewport는 서버 본문 조회를 만들지 않는다.
 
 | GET | 요청 | 응답 |
 |---|---|---|
@@ -27,7 +41,7 @@ FE는 집계 선택 전 기존 결과를 유지하고, `이 지역 후기 보기
 
 | Method/path | 요청 | 응답 / 조건 |
 |---|---|---|
-| POST /places/{placeId}/visit-reviews | `{text}` | 201 VisitReview + Location; 회원/공개 장소; NFC/trim 후 1..300 code points, CRLF→LF, 개행 최대4개; 태그/별점/사진/댓글 없음 |
+| POST /places/{placeId}/visit-reviews | `{text,mood?,score?,tags?}` | 201 VisitReview + Location; 회원/공개 장소; text는 NFC/trim 후 1..300 code points, CRLF→LF, 개행 최대4개; mood는 북적/한적, score는 1..5, tags는 최대 5개·각 20 code points; 사진/댓글 없음 |
 | DELETE /visit-reviews/{id} | body 없음 | 204, 작성자만; 동일 본인 삭제 재호출 204, 타인 404 |
 | POST /visit-reviews/{id}/reports | `{reason,detail?}` | 202; 회원, 본인 후기는 403, 같은 회원의 열린 신고는 200 기존 상태 |
 | GET /places/{id} | canonical id | 200 기존 CanonicalPlace; 삭제/비공개 404 |
@@ -162,3 +176,9 @@ FE는 후기별 좋아요 변경 요청을 직렬화하고 마지막 사용자 �
 Catalog의 `place_identity`에 연결된 현재 published `place_versions`에서 공간 eligibility를 읽는다. Community repository가 catalog table을 직접 수정하지 않으며 Catalog의 공개 read view/port를 사용한다. 장소 좌표가 없는 글은 지도 범위에 포함할 수 없으므로 방문 후기 작성 eligibility는 유효 좌표를 요구한다.
 
 REGION 목록은 published place의 canonical `region_id`와 공개 후기의 `created_at DESC,id DESC` keyset을 함께 적용한다. 위치 동의는 `/regions/resolve`의 경계 조회에만 사용하며, 후기 본문 SQL에 반경·bbox predicate를 넣지 않는다. 전국 ALL과 밀집/희소 REGION의 실행 계획을 10만건 fixture에서 비교한다. 부모 집계는 공개 leaf region GROUP BY로 계산하며, 필요할 때만 별도 projection을 검토한다. SQL timeout2초를 넘으면503, FE는 기존 결과+재시도 안내를 유지한다. 지도목록 목표p95 500ms는 측정할 목표이며 현재실측값이 아니다.
+
+## DataLab 운영 수집 명령
+
+`POST /api/v1/operations/datalab/visitor-sync`는 production profile에서만 노출되는 staging 운영 명령이다. 요청 body와 provider URL override는 받지 않으며 `Authorization: Bearer <token>`으로 `datalab.operations-token` secret을 검증한다. 현재 token과 rotation overlap 중인 이전 token만 허용한다.
+
+성공 응답은 배포 동일성 검증용 `buildGitSha`와 `published`, `observationCount`, `skippedCount`, `quarantinedCount`, `reasons`만 반환한다. region code, DataLab source code, source URL, credential, 원본 응답은 포함하지 않는다. scheduler·운영 endpoint·replica 전체에서 이미 수집 중이면 PostgreSQL advisory lock으로 `409 Conflict`, 인증 실패는 `401 Unauthorized`다. skip 또는 quarantine 결과는 새 revision을 게시하지 않으며 이전 `kto-datalab-visitor` active revision을 유지한다.

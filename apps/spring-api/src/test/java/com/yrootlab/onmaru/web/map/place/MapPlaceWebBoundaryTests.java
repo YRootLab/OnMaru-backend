@@ -94,6 +94,16 @@ class MapPlaceWebBoundaryTests {
     }
 
     @Test
+    void legacyMapPlacesPathKeepsThePublishedMapContract() throws Exception {
+        mockMvc.perform(get("/api/map/places")
+                        .param("regionCode", "kr-45-jeonju")
+                        .param("limit", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.items[0].placeId").value("p-jeonju-hanok-village"));
+    }
+
+    @Test
     void bboxAndCategoryFilterUseLongitudeLatitudeAxis() throws Exception {
         mockMvc.perform(get("/api/v1/map/places")
                         .param("bbox", "127.152,35.814,127.154,35.816")

@@ -37,6 +37,7 @@ public final class HanokListQueryService {
         var normalizedKeyword = normalize(query.keyword());
         var filtered = store.findPublishedSnapshot().stream()
                 .filter(projection -> projection.status() == HanokListStatus.PUBLIC)
+                .filter(projection -> query.includeHanokCafe() || projection.category() != HanokListCategory.HANOK_CAFE)
                 .filter(projection -> matchesKeyword(projection, normalizedKeyword))
                 .filter(projection -> query.regionCode() == null || query.regionCode().equals(projection.regionCode()))
                 .filter(projection -> query.category() == null || query.category() == projection.category())

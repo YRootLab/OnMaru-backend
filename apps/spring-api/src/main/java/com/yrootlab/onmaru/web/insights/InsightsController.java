@@ -75,7 +75,7 @@ public final class InsightsController {
             @ApiResponse(responseCode = "200", description = "히트맵 데이터 조회 성공"),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 날짜 또는 파라미터", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
-    @GetMapping("/api/v1/insights/heatmap")
+    @GetMapping({"/api/v1/insights/heatmap", "/api/map/heat"})
     ResponseEntity<?> heatmap(
             @Parameter(description = "행정구역 코드 (미지정 시 전국)", example = "11")
             @RequestParam(required = false) String regionCode,

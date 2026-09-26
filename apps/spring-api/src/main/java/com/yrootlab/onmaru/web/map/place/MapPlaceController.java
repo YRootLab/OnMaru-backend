@@ -51,7 +51,7 @@ public final class MapPlaceController {
             @ApiResponse(responseCode = "400", description = "유효하지 않은 좌표 바운딩 박스 파라미터", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "503", description = "카탈로그 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
-    @GetMapping("/api/v1/map/places")
+    @GetMapping({"/api/v1/map/places", "/api/map/places"})
     ResponseEntity<?> listMapPlaces(
             @Parameter(description = "응답 언어 (기본값 ko-KR)", example = "ko-KR")
             @RequestParam(required = false, defaultValue = "ko-KR") String language,

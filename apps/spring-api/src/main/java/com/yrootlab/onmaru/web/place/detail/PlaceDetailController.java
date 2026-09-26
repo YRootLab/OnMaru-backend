@@ -48,7 +48,7 @@ public final class PlaceDetailController {
             @ApiResponse(responseCode = "404", description = "장소를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "503", description = "카탈로그 서비스 일시적 이용 불가", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
-    @GetMapping("/api/v1/places/{placeId}")
+    @GetMapping({"/api/v1/places/{placeId}", "/api/place/{placeId}"})
     ResponseEntity<?> canonicalPlace(
             @Parameter(description = "장소 고유 식별자", example = "place-seoul-bukchon-001")
             @PathVariable String placeId,

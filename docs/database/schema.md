@@ -20,6 +20,59 @@
 // resource_id, reason unique index로 replay-safe 삭제 기록을 남기고,
 // identity_deletion_ledger가 REQUESTED/COMPLETED인 member의 saved resource와
 // saved journey write는 trigger에서 거절한다.
+// VisitReview의 최신 실행 스키마는 V007, V018, V021 Flyway migration을 기준으로 한다.
+// community_visit_reviews의 mood(varchar, nullable), score(smallint, nullable),
+// tags(jsonb array, 기본 [])는 지도 온기 후기 표시에 사용한다. mood는 북적/한적,
+// score는 1..5로 DB와 애플리케이션 경계에서 검증한다.
+// visitorCount는 V023 이후 활성 `kto-datalab-visitor` revision의 최신 COMPLETE
+// 지역 관측값을 조회해 제공한다. 원천 결측은 0이 아니라 null이며 후기 자체에는
+// 중복 저장하지 않는다.
+// V024 이후 DataLab 지역 호출에 쓰는 catalog_region_source_codes row는
+// catalog_region_source_code_verifications의 공식 HTTPS 근거, 검증 시각, 검증자를
+// 반드시 가져야 한다. 미검증 code는 JDBC lookup에서 제외한다.
+// V025는 공식 DataLab 지역별 방문자 수_GW의 전국 응답과 v4.1 활용 매뉴얼을 근거로
+// 내부 법정동 코드와 다른 DataLab 코드(`SIDO:11`, `SIDO:52`, `SIGUNGU:11110`,
+// `SIGUNGU:52110`)를 활성 Catalog 지역에 등록한다. Catalog 행이 Flyway 이후 적재되어도
+// trigger가 mapping과 공식 검증 이력을 같은 DB에 기록한다.
+// V027은 catalog_datalab_region_mappings를 source-code row의 DataLab 전용 기간 registry로
+// 추가한다. 내부 지역과 DataLab code의 유효기간 중복, SIDO/SIGUNGU 계층·parent 불일치,
+// 공식 verification row와 다른 ACTIVE provenance를 DB에서 거부한다. 종료된 mapping 뒤에는
+// 새 valid_from 이력을 추가할 수 있다. PENDING/REJECTED mapping은 감사 이력에는 남지만 운영
+// 수집 대상으로 선택되지 않는다.
+// 스크린 한옥의 최신 게시 snapshot은 V019 Flyway migration을 기준으로 한다.
+// catalog_screen_hanok_placements는 FastAPI 리서치 결과 중 출처 URL이 있는 항목만
+// 저장하며, 전체 snapshot 교체 transaction으로 마지막 검증된 게시본을 보존한다.
+// Catalog의 FE 공개 장소 ID는 V020 Flyway migration을 기준으로 한다.
+// catalog_place_public_ids는 public_id(p-lowercase-kebab-case)와 catalog_place_identity UUID를
+// 각각 PK/UNIQUE로 묶는다. 같은 pair의 재시도만 허용하며, Community는 이 mapping을 생성하거나
+// 변경하지 않고 Catalog가 만든 mapping을 조회해서 VisitReview의 작성 시점 장소 snapshot에 사용한다.
+// V021은 community_visit_reviews에 public_place_id, place_name, region_code, latitude, longitude를
+// nullable migration으로 추가한다. 기존 row와의 호환을 위해 nullable로 도입하되 JDBC 신규 write는
+// active·visit_review_eligible Catalog version을 조회한 뒤 모든 snapshot 필드를 채운다.
+// V026은 V021 이전 VisitReview에 결정적 p-legacy-* 공개 ID를 등록하고 가능한 최신
+// published Catalog version의 장소명·지역·좌표 snapshot을 backfill해 JDBC 전환 시
+// 기존 후기가 조회에서 사라지지 않게 한다.
+// 한옥 수결첩의 실행 스키마는 V028을 기준으로 한다. stamp_definitions와
+// stamp_region_rules가 수결 표시 정보와 canonical 지역 조건을 소유하고,
+// stamp_check_ins는 회원·Catalog 장소·15분 bucket 관계와 서버 판정 거리/정확도만 저장하며,
+// CHECK(distance_meters - accuracy_meters <= 200)로 성공 판정 반경도 DB에서 보호한다.
+// 요청 latitude/longitude 원문은 저장하지 않는다. stamp_awards는 회원별 수결을 한 번만
+// 허용하며 trigger_check_in_id와 member_id의 복합 FK로 다른 회원의 체크인을 참조하지 못한다.
+// 체크인·수결·idempotency receipt는 동일 JdbcTransactionRunner transaction으로 commit한다.
+// V029의 stamp_ranking_profiles는 회원별 익명 랭킹 참여 설정을 저장한다. 참여 기본값은 false이며
+// 미참여 시 ranking_public_id와 공개 닉네임 필드는 null이다. 참여 시에만 랜덤 공개 UUID,
+// 생성형 닉네임과 정규화 닉네임, 동의 시각이 필수이고 withdrawn_at은 null이어야 한다.
+// 참여 중인 공개 UUID와 정규화 닉네임에만 partial unique index가 적용된다. 회원 삭제는
+// ON DELETE CASCADE로 설정 row를 함께 제거한다. 순위 점수는 stamp_awards에서 조회 시
+// 계산하며 profile이나 별도 테이블에 저장하지 않는다.
+// V030부터 production OAuth와 회원 lifecycle은 identity_members를 포함한 JDBC 원장을
+// 단일 Source of Truth로 사용한다. identity_oauth_states.pkce_verifier_hash는 PKCE 검증값의
+// SHA-256 hash만 저장하고 상태 consume 시 nonce/provider와 함께 원자적으로 검증한다.
+// 탈퇴 cleanup은 DELETING 회원 row를 잠근 뒤 수결 획득·체크인·랭킹 profile과 회원 UUID를
+// subject_id로 가진 HTTP idempotency receipt를 삭제한다. 각 receipt는 복합 키의 SHA-256으로
+// 식별해 개인정보를 복제하지 않고 deletion ledger에 기록하며, 모든 대상이 사라진 뒤에만
+// 회원 deletion ledger를 COMPLETED로 전환한다. DELETING tombstone은
+// cleanup과 경합한 체크인 또는 랭킹 참여가 개인정보 row를 다시 만들지 못하게 한다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

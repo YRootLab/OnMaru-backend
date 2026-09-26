@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -93,6 +94,27 @@ class VisitReviewQueryServiceTests {
         assertThat(place.queryKey()).isEqualTo("PLACE:p-bukchon-hanok-cafe");
         assertThat(place.items()).extracting(VisitReview::placeId)
                 .containsExactly("p-bukchon-hanok-cafe");
+    }
+
+    @Test
+    void mapsLatestRegionalVisitorCountToEachReviewAndLeavesMissingObservationNull() {
+        var store = new InMemoryVisitReviewStore();
+        store.add(review("00000000-0000-0000-0000-000000000001", "p-jeonju-hanok-village",
+                "kr-45-jeonju", Instant.parse("2026-09-15T01:00:00Z"), OTHER_MEMBER_ID));
+        store.add(review("00000000-0000-0000-0000-000000000002", "p-bukchon-hanok-cafe",
+                "kr-11-jongno", Instant.parse("2026-09-15T02:00:00Z"), OTHER_MEMBER_ID));
+        RegionVisitorCountLookup counts = regionCodes -> {
+            assertThat(regionCodes).containsExactlyInAnyOrder("kr-45-jeonju", "kr-11-jongno");
+            return Map.of("kr-45-jeonju", 18_240L);
+        };
+        var service = new VisitReviewQueryService(store, counts, CLOCK);
+
+        var page = service.list(VisitReviewQuery.all(20, null, java.util.Optional.empty()));
+
+        assertThat(page.items()).extracting(VisitReview::placeId, VisitReview::visitorCount)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("p-bukchon-hanok-cafe", null),
+                        org.assertj.core.groups.Tuple.tuple("p-jeonju-hanok-village", 18_240L));
     }
 
     @Test

@@ -1,4 +1,10 @@
 package com.yrootlab.onmaru.community.command.review;
 
-public record CreateVisitReviewCommand(String text) {
+import java.util.List;
+
+public record CreateVisitReviewCommand(String text, String mood, Integer score, List<String> tags) {
+
+    public CreateVisitReviewCommand(String text) {
+        this(text, null, null, List.of());
+    }
 }

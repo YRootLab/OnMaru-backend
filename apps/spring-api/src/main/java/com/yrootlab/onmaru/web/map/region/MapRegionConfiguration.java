@@ -8,7 +8,7 @@ import com.yrootlab.onmaru.catalog.application.regionboundary.RegionBoundaryImpo
 import com.yrootlab.onmaru.catalog.application.regionboundary.RegionBoundaryImportService;
 import com.yrootlab.onmaru.catalog.application.regionboundary.RegionBoundaryLevel;
 import com.yrootlab.onmaru.catalog.application.regionboundary.RegionBoundarySourceManifest;
-import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
+import com.yrootlab.onmaru.community.query.VisitReviewStore;
 import com.yrootlab.onmaru.community.region.RegionCatalog;
 import com.yrootlab.onmaru.community.region.VisitReviewRegionReadService;
 import org.springframework.context.annotation.Bean;
@@ -49,7 +49,7 @@ class MapRegionConfiguration {
 
     @Bean
     VisitReviewRegionReadService visitReviewRegionReadService(
-            InMemoryVisitReviewStore visitReviewStore,
+            VisitReviewStore visitReviewStore,
             RegionCatalog regionCatalog,
             Clock clock) {
         return new VisitReviewRegionReadService(visitReviewStore, regionCatalog, clock);

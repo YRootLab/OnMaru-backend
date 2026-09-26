@@ -78,7 +78,8 @@ public final class HanokListController {
                     hasImage,
                     Math.min(Math.max(limit, 1), 50),
                     cursor,
-                    memberId(sessionToken));
+                    memberId(sessionToken),
+                    false);
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.noStore())
                     .body(queryService.list(query));

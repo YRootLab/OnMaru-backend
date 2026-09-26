@@ -1,0 +1,44 @@
+---
+id: ADR-0015
+title: DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다
+status: accepted
+date: 2026-09-25
+locale: ko
+decision_makers:
+  - 사용자
+  - OnMaru Backend contributors
+related:
+  - ADR-0004
+  - ADR-0014
+affected_paths:
+  - modules/insights/
+  - adapters/tourism-api/
+  - adapters/persistence-jdbc/
+  - apps/spring-api/src/main/java/com/yrootlab/onmaru/scheduling/
+tags:
+  - insights
+  - datalab
+  - postgresql
+  - revision
+retrospective: false
+---
+
+# DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다
+
+## 맥락
+
+방문자 관측 테이블은 revision FK를 요구한다. 기존 Catalog 장소 revision에 임의로 연결하면 수집 주기와 장소 Catalog publish 주기가 결합되고, 실패 수집이 정상 Catalog 상태에 영향을 준다.
+
+## 검토한 대안
+
+1. `kto-datalab-visitor` 전용 dataset revision을 수집마다 만들고 검증 성공 후 활성화한다.
+2. 기존 Catalog 장소 revision에 관측을 종속시킨다.
+3. 관측 테이블에서 revision FK를 제거한다.
+
+## 결정
+
+대안 1을 채택한다. 일일 수집은 전용 revision에 유효한 지역 관측을 저장하고, 전체 검증이 성공한 경우에만 active revision으로 publish한다. 실패한 수집은 이전 active revision과 마지막 정상 관측을 보존한다.
+
+## 결과
+
+후기 장소의 regionCode는 active DataLab revision의 최신 COMPLETE 관측값만 nullable visitorCount로 사용한다. 이는 장소별 실시간 인원이 아니며 값이 없을 때 0으로 치환하지 않는다.

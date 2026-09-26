@@ -1,24 +1,26 @@
 package com.yrootlab.onmaru.community.command.review;
 
-import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
+import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReview;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 
 import java.text.Normalizer;
 import java.time.Clock;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 public final class VisitReviewCommandService {
 
-    private final InMemoryVisitReviewStore store;
+    private final MutableVisitReviewStore store;
     private final VisitReviewPlaceLookup placeLookup;
     private final ReviewIdGenerator reviewIdGenerator;
     private final Clock clock;
 
     public VisitReviewCommandService(
-            InMemoryVisitReviewStore store,
+            MutableVisitReviewStore store,
             VisitReviewPlaceLookup placeLookup,
             ReviewIdGenerator reviewIdGenerator,
             Clock clock) {
@@ -32,6 +34,9 @@ public final class VisitReviewCommandService {
         var place = placeLookup.findEligiblePlace(placeId)
                 .orElseThrow(VisitReviewPlaceNotEligibleException::new);
         var text = normalizeText(command.text());
+        var mood = normalizeMood(command.mood());
+        var score = normalizeScore(command.score());
+        var tags = normalizeTags(command.tags());
         var projection = new VisitReviewProjection(
                 reviewIdGenerator.generate(),
                 place.placeId(),
@@ -40,6 +45,9 @@ public final class VisitReviewCommandService {
                 place.lat(),
                 place.lng(),
                 text,
+                mood,
+                score,
+                tags,
                 clock.instant(),
                 memberId,
                 Set.of(),
@@ -63,6 +71,9 @@ public final class VisitReviewCommandService {
                 review.lat(),
                 review.lng(),
                 review.text(),
+                review.mood(),
+                review.score(),
+                review.tags(),
                 review.createdAt(),
                 review.authorMemberId(),
                 review.likedMemberIds(),
@@ -77,6 +88,10 @@ public final class VisitReviewCommandService {
                 projection.lat(),
                 projection.lng(),
                 projection.text(),
+                projection.mood(),
+                projection.score(),
+                projection.tags(),
+                null,
                 projection.createdAt(),
                 projection.authorMemberId().equals(memberId),
                 projection.likedMemberIds().size(),
@@ -98,5 +113,47 @@ public final class VisitReviewCommandService {
             throw new VisitReviewTextInvalidException("text must be five lines or less");
         }
         return text;
+    }
+
+    private String normalizeMood(String rawMood) {
+        if (rawMood == null) {
+            return null;
+        }
+        var mood = Normalizer.normalize(rawMood.trim(), Normalizer.Form.NFC);
+        if (!mood.equals("북적") && !mood.equals("한적")) {
+            throw new VisitReviewWarmthInvalidException("mood");
+        }
+        return mood;
+    }
+
+    private Integer normalizeScore(Integer score) {
+        if (score == null) {
+            return null;
+        }
+        if (score < 1 || score > 5) {
+            throw new VisitReviewWarmthInvalidException("score");
+        }
+        return score;
+    }
+
+    private List<String> normalizeTags(List<String> rawTags) {
+        if (rawTags == null) {
+            return List.of();
+        }
+        if (rawTags.size() > 5) {
+            throw new VisitReviewWarmthInvalidException("tags");
+        }
+        var tags = new LinkedHashSet<String>();
+        for (var rawTag : rawTags) {
+            if (rawTag == null) {
+                throw new VisitReviewWarmthInvalidException("tags");
+            }
+            var tag = Normalizer.normalize(rawTag.trim(), Normalizer.Form.NFC);
+            if (tag.isBlank() || tag.codePointCount(0, tag.length()) > 20) {
+                throw new VisitReviewWarmthInvalidException("tags");
+            }
+            tags.add(tag);
+        }
+        return List.copyOf(tags);
     }
 }
