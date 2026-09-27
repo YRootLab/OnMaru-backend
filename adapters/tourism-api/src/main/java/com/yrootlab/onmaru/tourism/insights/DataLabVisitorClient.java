@@ -152,8 +152,9 @@ public final class DataLabVisitorClient {
         if (pageNo != requestedPage) {
             throw failure(DataLabClientFailureKind.SCHEMA_DRIFT, "DataLab response pageNo does not match requested page", false);
         }
+        long requestedRowUpperBound = (long) pageNo * request.numOfRows();
         return new DataLabVisitorPage(pageNo, numOfRows, totalCount,
-                totalCount == 0 || pageNo * numOfRows >= totalCount, records);
+                totalCount == 0 || requestedRowUpperBound >= totalCount, records);
     }
 
     private DataLabClientException providerFailure(String code, String message, DataLabHttpResponse response) {

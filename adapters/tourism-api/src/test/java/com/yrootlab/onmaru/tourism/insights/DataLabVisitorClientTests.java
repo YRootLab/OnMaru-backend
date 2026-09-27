@@ -44,6 +44,28 @@ class DataLabVisitorClientTests {
     }
 
     @Test
+    void stopsWhenTheProviderReportsTheActualRowCountOnTheLastPage() throws Exception {
+        var transport = new ScriptedTransport(
+                response(200, page(1, 2, 3, """
+                        [
+                          {"baseYmd":"20260823","signguCode":"11110","signguNm":"종로구","touDivCd":"2","touNum":"100"},
+                          {"baseYmd":"20260823","signguCode":"11140","signguNm":"중구","touDivCd":"2","touNum":"200"}
+                        ]
+                        """)),
+                response(200, page(2, 1, 3, """
+                        {"baseYmd":"20260823","signguCode":"11170","signguNm":"용산구","touDivCd":"2","touNum":"300"}
+                        """)));
+        var client = client(transport, 0);
+
+        var records = client.fetchAll(DataLabVisitorRequest.localGovernment(
+                LocalDate.parse("2026-08-23"), LocalDate.parse("2026-08-23"), 2));
+
+        assertThat(records).extracting(DataLabVisitorRecord::providerRegionCode)
+                .containsExactly("11110", "11140", "11170");
+        assertThat(transport.requestUris()).hasSize(2);
+    }
+
+    @Test
     void rejectsProviderErrorEnvelopeWithoutReturningPartialResults() {
         var transport = new ScriptedTransport(response(200, """
                 {"response":{"header":{"resultCode":"20","resultMsg":"SERVICE_KEY_IS_NOT_REGISTERED_ERROR"},"body":{}}}
