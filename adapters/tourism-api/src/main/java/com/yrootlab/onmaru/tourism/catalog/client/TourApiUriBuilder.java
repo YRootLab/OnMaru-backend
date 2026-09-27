@@ -64,6 +64,22 @@ public final class TourApiUriBuilder {
         return build("detailCommon2", params);
     }
 
+    public URI detailIntro(String contentId, String contentTypeId) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("contentId", requireNonBlank(contentId, "contentId"));
+        params.put("contentTypeId", requireNonBlank(contentTypeId, "contentTypeId"));
+        return build("detailIntro2", params);
+    }
+
+    public URI detailInfo(String contentId, String contentTypeId) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("contentId", requireNonBlank(contentId, "contentId"));
+        params.put("contentTypeId", requireNonBlank(contentTypeId, "contentTypeId"));
+        params.put("pageNo", "1");
+        params.put("numOfRows", "100");
+        return build("detailInfo2", params);
+    }
+
     public static String redactServiceKey(URI uri) {
         String raw = uri.toString();
         String encodedRedacted = encode(REDACTED);

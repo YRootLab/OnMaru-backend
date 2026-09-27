@@ -52,7 +52,7 @@ public final class SourceQualificationPolicy {
     public QualificationResult qualify(SourceRecord row) {
         Optional<CanonicalCategory> category = categoryFor(row);
         if (category.isEmpty()) {
-            return quarantine(row, "UNSUPPORTED_CATEGORY");
+            return QualificationResult.skipped();
         }
 
         Double longitude = parseDouble(row.field("mapx"));

@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.persistence.catalog.JdbcTourApiCatalogPublisher;
 import com.yrootlab.onmaru.tourism.catalog.sync.TourApiCatalogSnapshotSource;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TourApiCatalogSyncService {
@@ -26,17 +27,23 @@ public final class TourApiCatalogSyncService {
         var session = publisher.start(clock.instant());
         var published = new AtomicInteger();
         var quarantined = new AtomicInteger();
+        var skipped = new AtomicInteger();
         try {
             var snapshot = source.streamFullSnapshot(records -> {
                 var page = publisher.stagePage(session, records);
                 published.addAndGet(page.publishedCount());
                 quarantined.addAndGet(page.quarantinedCount());
+                skipped.addAndGet(page.skippedCount());
             });
             return publisher.complete(session, snapshot.rawCount(), snapshot.providerTotalCount(),
-                    published.get(), quarantined.get(), clock.instant());
+                    published.get(), quarantined.get(), skipped.get(), clock.instant());
         } catch (RuntimeException exception) {
             publisher.fail(session, "TOURAPI_SYNC_FAILED", clock.instant());
             throw exception;
         }
+    }
+
+    public boolean isSyncDue(Duration minimumInterval) {
+        return publisher.isSyncDue(clock.instant(), minimumInterval);
     }
 }

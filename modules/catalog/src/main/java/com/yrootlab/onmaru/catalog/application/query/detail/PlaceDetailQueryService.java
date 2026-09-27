@@ -55,7 +55,7 @@ public final class PlaceDetailQueryService {
 
     public Optional<HanokDetail> findHanok(String placeId, Optional<UUID> memberId) {
         return findPublicProjection(placeId)
-                .filter(projection -> "한옥".equals(projection.category()))
+                .filter(projection -> isHanokCategory(projection.category()))
                 .map(projection -> {
                     boolean savedByMe = savedPlaceStateLookup.savedBy(memberId, projection.placeId());
                     var mapCard = linkedCard(projection, savedByMe);
@@ -76,6 +76,13 @@ public final class PlaceDetailQueryService {
                             mapCard,
                             odiiCard);
                 });
+    }
+
+    private boolean isHanokCategory(String category) {
+        return category != null && switch (category) {
+            case "HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE", "한옥" -> true;
+            default -> false;
+        };
     }
 
     private Optional<PlaceProjection> findPublicProjection(String placeId) {

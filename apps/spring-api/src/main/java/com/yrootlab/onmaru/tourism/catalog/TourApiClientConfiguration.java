@@ -79,14 +79,23 @@ public class TourApiClientConfiguration {
     }
 
     @ConfigurationProperties(prefix = "onmaru.tourapi.sync")
-    public record TourApiSyncSettings(URI baseUri, String mobileApp, Integer pageSize) {
+    public record TourApiSyncSettings(
+            URI baseUri,
+            String mobileApp,
+            Integer pageSize,
+            Duration minimumInterval
+    ) {
         public TourApiSyncSettings {
             baseUri = baseUri == null
                     ? URI.create("https://apis.data.go.kr/B551011/KorService2") : baseUri;
             mobileApp = mobileApp == null || mobileApp.isBlank() ? "OnMaru" : mobileApp;
             pageSize = pageSize == null ? 1000 : pageSize;
+            minimumInterval = minimumInterval == null ? Duration.ofHours(72) : minimumInterval;
             if (pageSize < 1 || pageSize > 1000) {
                 throw new IllegalArgumentException("pageSize must be between 1 and 1000");
+            }
+            if (minimumInterval.isNegative() || minimumInterval.isZero()) {
+                throw new IllegalArgumentException("minimumInterval must be positive");
             }
         }
     }

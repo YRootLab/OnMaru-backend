@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.catalog.application.qualification.CanonicalCandidate;
 import com.yrootlab.onmaru.catalog.application.qualification.QuarantineRecord;
+import com.yrootlab.onmaru.catalog.application.qualification.QualificationStatus;
 import com.yrootlab.onmaru.catalog.application.qualification.SourceQualificationPolicy;
 import com.yrootlab.onmaru.catalog.application.qualification.SourceRecord;
 
@@ -12,16 +13,19 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.UUID;
 
 public final class JdbcTourApiCatalogPublisher {
@@ -31,15 +35,13 @@ public final class JdbcTourApiCatalogPublisher {
     private static final String LANGUAGE = "ko-KR";
     private static final String BULK_STAGE_SQL = """
             WITH params AS (
-                SELECT ?::uuid AS revision_id, ?::uuid AS run_id,
-                       ?::timestamptz AS fetched_at, ?::timestamptz AS expires_at
+                SELECT ?::uuid AS revision_id, ?::timestamptz AS fetched_at
             ), input AS (
                 SELECT * FROM jsonb_to_recordset(?::jsonb) AS row(
                     external_id text, raw_hash text, proposed_place_id uuid, proposed_source_id uuid,
                     raw jsonb, publishable boolean, public_id text, name text, category text,
                     longitude double precision, latitude double precision, normalized_hash text,
-                    allowlist_version text, tag_label text, record_key text, error_code text,
-                    redacted_payload jsonb
+                    allowlist_version text, tag_label text, qualification_status text
                 )
             ), inserted_identities AS (
                 INSERT INTO onmaru.catalog_place_identity (id, created_at)
@@ -141,17 +143,10 @@ public final class JdbcTourApiCatalogPublisher {
                 FROM input i JOIN upserted_sources source USING (external_id) CROSS JOIN params p
                 WHERE i.publishable
                 RETURNING place_id
-            ), inserted_quarantine AS (
-                INSERT INTO onmaru.operations_sync_quarantine
-                    (run_id, record_key, error_code, payload_hash, redacted_payload, expires_at)
-                SELECT p.run_id, i.record_key, i.error_code, i.raw_hash, i.redacted_payload, p.expires_at
-                FROM input i CROSS JOIN params p
-                WHERE NOT i.publishable
-                RETURNING record_key
             )
             SELECT (SELECT count(*) FROM inserted_raw),
                    (SELECT count(*) FROM inserted_places),
-                   (SELECT count(*) FROM inserted_quarantine)
+                   (SELECT count(*) FROM input WHERE qualification_status = 'QUARANTINED')
             """;
 
     private final DataSource dataSource;
@@ -186,24 +181,51 @@ public final class JdbcTourApiCatalogPublisher {
         }
     }
 
+    public boolean isSyncDue(Instant now, Duration minimumInterval) {
+        Objects.requireNonNull(now, "now must not be null");
+        Objects.requireNonNull(minimumInterval, "minimumInterval must not be null");
+        if (minimumInterval.isNegative() || minimumInterval.isZero()) {
+            throw new IllegalArgumentException("minimumInterval must be positive");
+        }
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     SELECT max(finished_at)
+                     FROM onmaru.operations_sync_runs
+                     WHERE dataset = ? AND status = 'SUCCEEDED'
+                     """)) {
+            statement.setString(1, DATASET);
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next()) return true;
+                OffsetDateTime lastFinishedAt = rows.getObject(1, OffsetDateTime.class);
+                return lastFinishedAt == null
+                        || !now.isBefore(lastFinishedAt.toInstant().plus(minimumInterval));
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("failed to read TourAPI catalog sync cadence", exception);
+        }
+    }
+
     public PageResult stagePage(PublishSession session, List<SourceRecord> records) {
         Objects.requireNonNull(session);
         Objects.requireNonNull(records);
-        if (records.isEmpty()) return new PageResult(0, 0, 0);
+        if (records.isEmpty()) return new PageResult(0, 0, 0, 0);
         List<Map<String, Object>> rows = new ArrayList<>(records.size());
         int expectedPublished = 0;
         int expectedQuarantined = 0;
+        int expectedSkipped = 0;
         for (SourceRecord record : records) {
             var result = qualificationPolicy.qualify(record);
             var row = new LinkedHashMap<String, Object>();
             String rawHash = result.candidate().map(CanonicalCandidate::normalizedHash)
-                    .orElseGet(() -> result.quarantine().orElseThrow().payloadHash());
+                    .orElseGet(() -> result.quarantine().map(QuarantineRecord::payloadHash)
+                            .orElseGet(() -> sourceHash(record)));
             String externalId = firstNonBlank(record.field("contentid"), "missing-" + rawHash.substring(0, 16));
             row.put("external_id", externalId);
             row.put("raw_hash", rawHash);
             row.put("proposed_place_id", deterministicId("place", externalId));
             row.put("proposed_source_id", deterministicId("source", externalId));
             row.put("raw", record.fields());
+            row.put("qualification_status", result.status().name());
             if (result.candidate().isPresent()) {
                 CanonicalCandidate candidate = result.candidate().orElseThrow();
                 row.put("publishable", true);
@@ -216,13 +238,12 @@ public final class JdbcTourApiCatalogPublisher {
                 row.put("allowlist_version", candidate.allowlistVersion());
                 row.put("tag_label", categoryLabel(candidate.category().name()));
                 expectedPublished++;
-            } else {
-                QuarantineRecord quarantine = result.quarantine().orElseThrow();
+            } else if (result.status() == QualificationStatus.QUARANTINED) {
                 row.put("publishable", false);
-                row.put("record_key", quarantine.recordKey());
-                row.put("error_code", quarantine.errorCode());
-                row.put("redacted_payload", quarantine.redactedPayload());
                 expectedQuarantined++;
+            } else {
+                row.put("publishable", false);
+                expectedSkipped++;
             }
             rows.add(row);
         }
@@ -230,10 +251,8 @@ public final class JdbcTourApiCatalogPublisher {
             connection.setAutoCommit(false);
             try (var statement = connection.prepareStatement(BULK_STAGE_SQL)) {
                 statement.setObject(1, session.revisionId());
-                statement.setObject(2, session.runId());
-                statement.setObject(3, atUtc(session.fetchedAt()));
-                statement.setObject(4, atUtc(session.fetchedAt().plus(7, ChronoUnit.DAYS)));
-                statement.setString(5, json(rows));
+                statement.setObject(2, atUtc(session.fetchedAt()));
+                statement.setString(3, json(rows));
                 try (var result = statement.executeQuery()) {
                     if (!result.next()) throw new IllegalStateException("bulk stage returned no verification row");
                     int raw = result.getInt(1);
@@ -244,7 +263,7 @@ public final class JdbcTourApiCatalogPublisher {
                     }
                 }
                 connection.commit();
-                return new PageResult(records.size(), expectedPublished, expectedQuarantined);
+                return new PageResult(records.size(), expectedPublished, expectedQuarantined, expectedSkipped);
             } catch (Exception exception) {
                 connection.rollback();
                 throw exception;
@@ -266,7 +285,8 @@ public final class JdbcTourApiCatalogPublisher {
     }
 
     public PublishResult complete(PublishSession session, int rawCount, int expectedCount,
-                                  int publishedCount, int quarantinedCount, Instant completedAt) {
+                                  int publishedCount, int quarantinedCount, int skippedCount,
+                                  Instant completedAt) {
         if (rawCount == 0 || rawCount != expectedCount) {
             throw new IllegalStateException("incomplete TourAPI snapshot: expected=" + expectedCount + ", actual=" + rawCount);
         }
@@ -279,14 +299,14 @@ public final class JdbcTourApiCatalogPublisher {
             if (activeRevisionId != null
                     && matchesActiveSnapshot(connection, session.revisionId(), activeRevisionId)) {
                 reuseActiveRevision(connection, session, activeRevisionId, completedAt,
-                        rawCount, publishedCount, quarantinedCount);
+                        rawCount, publishedCount, quarantinedCount, skippedCount);
                 connection.commit();
-                return new PublishResult(activeRevisionId, rawCount, publishedCount, quarantinedCount);
+                return new PublishResult(activeRevisionId, rawCount, publishedCount, quarantinedCount, skippedCount);
             }
             publishRevision(connection, session.revisionId(), session.runId(), completedAt,
-                    rawCount, publishedCount, quarantinedCount);
+                    rawCount, publishedCount, quarantinedCount, skippedCount);
             connection.commit();
-            return new PublishResult(session.revisionId(), rawCount, publishedCount, quarantinedCount);
+            return new PublishResult(session.revisionId(), rawCount, publishedCount, quarantinedCount, skippedCount);
         } catch (SQLException exception) {
             throw new IllegalStateException("failed to activate TourAPI catalog snapshot", exception);
         }
@@ -337,7 +357,8 @@ public final class JdbcTourApiCatalogPublisher {
             Instant completedAt,
             int raw,
             int published,
-            int quarantined
+            int quarantined,
+            int skipped
     ) throws SQLException {
         for (String table : List.of(
                 "catalog_place_content_tag_versions",
@@ -366,7 +387,11 @@ public final class JdbcTourApiCatalogPublisher {
             run.setObject(1, atUtc(completedAt));
             run.setObject(2, activeRevisionId);
             run.setString(3, json(Map.of(
-                    "raw", raw, "published", published, "quarantined", quarantined, "unchanged", true)));
+                    "raw", raw,
+                    "published", published,
+                    "quarantined", quarantined,
+                    "skipped", skipped,
+                    "unchanged", true)));
             run.setObject(4, session.runId());
             run.executeUpdate();
         }
@@ -375,21 +400,15 @@ public final class JdbcTourApiCatalogPublisher {
             revision.setObject(1, session.revisionId());
             revision.executeUpdate();
         }
+        deleteInactiveCatalogRevisions(connection, activeRevisionId);
     }
 
     public void fail(PublishSession session, String errorCode, Instant failedAt) {
         try (var connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
-            try (var revision = connection.prepareStatement("""
-                    UPDATE onmaru.catalog_dataset_revisions SET status = 'FAILED'
-                    WHERE id = ? AND status = 'STAGING'
-                    """)) {
-                revision.setObject(1, session.revisionId());
-                revision.executeUpdate();
-            }
             try (var run = connection.prepareStatement("""
                     UPDATE onmaru.operations_sync_runs
-                    SET status = 'FAILED', finished_at = ?, error_code = ?
+                    SET status = 'FAILED', finished_at = ?, error_code = ?, revision_id = NULL
                     WHERE id = ? AND status = 'RUNNING'
                     """)) {
                 run.setObject(1, atUtc(failedAt));
@@ -397,6 +416,7 @@ public final class JdbcTourApiCatalogPublisher {
                 run.setObject(3, session.runId());
                 run.executeUpdate();
             }
+            deleteCatalogRevision(connection, session.revisionId());
             connection.commit();
         } catch (SQLException exception) {
             throw new IllegalStateException("failed to mark TourAPI catalog staging as failed", exception);
@@ -414,6 +434,7 @@ public final class JdbcTourApiCatalogPublisher {
         UUID runId = UUID.randomUUID();
         int published = 0;
         int quarantined = 0;
+        int skipped = 0;
         try (var connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try {
@@ -422,24 +443,27 @@ public final class JdbcTourApiCatalogPublisher {
                 for (SourceRecord record : records) {
                     var result = qualificationPolicy.qualify(record);
                     String rawHash = result.candidate().map(CanonicalCandidate::normalizedHash)
-                            .orElseGet(() -> result.quarantine().orElseThrow().payloadHash());
+                            .orElseGet(() -> result.quarantine().map(QuarantineRecord::payloadHash)
+                                    .orElseGet(() -> sourceHash(record)));
                     String externalId = firstNonBlank(record.field("contentid"), "missing-" + rawHash.substring(0, 16));
                     PlaceSourceIds ids = findOrCreateSource(connection, externalId, rawHash, fetchedAt);
                     insertKtoVersion(connection, revisionId, ids.sourceId(), externalId, rawHash, record);
                     if (result.candidate().isPresent()) {
                         stageCandidate(connection, revisionId, ids, result.candidate().orElseThrow(), record, fetchedAt);
                         published++;
-                    } else {
-                        quarantine(connection, runId, result.quarantine().orElseThrow(), fetchedAt);
+                    } else if (result.status() == QualificationStatus.QUARANTINED) {
                         quarantined++;
+                    } else {
+                        skipped++;
                     }
                 }
                 if (published == 0) {
                     throw new IllegalStateException("a full TourAPI snapshot with zero qualified places requires review");
                 }
-                publishRevision(connection, revisionId, runId, fetchedAt, records.size(), published, quarantined);
+                publishRevision(connection, revisionId, runId, fetchedAt,
+                        records.size(), published, quarantined, skipped);
                 connection.commit();
-                return new PublishResult(revisionId, records.size(), published, quarantined);
+                return new PublishResult(revisionId, records.size(), published, quarantined, skipped);
             } catch (Exception exception) {
                 connection.rollback();
                 throw exception;
@@ -705,23 +729,6 @@ public final class JdbcTourApiCatalogPublisher {
         }
     }
 
-    private void quarantine(Connection connection, UUID runId, QuarantineRecord record, Instant fetchedAt)
-            throws SQLException {
-        try (var statement = connection.prepareStatement("""
-                INSERT INTO onmaru.operations_sync_quarantine
-                    (run_id, record_key, error_code, payload_hash, redacted_payload, expires_at)
-                VALUES (?, ?, ?, ?, ?::jsonb, ?)
-                """)) {
-            statement.setObject(1, runId);
-            statement.setString(2, record.recordKey());
-            statement.setString(3, record.errorCode());
-            statement.setString(4, record.payloadHash());
-            statement.setString(5, json(record.redactedPayload()));
-            statement.setObject(6, atUtc(fetchedAt.plus(7, ChronoUnit.DAYS)));
-            statement.executeUpdate();
-        }
-    }
-
     private void publishRevision(
             Connection connection,
             UUID revisionId,
@@ -729,7 +736,8 @@ public final class JdbcTourApiCatalogPublisher {
             Instant publishedAt,
             int raw,
             int published,
-            int quarantined
+            int quarantined,
+            int skipped
     ) throws SQLException {
         try (var revision = connection.prepareStatement("""
                 UPDATE onmaru.catalog_dataset_revisions
@@ -757,9 +765,74 @@ public final class JdbcTourApiCatalogPublisher {
                 WHERE id = ?
                 """)) {
             run.setObject(1, atUtc(publishedAt));
-            run.setString(2, json(Map.of("raw", raw, "published", published, "quarantined", quarantined)));
+            run.setString(2, json(Map.of(
+                    "raw", raw,
+                    "published", published,
+                    "quarantined", quarantined,
+                    "skipped", skipped)));
             run.setObject(3, runId);
             run.executeUpdate();
+        }
+        deleteInactiveCatalogRevisions(connection, revisionId);
+    }
+
+    private void deleteInactiveCatalogRevisions(Connection connection, UUID activeRevisionId) throws SQLException {
+        var revisionIds = new ArrayList<UUID>();
+        try (var statement = connection.prepareStatement("""
+                SELECT id
+                FROM onmaru.catalog_dataset_revisions
+                WHERE dataset = ? AND id <> ?
+                FOR UPDATE
+                """)) {
+            statement.setString(1, DATASET);
+            statement.setObject(2, activeRevisionId);
+            try (var rows = statement.executeQuery()) {
+                while (rows.next()) revisionIds.add(rows.getObject(1, UUID.class));
+            }
+        }
+        for (var revisionId : revisionIds) deleteCatalogRevision(connection, revisionId);
+    }
+
+    private void deleteCatalogRevision(Connection connection, UUID revisionId) throws SQLException {
+        try (var quarantine = connection.prepareStatement("""
+                DELETE FROM onmaru.operations_sync_quarantine quarantine
+                USING onmaru.operations_sync_runs run
+                WHERE quarantine.run_id = run.id AND run.revision_id = ?
+                """)) {
+            quarantine.setObject(1, revisionId);
+            quarantine.executeUpdate();
+        }
+        try (var runs = connection.prepareStatement("""
+                UPDATE onmaru.operations_sync_runs SET revision_id = NULL WHERE revision_id = ?
+                """)) {
+            runs.setObject(1, revisionId);
+            runs.executeUpdate();
+        }
+        try (var children = connection.prepareStatement("""
+                UPDATE onmaru.catalog_dataset_revisions SET base_revision_id = NULL WHERE base_revision_id = ?
+                """)) {
+            children.setObject(1, revisionId);
+            children.executeUpdate();
+        }
+        for (String table : List.of(
+                "catalog_place_content_tag_versions",
+                "catalog_hanok_detail_versions",
+                "catalog_place_image_versions",
+                "catalog_kto_korean_info_versions",
+                "catalog_kto_korean_intro_versions",
+                "catalog_kto_korean_content_versions",
+                "catalog_place_versions")) {
+            try (var statement = connection.prepareStatement(
+                    "DELETE FROM onmaru." + table + " WHERE revision_id = ?")) {
+                statement.setObject(1, revisionId);
+                statement.executeUpdate();
+            }
+        }
+        try (var revision = connection.prepareStatement("""
+                DELETE FROM onmaru.catalog_dataset_revisions WHERE id = ?
+                """)) {
+            revision.setObject(1, revisionId);
+            revision.executeUpdate();
         }
     }
 
@@ -768,6 +841,18 @@ public final class JdbcTourApiCatalogPublisher {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("failed to serialize catalog sync metadata", exception);
+        }
+    }
+
+    private String sourceHash(SourceRecord record) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(json(new TreeMap<>(record.fields())).getBytes(StandardCharsets.UTF_8));
+            StringBuilder value = new StringBuilder(hash.length * 2);
+            for (byte next : hash) value.append(String.format("%02x", next));
+            return value.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is required by the Java runtime", exception);
         }
     }
 
@@ -838,9 +923,15 @@ public final class JdbcTourApiCatalogPublisher {
     public record PublishSession(UUID revisionId, UUID runId, Instant fetchedAt) {
     }
 
-    public record PageResult(int rawCount, int publishedCount, int quarantinedCount) {
+    public record PageResult(int rawCount, int publishedCount, int quarantinedCount, int skippedCount) {
     }
 
-    public record PublishResult(UUID revisionId, int rawCount, int publishedCount, int quarantinedCount) {
+    public record PublishResult(
+            UUID revisionId,
+            int rawCount,
+            int publishedCount,
+            int quarantinedCount,
+            int skippedCount
+    ) {
     }
 }
