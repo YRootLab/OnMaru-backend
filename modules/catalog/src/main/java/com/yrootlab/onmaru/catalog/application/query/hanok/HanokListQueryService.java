@@ -18,11 +18,7 @@ public final class HanokListQueryService {
             HanokListCategory.HANOK,
             HanokListCategory.HANOK_STAY,
             HanokListCategory.HANOK_CAFE,
-            HanokListCategory.HANOK_EXPERIENCE,
-            HanokListCategory.TRADITIONAL_MARKET,
-            HanokListCategory.CULTURE_ART,
-            HanokListCategory.TRADITIONAL_FOOD,
-            HanokListCategory.LOCAL_SCENE);
+            HanokListCategory.HANOK_EXPERIENCE);
 
     private final HanokListStore store;
     private final HanokSavedStateLookup savedStateLookup;
@@ -54,6 +50,8 @@ public final class HanokListQueryService {
                         projection.name(),
                         projection.category(),
                         projection.regionName(),
+                        projection.address(),
+                        projection.coordinates(),
                         projection.thumbnailUrl(),
                         projection.summary(),
                         projection.tags(),

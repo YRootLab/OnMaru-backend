@@ -134,6 +134,16 @@ class HanokListWebBoundaryTests {
 
     private void seedList() {
         hanokListStore.add(card(
+                "p-modern-museum",
+                "김춘수 유품전시관",
+                HanokListCategory.CULTURE_ART,
+                "kr-48-tongyeong",
+                "경남 통영시",
+                null,
+                "시인의 유품을 전시하는 현대 문화시설입니다.",
+                List.of("문학", "전시"),
+                Instant.parse("2026-09-14T10:00:00Z")));
+        hanokListStore.add(card(
                 "p-jeonju-hanok-village",
                 "전주 한옥마을",
                 HanokListCategory.HANOK,

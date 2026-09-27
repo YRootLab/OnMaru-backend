@@ -107,6 +107,23 @@ class InsightsQueryServiceTests {
         });
     }
 
+    @Test
+    void usesTheLatestPublishedHeatmapDateWhenDateIsOmitted() {
+        store.save(new HeatSpot(
+                "heat-old", "region:kr-45-jeonju", "전주시", region(),
+                new Coordinates(35.8151, 127.1530), 10L, 10.0, "RELAXED", 1.0,
+                "COMPLETE", LocalDate.parse("2026-08-21"), "CONGESTION_SCORE"));
+        store.save(new HeatSpot(
+                "heat-latest", "region:kr-45-jeonju", "전주시", region(),
+                new Coordinates(35.8151, 127.1530), 20L, 20.0, "RELAXED", 1.0,
+                "COMPLETE", LocalDate.parse("2026-08-22"), "CONGESTION_SCORE"));
+
+        HeatmapResponse response = service.heatmap(null, null, "CONGESTION_SCORE");
+
+        assertThat(response.observedDate()).isEqualTo(LocalDate.parse("2026-08-22"));
+        assertThat(response.spots()).extracting(HeatSpot::id).containsExactly("heat-latest");
+    }
+
     private RegionRef region() {
         return new RegionRef("kr-45-jeonju", "전북 전주시", "CITY", "kr-45");
     }

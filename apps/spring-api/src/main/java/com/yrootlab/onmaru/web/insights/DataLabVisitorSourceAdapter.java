@@ -37,13 +37,23 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
     private final DataLabRegionMappingRegistry mappingRegistry;
     private final Clock clock;
     private final int pageSize;
+    private final int dataLagDays;
 
     DataLabVisitorSourceAdapter(
             DataLabVisitorClient client,
             DataLabRegionMappingRegistry mappingRegistry,
             Clock clock,
             int pageSize) {
-        this(client::fetchAll, mappingRegistry, clock, pageSize);
+        this(client::fetchAll, mappingRegistry, clock, pageSize, 0);
+    }
+
+    DataLabVisitorSourceAdapter(
+            DataLabVisitorClient client,
+            DataLabRegionMappingRegistry mappingRegistry,
+            Clock clock,
+            int pageSize,
+            int dataLagDays) {
+        this(client::fetchAll, mappingRegistry, clock, pageSize, dataLagDays);
     }
 
     DataLabVisitorSourceAdapter(
@@ -51,6 +61,15 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
             DataLabRegionMappingRegistry mappingRegistry,
             Clock clock,
             int pageSize) {
+        this(recordFetcher, mappingRegistry, clock, pageSize, 0);
+    }
+
+    DataLabVisitorSourceAdapter(
+            DataLabVisitorRecordFetcher recordFetcher,
+            DataLabRegionMappingRegistry mappingRegistry,
+            Clock clock,
+            int pageSize,
+            int dataLagDays) {
         this.recordFetcher = Objects.requireNonNull(recordFetcher);
         this.mappingRegistry = Objects.requireNonNull(mappingRegistry);
         this.clock = Objects.requireNonNull(clock);
@@ -58,14 +77,19 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
             throw new IllegalArgumentException("DataLab pageSize must be between 1 and 1000");
         }
         this.pageSize = pageSize;
+        if (dataLagDays < 0 || dataLagDays > 90) {
+            throw new IllegalArgumentException("DataLab dataLagDays must be between 0 and 90");
+        }
+        this.dataLagDays = dataLagDays;
     }
 
     @Override
     public DataLabVisitorFetchResult fetchDailyVisitorObservations() {
         Instant observedAt = clock.instant();
-        LocalDate basisDate = LocalDate.now(clock.withZone(KOREA_STANDARD_TIME));
+        LocalDate currentDate = LocalDate.now(clock.withZone(KOREA_STANDARD_TIME));
+        LocalDate basisDate = currentDate.minusDays(dataLagDays);
         var exclusions = new ArrayList<DataLabCollectionExclusion>();
-        var activeMappings = activeMappings(basisDate, exclusions);
+        var activeMappings = activeMappings(currentDate, exclusions);
         boolean invalidRegistry = exclusions.stream().anyMatch(exclusion ->
                 exclusion.reason() == DataLabCollectionReason.INVALID_MAPPING);
         if (activeMappings.isEmpty()) {

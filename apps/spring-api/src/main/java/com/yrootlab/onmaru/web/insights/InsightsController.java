@@ -79,15 +79,15 @@ public final class InsightsController {
     ResponseEntity<?> heatmap(
             @Parameter(description = "행정구역 코드 (미지정 시 전국)", example = "11")
             @RequestParam(required = false) String regionCode,
-            @Parameter(description = "기준 일자 (YYYY-MM-DD)", example = "2026-09-18", required = true)
-            @RequestParam String date,
+            @Parameter(description = "기준 일자 (YYYY-MM-DD, 미지정 시 최신 발행일)", example = "2026-09-18")
+            @RequestParam(required = false) String date,
             @Parameter(description = "메트릭 유형", example = "VISIT_COUNT")
             @RequestParam(required = false) String metric,
             HttpServletRequest request) {
         try {
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.noStore())
-                    .body(queryService.heatmap(regionCode, parseRequiredDate(date, "date"), normalizeMetric(metric)));
+                    .body(queryService.heatmap(regionCode, parseOptionalDate(date, "date"), normalizeMetric(metric)));
         } catch (InsightsInvalidRequestException exception) {
             return validationError(request, exception.field());
         }

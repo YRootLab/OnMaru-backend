@@ -72,7 +72,7 @@ public final class HanokListController {
             HttpServletRequest request) {
         try {
             var query = new HanokListQuery(
-                    keyword,
+                    keyword == null || keyword.isBlank() ? "한옥" : keyword,
                     regionCode,
                     parseCategory(category),
                     hasImage,

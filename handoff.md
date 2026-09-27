@@ -1,33 +1,25 @@
 # handoff.md
 
-- Branch: `feature/375-tourapi-catalog`
-- Issue: #375
-- Scope: TourAPI 국문 v4.4 전체 원천 적재와 Neon-backed 지도/한옥 공개 snapshot
+- Branch: `fix/444-production-api-contracts`
+- Issue: #444
+- Scope: 운영 한옥 계약·DataLab 전국 지도 히트맵·공공데이터 제공 지연 복구
 - Key changes:
-  - production의 지도 2건/한옥 25건 메모리 store를 비활성화하고 활성 DB revision을 조회한다.
-  - `areaBasedList2` 전 page를 page 단위 staging하고 `totalCount` 일치 후 active pointer를 교체한다.
-  - 부적격 행도 KTO 원천 version에 저장하며 공개 place version에서만 제외한다.
-  - `lclsSystmCode2` 공식 코드명으로 category를 판정하고 제목 키워드는 판정에 쓰지 않는다.
-  - 앱 기동 시 최초 수집과 매일 03:00 Asia/Seoul full snapshot을 실행한다.
-  - 기존 Odii 전체 수집 cron도 Render 기본 timezone과 무관하게 03:00 Asia/Seoul로 고정한다.
-  - Odii 공급자가 마지막 page의 `numOfRows`를 실제 반환 건수로 바꾸는 경우에도 요청 page size와 `totalCount` 누적으로 종료한다.
-  - Odii JDBC staging을 page 단위 JSONB bulk insert로 바꿔 원격 Neon 왕복을 줄인다.
-  - V031에서 TourAPI v4.4 법정동 코드를 보존한다.
+  - 한옥 기본 목록을 한옥 근거가 있는 category/문서로 제한하고 일반 문화시설을 제외한다.
+  - 한옥 카드에 DB 주소와 좌표를 포함하고 JDBC 조회에서 한옥 후보만 선별해 응답 지연을 줄인다.
+  - DataLab 기준일을 공급 지연 35일 전으로 요청하되 mapping 유효성은 현재 날짜로 판정한다.
+  - 시도 16개·시군구 269개의 공식 DataLab 지역 코드를 검증 provenance와 함께 V032에서 등록한다.
+  - 활성 visitor observation과 KTO 장소 좌표로 행정구역 원형 히트맵을 DB에서 계산한다.
+  - heatmap date를 생략하면 최신 발행 관측일을 사용한다.
 - Verification:
-  - 2026-09-27 공식 TourAPI 실호출: 분류체계 246건, `areaBasedList2` 49,643건/50 page, contentId 중복 0건.
-  - Neon V031 적용 및 실제 활성 revision 게시 완료: 국문 원천 49,643건, 공개 장소 23,743건, 격리 25,900건.
-  - 활성 공개 분포: 전통음식 8,172, 역사문화 3,361, 자연 3,009, 한옥카페 1,833, 레저 1,791, 문화예술 1,655, 전통시장 1,111, 정원생태 898, 지역체험 829, 한옥숙박 499, 전통체험 377, 한옥 208.
-  - Odii 실제 활성 revision 게시 완료: 공개 스토리 6,205건, 지점 2,095건. 공급자 원천 6,669건 중 부적격 콘텐츠는 public revision에서 제외한다.
-  - 누적되어 Neon 512MB 한도를 채운 비활성 FAILED/STAGING revision 10개와 그 하위 staging data를 정리했으며 활성 PUBLISHED revision은 보존했다.
-  - 현재 운영 API는 지도 2건, 한옥 기본 page 20건을 반환해 아직 production sample store가 활성화된 상태임을 확인했다.
-  - TourAPI URI/parser/source/qualification tests pass.
-  - `JdbcTourApiCatalogPublisherTests`와 migration tests pass against PostGIS 17.
-  - `OdiiHttpClientTests`와 `JdbcAudioRevisionStoreIntegrationTests`가 bulk staging 및 마지막 page 회귀 사례를 포함해 통과했다.
-  - CI Java lane 전체가 통과했고, 마지막 공식 분류명 보정 뒤 resolver target test도 재통과했다.
-  - repository hygiene 117 tests, planning/fixture 검증과 contract 검증이 통과했다.
+  - 한옥 web boundary, TourAPI JDBC publisher, DataLab adapter, Insights query와 bootJar target 검증 통과.
+  - V032의 활성 KTO catalog 조건부 전국 285개 mapping migration 통합 테스트 추가.
+  - 운영 DB retention 후 물리 크기 395MB 확인(기존 약 483MB, 약 117MB 여유).
+- Next step:
+  - 전체 backend 검증과 PR CI를 통과시킨 뒤 `develop`에 병합한다.
+  - frontend Issue #224 변경은 사용자 승인 후에만 PR을 생성한다.
+  - 운영 반영은 사용자가 승인한 Git Flow release branch를 통해 `master`로 배포한다.
+  - 배포 후 DataLab sync를 실행하고 observations/heatmap, 홈, 소리마루, 한옥 화면을 실서버에서 확인한다.
 - Open risk:
-  - 현재 production API는 아직 배포 전 코드라 지도 2건/한옥 sample을 반환한다. 이 branch가 Git Flow로 master까지 배포된 뒤 Neon 활성 revision을 조회한다.
-  - Neon 무료 프로젝트 512MB 한도에 근접할 수 있으므로 terminal staging revision 7일 보존 정책과 revision GC를 운영에서 실행해야 한다.
-  - `.env.local`에 사용한 Neon/API credential은 도구 로그 노출 이력 때문에 작업 종료 후 반드시 회전해야 한다.
-  - 개발계정 일 1,000 호출 때문에 장소별 4개 상세 API 전수 보강은 별도 quota 계획이 필요하다.
-  - 지역별관광자원수요 v4.0 월별 dataset은 장소 catalog와 별개이며 아직 runtime 수집기가 없다.
+  - 현재 운영 `master`에는 아직 이 변경과 develop의 Odii 성능/인기 소리 수정이 없다.
+  - `.env.local`의 Neon credential은 도구 로그 노출 이력 때문에 작업 종료 후 반드시 회전해야 한다.
+  - frontend 전체 build는 기존 `/stamps` prerender에서 `catalog.stamps`가 undefined인 별도 오류로 실패한다.
