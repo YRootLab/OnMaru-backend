@@ -112,6 +112,41 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
                 .isEqualTo("old title");
     }
 
+    @Test
+    void reusesTheMappedSnapshotWhileTheActiveRevisionIsUnchanged() {
+        var revisionStore = new CountingAudioRevisionStore(
+                REVISION_ID,
+                snapshot("cached title"));
+        var store = new ActiveRevisionOdiiStoryQueryStore(revisionStore, DATASET);
+
+        var first = store.activeSnapshot();
+        var second = store.activeSnapshot();
+
+        assertThat(first).isSameAs(second);
+        assertThat(revisionStore.snapshotLoads()).isOne();
+        assertThat(revisionStore.activeRevisionReads()).isEqualTo(2);
+    }
+
+    @Test
+    void reloadsTheMappedSnapshotWhenTheActiveRevisionChanges() {
+        var revisionStore = new CountingAudioRevisionStore(
+                REVISION_ID,
+                snapshot("old title"));
+        var store = new ActiveRevisionOdiiStoryQueryStore(revisionStore, DATASET);
+
+        var oldSnapshot = store.activeSnapshot();
+        UUID nextRevisionId = UUID.fromString("10000000-0000-0000-0000-000000000002");
+        revisionStore.publish(nextRevisionId, snapshot("new title"));
+        var newSnapshot = store.activeSnapshot();
+
+        assertThat(oldSnapshot.revisionId()).isEqualTo(REVISION_ID);
+        assertThat(newSnapshot.revisionId()).isEqualTo(nextRevisionId);
+        assertThat(newSnapshot.stories()).singleElement()
+                .extracting(OdiiStoryProjection::audioTitle)
+                .isEqualTo("new title");
+        assertThat(revisionStore.snapshotLoads()).isEqualTo(2);
+    }
+
     private InMemoryAudioRevisionStore revisionStore(AudioRevisionSnapshot snapshot) {
         return new InMemoryAudioRevisionStore(
                 DATASET,
@@ -193,6 +228,96 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
         @Override
         public AudioRevisionSnapshot activeSnapshot() {
             return published ? newSnapshot.copy() : oldSnapshot.copy();
+        }
+
+        @Override
+        public AudioRevisionStage openStage(String dataset, UUID expectedBaseRevisionId, Instant observedAt) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void stage(UUID revisionId, List<OdiiMappedStory> stories) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public AudioStageCompletion completeStage(
+                UUID revisionId,
+                int missingObservationThreshold,
+                boolean emptyFullSyncReviewed
+        ) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void failStage(UUID revisionId, String failureCode) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long stagedItemCount(UUID revisionId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<StageValidation> stageValidation(UUID revisionId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public PublicationStatus publishIfLeaseAndBaseRevisionMatch(
+                SyncRunLease lease,
+                PublicationPlan plan,
+                Instant publishedAt
+        ) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class CountingAudioRevisionStore implements AudioRevisionStore {
+        private UUID revisionId;
+        private AudioRevisionSnapshot snapshot;
+        private int activeRevisionReads;
+        private int snapshotLoads;
+
+        private CountingAudioRevisionStore(UUID revisionId, AudioRevisionSnapshot snapshot) {
+            this.revisionId = revisionId;
+            this.snapshot = snapshot;
+        }
+
+        int activeRevisionReads() {
+            return activeRevisionReads;
+        }
+
+        int snapshotLoads() {
+            return snapshotLoads;
+        }
+
+        void publish(UUID nextRevisionId, AudioRevisionSnapshot nextSnapshot) {
+            revisionId = nextRevisionId;
+            snapshot = nextSnapshot;
+        }
+
+        @Override
+        public UUID initializeDataset(String dataset, Instant initializedAt) {
+            return revisionId;
+        }
+
+        @Override
+        public UUID activeRevision(String dataset) {
+            activeRevisionReads++;
+            return revisionId;
+        }
+
+        @Override
+        public ActiveAudioRevision activePublishedRevision(String dataset) {
+            snapshotLoads++;
+            return new ActiveAudioRevision(revisionId, snapshot);
+        }
+
+        @Override
+        public AudioRevisionSnapshot activeSnapshot() {
+            return snapshot;
         }
 
         @Override
