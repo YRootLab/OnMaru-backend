@@ -231,6 +231,59 @@ class CatalogMigrationTests {
     }
 
     @Test
+    void registersTheNationwideDataLabRegistryWhenTheKoreanCatalogIsAlreadyActive() throws Exception {
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD)) {
+            PostgresTestDatabase.reset(connection);
+        }
+        Flyway.configure()
+                .dataSource(jdbcUrl(), USERNAME, PASSWORD)
+                .locations("classpath:db/migration/baseline")
+                .baselineOnMigrate(true)
+                .baselineVersion("0")
+                .target("31")
+                .load()
+                .migrate();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_dataset_revisions
+                        (id, dataset, status, fetched_at, published_at)
+                    VALUES (
+                        '32000000-0000-0000-0000-000000000001',
+                        'kto-korean-tour', 'PUBLISHED', now(), now()
+                    )
+                    """);
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_active_datasets (dataset, revision_id, activated_at)
+                    VALUES (
+                        'kto-korean-tour',
+                        '32000000-0000-0000-0000-000000000001',
+                        now()
+                    )
+                    """);
+        }
+
+        Flyway.configure()
+                .dataSource(jdbcUrl(), USERNAME, PASSWORD)
+                .locations("classpath:db/migration/baseline")
+                .load()
+                .migrate();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*) FROM onmaru.catalog_datalab_region_mappings
+                    WHERE status = 'ACTIVE'
+                    """)).isEqualTo(285);
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*) FROM onmaru.catalog_regions
+                    WHERE active AND code LIKE 'kr-datalab-%'
+                    """)).isEqualTo(281);
+        }
+    }
+
+    @Test
     void rejectsDuplicateAndStructurallyInvalidDataLabMappings() throws Exception {
         resetAndMigrate();
         var sidoId = UUID.randomUUID();
@@ -241,30 +294,30 @@ class CatalogMigrationTests {
              var statement = connection.createStatement()) {
             statement.execute("""
                     INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active) VALUES
-                        ('%s', NULL, 'kr-48', '경상남도', 'SIDO', true),
-                        ('%s', NULL, 'kr-50', '제주특별자치도', 'SIDO', true),
-                        ('%s', NULL, 'kr-49', '경기도', 'SIDO', true)
+                        ('%s', NULL, 'kr-test-981', '테스트도1', 'SIDO', true),
+                        ('%s', NULL, 'kr-test-982', '테스트도2', 'SIDO', true),
+                        ('%s', NULL, 'kr-test-983', '테스트도3', 'SIDO', true)
                     """.formatted(sidoId, otherSidoId, thirdSidoId));
-            insertDataLabSourceCode(statement, sidoId, "SIDO:48", "2026-09-26", "2026-09-26");
-            insertDataLabSourceCode(statement, sidoId, "SIDO:481", "2026-09-27");
-            insertDataLabSourceCode(statement, otherSidoId, "SIDO:48", "2026-09-27");
-            insertDataLabSourceCode(statement, otherSidoId, "SIGUNGU:50", "2026-09-26");
-            insertDataLabSourceCode(statement, sidoId, "SIDO:482", "2026-09-28");
-            insertDataLabSourceCode(statement, thirdSidoId, "SIDO:481", "2026-09-28");
+            insertDataLabSourceCode(statement, sidoId, "SIDO:981", "2026-09-26", "2026-09-26");
+            insertDataLabSourceCode(statement, sidoId, "SIDO:982", "2026-09-27");
+            insertDataLabSourceCode(statement, otherSidoId, "SIDO:981", "2026-09-27");
+            insertDataLabSourceCode(statement, otherSidoId, "SIGUNGU:9850", "2026-09-26");
+            insertDataLabSourceCode(statement, sidoId, "SIDO:983", "2026-09-28");
+            insertDataLabSourceCode(statement, thirdSidoId, "SIDO:982", "2026-09-28");
 
             statement.execute(pendingDataLabMappingSql(
-                    sidoId, "SIDO:48", "2026-09-26", "2026-09-26", "SIDO"));
-            statement.execute(pendingDataLabMappingSql(sidoId, "SIDO:481", "2026-09-27", null, "SIDO"));
-            statement.execute(pendingDataLabMappingSql(otherSidoId, "SIDO:48", "2026-09-27", null, "SIDO"));
+                    sidoId, "SIDO:981", "2026-09-26", "2026-09-26", "SIDO"));
+            statement.execute(pendingDataLabMappingSql(sidoId, "SIDO:982", "2026-09-27", null, "SIDO"));
+            statement.execute(pendingDataLabMappingSql(otherSidoId, "SIDO:981", "2026-09-27", null, "SIDO"));
 
             assertThatThrownBy(() -> statement.execute(
-                    pendingDataLabMappingSql(otherSidoId, "SIGUNGU:50", "2026-09-26", null, "SIGUNGU")))
+                    pendingDataLabMappingSql(otherSidoId, "SIGUNGU:9850", "2026-09-26", null, "SIGUNGU")))
                     .hasMessageContaining("invalid DataLab region mapping structure");
             assertThatThrownBy(() -> statement.execute(
-                    pendingDataLabMappingSql(sidoId, "SIDO:482", "2026-09-28", null, "SIDO")))
+                    pendingDataLabMappingSql(sidoId, "SIDO:983", "2026-09-28", null, "SIDO")))
                     .hasMessageContaining("catalog_datalab_region_mappings_region_period_excl");
             assertThatThrownBy(() -> statement.execute(
-                    pendingDataLabMappingSql(thirdSidoId, "SIDO:481", "2026-09-28", null, "SIDO")))
+                    pendingDataLabMappingSql(thirdSidoId, "SIDO:982", "2026-09-28", null, "SIDO")))
                     .hasMessageContaining("catalog_datalab_region_mappings_source_period_excl");
             assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.catalog_datalab_region_mappings"))
                     .isEqualTo(3);
@@ -280,15 +333,15 @@ class CatalogMigrationTests {
              var statement = connection.createStatement()) {
             statement.execute("""
                     INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
-                    VALUES ('%s', NULL, 'kr-48', '경상남도', 'SIDO', true)
+                    VALUES ('%s', NULL, 'kr-test-98', '테스트도', 'SIDO', true)
                     """.formatted(regionId));
-            insertDataLabSourceCode(statement, regionId, "SIDO:48", "2026-09-26");
+            insertDataLabSourceCode(statement, regionId, "SIDO:98", "2026-09-26");
 
             assertThatThrownBy(() -> statement.execute("""
                     INSERT INTO onmaru.catalog_datalab_region_mappings (
                         provider, dataset, source_code, valid_from, region_id, level, name, status
                     ) VALUES (
-                        'KTO_DATALAB', 'visitor', 'SIDO:48', DATE '2026-09-26', '%s',
+                        'KTO_DATALAB', 'visitor', 'SIDO:98', DATE '2026-09-26', '%s',
                         'SIDO', '경상남도', 'ACTIVE'
                     )
                     """.formatted(regionId)))
@@ -305,15 +358,15 @@ class CatalogMigrationTests {
              var statement = connection.createStatement()) {
             statement.execute("""
                     INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
-                    VALUES ('%s', NULL, 'kr-48', '경상남도', 'SIDO', true)
+                    VALUES ('%s', NULL, 'kr-test-99', '테스트도', 'SIDO', true)
                     """.formatted(regionId));
-            insertDataLabSourceCode(statement, regionId, "SIDO:48", "2026-09-26");
+            insertDataLabSourceCode(statement, regionId, "SIDO:99", "2026-09-26");
             statement.execute("""
                     INSERT INTO onmaru.catalog_region_source_code_verifications (
                         provider, dataset, source_code, valid_from,
                         official_source_url, verified_at, verified_by
                     ) VALUES (
-                        'KTO_DATALAB', 'visitor', 'SIDO:48', DATE '2026-09-26',
+                        'KTO_DATALAB', 'visitor', 'SIDO:99', DATE '2026-09-26',
                         'https://official.example/codebook', TIMESTAMPTZ '2026-09-26T00:00:00Z',
                         'catalog-reviewer'
                     )
@@ -324,7 +377,7 @@ class CatalogMigrationTests {
                         provider, dataset, source_code, valid_from, region_id, level, name,
                         source_url, source_observed_at, verified_by, verified_at, status
                     ) VALUES (
-                        'KTO_DATALAB', 'visitor', 'SIDO:48', DATE '2026-09-26', '%s',
+                        'KTO_DATALAB', 'visitor', 'SIDO:99', DATE '2026-09-26', '%s',
                         'SIDO', '경상남도', 'https://tampered.example/codebook',
                         TIMESTAMPTZ '2026-09-26T00:00:00Z', 'catalog-reviewer',
                         TIMESTAMPTZ '2026-09-26T00:00:00Z', 'ACTIVE'

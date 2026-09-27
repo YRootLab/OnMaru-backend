@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.insights.observation.ObservationMetric;
 import com.yrootlab.onmaru.insights.observation.SpatialLevel;
 import com.yrootlab.onmaru.insights.observation.VisitorObservation;
 import com.yrootlab.onmaru.persistence.insights.JdbcVisitorObservationStore;
+import com.yrootlab.onmaru.persistence.insights.JdbcInsightsQueryStore;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -88,6 +89,24 @@ class JdbcVisitorObservationStoreTests {
         assertThat(store.findLatestCompleteByRegionCodes(Set.of("kr-45-jeonju"))).isEmpty();
     }
 
+    @Test
+    void buildsAdministrativeHeatSpotsFromVisitorObservationsAndCatalogCoordinates() throws Exception {
+        var store = new JdbcVisitorObservationStore(dataSource);
+        store.save(activeRevisionId, complete("2026-09-15", 19_420L));
+        seedActiveCatalogPlace();
+
+        assertThat(new JdbcInsightsQueryStore(dataSource).heatSpots())
+                .singleElement()
+                .satisfies(spot -> {
+                    assertThat(spot.region().regionCode()).isEqualTo("kr-45-jeonju");
+                    assertThat(spot.coordinates().lat()).isEqualTo(35.815);
+                    assertThat(spot.coordinates().lng()).isEqualTo(127.153);
+                    assertThat(spot.visitorCount()).isEqualTo(19_420L);
+                    assertThat(spot.congestionScore()).isEqualTo(100.0);
+                    assertThat(spot.congestionLevel()).isEqualTo("SURGE");
+                });
+    }
+
     private VisitorObservation complete(String basisDate, long value) {
         return new VisitorObservation(
                 "KTO_DATALAB", "kr-45-jeonju", LocalDate.parse(basisDate),
@@ -126,6 +145,44 @@ class JdbcVisitorObservationStoreTests {
             revision.executeUpdate();
             active.setObject(1, revisionId);
             active.executeUpdate();
+        }
+    }
+
+    private void seedActiveCatalogPlace() throws Exception {
+        UUID revisionId = UUID.randomUUID();
+        UUID placeId = UUID.randomUUID();
+        UUID sourceId = UUID.randomUUID();
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_dataset_revisions
+                        (id, dataset, status, fetched_at, published_at)
+                    VALUES ('%s', 'kto-korean-tour', 'PUBLISHED', now(), now())
+                    """.formatted(revisionId));
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_active_datasets (dataset, revision_id, activated_at)
+                    VALUES ('kto-korean-tour', '%s', now())
+                    """.formatted(revisionId));
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_place_identity (id, created_at)
+                    VALUES ('%s', now())
+                    """.formatted(placeId));
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_place_sources
+                        (id, place_id, provider, dataset, external_id, language, fetched_at)
+                    VALUES ('%s', '%s', 'KTO', 'kto-korean-tour', 'heat-test', 'ko-KR', now())
+                    """.formatted(sourceId, placeId));
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_place_versions (
+                        revision_id, place_id, source_ref_id, region_id, name, category,
+                        address, location, visit_review_eligible, status, normalized_hash
+                    ) SELECT
+                        '%s', '%s', '%s', region.id, '전주 한옥마을', 'HANOK',
+                        '전북 전주시 완산구',
+                        ST_SetSRID(ST_MakePoint(127.153, 35.815), 4326)::geography,
+                        true, 'ACTIVE', 'heat-test-hash'
+                    FROM onmaru.catalog_regions region
+                    WHERE region.code = 'kr-45-jeonju'
+                    """.formatted(revisionId, placeId, sourceId));
         }
     }
 

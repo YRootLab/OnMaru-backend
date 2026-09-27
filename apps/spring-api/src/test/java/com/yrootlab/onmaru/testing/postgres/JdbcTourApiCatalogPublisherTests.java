@@ -69,7 +69,7 @@ class JdbcTourApiCatalogPublisherTests {
         var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
         var session = publisher.start(fetchedAt);
         var page = publisher.stagePage(session, List.of(
-                row("2001", "경복궁", "HISTORIC_SITE"),
+                row("2001", "북촌 한옥", "HANOK"),
                 row("2002", "전주 남부시장", "TRADITIONAL_MARKET"),
                 row("2003", "한옥이라는 단어가 들어간 일반 서점", null),
                 invalidCoordinateRow("2004", "좌표가 깨진 공공데이터")
@@ -83,9 +83,13 @@ class JdbcTourApiCatalogPublisherTests {
         assertThat(queryCount("onmaru.operations_sync_quarantine")).isEqualTo(2);
         assertThat(queryCount("onmaru.catalog_kto_korean_content_versions WHERE ldong_regn_cd = '11' AND ldong_signgu_cd = '110'"))
                 .isEqualTo(4);
-        assertThat(new JdbcCatalogPlaceSnapshotStore(dataSource).findPublishedHanokSnapshot())
+        var hanokSnapshot = new JdbcCatalogPlaceSnapshotStore(dataSource).findPublishedHanokSnapshot();
+        assertThat(hanokSnapshot)
                 .extracting(place -> place.name())
-                .containsExactly("경복궁", "전주 남부시장");
+                .containsExactly("북촌 한옥");
+        assertThat(hanokSnapshot.getFirst().address()).isEqualTo("서울 종로구");
+        assertThat(hanokSnapshot.getFirst().coordinates().lat()).isEqualTo(37.58);
+        assertThat(hanokSnapshot.getFirst().coordinates().lng()).isEqualTo(126.98);
     }
 
     @Test

@@ -275,6 +275,15 @@
       "checksum": "tourapi-v44-legal-district-v031-20260927",
       "sha256": "bc3633df23862a5257e500626ce492aef11c81ca84e7b6aa0a0d5930033ea18b",
       "description": "TourAPI v4.4 legal district codes for complete Korean catalog staging"
+    },
+    {
+      "version": "032",
+      "reservedFor": "DATALAB_NATIONWIDE_REGISTRY",
+      "issueNumber": 444,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V032__444_datalab_nationwide_region_registry.sql",
+      "checksum": "datalab-nationwide-region-registry-v032-20260927",
+      "sha256": "d670b2df6cb4c7385eeafd0e79cc4780495ae859e5c2560d49402fc8bd48fa93",
+      "description": "Nationwide verified DataLab SIDO and SIGUNGU mapping registry"
     }
   ]
 }

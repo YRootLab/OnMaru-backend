@@ -151,7 +151,8 @@ class InsightsConfiguration {
             DataLabRegionMappingRegistry regionMappings,
             Clock clock,
             DataLabVisitorSettings settings) {
-        return new DataLabVisitorSourceAdapter(client, regionMappings, clock, settings.pageSize());
+        return new DataLabVisitorSourceAdapter(
+                client, regionMappings, clock, settings.pageSize(), settings.dataLagDays());
     }
 
     @ConfigurationProperties(prefix = "onmaru.datalab.visitor")
@@ -163,7 +164,8 @@ class InsightsConfiguration {
             Duration attemptTimeout,
             Duration pageTimeout,
             Integer retryCount,
-            Integer pageSize) {
+            Integer pageSize,
+            Integer dataLagDays) {
 
         DataLabVisitorSettings {
             baseUri = baseUri == null ? URI.create("https://apis.data.go.kr/B551011/DataLabService") : baseUri;
@@ -173,8 +175,12 @@ class InsightsConfiguration {
             pageTimeout = pageTimeout == null ? Duration.ofSeconds(12) : pageTimeout;
             retryCount = retryCount == null ? 2 : retryCount;
             pageSize = pageSize == null ? 100 : pageSize;
+            dataLagDays = dataLagDays == null ? 35 : dataLagDays;
             if (pageSize < 1 || pageSize > 1_000) {
                 throw new IllegalArgumentException("DataLab pageSize must be between 1 and 1000");
+            }
+            if (dataLagDays < 0 || dataLagDays > 90) {
+                throw new IllegalArgumentException("DataLab dataLagDays must be between 0 and 90");
             }
         }
 

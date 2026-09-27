@@ -29,14 +29,20 @@ public final class InsightsQueryService {
     }
 
     public HeatmapResponse heatmap(String regionCode, LocalDate observedDate, String metric) {
-        List<HeatSpot> spots = store.heatSpots().stream()
+        List<HeatSpot> candidates = store.heatSpots().stream()
                 .filter(spot -> regionCode == null || spot.region().regionCode().equals(regionCode))
-                .filter(spot -> spot.observedDate().equals(observedDate))
                 .filter(spot -> metric == null || spot.metric().equals(metric))
+                .toList();
+        LocalDate resolvedDate = observedDate == null
+                ? candidates.stream().map(HeatSpot::observedDate).max(LocalDate::compareTo)
+                        .orElse(LocalDate.now(clock))
+                : observedDate;
+        List<HeatSpot> spots = candidates.stream()
+                .filter(spot -> spot.observedDate().equals(resolvedDate))
                 .sorted(Comparator.comparing(HeatSpot::id))
                 .toList();
         String resolvedMetric = metric == null ? "CONGESTION_SCORE" : metric;
-        return new HeatmapResponse(SCHEMA_VERSION, aggregateCoverage(spots), resolvedMetric, observedDate, clock.instant(), spots);
+        return new HeatmapResponse(SCHEMA_VERSION, aggregateCoverage(spots), resolvedMetric, resolvedDate, clock.instant(), spots);
     }
 
     private String aggregateCoverage(List<? extends Record> items) {
