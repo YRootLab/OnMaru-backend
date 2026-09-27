@@ -31,7 +31,7 @@ public record RetentionCleanupPolicy(
                 Duration.ofDays(1),
                 Duration.ofHours(1),
                 Duration.ofDays(7),
-                Duration.ofDays(14));
+                Duration.ofHours(1));
     }
 
     private static void requirePositive(Duration duration, String name) {

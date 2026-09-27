@@ -122,6 +122,91 @@ class RetentionCleanupJdbcTests {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    void keepsActiveAndPreviousPublishedRevisionAndDeletesOlderSnapshotsWithChildren() throws Exception {
+        resetAndMigrate();
+        var oldestPublished = UUID.randomUUID();
+        var previousPublished = UUID.randomUUID();
+        var activePublished = UUID.randomUUID();
+        var failed = UUID.randomUUID();
+        var staging = UUID.randomUUID();
+        var recentStaging = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_dataset_revisions (
+                        id, dataset, status, base_revision_id, fetched_at, published_at
+                    ) VALUES
+                        ('%s', 'odii-audio', 'PUBLISHED', NULL,
+                         '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z'),
+                        ('%s', 'odii-audio', 'PUBLISHED', '%s',
+                         '2026-09-02T00:00:00Z', '2026-09-02T00:00:00Z'),
+                        ('%s', 'odii-audio', 'PUBLISHED', '%s',
+                         '2026-09-03T00:00:00Z', '2026-09-03T00:00:00Z'),
+                        ('%s', 'odii-audio', 'FAILED', '%s',
+                         '2026-09-16T00:00:00Z', NULL),
+                        ('%s', 'odii-audio', 'STAGING', '%s',
+                         '2026-09-16T00:00:00Z', NULL),
+                        ('%s', 'odii-audio', 'STAGING', '%s',
+                         '2026-09-16T23:30:00Z', NULL)
+                    """.formatted(
+                    oldestPublished,
+                    previousPublished, oldestPublished,
+                    activePublished, previousPublished,
+                    failed, activePublished,
+                    staging, activePublished,
+                    recentStaging, activePublished));
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_active_datasets (dataset, revision_id, activated_at)
+                    VALUES ('odii-audio', '%s', '2026-09-03T00:00:00Z')
+                    """.formatted(activePublished));
+            statement.execute("""
+                    INSERT INTO onmaru.audio_odii_spots (
+                        id, provider, tid, tlid, lang_code, created_at
+                    ) VALUES
+                        ('00000000-0000-0000-0000-000000000101', 'ODII', 'old', 'old', 'ko', NOW()),
+                        ('00000000-0000-0000-0000-000000000102', 'ODII', 'failed', 'failed', 'ko', NOW()),
+                        ('00000000-0000-0000-0000-000000000103', 'ODII', 'staging', 'staging', 'ko', NOW())
+                    """);
+            statement.execute("""
+                    INSERT INTO onmaru.audio_spot_versions (
+                        revision_id, spot_id, title, status, hash
+                    ) VALUES
+                        ('%s', '00000000-0000-0000-0000-000000000101', 'old', 'ACTIVE', 'old'),
+                        ('%s', '00000000-0000-0000-0000-000000000102', 'failed', 'ACTIVE', 'failed'),
+                        ('%s', '00000000-0000-0000-0000-000000000103', 'staging', 'ACTIVE', 'staging')
+                    """.formatted(oldestPublished, failed, staging));
+        }
+
+        var result = new JdbcRetentionCleanupStore(dataSource()).cleanup(
+                new RetentionCleanupPolicy(
+                        100,
+                        Duration.ofDays(30),
+                        Duration.ofDays(1),
+                        Duration.ofHours(1),
+                        Duration.ofDays(7),
+                        Duration.ofHours(1)),
+                NOW);
+
+        assertThat(result.inactiveRevisions()).isEqualTo(3);
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.catalog_dataset_revisions"))
+                    .isEqualTo(3);
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*) FROM onmaru.catalog_dataset_revisions
+                    WHERE id IN ('%s', '%s', '%s')
+                    """.formatted(previousPublished, activePublished, recentStaging))).isEqualTo(3);
+            assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.audio_spot_versions"))
+                    .isZero();
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*) FROM onmaru.catalog_dataset_revisions
+                    WHERE id = '%s' AND base_revision_id IS NULL
+                    """.formatted(previousPublished))).isOne();
+        }
+    }
+
     private static void seedCleanupFixtures(
             UUID memberId,
             UUID expiredGuestId,

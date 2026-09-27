@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.operations.retention.RetentionCleanupResult;
 import com.yrootlab.onmaru.operations.retention.RetentionCleanupService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 
 public final class RetentionCleanupJob {
 
@@ -16,6 +17,7 @@ public final class RetentionCleanupJob {
         this.service = service;
     }
 
+    @Scheduled(cron = "${onmaru.retention.cleanup.cron:0 0 4 * * *}", zone = "Asia/Seoul")
     public RetentionCleanupResult runOnce() {
         try {
             return service.runOnce(RetentionCleanupPolicy.defaults());
