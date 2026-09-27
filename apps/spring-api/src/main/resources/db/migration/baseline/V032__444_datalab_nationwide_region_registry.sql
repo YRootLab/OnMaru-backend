@@ -2,15 +2,15 @@
 -- Issue: #444 Restore the nationwide DataLab administrative heatmap registry.
 -- Source snapshot: KTO DataLab regional visitor API response for 2026-08-23.
 
-CREATE TEMP TABLE onmaru_datalab_region_seed (
+CREATE TABLE onmaru.datalab_region_seed_v032 (
     provider_code varchar NOT NULL,
     provider_name varchar NOT NULL,
     level onmaru.catalog_region_level NOT NULL,
     parent_provider_code varchar,
     internal_code varchar NOT NULL
-) ON COMMIT DROP;
+);
 
-INSERT INTO onmaru_datalab_region_seed (
+INSERT INTO onmaru.datalab_region_seed_v032 (
     provider_code, provider_name, level, parent_provider_code, internal_code
 ) VALUES
     ('11', '서울특별시', 'SIDO', NULL, 'kr-11'),
@@ -307,7 +307,7 @@ SELECT
     seed.provider_name,
     seed.level,
     true
-FROM onmaru_datalab_region_seed seed
+FROM onmaru.datalab_region_seed_v032 seed
 WHERE seed.level = 'SIDO'
   AND EXISTS (
       SELECT 1 FROM onmaru.catalog_active_datasets active
@@ -324,8 +324,8 @@ SELECT
     seed.provider_name,
     seed.level,
     true
-FROM onmaru_datalab_region_seed seed
-JOIN onmaru_datalab_region_seed parent_seed
+FROM onmaru.datalab_region_seed_v032 seed
+JOIN onmaru.datalab_region_seed_v032 parent_seed
   ON parent_seed.provider_code = seed.parent_provider_code
  AND parent_seed.level = 'SIDO'
 JOIN onmaru.catalog_regions parent ON parent.code = parent_seed.internal_code
@@ -347,7 +347,7 @@ SELECT
     DATE '2026-09-26',
     NULL,
     region.id
-FROM onmaru_datalab_region_seed seed
+FROM onmaru.datalab_region_seed_v032 seed
 JOIN onmaru.catalog_regions region ON region.code = seed.internal_code
 ON CONFLICT (provider, dataset, source_code, valid_from) DO NOTHING;
 
@@ -364,7 +364,7 @@ SELECT
     TIMESTAMPTZ '2026-09-27 18:30:00+09',
     'onmaru-catalog-data-verification'
 FROM onmaru.catalog_region_source_codes source
-JOIN onmaru_datalab_region_seed seed
+JOIN onmaru.datalab_region_seed_v032 seed
   ON source.source_code = seed.level::text || ':' || seed.provider_code
 WHERE source.provider = 'KTO_DATALAB'
   AND source.dataset = 'visitor'
@@ -390,7 +390,7 @@ SELECT
     verification.verified_by,
     verification.verified_at,
     'ACTIVE'
-FROM onmaru_datalab_region_seed seed
+FROM onmaru.datalab_region_seed_v032 seed
 JOIN onmaru.catalog_regions region ON region.code = seed.internal_code
 JOIN onmaru.catalog_region_source_codes source
   ON source.region_id = region.id
@@ -405,6 +405,8 @@ JOIN onmaru.catalog_region_source_code_verifications verification
  AND verification.valid_from = source.valid_from
 ON CONFLICT (provider, dataset, source_code, valid_from) DO NOTHING;
 
+DROP TABLE onmaru.datalab_region_seed_v032;
+
 INSERT INTO onmaru_registry.migration_version_reservations (
     version, reserved_for, issue_number, description
 ) VALUES (
@@ -414,4 +416,3 @@ INSERT INTO onmaru_registry.migration_version_reservations (
 SET reserved_for = EXCLUDED.reserved_for,
     issue_number = EXCLUDED.issue_number,
     description = EXCLUDED.description;
-
