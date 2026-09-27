@@ -634,6 +634,7 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
     private AudioRevisionSnapshot loadSnapshot(Connection connection, UUID revisionId) throws SQLException {
         List<OdiiSpotVersion> spots = new ArrayList<>();
         Map<UUID, OdiiSpotIdentity> spotIdentities = new HashMap<>();
+        Map<UUID, OdiiSpotVersion> spotVersions = new HashMap<>();
         try (var statement = connection.prepareStatement("""
                 SELECT identity.id, identity.provider, identity.tid, identity.tlid, identity.lang_code,
                        version.title, ST_X(version.location::geometry) AS longitude,
@@ -651,14 +652,16 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
                             result.getString("provider"), result.getString("tid"),
                             result.getString("tlid"), result.getString("lang_code"));
                     spotIdentities.put(result.getObject("id", UUID.class), identity);
-                    spots.add(new OdiiSpotVersion(
+                    var spot = new OdiiSpotVersion(
                             identity,
                             result.getString("title"),
                             result.getBigDecimal("longitude"),
                             result.getBigDecimal("latitude"),
                             instant(result, "source_modified_at"),
                             AudioStatus.valueOf(result.getString("status")),
-                            result.getString("hash")));
+                            result.getString("hash"));
+                    spots.add(spot);
+                    spotVersions.put(result.getObject("id", UUID.class), spot);
                 }
             }
         }
@@ -679,14 +682,12 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
             try (var result = statement.executeQuery()) {
                 while (result.next()) {
                     UUID storyId = result.getObject("id", UUID.class);
-                    OdiiSpotIdentity spotIdentity = spotIdentities.get(result.getObject("spot_id", UUID.class));
-                    if (spotIdentity == null) {
+                    UUID spotId = result.getObject("spot_id", UUID.class);
+                    OdiiSpotIdentity spotIdentity = spotIdentities.get(spotId);
+                    OdiiSpotVersion spot = spotVersions.get(spotId);
+                    if (spotIdentity == null || spot == null) {
                         continue;
                     }
-                    OdiiSpotVersion spot = spots.stream()
-                            .filter(candidate -> candidate.identity().equals(spotIdentity))
-                            .findFirst()
-                            .orElseThrow();
                     Integer duration = (Integer) result.getObject("duration_seconds");
                     var story = new OdiiStoryVersion(
                             new OdiiStoryIdentity(
