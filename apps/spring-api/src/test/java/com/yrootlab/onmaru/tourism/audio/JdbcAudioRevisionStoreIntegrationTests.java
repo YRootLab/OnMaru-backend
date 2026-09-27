@@ -14,6 +14,7 @@ import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkMatchMethod;
 import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkReviewStatus;
 import com.yrootlab.onmaru.persistence.audio.JdbcAudioPlaceLinkStore;
 import com.yrootlab.onmaru.persistence.audio.AudioPersistenceConfiguration;
+import com.yrootlab.onmaru.persistence.saved.JdbcOdiiStoryPopularityStore;
 import com.yrootlab.onmaru.audio.sync.InMemoryAudioRevisionStore;
 import com.yrootlab.onmaru.config.secrets.SecretBundle;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
@@ -41,6 +42,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -53,6 +55,7 @@ import java.util.logging.Logger;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class JdbcAudioRevisionStoreIntegrationTests {
 
@@ -80,6 +83,29 @@ class JdbcAudioRevisionStoreIntegrationTests {
     @AfterAll
     static void stopPostgres() {
         postgres.stop();
+    }
+
+    @Test
+    void aggregatesPopularityFromAnInstantBoundaryWithPostgres() {
+        var store = new JdbcOdiiStoryPopularityStore(dataSource());
+
+        assertThat(store.playCounts(List.of("odii-story-no-events"), NOW)).isEmpty();
+        assertThat(store.saveCounts(List.of("odii-story-no-events"), NOW)).isEmpty();
+    }
+
+    @Test
+    void loadsProductionSizedPublishedRevisionWithoutQuadraticSpotLookup() throws Exception {
+        String dataset = "odii-performance-" + UUID.randomUUID();
+        int rowCount = 25_000;
+        seedLargePublishedRevision(dataset, rowCount);
+        var store = new JdbcAudioRevisionStore(dataSource());
+
+        var active = assertTimeoutPreemptively(
+                Duration.ofSeconds(3),
+                () -> store.activePublishedRevision(dataset));
+
+        assertThat(active.snapshot().stories()).hasSize(rowCount);
+        assertThat(active.snapshot().spots()).hasSize(rowCount);
     }
 
     @Test
@@ -125,6 +151,59 @@ class JdbcAudioRevisionStoreIntegrationTests {
         assertThat(stale.status()).isEqualTo(OdiiSyncStatus.ACTIVE_REVISION_CHANGED);
         assertThat(new JdbcAudioRevisionStore(dataSource()).activeRevision(DATASET))
                 .isEqualTo(lkgRevision);
+    }
+
+    private static void seedLargePublishedRevision(String dataset, int rowCount) throws Exception {
+        UUID revisionId = UUID.randomUUID();
+        try (var connection = dataSource().getConnection();
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_dataset_revisions (
+                        id, dataset, status, source_observed_at, fetched_at, published_at
+                    ) VALUES ('%s', '%s', 'PUBLISHED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """.formatted(revisionId, dataset));
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_active_datasets (dataset, revision_id, activated_at)
+                    VALUES ('%s', '%s', CURRENT_TIMESTAMP)
+                    """.formatted(dataset, revisionId));
+            statement.execute("""
+                    INSERT INTO onmaru.audio_odii_spots (
+                        id, provider, tid, tlid, lang_code, created_at
+                    )
+                    SELECT md5('perf-spot-' || value)::uuid,
+                           'PERF', 'tid-' || value, 'tlid-' || value, 'ko', CURRENT_TIMESTAMP
+                    FROM generate_series(1, %d) AS value
+                    """.formatted(rowCount));
+            statement.execute("""
+                    INSERT INTO onmaru.audio_spot_versions (
+                        revision_id, spot_id, title, location, status, hash, source_modified_at
+                    )
+                    SELECT '%s', md5('perf-spot-' || value)::uuid, 'spot-' || value,
+                           ST_SetSRID(ST_MakePoint(127.0, 37.0), 4326)::geography,
+                           'ACTIVE', 'spot-hash-' || value, CURRENT_TIMESTAMP
+                    FROM generate_series(1, %d) AS value
+                    """.formatted(revisionId, rowCount));
+            statement.execute("""
+                    INSERT INTO onmaru.audio_odii_stories (
+                        id, spot_id, provider, stid, stlid, lang_code, created_at
+                    )
+                    SELECT md5('perf-story-' || value)::uuid,
+                           md5('perf-spot-' || value)::uuid,
+                           'PERF', 'stid-' || value, 'stlid-' || value, 'ko', CURRENT_TIMESTAMP
+                    FROM generate_series(1, %d) AS value
+                    """.formatted(rowCount));
+            statement.execute("""
+                    INSERT INTO onmaru.audio_story_versions (
+                        revision_id, story_id, spot_id, title, script, audio_url, image_url,
+                        duration_seconds, status, hash, transcript_provenance, source_modified_at
+                    )
+                    SELECT '%s', md5('perf-story-' || value)::uuid,
+                           md5('perf-spot-' || value)::uuid, 'story-' || value, NULL,
+                           'https://cdn.example/story-' || value || '.mp3', NULL,
+                           60, 'ACTIVE', 'story-hash-' || value, 'MISSING', CURRENT_TIMESTAMP
+                    FROM generate_series(1, %d) AS value
+                    """.formatted(revisionId, rowCount));
+        }
     }
 
     @Test

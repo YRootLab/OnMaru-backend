@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -75,7 +76,7 @@ public final class JdbcOdiiStoryPopularityStore implements OdiiStoryPopularityPo
             for (String storyId : storyIds) {
                 statement.setString(index++, storyId);
             }
-            statement.setObject(index, sinceInclusive);
+            statement.setTimestamp(index, Timestamp.from(sinceInclusive));
             try (ResultSet resultSet = statement.executeQuery()) {
                 var counts = new LinkedHashMap<String, Long>();
                 while (resultSet.next()) {
