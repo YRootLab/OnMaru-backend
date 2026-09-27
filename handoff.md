@@ -21,3 +21,14 @@
   - 운영은 아직 이전 코드라 배포 전 새 동기화가 실행되면 중복 revision이 다시 생성될 수 있다.
   - CI, Staging Deploy, Release Please가 수동 중단 상태라 병합·배포 전에 필요한 workflow 재활성화가 필요하다.
   - `.env.local`의 Neon credential은 도구 로그 노출 이력 때문에 작업 종료 후 반드시 회전해야 한다.
+  - frontend 전체 build는 기존 `/stamps` prerender에서 `catalog.stamps`가 undefined인 별도 오류로 실패한다.
+
+## 2026-09-27 Issue #454 추가 검증
+
+- Branch: `fix/454-production-api-latency`
+- User request: 상세 요청마다 ODII 전체 snapshot을 읽는 원인을 바로 수정하고 약 8천 자 트러블슈팅 기록을 남긴다.
+- Added verification: cold cache에 24개 요청을 동시에 시작해도 전체 snapshot load가 1회인지 검증한다.
+- Worklog: `troubleshooting-worklog/26.09.27 odii-active-snapshot-query-cache.md`
+- Verification: 대상 동시성 테스트 `BUILD SUCCESSFUL`, `git diff --check` 성공.
+- Next step: audio 모듈 전체 테스트와 Spring API 조립 검증 후 커밋·push하고 `develop` 대상 PR을 준비한다.
+- Open risk: production 미배포 상태이므로 Render latency·memory·502/503 개선은 배포 후 측정해야 한다. 프론트의 카드별 상세 fan-out도 별도 수정해야 한다.

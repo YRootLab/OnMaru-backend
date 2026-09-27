@@ -20,6 +20,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -125,6 +130,42 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
         assertThat(first).isSameAs(second);
         assertThat(revisionStore.snapshotLoads()).isOne();
         assertThat(revisionStore.activeRevisionReads()).isEqualTo(2);
+    }
+
+    @Test
+    void loadsTheSnapshotOnlyOnceWhenConcurrentRequestsArriveOnAColdCache() throws Exception {
+        var revisionStore = new CountingAudioRevisionStore(
+                REVISION_ID,
+                snapshot("cached title"));
+        var store = new ActiveRevisionOdiiStoryQueryStore(revisionStore, DATASET);
+        int requestCount = 24;
+        var ready = new CountDownLatch(requestCount);
+        var start = new CountDownLatch(1);
+
+        try (var executor = Executors.newFixedThreadPool(requestCount)) {
+            var requests = IntStream.range(0, requestCount)
+                    .mapToObj(ignored -> executor.submit(() -> {
+                        ready.countDown();
+                        if (!start.await(5, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("concurrent request start timed out");
+                        }
+                        return store.activeSnapshot();
+                    }))
+                    .toList();
+
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            var snapshots = requests.stream().map(request -> {
+                try {
+                    return request.get(5, TimeUnit.SECONDS);
+                } catch (Exception exception) {
+                    throw new IllegalStateException(exception);
+                }
+            }).toList();
+
+            assertThat(snapshots).allMatch(snapshot -> snapshot == snapshots.getFirst());
+            assertThat(revisionStore.snapshotLoads()).isOne();
+        }
     }
 
     @Test
@@ -277,8 +318,8 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
     private static final class CountingAudioRevisionStore implements AudioRevisionStore {
         private UUID revisionId;
         private AudioRevisionSnapshot snapshot;
-        private int activeRevisionReads;
-        private int snapshotLoads;
+        private final AtomicInteger activeRevisionReads = new AtomicInteger();
+        private final AtomicInteger snapshotLoads = new AtomicInteger();
 
         private CountingAudioRevisionStore(UUID revisionId, AudioRevisionSnapshot snapshot) {
             this.revisionId = revisionId;
@@ -286,11 +327,11 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
         }
 
         int activeRevisionReads() {
-            return activeRevisionReads;
+            return activeRevisionReads.get();
         }
 
         int snapshotLoads() {
-            return snapshotLoads;
+            return snapshotLoads.get();
         }
 
         void publish(UUID nextRevisionId, AudioRevisionSnapshot nextSnapshot) {
@@ -305,13 +346,13 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
 
         @Override
         public UUID activeRevision(String dataset) {
-            activeRevisionReads++;
+            activeRevisionReads.incrementAndGet();
             return revisionId;
         }
 
         @Override
         public ActiveAudioRevision activePublishedRevision(String dataset) {
-            snapshotLoads++;
+            snapshotLoads.incrementAndGet();
             return new ActiveAudioRevision(revisionId, snapshot);
         }
 
