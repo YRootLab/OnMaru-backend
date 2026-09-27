@@ -44,6 +44,11 @@ describe('container and staging release pipeline', () => {
       /ENV SPRING_PROFILES_ACTIVE=production/,
       'the deployed Spring image must select JDBC-backed production stores by default',
     );
+    assert.match(
+      read('apps/spring-api/src/main/resources/application.yaml'),
+      /profiles:\n\s+default: production/,
+      'the Spring artifact must default to production even outside the Docker runner',
+    );
   });
 
   it('keeps staging deploy order gated by migration and rollback evidence', () => {

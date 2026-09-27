@@ -2,6 +2,8 @@ server:
   port: ${PORT:8080}
 
 spring:
+  profiles:
+    default: production
   application:
     name: onmaru-spring-api
   datasource:
