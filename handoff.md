@@ -1,25 +1,23 @@
 # handoff.md
 
-- Branch: `fix/444-production-api-contracts`
-- Issue: #444
-- Scope: 운영 한옥 계약·DataLab 전국 지도 히트맵·공공데이터 제공 지연 복구
+- Branch: `fix/453-single-active-revision`
+- Issue: #453
+- Scope: Neon 512MiB 제한에서 활성 PUBLISHED revision 1벌만 보존하고 동일 snapshot 재발행을 방지한다.
 - Key changes:
-  - 한옥 기본 목록을 한옥 근거가 있는 category/문서로 제한하고 일반 문화시설을 제외한다.
-  - 한옥 카드에 DB 주소와 좌표를 포함하고 JDBC 조회에서 한옥 후보만 선별해 응답 지연을 줄인다.
-  - DataLab 기준일을 공급 지연 35일 전으로 요청하되 mapping 유효성은 현재 날짜로 판정한다.
-  - 시도 16개·시군구 269개의 공식 DataLab 지역 코드를 검증 provenance와 함께 V032에서 등록한다.
-  - 활성 visitor observation과 KTO 장소 좌표로 행정구역 원형 히트맵을 DB에서 계산한다.
-  - heatmap date를 생략하면 최신 발행 관측일을 사용한다.
+  - retention은 데이터셋별 활성 revision만 보호하고 비활성 PUBLISHED와 FAILED를 즉시 정리한다.
+  - STAGING/READY는 진행 중 수집 보호를 위해 1시간 유예 후 정리한다.
+  - TourAPI와 ODII 새 snapshot이 활성본과 동일하면 신규 revision을 발행하지 않고 임시 stage를 삭제한다.
+  - 성공 기록과 watermark는 기존 활성 revision을 가리키도록 갱신한다.
 - Verification:
-  - 한옥 web boundary, TourAPI JDBC publisher, DataLab adapter, Insights query와 bootJar target 검증 통과.
-  - V032의 활성 KTO catalog 조건부 전국 285개 mapping migration 통합 테스트 추가.
-  - 운영 DB retention 후 물리 크기 395MB 확인(기존 약 483MB, 약 117MB 여유).
+  - 활성본 1벌 보호, 비활성/실패 revision 제거, 동일 TourAPI·ODII snapshot 재사용 회귀 테스트를 추가했다.
+  - 대상 PostgreSQL·모듈 회귀 테스트가 `BUILD SUCCESSFUL`로 끝났다.
+  - 2026-09-28 운영 긴급 정리에서 기존 비활성/실패 revision과 정리 중 재생성된 superseded revision을 삭제했다.
+  - 최종 활성 PUBLISHED는 DataLab·TourAPI·ODII 각각 1개, 비활성 revision은 0개이며 DB 크기는 324MB다.
 - Next step:
-  - 전체 backend 검증과 PR CI를 통과시킨 뒤 `develop`에 병합한다.
-  - frontend Issue #224 변경은 사용자 승인 후에만 PR을 생성한다.
-  - 운영 반영은 사용자가 승인한 Git Flow release branch를 통해 `master`로 배포한다.
-  - 배포 후 DataLab sync를 실행하고 observations/heatmap, 홈, 소리마루, 한옥 화면을 실서버에서 확인한다.
+  - fresh PostgreSQL 통합 테스트와 변경 범위 검증 후 `develop` 대상 PR을 생성한다.
+  - CI의 필수 `verify`를 통과시켜 병합하고 release branch를 통해 운영에 배포한다.
+  - 배포 후 retention을 다시 실행하고 logical size와 동일 snapshot 재동기화 전후 행 수를 비교한다.
 - Open risk:
-  - 현재 운영 `master`에는 아직 이 변경과 develop의 Odii 성능/인기 소리 수정이 없다.
+  - 운영은 아직 이전 코드라 배포 전 새 동기화가 실행되면 중복 revision이 다시 생성될 수 있다.
+  - CI, Staging Deploy, Release Please가 수동 중단 상태라 병합·배포 전에 필요한 workflow 재활성화가 필요하다.
   - `.env.local`의 Neon credential은 도구 로그 노출 이력 때문에 작업 종료 후 반드시 회전해야 한다.
-  - frontend 전체 build는 기존 `/stamps` prerender에서 `catalog.stamps`가 undefined인 별도 오류로 실패한다.
