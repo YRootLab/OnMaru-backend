@@ -65,7 +65,7 @@ public class OdiiSyncSchedulingAdapter {
         });
     }
 
-    @Scheduled(cron = "${onmaru.odii.sync.cron:0 0 3 * * *}")
+    @Scheduled(cron = "${onmaru.odii.sync.cron:0 0 3 * * *}", zone = "Asia/Seoul")
     public void scheduledSync() {
         LOGGER.info("triggering scheduled odii sync run");
         runSync("scheduled-cron");

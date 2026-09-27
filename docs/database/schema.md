@@ -73,6 +73,11 @@
 // 식별해 개인정보를 복제하지 않고 deletion ledger에 기록하며, 모든 대상이 사라진 뒤에만
 // 회원 deletion ledger를 COMPLETED로 전환한다. DELETING tombstone은
 // cleanup과 경합한 체크인 또는 랭킹 참여가 개인정보 row를 다시 만들지 못하게 한다.
+// V031은 TourAPI 국문 v4.4에서 기존 areaCode/sigunguCode를 대체한 법정동 코드
+// lDongRegnCd/lDongSignguCd를 catalog_kto_korean_content_versions에 보존한다.
+// 최초 areaBasedList2 전 페이지는 적격성 판정과 무관하게 원천 version에 저장하고,
+// 공개 catalog_place_versions만 공식 lclsSystmCode2 분류명·좌표 정책을 통과한 행으로 구성한다.
+// 제목에 "한옥"이 포함되는지는 공개 적격성 판정 기준으로 사용하지 않는다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

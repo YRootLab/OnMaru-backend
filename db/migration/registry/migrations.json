@@ -266,6 +266,15 @@
       "checksum": "hanok-stamp-identity-v030-20260927",
       "sha256": "0a584cda9d66ee18fda9c36431da639bb4103b891086e63d73928f74fe481bf2",
       "description": "Production JDBC identity store PKCE verification persistence"
+    },
+    {
+      "version": "031",
+      "reservedFor": "TOURAPI_V44_CATALOG",
+      "issueNumber": 375,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V031__375_tourapi_v44_legal_district_codes.sql",
+      "checksum": "tourapi-v44-legal-district-v031-20260927",
+      "sha256": "bc3633df23862a5257e500626ce492aef11c81ca84e7b6aa0a0d5930033ea18b",
+      "description": "TourAPI v4.4 legal district codes for complete Korean catalog staging"
     }
   ]
 }

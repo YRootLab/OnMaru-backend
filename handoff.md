@@ -1,1 +1,33 @@
 # handoff.md
+
+- Branch: `feature/375-tourapi-catalog`
+- Issue: #375
+- Scope: TourAPI 국문 v4.4 전체 원천 적재와 Neon-backed 지도/한옥 공개 snapshot
+- Key changes:
+  - production의 지도 2건/한옥 25건 메모리 store를 비활성화하고 활성 DB revision을 조회한다.
+  - `areaBasedList2` 전 page를 page 단위 staging하고 `totalCount` 일치 후 active pointer를 교체한다.
+  - 부적격 행도 KTO 원천 version에 저장하며 공개 place version에서만 제외한다.
+  - `lclsSystmCode2` 공식 코드명으로 category를 판정하고 제목 키워드는 판정에 쓰지 않는다.
+  - 앱 기동 시 최초 수집과 매일 03:00 Asia/Seoul full snapshot을 실행한다.
+  - 기존 Odii 전체 수집 cron도 Render 기본 timezone과 무관하게 03:00 Asia/Seoul로 고정한다.
+  - Odii 공급자가 마지막 page의 `numOfRows`를 실제 반환 건수로 바꾸는 경우에도 요청 page size와 `totalCount` 누적으로 종료한다.
+  - Odii JDBC staging을 page 단위 JSONB bulk insert로 바꿔 원격 Neon 왕복을 줄인다.
+  - V031에서 TourAPI v4.4 법정동 코드를 보존한다.
+- Verification:
+  - 2026-09-27 공식 TourAPI 실호출: 분류체계 246건, `areaBasedList2` 49,643건/50 page, contentId 중복 0건.
+  - Neon V031 적용 및 실제 활성 revision 게시 완료: 국문 원천 49,643건, 공개 장소 23,743건, 격리 25,900건.
+  - 활성 공개 분포: 전통음식 8,172, 역사문화 3,361, 자연 3,009, 한옥카페 1,833, 레저 1,791, 문화예술 1,655, 전통시장 1,111, 정원생태 898, 지역체험 829, 한옥숙박 499, 전통체험 377, 한옥 208.
+  - Odii 실제 활성 revision 게시 완료: 공개 스토리 6,205건, 지점 2,095건. 공급자 원천 6,669건 중 부적격 콘텐츠는 public revision에서 제외한다.
+  - 누적되어 Neon 512MB 한도를 채운 비활성 FAILED/STAGING revision 10개와 그 하위 staging data를 정리했으며 활성 PUBLISHED revision은 보존했다.
+  - 현재 운영 API는 지도 2건, 한옥 기본 page 20건을 반환해 아직 production sample store가 활성화된 상태임을 확인했다.
+  - TourAPI URI/parser/source/qualification tests pass.
+  - `JdbcTourApiCatalogPublisherTests`와 migration tests pass against PostGIS 17.
+  - `OdiiHttpClientTests`와 `JdbcAudioRevisionStoreIntegrationTests`가 bulk staging 및 마지막 page 회귀 사례를 포함해 통과했다.
+  - CI Java lane 전체가 통과했고, 마지막 공식 분류명 보정 뒤 resolver target test도 재통과했다.
+  - repository hygiene 117 tests, planning/fixture 검증과 contract 검증이 통과했다.
+- Open risk:
+  - 현재 production API는 아직 배포 전 코드라 지도 2건/한옥 sample을 반환한다. 이 branch가 Git Flow로 master까지 배포된 뒤 Neon 활성 revision을 조회한다.
+  - Neon 무료 프로젝트 512MB 한도에 근접할 수 있으므로 terminal staging revision 7일 보존 정책과 revision GC를 운영에서 실행해야 한다.
+  - `.env.local`에 사용한 Neon/API credential은 도구 로그 노출 이력 때문에 작업 종료 후 반드시 회전해야 한다.
+  - 개발계정 일 1,000 호출 때문에 장소별 4개 상세 API 전수 보강은 별도 quota 계획이 필요하다.
+  - 지역별관광자원수요 v4.0 월별 dataset은 장소 catalog와 별개이며 아직 runtime 수집기가 없다.

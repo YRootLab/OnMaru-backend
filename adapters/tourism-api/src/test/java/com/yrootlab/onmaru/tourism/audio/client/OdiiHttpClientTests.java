@@ -185,6 +185,24 @@ class OdiiHttpClientTests {
                 .doesNotContain("keyword=");
     }
 
+    @Test
+    void storySyncPageSourceStopsWhenProviderReportsOnlyTheLastPageRowCount() throws Exception {
+        server = startServer(exchange -> send(exchange, 200, successBody()
+                .replace("\"numOfRows\": 1, \"pageNo\": 1, \"totalCount\": 1",
+                        "\"numOfRows\": 1, \"pageNo\": 7, \"totalCount\": 6001")));
+        var source = new OdiiStorySyncPageSource(
+                client(0),
+                new OdiiUriBuilder(serverUri(), "secret", "OnMaru"),
+                new OdiiSourceItemMapper(),
+                1000
+        );
+
+        var page = source.fetchFull("ko", 7);
+
+        assertThat(page.lastPage()).isTrue();
+        assertThat(page.stories()).hasSize(1);
+    }
+
     private OdiiHttpClient client(int retries) {
         return new OdiiHttpClient(
                 new ObjectMapper(),
