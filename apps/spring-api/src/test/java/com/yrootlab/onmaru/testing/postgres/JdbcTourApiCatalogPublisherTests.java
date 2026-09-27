@@ -5,6 +5,11 @@ import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStore;
 import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceStore;
 import com.yrootlab.onmaru.catalog.application.query.spatial.InMemoryMapPlaceStore;
+import com.yrootlab.onmaru.catalog.editorial.MonthlyHanokEditionService;
+import com.yrootlab.onmaru.catalog.screenhanok.ScreenHanokIngestionService;
+import com.yrootlab.onmaru.catalog.screenhanok.ScreenHanokQueryService;
+import com.yrootlab.onmaru.config.secrets.FakeSecretProvider;
+import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
 import com.yrootlab.onmaru.persistence.catalog.CatalogSnapshotPersistenceConfiguration;
 import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPlaceSnapshotStore;
@@ -22,6 +27,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import javax.sql.DataSource;
 import java.sql.DriverManager;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -88,16 +94,23 @@ class JdbcTourApiCatalogPublisherTests {
             context.getEnvironment().setActiveProfiles("production");
             context.registerBean(DataSource.class, () -> dataSource);
             context.registerBean(InMemorySavedPlaceStore.class, InMemorySavedPlaceStore::new);
+            context.registerBean(SecretProvider.class, FakeSecretProvider::new);
+            context.registerBean(Clock.class, Clock::systemUTC);
             context.register(
                     CatalogSnapshotPersistenceConfiguration.class,
                     Class.forName("com.yrootlab.onmaru.web.map.place.MapPlaceConfiguration"),
-                    Class.forName("com.yrootlab.onmaru.web.hanok.list.HanokListConfiguration"));
+                    Class.forName("com.yrootlab.onmaru.web.hanok.list.HanokListConfiguration"),
+                    Class.forName("com.yrootlab.onmaru.web.editorial.MonthlyHanokEditionConfiguration"),
+                    Class.forName("com.yrootlab.onmaru.web.screenhanok.ScreenHanokConfiguration"));
             context.refresh();
 
             assertThat(context.getBean(MapPlaceStore.class)).isNotInstanceOf(InMemoryMapPlaceStore.class);
             assertThat(context.getBean(HanokListStore.class)).isNotInstanceOf(InMemoryHanokListStore.class);
             assertThat(context.getBeansOfType(InMemoryMapPlaceStore.class)).isEmpty();
             assertThat(context.getBeansOfType(InMemoryHanokListStore.class)).isEmpty();
+            assertThat(context.getBean(MonthlyHanokEditionService.class)).isNotNull();
+            assertThat(context.getBean(ScreenHanokQueryService.class)).isNotNull();
+            assertThat(context.getBean(ScreenHanokIngestionService.class)).isNotNull();
         }
     }
 
