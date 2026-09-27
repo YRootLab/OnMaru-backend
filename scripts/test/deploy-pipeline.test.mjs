@@ -39,6 +39,11 @@ describe('container and staging release pipeline', () => {
       /uv sync --frozen --no-dev --no-editable/,
       'ai/Dockerfile must install the app non-editably before copying the venv',
     );
+    assert.match(
+      read('Dockerfile'),
+      /ENV SPRING_PROFILES_ACTIVE=production/,
+      'the deployed Spring image must select JDBC-backed production stores by default',
+    );
   });
 
   it('keeps staging deploy order gated by migration and rollback evidence', () => {
