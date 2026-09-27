@@ -14,6 +14,7 @@ import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkMatchMethod;
 import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkReviewStatus;
 import com.yrootlab.onmaru.persistence.audio.JdbcAudioPlaceLinkStore;
 import com.yrootlab.onmaru.persistence.audio.AudioPersistenceConfiguration;
+import com.yrootlab.onmaru.persistence.saved.JdbcOdiiStoryPopularityStore;
 import com.yrootlab.onmaru.audio.sync.InMemoryAudioRevisionStore;
 import com.yrootlab.onmaru.config.secrets.SecretBundle;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
@@ -82,6 +83,14 @@ class JdbcAudioRevisionStoreIntegrationTests {
     @AfterAll
     static void stopPostgres() {
         postgres.stop();
+    }
+
+    @Test
+    void aggregatesPopularityFromAnInstantBoundaryWithPostgres() {
+        var store = new JdbcOdiiStoryPopularityStore(dataSource());
+
+        assertThat(store.playCounts(List.of("odii-story-no-events"), NOW)).isEmpty();
+        assertThat(store.saveCounts(List.of("odii-story-no-events"), NOW)).isEmpty();
     }
 
     @Test
