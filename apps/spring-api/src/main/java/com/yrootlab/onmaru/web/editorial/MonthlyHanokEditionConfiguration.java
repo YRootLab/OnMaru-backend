@@ -1,7 +1,7 @@
 package com.yrootlab.onmaru.web.editorial;
 
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokSavedStateLookup;
-import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
+import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStore;
 import com.yrootlab.onmaru.catalog.editorial.InMemoryMonthlyHanokEditionStore;
 import com.yrootlab.onmaru.catalog.editorial.MonthlyHanokEditionDraft;
 import com.yrootlab.onmaru.catalog.editorial.MonthlyHanokEditionService;
@@ -38,7 +38,7 @@ class MonthlyHanokEditionConfiguration {
     @Bean
     MonthlyHanokEditionService monthlyHanokEditionService(
             InMemoryMonthlyHanokEditionStore monthlyHanokEditionStore,
-            InMemoryHanokListStore hanokListStore,
+            HanokListStore hanokListStore,
             HanokSavedStateLookup savedStateLookup) {
         return new MonthlyHanokEditionService(monthlyHanokEditionStore, hanokListStore, savedStateLookup);
     }
