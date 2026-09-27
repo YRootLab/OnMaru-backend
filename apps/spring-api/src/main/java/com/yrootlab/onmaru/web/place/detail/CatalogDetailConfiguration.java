@@ -4,12 +4,22 @@ import com.yrootlab.onmaru.catalog.application.query.detail.CoordinatesProjectio
 import com.yrootlab.onmaru.catalog.application.query.detail.ImageProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailStore;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailQueryService;
+import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailStore;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.RegionProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.SavedPlaceStateLookup;
 import com.yrootlab.onmaru.journey.saved.place.SavedPlaceStore;
+import com.yrootlab.onmaru.persistence.catalog.JdbcPlaceDetailStore;
+import javax.sql.DataSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.ObjectProvider;
+import com.yrootlab.onmaru.config.secrets.SecretProvider;
+import com.yrootlab.onmaru.tourism.catalog.TourApiClientConfiguration;
+import com.yrootlab.onmaru.tourism.catalog.client.TourApiHttpClient;
+import com.yrootlab.onmaru.tourism.catalog.client.TourApiUriBuilder;
 
 import java.util.List;
 
@@ -36,8 +46,27 @@ class CatalogDetailConfiguration {
     }
 
     @Bean
+    @Profile("production")
+    JdbcPlaceDetailStore publishedPlaceDetailStore(DataSource dataSource) {
+        return new JdbcPlaceDetailStore(dataSource);
+    }
+
+    @Bean
+    @Primary
+    @Profile("production")
+    PlaceDetailStore effectivePlaceDetailStore(JdbcPlaceDetailStore database,
+                                                ObjectProvider<TourApiHttpClient> clients,
+                                                SecretProvider secrets,
+                                                TourApiClientConfiguration.TourApiSyncSettings settings) {
+        TourApiHttpClient client = clients.getIfAvailable();
+        if (client == null) return database;
+        return new TourApiFallbackPlaceDetailStore(database, client, new TourApiUriBuilder(
+                settings.baseUri(), secrets.get("tourapi.service-key").current(), settings.mobileApp()));
+    }
+
+    @Bean
     PlaceDetailQueryService placeDetailQueryService(
-            InMemoryPlaceDetailStore store,
+            PlaceDetailStore store,
             SavedPlaceStateLookup savedPlaceStateLookup) {
         return new PlaceDetailQueryService(store, savedPlaceStateLookup);
     }

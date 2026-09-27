@@ -13,6 +13,7 @@ import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
 import com.yrootlab.onmaru.persistence.catalog.CatalogSnapshotPersistenceConfiguration;
 import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPlaceSnapshotStore;
+import com.yrootlab.onmaru.persistence.catalog.JdbcPlaceDetailStore;
 import com.yrootlab.onmaru.persistence.catalog.JdbcTourApiCatalogPublisher;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
@@ -28,6 +29,7 @@ import org.testcontainers.utility.DockerImageName;
 import javax.sql.DataSource;
 import java.sql.DriverManager;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -75,12 +77,13 @@ class JdbcTourApiCatalogPublisherTests {
                 invalidCoordinateRow("2004", "좌표가 깨진 공공데이터")
         ));
         var result = publisher.complete(session, page.rawCount(), page.rawCount(),
-                page.publishedCount(), page.quarantinedCount(), fetchedAt);
+                page.publishedCount(), page.quarantinedCount(), page.skippedCount(), fetchedAt);
 
         assertThat(result.publishedCount()).isEqualTo(2);
-        assertThat(result.quarantinedCount()).isEqualTo(2);
+        assertThat(result.quarantinedCount()).isEqualTo(1);
+        assertThat(result.skippedCount()).isEqualTo(1);
         assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isEqualTo(4);
-        assertThat(queryCount("onmaru.operations_sync_quarantine")).isEqualTo(2);
+        assertThat(queryCount("onmaru.operations_sync_quarantine")).isZero();
         assertThat(queryCount("onmaru.catalog_kto_korean_content_versions WHERE ldong_regn_cd = '11' AND ldong_signgu_cd = '110'"))
                 .isEqualTo(4);
         var hanokSnapshot = new JdbcCatalogPlaceSnapshotStore(dataSource).findPublishedHanokSnapshot();
@@ -90,6 +93,16 @@ class JdbcTourApiCatalogPublisherTests {
         assertThat(hanokSnapshot.getFirst().address()).isEqualTo("서울 종로구");
         assertThat(hanokSnapshot.getFirst().coordinates().lat()).isEqualTo(37.58);
         assertThat(hanokSnapshot.getFirst().coordinates().lng()).isEqualTo(126.98);
+
+        var detailStore = new JdbcPlaceDetailStore(dataSource);
+        var placeId = hanokSnapshot.getFirst().placeId();
+        var detail = detailStore.findByPlaceId(placeId).orElseThrow();
+        var source = detailStore.findTourApiReference(placeId).orElseThrow();
+        assertThat(detail.name()).isEqualTo("북촌 한옥");
+        assertThat(detail.category()).isEqualTo("HANOK");
+        assertThat(detail.address()).isEqualTo("서울 종로구");
+        assertThat(source.contentId()).isEqualTo("2001");
+        assertThat(source.contentTypeId()).isEqualTo("12");
     }
 
     @Test
@@ -97,25 +110,84 @@ class JdbcTourApiCatalogPublisherTests {
         var publisher = new JdbcTourApiCatalogPublisher(dataSource);
         var records = List.of(
                 row("2001", "북촌 한옥", "HANOK"),
-                row("2002", "전주 남부시장", "TRADITIONAL_MARKET"));
+                row("2002", "전주 남부시장", "TRADITIONAL_MARKET"),
+                row("2003", "서비스 범위 밖 일반 관광지", null),
+                invalidCoordinateRow("2004", "좌표 오류"));
 
         var firstSession = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
         var firstPage = publisher.stagePage(firstSession, records);
         var first = publisher.complete(firstSession, firstPage.rawCount(), firstPage.rawCount(),
-                firstPage.publishedCount(), firstPage.quarantinedCount(),
+                firstPage.publishedCount(), firstPage.quarantinedCount(), firstPage.skippedCount(),
                 Instant.parse("2026-09-27T03:01:00Z"));
 
         var secondSession = publisher.start(Instant.parse("2026-09-28T03:00:00Z"));
         var secondPage = publisher.stagePage(secondSession, records);
         var second = publisher.complete(secondSession, secondPage.rawCount(), secondPage.rawCount(),
-                secondPage.publishedCount(), secondPage.quarantinedCount(),
+                secondPage.publishedCount(), secondPage.quarantinedCount(), secondPage.skippedCount(),
                 Instant.parse("2026-09-28T03:01:00Z"));
 
         assertThat(second.revisionId()).isEqualTo(first.revisionId());
         assertThat(queryCount("onmaru.catalog_dataset_revisions WHERE dataset = 'kto-korean-tour'"))
                 .isEqualTo(1);
-        assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isEqualTo(2);
+        assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isEqualTo(4);
         assertThat(queryCount("onmaru.catalog_place_versions")).isEqualTo(2);
+        assertThat(queryCount("onmaru.operations_sync_quarantine")).isZero();
+    }
+
+    @Test
+    void replacesChangedSnapshotWithoutRetainingPreviousPublishedRevision() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var firstSession = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
+        var firstPage = publisher.stagePage(firstSession, List.of(row("2001", "북촌 한옥", "HANOK")));
+        publisher.complete(firstSession, firstPage.rawCount(), firstPage.rawCount(),
+                firstPage.publishedCount(), firstPage.quarantinedCount(), firstPage.skippedCount(),
+                Instant.parse("2026-09-27T03:01:00Z"));
+
+        var secondSession = publisher.start(Instant.parse("2026-09-30T03:00:00Z"));
+        var secondPage = publisher.stagePage(secondSession, List.of(
+                row("2001", "북촌 한옥", "HANOK"),
+                row("2002", "전주 남부시장", "TRADITIONAL_MARKET")));
+        publisher.complete(secondSession, secondPage.rawCount(), secondPage.rawCount(),
+                secondPage.publishedCount(), secondPage.quarantinedCount(), secondPage.skippedCount(),
+                Instant.parse("2026-09-30T03:01:00Z"));
+
+        assertThat(queryCount("onmaru.catalog_dataset_revisions WHERE dataset = 'kto-korean-tour'"))
+                .isEqualTo(1);
+        assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isEqualTo(2);
+    }
+
+    @Test
+    void failedSnapshotKeepsOnlyRunMetadataAndDeletesStagedRowsImmediately() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var session = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
+        publisher.stagePage(session, List.of(
+                row("2001", "북촌 한옥", "HANOK"),
+                invalidCoordinateRow("2002", "좌표 오류")));
+
+        publisher.fail(session, "TOURAPI_SYNC_FAILED", Instant.parse("2026-09-27T03:01:00Z"));
+
+        assertThat(queryCount("onmaru.catalog_dataset_revisions WHERE dataset = 'kto-korean-tour'"))
+                .isZero();
+        assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isZero();
+        assertThat(queryCount("onmaru.catalog_place_versions")).isZero();
+        assertThat(queryCount("onmaru.operations_sync_quarantine")).isZero();
+        assertThat(queryCount("onmaru.operations_sync_runs WHERE status = 'FAILED' AND revision_id IS NULL"))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void nextFullSyncBecomesDueOnlyAfterConfiguredMinimumInterval() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var completedAt = Instant.parse("2026-09-27T03:01:00Z");
+        var session = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
+        var page = publisher.stagePage(session, List.of(row("2001", "북촌 한옥", "HANOK")));
+        publisher.complete(session, page.rawCount(), page.rawCount(),
+                page.publishedCount(), page.quarantinedCount(), page.skippedCount(), completedAt);
+
+        assertThat(publisher.isSyncDue(completedAt.plus(Duration.ofHours(71)), Duration.ofHours(72)))
+                .isFalse();
+        assertThat(publisher.isSyncDue(completedAt.plus(Duration.ofHours(72)), Duration.ofHours(72)))
+                .isTrue();
     }
 
     @Test

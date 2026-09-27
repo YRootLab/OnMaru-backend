@@ -1,27 +1,29 @@
 # handoff.md
 
-- Branch: `fix/453-single-active-revision`
+- Branch: `fix/453-quarantine-lifecycle`
 - Issue: #453
-- Scope: Neon 512MiB 제한에서 활성 PUBLISHED revision 1벌만 보존하고 동일 snapshot 재발행을 방지한다.
+- Scope: Neon 512MiB 제한에서 실패 원문 저장을 중단하고 활성 PUBLISHED revision 1벌만 유지하며 TourAPI 동기화를 72시간 간격으로 제한한다.
 - Key changes:
-  - retention은 데이터셋별 활성 revision만 보호하고 비활성 PUBLISHED와 FAILED를 즉시 정리한다.
-  - STAGING/READY는 진행 중 수집 보호를 위해 1시간 유예 후 정리한다.
-  - TourAPI와 ODII 새 snapshot이 활성본과 동일하면 신규 revision을 발행하지 않고 임시 stage를 삭제한다.
-  - 성공 기록과 watermark는 기존 활성 revision을 가리키도록 갱신한다.
+  - `UNSUPPORTED_CATEGORY`는 장애가 아닌 `SKIPPED`로 분류하고 quarantine JSON을 저장하지 않는다.
+  - 좌표 오류 등 실제 provider 오류도 원문은 저장하지 않고 sync run 건수만 유지한다.
+  - TourAPI 실패 STAGING은 즉시 제거하고, 변경 snapshot 게시 후 이전 PUBLISHED도 같은 트랜잭션에서 제거한다.
+  - 재배포 시 전체 동기화를 제거하고 마지막 성공 후 72시간이 지나야 다음 동기화를 허용한다.
+  - 운영 정리는 자동 migration이 아닌 승인용 dry-run/cleanup SQL로 분리했다.
+  - 운영 장소 상세는 sample 메모리가 아니라 active PUBLISHED PostgreSQL snapshot을 조회한다.
+  - 일반 상세은 `contentId/contentTypeId`로 TourAPI를 on-demand 호출하고 장애 시 DB 기본정보를 반환한다.
+  - 저장된 한옥 상세가 있으면 DB를 우선하고 TourAPI 호출을 생략한다.
 - Verification:
-  - 활성본 1벌 보호, 비활성/실패 revision 제거, 동일 TourAPI·ODII snapshot 재사용 회귀 테스트를 추가했다.
-  - 대상 PostgreSQL·모듈 회귀 테스트가 `BUILD SUCCESSFUL`로 끝났다.
-  - 2026-09-28 운영 긴급 정리에서 기존 비활성/실패 revision과 정리 중 재생성된 superseded revision을 삭제했다.
-  - 최종 활성 PUBLISHED는 DataLab·TourAPI·ODII 각각 1개, 비활성 revision은 0개이며 DB 크기는 324MB다.
+  - 운영 확인: quarantine 137,298행 중 `UNSUPPORTED_CATEGORY` 137,239행, 고유 fingerprint 25,900개, 실행 7회 중복.
+  - 반복 snapshot, 실패 snapshot, 이전 published 제거, 72시간 cadence, cleanup SQL PostgreSQL 통합 테스트가 성공했다.
+  - 운영 cleanup 실행 후 DB 338MB, 비활성 revision 0, quarantine 0, 활성 장소 23,743·Odii story 6,205·자막 6,069를 확인했다.
+  - `./gradlew check :apps:spring-api:bootJar --no-daemon` 성공(13m 14s).
 - Next step:
-  - fresh PostgreSQL 통합 테스트와 변경 범위 검증 후 `develop` 대상 PR을 생성한다.
-  - CI의 필수 `verify`를 통과시켜 병합하고 release branch를 통해 운영에 배포한다.
-  - 배포 후 retention을 다시 실행하고 logical size와 동일 snapshot 재동기화 전후 행 수를 비교한다.
+  - fresh 전체 검증 후 `develop` 대상 PR을 생성·병합한다.
+  - dry-run SQL 결과를 검토하고 명시적 승인 후에만 운영 cleanup SQL을 실행한다.
+  - 단일 긴급 PR로 #453과 #464 범위를 함께 `develop`에 반영한다.
 - Open risk:
-  - 운영은 아직 이전 코드라 배포 전 새 동기화가 실행되면 중복 revision이 다시 생성될 수 있다.
-  - CI, Staging Deploy, Release Please가 수동 중단 상태라 병합·배포 전에 필요한 workflow 재활성화가 필요하다.
+  - 운영은 아직 이전 코드라 새 코드가 master에 배포되기 전 Cron 실행 시 재누적 가능성이 남는다.
   - `.env.local`의 Neon credential은 도구 로그 노출 이력 때문에 작업 종료 후 반드시 회전해야 한다.
-  - frontend 전체 build는 기존 `/stamps` prerender에서 `catalog.stamps`가 undefined인 별도 오류로 실패한다.
 
 ## 2026-09-27 Issue #454 추가 검증
 

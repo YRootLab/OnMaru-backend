@@ -20,6 +20,8 @@ import org.testcontainers.utility.DockerImageName;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -204,6 +206,52 @@ class RetentionCleanupJdbcTests {
                     """.formatted(recentStaging))).isOne();
             assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.audio_spot_versions"))
                     .isZero();
+        }
+    }
+
+    @Test
+    void approvedStorageCleanupScriptKeepsActiveRevisionAndCompactRunMetadata() throws Exception {
+        resetAndMigrate();
+        var activeRevision = UUID.randomUUID();
+        var failedRevision = UUID.randomUUID();
+        var runId = UUID.randomUUID();
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_dataset_revisions (id, dataset, status, fetched_at, published_at)
+                    VALUES
+                      ('%s', 'kto-korean-tour', 'PUBLISHED', '2026-09-27T00:00:00Z', '2026-09-27T01:00:00Z'),
+                      ('%s', 'kto-korean-tour', 'FAILED', '2026-09-28T00:00:00Z', NULL)
+                    """.formatted(activeRevision, failedRevision));
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_active_datasets (dataset, revision_id, activated_at)
+                    VALUES ('kto-korean-tour', '%s', '2026-09-27T01:00:00Z')
+                    """.formatted(activeRevision));
+            statement.execute("""
+                    INSERT INTO onmaru.operations_sync_runs (
+                        id, dataset, scheduled_for, attempt, status, revision_id, started_at, finished_at
+                    ) VALUES ('%s', 'kto-korean-tour', '2026-09-28T00:00:00Z', 1,
+                              'FAILED', '%s', '2026-09-28T00:00:00Z', '2026-09-28T00:01:00Z')
+                    """.formatted(runId, failedRevision));
+            statement.execute("""
+                    INSERT INTO onmaru.operations_sync_quarantine (
+                        run_id, record_key, error_code, payload_hash, redacted_payload, expires_at
+                    ) VALUES ('%s', 'tourapi:1', 'INVALID_COORDINATES', repeat('a', 64),
+                              '{"title":"bad"}'::jsonb, '2026-10-05T00:00:00Z')
+                    """.formatted(runId));
+
+            String cleanup = Files.readString(Path.of("../../scripts/operations/453-storage-cleanup.sql"));
+            statement.execute(cleanup);
+
+            assertThat(countRows(statement, "SELECT count(*) FROM onmaru.operations_sync_quarantine")).isZero();
+            assertThat(countRows(statement, "SELECT count(*) FROM onmaru.catalog_dataset_revisions")).isOne();
+            assertThat(countRows(statement, """
+                    SELECT count(*) FROM onmaru.catalog_dataset_revisions WHERE id = '%s'
+                    """.formatted(activeRevision))).isOne();
+            assertThat(countRows(statement, """
+                    SELECT count(*) FROM onmaru.operations_sync_runs
+                    WHERE id = '%s' AND status = 'FAILED' AND revision_id IS NULL
+                    """.formatted(runId))).isOne();
         }
     }
 

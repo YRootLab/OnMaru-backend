@@ -48,7 +48,8 @@ class TourApiLiveCatalogSyncTests {
 
         var result = service.syncFullSnapshot();
         assertThat(result.rawCount()).isGreaterThan(40_000);
-        assertThat(result.rawCount()).isEqualTo(result.publishedCount() + result.quarantinedCount());
+        assertThat(result.rawCount())
+                .isEqualTo(result.publishedCount() + result.quarantinedCount() + result.skippedCount());
 
         try (Connection connection = dataSource.getConnection()) {
             assertThat(count(connection, """

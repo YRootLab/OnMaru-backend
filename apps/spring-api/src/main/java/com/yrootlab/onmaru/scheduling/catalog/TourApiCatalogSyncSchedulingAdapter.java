@@ -1,29 +1,26 @@
 package com.yrootlab.onmaru.scheduling.catalog;
 
 import com.yrootlab.onmaru.tourism.catalog.TourApiCatalogSyncService;
+import com.yrootlab.onmaru.tourism.catalog.TourApiClientConfiguration.TourApiSyncSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.util.concurrent.CompletableFuture;
 
 @Component
 public final class TourApiCatalogSyncSchedulingAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TourApiCatalogSyncSchedulingAdapter.class);
     private final ObjectProvider<TourApiCatalogSyncService> serviceProvider;
+    private final TourApiSyncSettings settings;
 
-    public TourApiCatalogSyncSchedulingAdapter(ObjectProvider<TourApiCatalogSyncService> serviceProvider) {
+    public TourApiCatalogSyncSchedulingAdapter(
+            ObjectProvider<TourApiCatalogSyncService> serviceProvider,
+            TourApiSyncSettings settings
+    ) {
         this.serviceProvider = serviceProvider;
-    }
-
-    @EventListener(ApplicationReadyEvent.class)
-    public void onReady() {
-        CompletableFuture.runAsync(() -> run("initial-boot"));
+        this.settings = settings;
     }
 
     @Scheduled(cron = "${onmaru.tourapi.sync.cron:0 0 3 * * *}", zone = "Asia/Seoul")
@@ -34,6 +31,11 @@ public final class TourApiCatalogSyncSchedulingAdapter {
     public synchronized void run(String trigger) {
         var service = serviceProvider.getIfAvailable();
         if (service == null) return;
+        if (!service.isSyncDue(settings.minimumInterval())) {
+            LOGGER.info("TourAPI catalog sync skipped: trigger={}, minimumInterval={}",
+                    trigger, settings.minimumInterval());
+            return;
+        }
         try {
             var result = service.syncFullSnapshot();
             LOGGER.info("TourAPI catalog sync completed: trigger={}, raw={}, published={}, quarantined={}, revision={}",

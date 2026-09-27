@@ -14,4 +14,8 @@ public record QualificationResult(
     static QualificationResult quarantined(QuarantineRecord quarantine) {
         return new QualificationResult(QualificationStatus.QUARANTINED, Optional.empty(), Optional.of(quarantine));
     }
+
+    static QualificationResult skipped() {
+        return new QualificationResult(QualificationStatus.SKIPPED, Optional.empty(), Optional.empty());
+    }
 }

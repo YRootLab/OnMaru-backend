@@ -68,8 +68,7 @@ class SourceQualificationPolicyTests {
                 "mapy", "37.57"
         ));
 
-        assertThat(policy.qualify(row).quarantine().orElseThrow().errorCode())
-                .isEqualTo("UNSUPPORTED_CATEGORY");
+        assertThat(policy.qualify(row).status()).isEqualTo(QualificationStatus.SKIPPED);
     }
 
     @Test
@@ -227,13 +226,13 @@ class SourceQualificationPolicyTests {
                 "cat3", "A02061000",
                 "mapx", "126.9",
                 "mapy", "37.5"
-        ))).quarantine().orElseThrow().errorCode()).isEqualTo("UNSUPPORTED_CATEGORY");
+        ))).status()).isEqualTo(QualificationStatus.SKIPPED);
     }
 
     @Test
-    void quarantinesCapturedBookstoreSampleGagabookshopAsConceptMismatch() {
+    void skipsCapturedBookstoreSampleGagabookshopAsConceptMismatch() {
         // 실 capture 근거: docs/api/tour/tour_korean_info_api.md (contentid 2750143, 가가책방).
-        // A02061000은 서점으로 OnMaru 전통문화·역사 컨셉과 불부합하므로 격리한다.
+        // A02061000은 서점으로 OnMaru 전통문화·역사 컨셉과 불부합하므로 정상 제외한다.
         SourceRecord row = row(Map.of(
                 "contentid", "2750143",
                 "contenttypeid", "14",
@@ -248,9 +247,9 @@ class SourceQualificationPolicyTests {
 
         QualificationResult result = policy.qualify(row);
 
-        assertThat(result.status()).isEqualTo(QualificationStatus.QUARANTINED);
+        assertThat(result.status()).isEqualTo(QualificationStatus.SKIPPED);
         assertThat(result.candidate()).isEmpty();
-        assertThat(result.quarantine().orElseThrow().errorCode()).isEqualTo("UNSUPPORTED_CATEGORY");
+        assertThat(result.quarantine()).isEmpty();
     }
 
     @Test
@@ -284,8 +283,8 @@ class SourceQualificationPolicyTests {
         assertThat(accepted.status()).isEqualTo(QualificationStatus.CANDIDATE);
         assertThat(accepted.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.CULTURE_ART);
 
-        QualificationResult quarantined = policy.qualify(tourismSiteType);
-        assertThat(quarantined.quarantine().orElseThrow().errorCode()).isEqualTo("UNSUPPORTED_CATEGORY");
+        QualificationResult skipped = policy.qualify(tourismSiteType);
+        assertThat(skipped.status()).isEqualTo(QualificationStatus.SKIPPED);
     }
 
     @Test
@@ -316,15 +315,35 @@ class SourceQualificationPolicyTests {
     }
 
     @Test
+    void skipsUnsupportedCategoriesWithoutRetainingTheirPayloadAsQuarantine() {
+        SourceRecord unsupported = row(Map.of(
+                "contentid", "200001",
+                "contenttypeid", "12",
+                "title", "서비스 범위 밖 일반 관광지",
+                "cat1", "A99",
+                "cat2", "A9901",
+                "cat3", "A99010100",
+                "mapx", "126.9",
+                "mapy", "37.5"
+        ));
+
+        QualificationResult result = policy.qualify(unsupported);
+
+        assertThat(result.status()).isEqualTo(QualificationStatus.SKIPPED);
+        assertThat(result.candidate()).isEmpty();
+        assertThat(result.quarantine()).isEmpty();
+    }
+
+    @Test
     void quarantinePayloadHashIsStableAndRedactedPayloadRemovesSecretMaterial() {
         SourceRecord row = row(Map.ofEntries(
                 entry("contentid", "200001"),
                 entry("contenttypeid", "12"),
-                entry("title", "비허용 일반 관광지"),
-                entry("cat1", "A99"),
-                entry("cat2", "A9901"),
-                entry("cat3", "A99010100"),
-                entry("mapx", "126.9"),
+                entry("title", "좌표가 손상된 한옥"),
+                entry("cat1", "A02"),
+                entry("cat2", "A0201"),
+                entry("cat3", "A02010700"),
+                entry("mapx", "invalid"),
                 entry("mapy", "37.5"),
                 entry("serviceKey", "REAL_PROVIDER_KEY"),
                 entry("access_token", "REAL_ACCESS_TOKEN"),
