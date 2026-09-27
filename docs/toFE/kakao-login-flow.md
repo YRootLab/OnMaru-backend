@@ -131,13 +131,14 @@ sequenceDiagram
 | 항목 | 로컬 | 배포 (Render) |
 |---|---|---|
 | 로그인 시작 | `http://localhost:8080/auth/kakao/login` | `https://onmaru-backend.onrender.com/auth/kakao/login` |
-| `auth=` 복귀 지점 | `http://localhost:8080{returnTo}?auth=...` | 백엔드 호스트 기준 (FE origin redirect는 백엔드 후속 작업, 아래 4 참고) |
+| `auth=` 복귀 지점 | `ONMARU_OAUTH_KAKAO_FRONTENDBASEURL{returnTo}?auth=...` | `https://www.onmaru.site{returnTo}?auth=...` |
 | FE `.env.local` | `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080` | `https://onmaru-backend.onrender.com` |
 | 카카오 키 | FE 저장 불필요 | FE 저장 불필요 |
 
-## 4. 알려진 제한 (배포 전 백엔드 후속 작업)
+## 4. 프론트엔드 복귀 URL
 
-- 콜백 성공 redirect가 **상대경로**(`/discover?auth=success`)라, FE와 백엔드가 다른 호스트면 브라우저가 **백엔드 호스트**의 `/discover`로 이동한다. 배포 전에 백엔드가 FE origin allowlist를 기준으로 절대경로 redirect하도록 수정 예정(`troubleshooting-worklog/26.09.20 kakao-auth-authorization-flow.md` 참고). 로컬에서는 포트만 달라 같은 호스트라 문제없다.
+- 콜백 성공·실패 모두 `ONMARU_OAUTH_KAKAO_FRONTENDBASEURL`과 서버가 검증한 내부 `returnTo` 경로를 조합해 FE로 복귀한다.
+- `returnTo`는 `/`로 시작하는 내부 경로만 허용하며 외부 URL, `//`, 역슬래시 및 개행은 `/discover`로 대체한다.
 - 개인화 응답은 `Cache-Control: no-store`다. FE 캐시에 개인 응답을 저장하지 않는다.
 
 ## 5. 백엔드 제공 Auth API 요약

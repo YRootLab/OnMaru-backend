@@ -28,4 +28,12 @@ public record HanokCard(
         this(placeId, name, category, regionName, null, null,
                 thumbnailUrl, summary, tags, savedByMe);
     }
+
+    public Double getLat() {
+        return coordinates == null ? null : coordinates.lat();
+    }
+
+    public Double getLng() {
+        return coordinates == null ? null : coordinates.lng();
+    }
 }

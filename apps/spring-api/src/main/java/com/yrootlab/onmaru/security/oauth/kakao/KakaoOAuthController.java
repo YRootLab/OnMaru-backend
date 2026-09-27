@@ -112,7 +112,7 @@ public final class KakaoOAuthController {
                 || state.isBlank()
                 || browserNonce == null
                 || codeVerifier == null) {
-            return noStoreRedirect(303, URI.create("/discover?auth=failed"), expireNonceCookie(), expireVerifierCookie());
+            return noStoreRedirect(303, frontendRedirect("/discover", "failed"), expireNonceCookie(), expireVerifierCookie());
         }
         try {
             var identity = kakaoOAuthClient.authenticate(code, codeVerifier);
@@ -124,12 +124,12 @@ public final class KakaoOAuthController {
                     identity));
             return noStoreRedirect(
                     303,
-                    URI.create(withAuthStatus(result.returnPath(), "success")),
+                    frontendRedirect(result.returnPath(), "success"),
                     sessionCookie(result.sessionToken()),
                     expireNonceCookie(),
                     expireVerifierCookie());
         } catch (RuntimeException exception) {
-            return noStoreRedirect(303, URI.create("/discover?auth=failed"), expireNonceCookie(), expireVerifierCookie());
+            return noStoreRedirect(303, frontendRedirect("/discover", "failed"), expireNonceCookie(), expireVerifierCookie());
         }
     }
 
@@ -206,5 +206,9 @@ public final class KakaoOAuthController {
     private String withAuthStatus(String returnPath, String status) {
         var separator = returnPath.contains("?") ? "&" : "?";
         return returnPath + separator + "auth=" + status;
+    }
+
+    private URI frontendRedirect(String returnPath, String status) {
+        return URI.create(properties.getFrontendBaseUrl()).resolve(withAuthStatus(returnPath, status));
     }
 }
