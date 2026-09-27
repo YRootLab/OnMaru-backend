@@ -29,6 +29,7 @@ public final class OdiiStoryQueryService {
             .thenComparing(OdiiStoryProjection::storyId);
 
     private final OdiiStoryQueryStore store;
+    private final OdiiStoryRelationalReadPort relationalReadPort;
     private final OdiiSavedStateLookup savedStateLookup;
     private final ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery;
     private final OdiiPublicAudioUrlPolicy audioUrlPolicy;
@@ -76,7 +77,21 @@ public final class OdiiStoryQueryService {
             OdiiStoryCursorCodec cursorCodec,
             ContentTagPipeline contentTagPipeline,
             OdiiStoryPopularityPort popularityPort) {
+        this(store, null, savedStateLookup, approvedPlaceLinkQuery, audioUrlPolicy, cursorCodec,
+                contentTagPipeline, popularityPort);
+    }
+
+    public OdiiStoryQueryService(
+            OdiiStoryQueryStore store,
+            OdiiStoryRelationalReadPort relationalReadPort,
+            OdiiSavedStateLookup savedStateLookup,
+            ApprovedAudioPlaceLinkQuery approvedPlaceLinkQuery,
+            OdiiPublicAudioUrlPolicy audioUrlPolicy,
+            OdiiStoryCursorCodec cursorCodec,
+            ContentTagPipeline contentTagPipeline,
+            OdiiStoryPopularityPort popularityPort) {
         this.store = store;
+        this.relationalReadPort = relationalReadPort;
         this.savedStateLookup = savedStateLookup;
         this.approvedPlaceLinkQuery = approvedPlaceLinkQuery;
         this.audioUrlPolicy = audioUrlPolicy;
@@ -109,6 +124,9 @@ public final class OdiiStoryQueryService {
 
     public OdiiStoryPage list(OdiiStoryQuery query) {
         validateQuery(query);
+        if (relationalReadPort != null && query.category() == null && query.regionCode() == null) {
+            return relationalList(query);
+        }
         var snapshot = store.activeSnapshot();
         var cursor = decodeCursor(query.cursor(), snapshot.revisionId(), query);
         var eligible = snapshot.stories().stream()
@@ -146,6 +164,38 @@ public final class OdiiStoryQueryService {
                 hasMore);
     }
 
+    private OdiiStoryPage relationalList(OdiiStoryQuery query) {
+        OdiiStoryCursor cursor = decodeCursorForQuery(query.cursor(), query);
+        var page = relationalReadPort.list(
+                query.language(),
+                query.limit(),
+                cursor == null ? null : cursor.publishedAt(),
+                cursor == null ? null : cursor.storyId());
+        if (cursor != null && !page.revisionId().equals(cursor.revisionId())) {
+            throw new OdiiCursorExpiredException();
+        }
+        var eligible = page.stories().stream().filter(this::isPublicAndPlayable).toList();
+        var summaries = eligible.stream()
+                .map(story -> summary(story, query.memberId()))
+                .toList();
+        String nextCursor = page.hasMore() && !eligible.isEmpty()
+                ? encodeCursor(page.revisionId(), query, eligible.getLast())
+                : null;
+        var coverage = summaries.isEmpty()
+                ? OdiiCoverageStatus.MISSING
+                : page.languageStatus() == OdiiLanguageStatus.EXACT
+                ? OdiiCoverageStatus.COMPLETE
+                : OdiiCoverageStatus.PARTIAL;
+        return new OdiiStoryPage(
+                SCHEMA_VERSION,
+                coverage,
+                page.language(),
+                page.languageStatus(),
+                summaries,
+                nextCursor,
+                page.hasMore());
+    }
+
     public OdiiStoryPage search(
             String keyword,
             String language,
@@ -154,6 +204,11 @@ public final class OdiiStoryQueryService {
         String normalizedKeyword = validateKeyword(keyword);
         validateLanguage(language);
         validateLimit(limit, "limit", 50);
+
+        if (relationalReadPort != null) {
+            return page(relationalSelection(
+                    relationalReadPort.search(normalizedKeyword, language, limit, false)), memberId);
+        }
 
         var snapshot = store.activeSnapshot();
         var selection = selectLanguage(publicStories(snapshot.stories()), language);
@@ -181,6 +236,11 @@ public final class OdiiStoryQueryService {
         validateLanguage(language);
         validateLimit(limit, "limit", 50);
 
+        if (relationalReadPort != null) {
+            return page(relationalSelection(relationalReadPort.nearby(
+                    latitude, longitude, radiusMeters, language, limit)), memberId);
+        }
+
         var snapshot = store.activeSnapshot();
         var selection = selectLanguage(publicStories(snapshot.stories()), language);
         var nearby = deduplicate(selection.stories()).stream()
@@ -205,6 +265,11 @@ public final class OdiiStoryQueryService {
         validateLanguage(language);
         validateLimit(limit, "limit", 50);
 
+        if (relationalReadPort != null) {
+            return page(relationalSelection(
+                    relationalReadPort.search(normalizedKeyword, language, limit, true)), memberId);
+        }
+
         var snapshot = store.activeSnapshot();
         var selection = selectLanguage(publicStories(snapshot.stories()), language);
         var ranked = deduplicate(selection.stories()).stream()
@@ -219,6 +284,13 @@ public final class OdiiStoryQueryService {
 
     private List<OdiiStoryProjection> publicStories(List<OdiiStoryProjection> stories) {
         return stories.stream().filter(this::isPublicAndPlayable).toList();
+    }
+
+    private LanguageSelection relationalSelection(OdiiStoryReadSelection selection) {
+        return new LanguageSelection(
+                selection.language(),
+                selection.languageStatus(),
+                selection.stories().stream().filter(this::isPublicAndPlayable).toList());
     }
 
     private OdiiStoryPage page(
@@ -239,6 +311,10 @@ public final class OdiiStoryQueryService {
                 summaries,
                 null,
                 false);
+    }
+
+    private OdiiStoryPage page(LanguageSelection selection, Optional<UUID> memberId) {
+        return page(selection, selection.stories(), memberId);
     }
 
     private String validateKeyword(String keyword) {
@@ -357,11 +433,7 @@ public final class OdiiStoryQueryService {
         if (storyId == null || !STORY_ID_PATTERN.matcher(storyId).matches()) {
             throw new OdiiStoryInvalidRequestException("storyId");
         }
-        var candidates = store.activeSnapshot().stories().stream()
-                .filter(story -> storyId.equals(story.storyId()))
-                .filter(this::isPublicAndPlayable)
-                .toList();
-        var selection = selectLanguage(candidates, language);
+        var selection = detailSelection(storyId, language);
         if (selection.stories().isEmpty()) {
             throw new OdiiStoryNotFoundException();
         }
@@ -381,11 +453,7 @@ public final class OdiiStoryQueryService {
         if (storyId == null || !STORY_ID_PATTERN.matcher(storyId).matches()) {
             throw new OdiiStoryNotFoundException();
         }
-        var candidates = store.activeSnapshot().stories().stream()
-                .filter(story -> storyId.equals(story.storyId()))
-                .filter(this::isPublicAndPlayable)
-                .toList();
-        var selection = selectLanguage(candidates, FALLBACK_LANGUAGE);
+        var selection = detailSelection(storyId, FALLBACK_LANGUAGE);
         var story = selection.stories().stream().sorted(ORDER).findFirst()
                 .orElseThrow(OdiiStoryNotFoundException::new);
         var effectiveMemberId = memberId == null ? Optional.<UUID>empty() : memberId;
@@ -397,6 +465,26 @@ public final class OdiiStoryQueryService {
                         .map(link -> link.place().placeId())
                         .orElse(null),
                 story.durationSeconds());
+    }
+
+    private LanguageSelection detailSelection(String storyId, String language) {
+        if (relationalReadPort != null) {
+            OdiiStoryReadSelection selection;
+            try {
+                selection = relationalReadPort.detail(storyId, language);
+            } catch (IllegalArgumentException exception) {
+                throw new OdiiStoryNotFoundException();
+            }
+            return new LanguageSelection(
+                    selection.language(),
+                    selection.languageStatus(),
+                    selection.stories().stream().filter(this::isPublicAndPlayable).toList());
+        }
+        var candidates = store.activeSnapshot().stories().stream()
+                .filter(story -> storyId.equals(story.storyId()))
+                .filter(this::isPublicAndPlayable)
+                .toList();
+        return selectLanguage(candidates, language);
     }
 
     private void validateQuery(OdiiStoryQuery query) {
@@ -467,6 +555,27 @@ public final class OdiiStoryQueryService {
         }
         if (query.category() != null && query.category().length() > 80) {
             throw new OdiiStoryInvalidRequestException("category");
+        }
+        if (relationalReadPort != null) {
+            var selection = relationalReadPort.popular(
+                    query.language(), query.category(), query.sinceInclusive(), query.limit());
+            var items = new java.util.ArrayList<OdiiPopularSoundItem>(selection.candidates().size());
+            for (int index = 0; index < selection.candidates().size(); index++) {
+                var candidate = selection.candidates().get(index);
+                items.add(new OdiiPopularSoundItem(
+                        index + 1,
+                        selection.hasSignal() ? candidate.score() : 0,
+                        candidate.playCount(),
+                        candidate.saveCount(),
+                        summary(candidate.story(), query.memberId())));
+            }
+            return new OdiiPopularSoundsPage(
+                    SCHEMA_VERSION,
+                    selection.hasSignal() ? "POPULARITY" : "FALLBACK_RECENT",
+                    "week",
+                    selection.language(),
+                    selection.languageStatus(),
+                    items);
         }
         var snapshot = store.activeSnapshot();
         var eligible = snapshot.stories().stream()
@@ -602,6 +711,17 @@ public final class OdiiStoryQueryService {
         if (!activeRevisionId.equals(decoded.revisionId())) {
             throw new OdiiCursorExpiredException();
         }
+        if (!decoded.matches(query)) {
+            throw new OdiiCursorInvalidException();
+        }
+        return decoded;
+    }
+
+    private OdiiStoryCursor decodeCursorForQuery(String cursor, OdiiStoryQuery query) {
+        if (cursor == null) {
+            return null;
+        }
+        var decoded = cursorCodec.decode(cursor);
         if (!decoded.matches(query)) {
             throw new OdiiCursorInvalidException();
         }

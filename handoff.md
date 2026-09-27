@@ -32,3 +32,15 @@
 - Verification: 대상 동시성 테스트 `BUILD SUCCESSFUL`, `git diff --check` 성공.
 - Next step: audio 모듈 전체 테스트와 Spring API 조립 검증 후 커밋·push하고 `develop` 대상 PR을 준비한다.
 - Open risk: production 미배포 상태이므로 Render latency·memory·502/503 개선은 배포 후 측정해야 한다. 프론트의 카드별 상세 fan-out도 별도 수정해야 한다.
+
+## 2026-09-27 Issue #454 PostgreSQL read model 전환
+
+- User request: 활성 revision 전체를 Java에 적재해 검색하지 말고 PostgreSQL 조건·인덱스·집계·PostGIS를 사용하도록 최적화하며 1만 자 이상 근거를 남긴다.
+- Branch: `fix/454-production-api-latency`
+- Changed paths: V033 공개 UUID/generated column과 최소 index, `JdbcOdiiStoryReadStore`, relational read port/DTO, production wiring, module·PostGIS 통합 테스트, DBML/schema 문서.
+- Optimized routes: 기본 ODII 목록/상세, 검색, 추천, 주변, 홈 인기. 목록은 limit+1, 상세는 공개 UUID 한 건과 해당 자막만, 주변은 ST_DWithin, 인기는 기간 group/score/limit을 DB에서 수행한다.
+- Evidence: 운영 full snapshot cold DB 실행 약 2.31초(spot 146.001ms, subtitle 936.377ms, story 1,228.296ms), result cardinality 약 14,369행. 상세 공개 키 중복은 story/spot 모두 0그룹.
+- Worklog: `troubleshooting-worklog/26.09.27 odii-postgresql-relational-read-optimization.md` (16,234자).
+- Verification: 대상 module/JDBC integration test 성공, 전체 `./gradlew check :apps:spring-api:bootJar --no-daemon` 성공(10m 46s), `git diff --check` 성공.
+- Remaining debt: category/region 필터 목록과 region group은 region polygon/category key가 DB read model에 없어 snapshot fallback을 유지한다. 다음 schema에서 versioned `region_id`와 `category_code`를 승격해야 한다.
+- Deployment: 현재 develop/master 및 Render에 미반영. CI/CD 일시 중단 요청을 유지하며 명시적 승인 전 PR merge·release·배포하지 않는다.

@@ -83,6 +83,15 @@
 // catalog_region_source_codes, catalog_datalab_region_mappings에 등록한다.
 // 매핑은 공식 data.go.kr URL과 검증 시각을 보존하며, API의 약 35일 제공 지연을 고려한
 // 일별 방문자 동기화와 DB 기반 행정구역 원형 히트맵의 지역 레지스트리로 사용한다.
+// V033은 ODII 공개 조회를 활성 revision 전체 Java snapshot 복원에서 PostgreSQL read model로
+// 전환한다. audio_odii_spots.public_id와 audio_odii_stories.public_id는 기존 Java
+// UUID.nameUUIDFromBytes 공개 ID와 동일한 generated stored UUID이며 (public_id, lang_code)
+// unique index로 상세 탐색한다. 같은 provider ID의 언어별 identity는 허용하므로
+// public_id 단독은 unique 제약으로 사용하지 않는다.
+// 활성 목록은 audio_story_versions_active_page_idx로 keyset pagination하고, 인기 조회는
+// audio_story_play_events_occurred_story_idx로 기간을 먼저 제한해 DB 안에서 집계한다.
+// 자막은 기존 (revision_id, story_id, position) PK가 상세 한 건 조회와 순서를 모두 지원하므로
+// 중복 index를 추가하지 않는다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 
