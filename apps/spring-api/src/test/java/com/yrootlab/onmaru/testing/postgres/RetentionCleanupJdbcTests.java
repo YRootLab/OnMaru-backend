@@ -145,7 +145,7 @@ class RetentionCleanupJdbcTests {
                         ('%s', 'odii-audio', 'PUBLISHED', '%s',
                          '2026-09-03T00:00:00Z', '2026-09-03T00:00:00Z'),
                         ('%s', 'odii-audio', 'FAILED', '%s',
-                         '2026-09-16T00:00:00Z', NULL),
+                         '2026-09-16T23:30:00Z', NULL),
                         ('%s', 'odii-audio', 'STAGING', '%s',
                          '2026-09-16T00:00:00Z', NULL),
                         ('%s', 'odii-audio', 'STAGING', '%s',

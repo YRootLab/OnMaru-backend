@@ -242,9 +242,9 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 FROM onmaru.catalog_dataset_revisions revision
                 WHERE revision.id NOT IN (SELECT id FROM protected_revisions)
                   AND (
-                      revision.status = 'PUBLISHED'
+                      revision.status IN ('PUBLISHED', 'FAILED')
                       OR (
-                          revision.status <> 'PUBLISHED'
+                          revision.status IN ('STAGING', 'READY')
                           AND revision.fetched_at <= ?
                       )
                   )
