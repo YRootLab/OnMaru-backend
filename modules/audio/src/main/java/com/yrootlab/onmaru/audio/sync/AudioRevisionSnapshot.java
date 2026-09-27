@@ -39,6 +39,10 @@ public final class AudioRevisionSnapshot {
         return List.copyOf(stories.values());
     }
 
+    boolean hasSameContent(AudioRevisionSnapshot other) {
+        return spots.equals(other.spots) && stories.equals(other.stories);
+    }
+
     OdiiSpotVersion spot(OdiiSpotIdentity identity) {
         return spots.get(identity);
     }

@@ -13,6 +13,7 @@ import com.yrootlab.onmaru.audio.query.OdiiStoryPopularityPort;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryObserver;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryService;
 import com.yrootlab.onmaru.audio.query.OdiiStoryQueryStore;
+import com.yrootlab.onmaru.audio.query.OdiiStoryRelationalReadPort;
 import com.yrootlab.onmaru.audio.query.ObservedOdiiStoryQueryStore;
 import com.yrootlab.onmaru.audio.query.UnavailableOdiiStoryQueryStore;
 import com.yrootlab.onmaru.audio.sync.AudioRevisionSnapshot;
@@ -21,6 +22,7 @@ import com.yrootlab.onmaru.audio.sync.InMemoryAudioRevisionStore;
 import com.yrootlab.onmaru.catalog.application.publication.SourceWatermark;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.catalog.application.regionboundary.RegionBoundaryStore;
+import com.yrootlab.onmaru.tourism.audio.JdbcOdiiStoryReadStore;
 import com.yrootlab.onmaru.web.common.cursor.CursorCodec;
 import com.yrootlab.onmaru.web.common.cursor.CursorSigningKey;
 import org.springframework.beans.factory.ObjectProvider;
@@ -31,6 +33,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
+import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -99,19 +102,36 @@ public class OdiiStoryConfiguration {
     }
 
     @Bean
+    @Profile("production")
+    OdiiStoryRelationalReadPort odiiStoryRelationalReadPort(
+            DataSource dataSource,
+            OdiiStorySettings settings,
+            OdiiProjectionMetadataResolver metadataResolver
+    ) {
+        return new JdbcOdiiStoryReadStore(
+                dataSource,
+                settings.dataset(),
+                settings.category(),
+                settings.publicHosts(),
+                metadataResolver);
+    }
+
+    @Bean
     OdiiStoryQueryService odiiStoryQueryService(
             ObjectProvider<OdiiStoryQueryStore> storyQueryStores,
             ObjectProvider<OdiiSavedStateLookup> savedStateLookups,
             ObjectProvider<ApprovedAudioPlaceLinkQuery> approvedPlaceLinkQueries,
             OdiiPublicAudioUrlPolicy audioUrlPolicy,
             OdiiStoryCursorCodec cursorCodec,
-            ObjectProvider<OdiiStoryPopularityPort> popularityPorts) {
+            ObjectProvider<OdiiStoryPopularityPort> popularityPorts,
+            ObjectProvider<OdiiStoryRelationalReadPort> relationalReadPorts) {
         var storyQueryStore = storyQueryStores.getIfAvailable(UnavailableOdiiStoryQueryStore::new);
         var savedStateLookup = savedStateLookups.getIfAvailable(() -> (memberId, storyId) -> false);
         var approvedPlaceLinkQuery = approvedPlaceLinkQueries.getIfAvailable(
                 () -> (spotId, memberId) -> Optional.empty());
         return new OdiiStoryQueryService(
                 storyQueryStore,
+                relationalReadPorts.getIfAvailable(),
                 savedStateLookup,
                 approvedPlaceLinkQuery,
                 audioUrlPolicy,

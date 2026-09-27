@@ -329,7 +329,8 @@ CREATE TABLE "audio_odii_spots" (
   "tid" varchar NOT NULL,
   "tlid" varchar NOT NULL,
   "lang_code" varchar NOT NULL,
-  "created_at" timestamptz NOT NULL
+  "created_at" timestamptz NOT NULL,
+  "public_id" uuid NOT NULL
 );
 
 CREATE TABLE "audio_odii_stories" (
@@ -339,7 +340,8 @@ CREATE TABLE "audio_odii_stories" (
   "stid" varchar NOT NULL,
   "stlid" varchar NOT NULL,
   "lang_code" varchar NOT NULL,
-  "created_at" timestamptz NOT NULL
+  "created_at" timestamptz NOT NULL,
+  "public_id" uuid NOT NULL
 );
 
 CREATE TABLE "audio_spot_versions" (
@@ -731,6 +733,12 @@ CREATE TABLE "ai_corpus_sync_runs" (
   "finished_at" timestamptz,
   "error_code" varchar
 );
+
+
+
+
+
+
 
 
 

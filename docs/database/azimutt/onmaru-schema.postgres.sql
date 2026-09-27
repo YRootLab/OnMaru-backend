@@ -329,7 +329,8 @@ CREATE TABLE "audio_odii_spots" (
   "tid" varchar NOT NULL,
   "tlid" varchar NOT NULL,
   "lang_code" varchar NOT NULL,
-  "created_at" timestamptz NOT NULL
+  "created_at" timestamptz NOT NULL,
+  "public_id" uuid NOT NULL
 );
 
 CREATE TABLE "audio_odii_stories" (
@@ -339,7 +340,8 @@ CREATE TABLE "audio_odii_stories" (
   "stid" varchar NOT NULL,
   "stlid" varchar NOT NULL,
   "lang_code" varchar NOT NULL,
-  "created_at" timestamptz NOT NULL
+  "created_at" timestamptz NOT NULL,
+  "public_id" uuid NOT NULL
 );
 
 CREATE TABLE "audio_spot_versions" (
@@ -786,13 +788,19 @@ CREATE INDEX ON "content_tag_overrides" ("target_type", "target_id");
 
 CREATE UNIQUE INDEX ON "audio_odii_spots" ("provider", "tid", "tlid");
 
+CREATE UNIQUE INDEX ON "audio_odii_spots" ("public_id", "lang_code");
+
 CREATE UNIQUE INDEX ON "audio_odii_stories" ("provider", "stid", "stlid");
 
 CREATE INDEX ON "audio_odii_stories" ("spot_id");
 
+CREATE UNIQUE INDEX ON "audio_odii_stories" ("public_id", "lang_code");
+
 CREATE INDEX ON "audio_spot_versions" USING GIST ("location");
 
 CREATE INDEX ON "audio_story_versions" ("revision_id", "spot_id");
+
+CREATE INDEX ON "audio_story_versions" ("revision_id", "source_modified_at", "story_id");
 
 CREATE INDEX ON "audio_place_odii_links" ("spot_id");
 
@@ -803,6 +811,8 @@ CREATE UNIQUE INDEX ON "audio_story_content_tag_versions" ("revision_id", "story
 CREATE INDEX ON "audio_story_content_tag_versions" ("label", "revision_id");
 
 CREATE INDEX ON "audio_story_play_events" ("story_id", "occurred_at");
+
+CREATE INDEX ON "audio_story_play_events" ("occurred_at", "story_id");
 
 CREATE INDEX ON "insights_visitor_observations" ("region_id", "basis_date");
 
@@ -891,6 +901,10 @@ COMMENT ON COLUMN "catalog_region_boundaries"."geometry" IS 'PostGIS MultiPolygo
 COMMENT ON COLUMN "catalog_place_sources"."external_id" IS 'KTO Korean contentid, future source id, or normalized source key';
 
 COMMENT ON COLUMN "catalog_place_versions"."location" IS 'PostGIS Point(4326)';
+
+COMMENT ON COLUMN "audio_odii_spots"."public_id" IS 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-spot-:tid) compatible';
+
+COMMENT ON COLUMN "audio_odii_stories"."public_id" IS 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-story-:stid) compatible';
 
 COMMENT ON COLUMN "audio_spot_versions"."location" IS 'PostGIS Point(4326)';
 

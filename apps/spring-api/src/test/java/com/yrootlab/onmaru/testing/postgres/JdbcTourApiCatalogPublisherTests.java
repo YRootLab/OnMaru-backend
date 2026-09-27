@@ -93,6 +93,32 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     @Test
+    void reusesActiveRevisionWhenCompletedSnapshotIsUnchanged() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var records = List.of(
+                row("2001", "북촌 한옥", "HANOK"),
+                row("2002", "전주 남부시장", "TRADITIONAL_MARKET"));
+
+        var firstSession = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
+        var firstPage = publisher.stagePage(firstSession, records);
+        var first = publisher.complete(firstSession, firstPage.rawCount(), firstPage.rawCount(),
+                firstPage.publishedCount(), firstPage.quarantinedCount(),
+                Instant.parse("2026-09-27T03:01:00Z"));
+
+        var secondSession = publisher.start(Instant.parse("2026-09-28T03:00:00Z"));
+        var secondPage = publisher.stagePage(secondSession, records);
+        var second = publisher.complete(secondSession, secondPage.rawCount(), secondPage.rawCount(),
+                secondPage.publishedCount(), secondPage.quarantinedCount(),
+                Instant.parse("2026-09-28T03:01:00Z"));
+
+        assertThat(second.revisionId()).isEqualTo(first.revisionId());
+        assertThat(queryCount("onmaru.catalog_dataset_revisions WHERE dataset = 'kto-korean-tour'"))
+                .isEqualTo(1);
+        assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isEqualTo(2);
+        assertThat(queryCount("onmaru.catalog_place_versions")).isEqualTo(2);
+    }
+
+    @Test
     void productionUsesNeonSnapshotsInsteadOfHardcodedStores() throws Exception {
         try (var context = new AnnotationConfigApplicationContext()) {
             context.getEnvironment().setActiveProfiles("production");
