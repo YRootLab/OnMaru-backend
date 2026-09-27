@@ -237,18 +237,6 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 WITH protected_revisions AS (
                     SELECT active.revision_id AS id
                     FROM onmaru.catalog_active_datasets active
-                    UNION
-                    SELECT previous.id
-                    FROM onmaru.catalog_active_datasets active
-                    JOIN LATERAL (
-                        SELECT revision.id
-                        FROM onmaru.catalog_dataset_revisions revision
-                        WHERE revision.dataset = active.dataset
-                          AND revision.status = 'PUBLISHED'
-                          AND revision.id <> active.revision_id
-                        ORDER BY revision.published_at DESC, revision.fetched_at DESC, revision.id
-                        LIMIT 1
-                    ) previous ON true
                 )
                 SELECT revision.id
                 FROM onmaru.catalog_dataset_revisions revision
@@ -308,7 +296,7 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 INSERT INTO onmaru.operations_retention_deletion_ledger (
                     id, resource_type, resource_id, reason, deleted_at, details
                 ) VALUES (gen_random_uuid(), 'CATALOG_REVISION', ?,
-                          'INACTIVE_REVISION_GC', ?, '{"publishedCopiesRetained": 2}'::jsonb)
+                          'INACTIVE_REVISION_GC', ?, '{"publishedCopiesRetained": 1}'::jsonb)
                 ON CONFLICT (resource_type, resource_id, reason) DO NOTHING
                 """)) {
             statement.setString(1, revisionId.toString());

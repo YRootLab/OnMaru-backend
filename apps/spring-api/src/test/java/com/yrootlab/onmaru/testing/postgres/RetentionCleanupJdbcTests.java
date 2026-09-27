@@ -123,7 +123,7 @@ class RetentionCleanupJdbcTests {
     }
 
     @Test
-    void keepsActiveAndPreviousPublishedRevisionAndDeletesOlderSnapshotsWithChildren() throws Exception {
+    void keepsOnlyActivePublishedRevisionAndRetainsOnlyRecentInProgressSnapshot() throws Exception {
         resetAndMigrate();
         var oldestPublished = UUID.randomUUID();
         var previousPublished = UUID.randomUUID();
@@ -189,21 +189,21 @@ class RetentionCleanupJdbcTests {
                         Duration.ofHours(1)),
                 NOW);
 
-        assertThat(result.inactiveRevisions()).isEqualTo(3);
+        assertThat(result.inactiveRevisions()).isEqualTo(4);
         try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
              var statement = connection.createStatement()) {
             assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.catalog_dataset_revisions"))
-                    .isEqualTo(3);
-            assertThat(countRows(statement, """
-                    SELECT COUNT(*) FROM onmaru.catalog_dataset_revisions
-                    WHERE id IN ('%s', '%s', '%s')
-                    """.formatted(previousPublished, activePublished, recentStaging))).isEqualTo(3);
-            assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.audio_spot_versions"))
-                    .isZero();
+                    .isEqualTo(2);
             assertThat(countRows(statement, """
                     SELECT COUNT(*) FROM onmaru.catalog_dataset_revisions
                     WHERE id = '%s' AND base_revision_id IS NULL
-                    """.formatted(previousPublished))).isOne();
+                    """.formatted(activePublished))).isOne();
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*) FROM onmaru.catalog_dataset_revisions
+                    WHERE id = '%s' AND status = 'STAGING'
+                    """.formatted(recentStaging))).isOne();
+            assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.audio_spot_versions"))
+                    .isZero();
         }
     }
 
