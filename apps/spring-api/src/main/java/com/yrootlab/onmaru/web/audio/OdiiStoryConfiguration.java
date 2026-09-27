@@ -42,6 +42,9 @@ import java.util.UUID;
 @EnableConfigurationProperties(OdiiStoryConfiguration.OdiiStorySettings.class)
 public class OdiiStoryConfiguration {
 
+    private static final Set<String> DEFAULT_PUBLIC_AUDIO_HOSTS =
+            Set.of("sfj608538-sfj608538.ktcdn.co.kr");
+
     @Bean
     OdiiPublicAudioUrlPolicy odiiPublicAudioUrlPolicy(OdiiStorySettings settings) {
         return new OdiiPublicAudioUrlPolicy(settings.publicHosts());
@@ -121,7 +124,9 @@ public class OdiiStoryConfiguration {
     record OdiiStorySettings(Set<String> publicHosts, String dataset, String category) {
 
         OdiiStorySettings {
-            publicHosts = publicHosts == null ? Set.of() : Set.copyOf(publicHosts);
+            publicHosts = publicHosts == null || publicHosts.isEmpty()
+                    ? DEFAULT_PUBLIC_AUDIO_HOSTS
+                    : Set.copyOf(publicHosts);
             dataset = dataset == null || dataset.isBlank() ? "odii-audio" : dataset;
             category = category == null || category.isBlank() ? "오디오 관광" : category;
         }
