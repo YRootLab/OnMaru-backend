@@ -8,12 +8,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OdiiSyncSchedulingAdapterTests {
 
     @Test
-    void runsTheNightlyFullCollectionAtThreeAmKoreaTime() throws Exception {
+    void runsTheFullCollectionEveryThreeDaysAtThreeAmKoreaTime() throws Exception {
         Scheduled scheduled = OdiiSyncSchedulingAdapter.class
                 .getMethod("scheduledSync")
                 .getAnnotation(Scheduled.class);
 
-        assertThat(scheduled.cron()).isEqualTo("${onmaru.odii.sync.cron:0 0 3 * * *}");
+        assertThat(scheduled.cron()).isEqualTo("${onmaru.odii.sync.cron:0 0 3 */3 * *}");
         assertThat(scheduled.zone()).isEqualTo("Asia/Seoul");
     }
 }
