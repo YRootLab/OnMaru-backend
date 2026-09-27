@@ -63,7 +63,7 @@ public final class HanokListController {
             @RequestParam(required = false) String category,
             @Parameter(description = "사진 보유 한옥만 필터링", example = "true")
             @RequestParam(required = false, defaultValue = "false") boolean hasImage,
-            @Parameter(description = "조회 개수 (기본값 20, 최대 50)", example = "20")
+            @Parameter(description = "조회 개수 (기본값 20, 최대 500)", example = "20")
             @RequestParam(required = false, defaultValue = "20") int limit,
             @Parameter(description = "다음 페이지 조회를 위한 커서 토큰")
             @RequestParam(required = false) String cursor,
@@ -76,7 +76,7 @@ public final class HanokListController {
                     regionCode,
                     parseCategory(category),
                     hasImage,
-                    Math.min(Math.max(limit, 1), 50),
+                    Math.min(Math.max(limit, 1), 500),
                     cursor,
                     memberId(sessionToken),
                     false);

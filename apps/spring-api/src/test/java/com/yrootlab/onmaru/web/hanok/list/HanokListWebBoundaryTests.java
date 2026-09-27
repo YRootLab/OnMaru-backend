@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListCategory;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListProjection;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStatus;
 import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
+import com.yrootlab.onmaru.catalog.application.query.spatial.MapCoordinates;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
@@ -100,6 +101,53 @@ class HanokListWebBoundaryTests {
                 .andExpect(jsonPath("$.items").isEmpty())
                 .andExpect(jsonPath("$.nextCursor", nullValue()))
                 .andExpect(jsonPath("$.hasMore").value(false));
+    }
+
+    @Test
+    void listAcceptsFiveHundredItemsWithoutClampingToFifty() throws Exception {
+        for (int index = 0; index < 60; index++) {
+            hanokListStore.add(new HanokListProjection(
+                    "p-hanok-" + index,
+                    "한옥 " + index,
+                    HanokListCategory.HANOK,
+                    "kr-11-jongno",
+                    "서울 종로구",
+                    "서울 종로구",
+                    new MapCoordinates(37.5 + index * 0.001, 126.9 + index * 0.001),
+                    "https://cdn.onmaru.example/hanok-" + index + ".jpg",
+                    "한옥 목록 대량 조회 검증",
+                    List.of("한옥"),
+                    Instant.parse("2026-09-13T00:00:00Z").minusSeconds(index),
+                    HanokListStatus.PUBLIC));
+        }
+
+        mockMvc.perform(get("/api/v1/hanoks").param("limit", "500"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(62))
+                .andExpect(jsonPath("$.hasMore").value(false));
+    }
+
+    @Test
+    void listExposesFrontendCompatibleTopLevelCoordinates() throws Exception {
+        hanokListStore.add(new HanokListProjection(
+                "p-coordinate-hanok",
+                "좌표 한옥",
+                HanokListCategory.HANOK,
+                "kr-11-jongno",
+                "서울 종로구",
+                "서울 종로구",
+                new MapCoordinates(37.5826, 126.9848),
+                "https://cdn.onmaru.example/coordinate-hanok.jpg",
+                "좌표 응답 검증",
+                List.of("한옥"),
+                Instant.parse("2026-09-15T00:00:00Z"),
+                HanokListStatus.PUBLIC));
+
+        mockMvc.perform(get("/api/v1/hanoks").param("limit", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].placeId").value("p-coordinate-hanok"))
+                .andExpect(jsonPath("$.items[0].lat").value(37.5826))
+                .andExpect(jsonPath("$.items[0].lng").value(126.9848));
     }
 
     @Test
