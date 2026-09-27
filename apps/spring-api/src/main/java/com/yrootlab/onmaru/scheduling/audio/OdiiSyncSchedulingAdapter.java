@@ -8,9 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +18,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 @Component
 public class OdiiSyncSchedulingAdapter {
@@ -49,23 +45,7 @@ public class OdiiSyncSchedulingAdapter {
         this.languages = languages == null || languages.isEmpty() ? List.of("ko") : List.copyOf(languages);
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        CompletableFuture.runAsync(() -> {
-            try {
-                // Initial delay to let application stabilize
-                Thread.sleep(5000);
-                LOGGER.info("triggering initial odii sync check on application ready");
-                runSync("initial-boot");
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-            } catch (Exception exception) {
-                LOGGER.warn("initial odii sync execution encountered an error: {}", exception.getMessage(), exception);
-            }
-        });
-    }
-
-    @Scheduled(cron = "${onmaru.odii.sync.cron:0 0 3 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${onmaru.odii.sync.cron:0 0 3 */3 * *}", zone = "Asia/Seoul")
     public void scheduledSync() {
         LOGGER.info("triggering scheduled odii sync run");
         runSync("scheduled-cron");

@@ -34,15 +34,15 @@ class TourApiCatalogSourceMapperTests {
     }
 
     @Test
-    void quarantineFromMappedTourApiItemDoesNotExposeSecretFields() {
+    void invalidCoordinateDiagnosticFromMappedItemDoesNotExposeSecretFields() {
         TourApiSourceRecord item = new TourApiSourceRecord("areaBasedList2", objectMapper.createObjectNode()
                 .put("contentid", "900001")
                 .put("contenttypeid", "12")
-                .put("title", "비허용 관광지")
-                .put("cat1", "A99")
-                .put("cat2", "A9901")
-                .put("cat3", "A99010100")
-                .put("mapx", "126.9")
+                .put("title", "좌표가 손상된 한옥")
+                .put("cat1", "A02")
+                .put("cat2", "A0201")
+                .put("cat3", "A02010700")
+                .put("mapx", "invalid")
                 .put("mapy", "37.5")
                 .put("token", "MUST_NOT_SURFACE"));
 

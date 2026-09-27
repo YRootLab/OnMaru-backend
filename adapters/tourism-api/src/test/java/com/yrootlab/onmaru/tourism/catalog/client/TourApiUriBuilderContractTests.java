@@ -49,6 +49,14 @@ class TourApiUriBuilderContractTests {
     }
 
     @Test
+    void buildsDetailIntroAndInfoWithContentTypeMapping() {
+        assertThat(builder.detailIntro("126508", "12").toString())
+                .contains("/detailIntro2?", "contentId=126508", "contentTypeId=12");
+        assertThat(builder.detailInfo("126508", "12").toString())
+                .contains("/detailInfo2?", "contentId=126508", "contentTypeId=12", "numOfRows=100");
+    }
+
+    @Test
     void buildsV44LegalDistrictAndClassificationCodeUris() {
         URI district = builder.legalDistrictCodes(1, 1000, true);
         URI classification = builder.classificationCodes(1, 1000, true);
