@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #265의 카카오 OAuth callback이 성공·실패 후 검증된 내부 경로를 OnMaru 프론트엔드 origin에 결합해 복귀하도록 수정했다.
 - Issue #453의 revision 보존 정책을 활성 PUBLISHED 1벌로 축소하고, 동일 TourAPI·ODII snapshot 재사용, TourAPI 실패 원문 미보관, 실패 STAGING 즉시 제거, 72시간 최소 동기화 간격을 적용했다.
 - Issue #444의 한옥 목록 필터·주소/좌표 계약, DataLab 35일 제공 지연 대응, 전국 285개 행정구역 registry와 DB 기반 원형 히트맵을 추가했다.
 - Issue #375의 TourAPI 국문 v4.4 전체 원천 적재, 공식 분류체계 기반 공개 필터, Neon 지도·한옥 snapshot과 TourAPI·Odii 03:00 KST 전체 동기화를 추가했다.

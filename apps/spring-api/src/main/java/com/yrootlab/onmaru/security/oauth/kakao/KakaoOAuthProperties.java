@@ -7,6 +7,7 @@ public class KakaoOAuthProperties {
 
     private String clientId = "local-kakao-client";
     private String redirectUri = "http://localhost:8080/auth/kakao/callback";
+    private String frontendBaseUrl = "https://www.onmaru.site";
     private String authorizeUri = "https://kauth.kakao.com/oauth/authorize";
     private String tokenUri = "https://kauth.kakao.com/oauth/token";
     private String userInfoUri = "https://kapi.kakao.com/v2/user/me";
@@ -25,6 +26,14 @@ public class KakaoOAuthProperties {
 
     public void setRedirectUri(String redirectUri) {
         this.redirectUri = redirectUri;
+    }
+
+    public String getFrontendBaseUrl() {
+        return frontendBaseUrl;
+    }
+
+    public void setFrontendBaseUrl(String frontendBaseUrl) {
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     public String getAuthorizeUri() {

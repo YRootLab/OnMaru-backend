@@ -248,6 +248,7 @@ flowchart TD
 ONMARU_OAUTH_KAKAO_CLIENTID={REST API 키}
 ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT={카카오 Client Secret}
 ONMARU_OAUTH_KAKAO_REDIRECTURI=https://onmaru-backend.onrender.com/auth/kakao/callback
+ONMARU_OAUTH_KAKAO_FRONTENDBASEURL=https://www.onmaru.site
 ```
 
 > 참고: 일부 문서에는 `ONMARU_OAUTH_KAKAO_REDIRECT_URI`로 표기돼 있지만, Spring Boot relaxed binding은 하이픈 제거 형태(`..._REDIRECTURI`)가 정규형이다. 배포 시 실제 바인딩 동작을 로그로 확인한다.
@@ -282,4 +283,3 @@ ONMARU_OAUTH_KAKAO_REDIRECTURI=https://onmaru-backend.onrender.com/auth/kakao/ca
 ./gradlew :apps:spring-api:test --tests '*KakaoOAuthWebBoundaryTests' --no-daemon
 ./gradlew :modules:identity:test --tests '*OAuthLoginServiceTests' --no-daemon
 ```
-

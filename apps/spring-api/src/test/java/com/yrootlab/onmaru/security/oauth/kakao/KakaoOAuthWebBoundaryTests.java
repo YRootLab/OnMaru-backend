@@ -65,7 +65,7 @@ class KakaoOAuthWebBoundaryTests {
                         .cookie(nonceCookie, verifierCookie))
                 .andExpect(status().isSeeOther())
                 .andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(header().string("Location", "/discover?auth=success"))
+                .andExpect(header().string("Location", "https://www.onmaru.site/discover?auth=success"))
                 .andReturn();
 
         var setCookie = callback.getResponse().getHeader("Set-Cookie");
@@ -79,7 +79,7 @@ class KakaoOAuthWebBoundaryTests {
                         .queryParam("error", "access_denied")
                         .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-guest", "guest-token")))
                 .andExpect(status().isSeeOther())
-                .andExpect(header().string("Location", "/discover?auth=failed"));
+                .andExpect(header().string("Location", "https://www.onmaru.site/discover?auth=failed"));
     }
 
     @TestConfiguration
