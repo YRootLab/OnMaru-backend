@@ -28,6 +28,12 @@ public final class TourApiUriBuilder {
         return build("areaBasedList2", params);
     }
 
+    public URI areaBasedSyncList(int pageNo, int numOfRows, Map<String, String> optionalParams) {
+        Map<String, String> params = pageParams(pageNo, numOfRows);
+        params.putAll(Objects.requireNonNull(optionalParams, "optionalParams must not be null"));
+        return build("areaBasedSyncList2", params);
+    }
+
     public URI locationBasedList(int pageNo, int numOfRows, Map<String, String> optionalParams) {
         Map<String, String> params = pageParams(pageNo, numOfRows);
         params.putAll(Objects.requireNonNull(optionalParams, "optionalParams must not be null"));
@@ -40,21 +46,21 @@ public final class TourApiUriBuilder {
         return build("searchKeyword2", params);
     }
 
-    public URI areaCode(int pageNo, int numOfRows) {
-        return build("areaCode2", pageParams(pageNo, numOfRows));
+    public URI legalDistrictCodes(int pageNo, int numOfRows, boolean fullList) {
+        Map<String, String> params = pageParams(pageNo, numOfRows);
+        params.put("lDongListYn", fullList ? "Y" : "N");
+        return build("ldongCode2", params);
     }
 
-    public URI detailCommon(String contentId, String contentTypeId) {
+    public URI classificationCodes(int pageNo, int numOfRows, boolean fullList) {
+        Map<String, String> params = pageParams(pageNo, numOfRows);
+        params.put("lclsSystmListYn", fullList ? "Y" : "N");
+        return build("lclsSystmCode2", params);
+    }
+
+    public URI detailCommon(String contentId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("contentId", requireNonBlank(contentId, "contentId"));
-        params.put("contentTypeId", requireNonBlank(contentTypeId, "contentTypeId"));
-        params.put("defaultYN", "Y");
-        params.put("firstImageYN", "Y");
-        params.put("areacodeYN", "Y");
-        params.put("catcodeYN", "Y");
-        params.put("addrinfoYN", "Y");
-        params.put("mapinfoYN", "Y");
-        params.put("overviewYN", "Y");
         return build("detailCommon2", params);
     }
 

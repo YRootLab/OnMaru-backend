@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #375의 TourAPI 국문 v4.4 전체 원천 적재, 공식 분류체계 기반 공개 필터, Neon 지도·한옥 snapshot과 TourAPI·Odii 03:00 KST 전체 동기화를 추가했다.
 - Issue #262의 로그인 회원용 위치 기반 한옥 수결첩, PostGIS 체크인, 관계형 수결 지급, OpenAPI와 FE 연동 문서를 추가했다.
 - Issue #262의 명시적 참여형 익명 수결 랭킹, 참여·철회 API, OpenAPI 1.3과 FE 연동 안내를 추가했다.
 - Issue #262의 production OAuth 회원 원장을 JDBC로 연결하고, 탈퇴 시 수결 체크인·획득·랭킹 및 체크인 멱등성 응답 개인정보 삭제와 재생성 차단을 보강했다.

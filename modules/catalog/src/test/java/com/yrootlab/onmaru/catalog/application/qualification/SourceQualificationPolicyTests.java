@@ -30,9 +30,46 @@ class SourceQualificationPolicyTests {
         assertThat(result.status()).isEqualTo(QualificationStatus.CANDIDATE);
         assertThat(result.candidate()).isPresent();
         assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.HANOK);
-        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v4");
+        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v5");
         assertThat(result.candidate().orElseThrow().normalizedHash()).hasSize(64);
         assertThat(result.quarantine()).isEmpty();
+    }
+
+    @Test
+    void qualifiesV44ClassificationResolvedFromTheOfficialLclsCodeRegistry() {
+        SourceRecord row = row(Map.of(
+                "contentid", "126508",
+                "contenttypeid", "12",
+                "title", "경복궁",
+                "lclsSystm1", "VE",
+                "lclsSystm2", "VE01",
+                "lclsSystm3", "VE010100",
+                "canonicalcategory", "HISTORIC_SITE",
+                "mapx", "126.976993",
+                "mapy", "37.578822"
+        ));
+
+        QualificationResult result = policy.qualify(row);
+
+        assertThat(result.candidate().orElseThrow().category()).isEqualTo(CanonicalCategory.HISTORIC_SITE);
+        assertThat(result.candidate().orElseThrow().allowlistVersion()).isEqualTo("tourapi-category-allowlist-v5");
+    }
+
+    @Test
+    void doesNotUseThePlaceTitleAsAV44CategoryShortcut() {
+        SourceRecord row = row(Map.of(
+                "contentid", "999999",
+                "contenttypeid", "14",
+                "title", "한옥이라는 단어가 들어간 일반 서점",
+                "lclsSystm1", "VE",
+                "lclsSystm2", "VE10",
+                "lclsSystm3", "VE100100",
+                "mapx", "126.97",
+                "mapy", "37.57"
+        ));
+
+        assertThat(policy.qualify(row).quarantine().orElseThrow().errorCode())
+                .isEqualTo("UNSUPPORTED_CATEGORY");
     }
 
     @Test
