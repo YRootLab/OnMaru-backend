@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-09-28 Issue #265 프론트엔드 OAuth 복귀
+
+- Branch: `fix/265-kakao-frontend-redirect`
+- Scope: 카카오 OAuth callback 성공·실패 후 백엔드 상대경로가 아니라 설정된 OnMaru FE origin으로 복귀한다.
+- Changed paths: `KakaoOAuthController`, `KakaoOAuthProperties`, OAuth 웹 경계 테스트, Spring/FE 로그인 문서.
+- Verification: 상대경로 회귀 테스트가 먼저 실패하는 것을 확인한 뒤 절대 FE URL 기대값으로 통과했다.
+- Next step: 전체 Spring API 검증 후 `develop` 대상 PR을 생성한다.
+- Open risk: Render에서 커스텀 FE 주소를 쓸 경우 `ONMARU_OAUTH_KAKAO_FRONTENDBASEURL`을 명시해야 한다. 기본값은 `https://www.onmaru.site`다.
+
 - Branch: `fix/453-quarantine-lifecycle`
 - Issue: #453
 - Scope: Neon 512MiB 제한에서 실패 원문 저장을 중단하고 활성 PUBLISHED revision 1벌만 유지하며 TourAPI 동기화를 72시간 간격으로 제한한다.
