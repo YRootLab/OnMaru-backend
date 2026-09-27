@@ -63,6 +63,39 @@ class DataLabVisitorSourceAdapterTests {
     }
 
     @Test
+    void requestsTheConfiguredPublishedDataLagButResolvesMappingsAtTheCurrentDate() {
+        var requests = new ArrayList<DataLabVisitorRequest>();
+        var mappingDates = new ArrayList<LocalDate>();
+        var source = new DataLabVisitorSourceAdapter(
+                request -> {
+                    requests.add(request);
+                    return List.of(new DataLabVisitorRecord(
+                            request.scope(), request.startDate(), "52", "전북특별자치도",
+                            "2", "외지인", 10L));
+                },
+                asOf -> {
+                    mappingDates.add(asOf);
+                    return List.of(active(
+                            "kr-45", "SIDO:52", DataLabRegionMapping.Level.SIDO, "전북특별자치도"));
+                },
+                CLOCK,
+                100,
+                35);
+
+        var result = source.fetchDailyVisitorObservations();
+
+        assertThat(result.publishable()).isTrue();
+        assertThat(mappingDates).containsExactly(LocalDate.parse("2026-09-26"));
+        assertThat(requests).singleElement().satisfies(request -> {
+            assertThat(request.startDate()).isEqualTo(LocalDate.parse("2026-08-22"));
+            assertThat(request.endDate()).isEqualTo(LocalDate.parse("2026-08-22"));
+        });
+        assertThat(result.observations()).singleElement()
+                .extracting(observation -> observation.basisDate())
+                .isEqualTo(LocalDate.parse("2026-08-22"));
+    }
+
+    @Test
     void skipsPendingAndRejectedMappingsWithoutCallingTheProvider() {
         var fetchCalls = new AtomicInteger();
         var source = new DataLabVisitorSourceAdapter(

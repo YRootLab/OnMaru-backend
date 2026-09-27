@@ -78,6 +78,11 @@
 // 최초 areaBasedList2 전 페이지는 적격성 판정과 무관하게 원천 version에 저장하고,
 // 공개 catalog_place_versions만 공식 lclsSystmCode2 분류명·좌표 정책을 통과한 행으로 구성한다.
 // 제목에 "한옥"이 포함되는지는 공개 적격성 판정 기준으로 사용하지 않는다.
+// V032는 한국관광공사 DataLab의 2026-08-23 전국 응답을 검증 snapshot으로 사용해
+// 시도 16개와 시군구 269개의 provider code를 catalog_regions,
+// catalog_region_source_codes, catalog_datalab_region_mappings에 등록한다.
+// 매핑은 공식 data.go.kr URL과 검증 시각을 보존하며, API의 약 35일 제공 지연을 고려한
+// 일별 방문자 동기화와 DB 기반 행정구역 원형 히트맵의 지역 레지스트리로 사용한다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

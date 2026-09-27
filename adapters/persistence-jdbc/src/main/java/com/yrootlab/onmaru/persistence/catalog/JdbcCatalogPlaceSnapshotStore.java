@@ -46,6 +46,9 @@ public final class JdbcCatalogPlaceSnapshotStore {
               ON image.revision_id = version.revision_id
              AND image.place_id = version.place_id AND image.position = 0
             WHERE active.dataset = ?
+              AND (? = false OR version.category IN ('HANOK', 'HANOK_STAY', 'HANOK_CAFE', 'HANOK_EXPERIENCE')
+                   OR version.name ILIKE '%한옥%'
+                   OR version.overview ILIKE '%한옥%')
             ORDER BY public_id.public_id
             """;
 
@@ -56,17 +59,18 @@ public final class JdbcCatalogPlaceSnapshotStore {
     }
 
     public List<MapPlaceProjection> findPublishedMapSnapshot() {
-        return read(this::mapPlace);
+        return read(this::mapPlace, false);
     }
 
     public List<HanokListProjection> findPublishedHanokSnapshot() {
-        return read(this::hanok);
+        return read(this::hanok, true);
     }
 
-    private <T> List<T> read(RowMapper<T> mapper) {
+    private <T> List<T> read(RowMapper<T> mapper, boolean hanokOnly) {
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement(SQL)) {
             statement.setString(1, DATASET);
+            statement.setBoolean(2, hanokOnly);
             try (var rows = statement.executeQuery()) {
                 var result = new ArrayList<T>();
                 while (rows.next()) result.add(mapper.map(rows));
@@ -93,10 +97,14 @@ public final class JdbcCatalogPlaceSnapshotStore {
     }
 
     private HanokListProjection hanok(ResultSet row) throws SQLException {
+        Double lng = nullableDouble(row, "longitude");
+        Double lat = nullableDouble(row, "latitude");
         return new HanokListProjection(
                 row.getString("public_id"), row.getString("name"),
                 HanokListCategory.valueOf(row.getString("category")), row.getString("region_code"),
                 firstNonBlank(row.getString("region_name"), row.getString("address")),
+                row.getString("address"),
+                lng == null || lat == null ? null : new MapCoordinates(lat, lng),
                 row.getString("thumbnail_url"), row.getString("overview"), tags(row.getArray("tags")),
                 row.getObject("published_at", java.time.OffsetDateTime.class).toInstant(),
                 "ACTIVE".equals(row.getString("status")) ? HanokListStatus.PUBLIC : HanokListStatus.HIDDEN);

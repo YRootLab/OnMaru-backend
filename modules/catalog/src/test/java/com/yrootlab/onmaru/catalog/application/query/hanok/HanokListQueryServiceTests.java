@@ -49,7 +49,7 @@ class HanokListQueryServiceTests {
                 List.of("고택", "숙박")));
         store.add(card("p-traditional-food", "전통 음식점", HanokListCategory.TRADITIONAL_FOOD,
                 "kr-45-jeonju", "전북 전주시", Instant.parse("2026-09-14T07:00:00Z"),
-                List.of("한식", "전통음식")));
+                List.of("한식", "한옥 음식")));
         store.add(card("p-modern-tour", "현대 관광지", HanokListCategory.NATURE_SITE,
                 "kr-45-jeonju", "전북 전주시", Instant.parse("2026-09-14T06:00:00Z"),
                 List.of("자연")));
