@@ -284,6 +284,15 @@
       "checksum": "datalab-nationwide-region-registry-v032-20260927",
       "sha256": "d670b2df6cb4c7385eeafd0e79cc4780495ae859e5c2560d49402fc8bd48fa93",
       "description": "Nationwide verified DataLab SIDO and SIGUNGU mapping registry"
+    },
+    {
+      "version": "033",
+      "reservedFor": "ODII_PUBLIC_QUERY_KEYS",
+      "issueNumber": 454,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V033__454_odii_public_query_keys.sql",
+      "checksum": "odii-public-query-keys-v033-20260928",
+      "sha256": "007481a11f7c40c27fbf563a6ca6f0ddae659ed547483fb67a12a6cd7bfdca96",
+      "description": "Indexable public IDs and query indexes for direct Odii PostgreSQL reads"
     }
   ]
 }

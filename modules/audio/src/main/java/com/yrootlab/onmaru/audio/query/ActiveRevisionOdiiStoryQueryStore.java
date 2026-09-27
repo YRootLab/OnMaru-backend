@@ -24,6 +24,7 @@ public final class ActiveRevisionOdiiStoryQueryStore implements OdiiStoryQuerySt
     private final AudioRevisionStore revisionStore;
     private final String dataset;
     private final OdiiProjectionMetadataResolver metadataResolver;
+    private volatile CachedSnapshot cachedSnapshot;
 
     public ActiveRevisionOdiiStoryQueryStore(AudioRevisionStore revisionStore, String dataset) {
         this(revisionStore, dataset, ignored -> new OdiiProjectionMetadata(CATEGORY, COUNTRY_REGION));
@@ -44,6 +45,23 @@ public final class ActiveRevisionOdiiStoryQueryStore implements OdiiStoryQuerySt
 
     @Override
     public OdiiActiveSnapshot activeSnapshot() {
+        UUID activeRevisionId = revisionStore.activeRevision(dataset);
+        CachedSnapshot current = cachedSnapshot;
+        if (current != null && current.revisionId().equals(activeRevisionId)) {
+            return current.snapshot();
+        }
+        synchronized (this) {
+            current = cachedSnapshot;
+            if (current != null && current.revisionId().equals(activeRevisionId)) {
+                return current.snapshot();
+            }
+            OdiiActiveSnapshot loaded = loadActiveSnapshot();
+            cachedSnapshot = new CachedSnapshot(loaded.revisionId(), loaded);
+            return loaded;
+        }
+    }
+
+    private OdiiActiveSnapshot loadActiveSnapshot() {
         var activeRevision = revisionStore.activePublishedRevision(dataset);
         UUID revisionId = activeRevision.revisionId();
         var snapshot = activeRevision.snapshot();
@@ -60,6 +78,9 @@ public final class ActiveRevisionOdiiStoryQueryStore implements OdiiStoryQuerySt
             throw new OdiiStoryUnavailableException();
         }
         return new OdiiActiveSnapshot(revisionId, stories);
+    }
+
+    private record CachedSnapshot(UUID revisionId, OdiiActiveSnapshot snapshot) {
     }
 
     private OdiiStoryProjection projection(OdiiStoryVersion story, OdiiSpotVersion spot) {
