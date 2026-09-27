@@ -40,6 +40,11 @@ onmaru:
       attempt-timeout: 5s
       page-timeout: 12s
       retry-count: 2
+    sync:
+      base-uri: ${ONMARU_TOURAPI_BASE_URI:https://apis.data.go.kr/B551011/KorService2}
+      mobile-app: ${ONMARU_TOURAPI_MOBILE_APP:OnMaru}
+      page-size: ${ONMARU_TOURAPI_PAGE_SIZE:1000}
+      cron: "${ONMARU_TOURAPI_SYNC_CRON:0 0 3 * * *}"
   odii:
     client:
       connect-timeout: 1s
@@ -52,6 +57,7 @@ onmaru:
       # 전체 수집(storyBasedSyncList)이 기본이며, keywords는 호환/롤백 source에서만 사용한다.
       keywords: ${ONMARU_ODII_KEYWORDS:한옥,고택,전통마을,궁궐,성곽,문화유산,역사문화,전통시장}
       page-size: ${ONMARU_ODII_PAGE_SIZE:100}
+      cron: "${ONMARU_ODII_SYNC_CRON:0 0 3 * * *}"
   datalab:
     visitor:
       base-uri: "${ONMARU_DATALAB_VISITOR_BASE_URI:https://apis.data.go.kr/B551011/DataLabService}"

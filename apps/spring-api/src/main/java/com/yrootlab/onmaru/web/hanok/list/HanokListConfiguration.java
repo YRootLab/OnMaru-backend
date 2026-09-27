@@ -5,10 +5,12 @@ import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListProjection;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListQueryService;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStatus;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokSavedStateLookup;
+import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStore;
 import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
 import com.yrootlab.onmaru.journey.saved.place.SavedPlaceStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.time.Instant;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.List;
 class HanokListConfiguration {
 
     @Bean
+    @Profile("!production")
     InMemoryHanokListStore hanokListStore() {
         var store = new InMemoryHanokListStore();
         store.add(card(
@@ -291,7 +294,7 @@ class HanokListConfiguration {
 
     @Bean
     HanokListQueryService hanokListQueryService(
-            InMemoryHanokListStore hanokListStore,
+            HanokListStore hanokListStore,
             HanokSavedStateLookup savedStateLookup) {
         return new HanokListQueryService(hanokListStore, savedStateLookup);
     }
