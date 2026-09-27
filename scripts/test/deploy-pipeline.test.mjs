@@ -78,6 +78,18 @@ describe('container and staging release pipeline', () => {
     assert.match(workflow, /Dockerfile/);
     assert.match(workflow, /ai\/Dockerfile/);
     assert.match(workflow, /migration-gate:/);
+    const migrationGate = workflow.slice(
+      workflow.indexOf('  migration-gate:'),
+      workflow.indexOf('  staging-smoke:'),
+    );
+    assert.match(migrationGate, /actions\/setup-python@v5/);
+    assert.match(migrationGate, /python-version:\s*["']?3\.12["']?/);
+    assert.match(migrationGate, /pip install -r scripts\/test\/requirements-contract\.txt/);
+    assert.ok(
+      migrationGate.indexOf('pip install -r scripts/test/requirements-contract.txt')
+        < migrationGate.indexOf('bash scripts/verify-contracts'),
+      'migration gate must install contract dependencies before validation',
+    );
     assert.match(workflow, /staging-smoke:/);
     assert.match(workflow, /STAGING_SPRING_URL/);
     assert.match(workflow, /STAGING_AI_URL/);
