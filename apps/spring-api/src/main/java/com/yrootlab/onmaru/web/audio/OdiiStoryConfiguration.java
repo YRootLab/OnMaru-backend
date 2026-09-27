@@ -124,9 +124,15 @@ public class OdiiStoryConfiguration {
     record OdiiStorySettings(Set<String> publicHosts, String dataset, String category) {
 
         OdiiStorySettings {
-            publicHosts = publicHosts == null || publicHosts.isEmpty()
+            var normalizedPublicHosts = publicHosts == null
+                    ? Set.<String>of()
+                    : publicHosts.stream()
+                            .filter(host -> host != null && !host.isBlank())
+                            .map(String::trim)
+                            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+            publicHosts = normalizedPublicHosts.isEmpty()
                     ? DEFAULT_PUBLIC_AUDIO_HOSTS
-                    : Set.copyOf(publicHosts);
+                    : normalizedPublicHosts;
             dataset = dataset == null || dataset.isBlank() ? "odii-audio" : dataset;
             category = category == null || category.isBlank() ? "오디오 관광" : category;
         }
