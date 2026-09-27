@@ -275,12 +275,105 @@ public final class JdbcTourApiCatalogPublisher {
         }
         try (var connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
+            UUID activeRevisionId = findActiveRevision(connection);
+            if (activeRevisionId != null
+                    && matchesActiveSnapshot(connection, session.revisionId(), activeRevisionId)) {
+                reuseActiveRevision(connection, session, activeRevisionId, completedAt,
+                        rawCount, publishedCount, quarantinedCount);
+                connection.commit();
+                return new PublishResult(activeRevisionId, rawCount, publishedCount, quarantinedCount);
+            }
             publishRevision(connection, session.revisionId(), session.runId(), completedAt,
                     rawCount, publishedCount, quarantinedCount);
             connection.commit();
             return new PublishResult(session.revisionId(), rawCount, publishedCount, quarantinedCount);
         } catch (SQLException exception) {
             throw new IllegalStateException("failed to activate TourAPI catalog snapshot", exception);
+        }
+    }
+
+    private UUID findActiveRevision(Connection connection) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT revision_id FROM onmaru.catalog_active_datasets WHERE dataset = ?
+                """)) {
+            statement.setString(1, DATASET);
+            try (var result = statement.executeQuery()) {
+                return result.next() ? result.getObject(1, UUID.class) : null;
+            }
+        }
+    }
+
+    private boolean matchesActiveSnapshot(Connection connection, UUID stagedRevisionId, UUID activeRevisionId)
+            throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT NOT EXISTS (
+                    (SELECT contentid, raw_hash FROM onmaru.catalog_kto_korean_content_versions
+                     WHERE revision_id = ?)
+                    EXCEPT
+                    (SELECT contentid, raw_hash FROM onmaru.catalog_kto_korean_content_versions
+                     WHERE revision_id = ?)
+                ) AND NOT EXISTS (
+                    (SELECT contentid, raw_hash FROM onmaru.catalog_kto_korean_content_versions
+                     WHERE revision_id = ?)
+                    EXCEPT
+                    (SELECT contentid, raw_hash FROM onmaru.catalog_kto_korean_content_versions
+                     WHERE revision_id = ?)
+                )
+                """)) {
+            statement.setObject(1, stagedRevisionId);
+            statement.setObject(2, activeRevisionId);
+            statement.setObject(3, activeRevisionId);
+            statement.setObject(4, stagedRevisionId);
+            try (var result = statement.executeQuery()) {
+                return result.next() && result.getBoolean(1);
+            }
+        }
+    }
+
+    private void reuseActiveRevision(
+            Connection connection,
+            PublishSession session,
+            UUID activeRevisionId,
+            Instant completedAt,
+            int raw,
+            int published,
+            int quarantined
+    ) throws SQLException {
+        for (String table : List.of(
+                "catalog_place_content_tag_versions",
+                "catalog_hanok_detail_versions",
+                "catalog_place_image_versions",
+                "catalog_kto_korean_info_versions",
+                "catalog_kto_korean_intro_versions",
+                "catalog_kto_korean_content_versions",
+                "catalog_place_versions")) {
+            try (var statement = connection.prepareStatement(
+                    "DELETE FROM onmaru." + table + " WHERE revision_id = ?")) {
+                statement.setObject(1, session.revisionId());
+                statement.executeUpdate();
+            }
+        }
+        try (var quarantine = connection.prepareStatement(
+                "DELETE FROM onmaru.operations_sync_quarantine WHERE run_id = ?")) {
+            quarantine.setObject(1, session.runId());
+            quarantine.executeUpdate();
+        }
+        try (var run = connection.prepareStatement("""
+                UPDATE onmaru.operations_sync_runs
+                SET status = 'SUCCEEDED', finished_at = ?, revision_id = ?, counts = ?::jsonb
+                WHERE id = ?
+                """)) {
+            run.setObject(1, atUtc(completedAt));
+            run.setObject(2, activeRevisionId);
+            run.setString(3, json(Map.of(
+                    "raw", raw, "published", published, "quarantined", quarantined, "unchanged", true)));
+            run.setObject(4, session.runId());
+            run.executeUpdate();
+        }
+        try (var revision = connection.prepareStatement(
+                "DELETE FROM onmaru.catalog_dataset_revisions WHERE id = ?")) {
+            revision.setObject(1, session.revisionId());
+            revision.executeUpdate();
         }
     }
 

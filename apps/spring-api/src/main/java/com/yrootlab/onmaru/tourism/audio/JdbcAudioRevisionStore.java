@@ -394,6 +394,23 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
             if (!stageReady(connection, plan.revisionId())) {
                 return PublicationStatus.STAGE_INCOMPLETE;
             }
+            if (samePublishedContent(connection, plan.revisionId(), activeRevision)) {
+                execute(connection, """
+                        UPDATE onmaru.operations_sync_watermarks
+                        SET source_modified_at = ?, external_id = ?,
+                            last_full_success_at = ?, last_success_at = ?, revision_id = ?
+                        WHERE dataset = ?
+                        """, statement -> {
+                    statement.setString(1, plan.watermark().sourceModifiedAt());
+                    statement.setString(2, plan.watermark().externalId());
+                    setInstant(statement, 3, plan.watermark().lastSuccessAt());
+                    setInstant(statement, 4, plan.watermark().lastSuccessAt());
+                    statement.setObject(5, activeRevision);
+                    statement.setString(6, lease.dataset());
+                });
+                deleteDuplicateStage(connection, plan.revisionId());
+                return PublicationStatus.PUBLISHED;
+            }
             execute(connection, """
                     UPDATE onmaru.catalog_active_datasets
                     SET revision_id = ?, activated_at = ?
@@ -433,6 +450,61 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
             });
             return PublicationStatus.PUBLISHED;
         });
+    }
+
+    private boolean samePublishedContent(Connection connection, UUID stagedRevision, UUID activeRevision)
+            throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT
+                    (SELECT count(*) FROM onmaru.audio_spot_versions WHERE revision_id = ?)
+                        = (SELECT count(*) FROM onmaru.audio_spot_versions WHERE revision_id = ?)
+                AND NOT EXISTS (
+                    SELECT 1 FROM onmaru.audio_spot_versions staged
+                    LEFT JOIN onmaru.audio_spot_versions active
+                      ON active.revision_id = ? AND active.spot_id = staged.spot_id
+                    WHERE staged.revision_id = ?
+                      AND (active.spot_id IS NULL OR
+                           (staged.hash, staged.status, staged.missing_observations) IS DISTINCT FROM
+                           (active.hash, active.status, active.missing_observations))
+                )
+                AND (SELECT count(*) FROM onmaru.audio_story_versions WHERE revision_id = ?)
+                        = (SELECT count(*) FROM onmaru.audio_story_versions WHERE revision_id = ?)
+                AND NOT EXISTS (
+                    SELECT 1 FROM onmaru.audio_story_versions staged
+                    LEFT JOIN onmaru.audio_story_versions active
+                      ON active.revision_id = ? AND active.story_id = staged.story_id
+                    WHERE staged.revision_id = ?
+                      AND (active.story_id IS NULL OR
+                           (staged.hash, staged.status, staged.missing_observations) IS DISTINCT FROM
+                           (active.hash, active.status, active.missing_observations))
+                )
+                """)) {
+            statement.setObject(1, stagedRevision);
+            statement.setObject(2, activeRevision);
+            statement.setObject(3, activeRevision);
+            statement.setObject(4, stagedRevision);
+            statement.setObject(5, stagedRevision);
+            statement.setObject(6, activeRevision);
+            statement.setObject(7, activeRevision);
+            statement.setObject(8, stagedRevision);
+            try (var result = statement.executeQuery()) {
+                return result.next() && result.getBoolean(1);
+            }
+        }
+    }
+
+    private void deleteDuplicateStage(Connection connection, UUID revisionId) throws SQLException {
+        for (String table : List.of(
+                "audio_story_content_tag_versions",
+                "audio_subtitle_lines",
+                "audio_story_versions",
+                "audio_spot_versions",
+                "audio_revision_stages")) {
+            execute(connection, "DELETE FROM onmaru." + table + " WHERE revision_id = ?",
+                    statement -> statement.setObject(1, revisionId));
+        }
+        execute(connection, "DELETE FROM onmaru.catalog_dataset_revisions WHERE id = ?",
+                statement -> statement.setObject(1, revisionId));
     }
 
     @Override

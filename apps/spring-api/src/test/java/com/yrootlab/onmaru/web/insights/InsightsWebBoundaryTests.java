@@ -2,6 +2,8 @@ package com.yrootlab.onmaru.web.insights;
 
 import com.yrootlab.onmaru.OnMaruApplication;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
@@ -64,14 +66,42 @@ class InsightsWebBoundaryTests {
     }
 
     @Test
-    void legacyMapHeatPathKeepsTheHeatmapContract() throws Exception {
+    void mapHeatPathReturnsTheFrontendViewportContract() throws Exception {
         mockMvc.perform(get("/api/map/heat")
-                        .param("regionCode", "kr-45-jeonju")
-                        .param("date", "2026-09-14")
-                        .param("metric", "CONGESTION_SCORE"))
+                        .param("lat", "35.8151")
+                        .param("lng", "127.1530")
+                        .param("level", "7")
+                        .param("radius", "15000"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
-                .andExpect(jsonPath("$.spots[0].congestionScore").value(72.4));
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.updatedAt").isString())
+                .andExpect(jsonPath("$.days[0].ymd").value("20260914"))
+                .andExpect(jsonPath("$.spots[0].lat").value(35.8151))
+                .andExpect(jsonPath("$.spots[0].lng").value(127.1530))
+                .andExpect(jsonPath("$.spots[0].district").value("전북 전주시"))
+                .andExpect(jsonPath("$.spots[0].congestionLevel").value("busy"))
+                .andExpect(jsonPath("$.spots[0].intensity").value(org.hamcrest.Matchers.closeTo(0.724, 0.000001)))
+                .andExpect(jsonPath("$.spots[0].series[0]").value(72.4))
+                .andExpect(jsonPath("$.schemaVersion").doesNotExist());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "lat,91,127.1530,7,15000",
+            "lng,35.8151,-181,7,15000",
+            "level,35.8151,127.1530,15,15000",
+            "radius,35.8151,127.1530,7,0"
+    })
+    void mapHeatRejectsInvalidViewportParameters(
+            String field, String lat, String lng, String level, String radius) throws Exception {
+        mockMvc.perform(get("/api/map/heat")
+                        .param("lat", lat)
+                        .param("lng", lng)
+                        .param("level", level)
+                        .param("radius", radius))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details.field").value(field));
     }
 
     @Test
