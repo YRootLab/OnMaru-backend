@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -51,34 +53,52 @@ public class OdiiSyncSchedulingAdapter {
         runSync("scheduled-cron");
     }
 
+    /**
+     * Recover an empty audio dataset immediately after a fresh deployment.
+     * The normal cron remains the periodic refresh mechanism, while this
+     * startup hook prevents the public Odii endpoints from staying at 503
+     * until the next scheduled window.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void initialSync() {
+        LOGGER.info("triggering initial odii sync run");
+        runSync("application-ready");
+    }
+
     public synchronized void runSync(String triggerSource) {
         var syncService = syncServiceProvider.getIfAvailable();
         var revisionStore = revisionStoreProvider.getIfAvailable();
         var dataSource = dataSourceProvider.getIfAvailable();
 
         if (syncService == null || revisionStore == null || dataSource == null) {
-            LOGGER.debug("odii sync skipped: required components not available (trigger: {})", triggerSource);
+            LOGGER.warn("ODII_SYNC_TERMINAL status=SKIPPED phase=DEPENDENCY_CHECK trigger={} "
+                            + "syncService={} revisionStore={} dataSource={}",
+                    triggerSource, syncService != null, revisionStore != null, dataSource != null);
             return;
         }
 
         try {
+            LOGGER.info("ODII_SYNC_STARTED trigger={} dataset={}", triggerSource, dataset);
             UUID activeRevision = revisionStore.activeRevision(dataset);
             if (activeRevision == null) {
-                LOGGER.info("initializing dataset {} before sync", dataset);
+                LOGGER.info("ODII_SYNC_PHASE phase=INITIALIZE dataset={}", dataset);
                 activeRevision = revisionStore.initializeDataset(dataset, Instant.now());
             }
             if (activeRevision == null) {
-                LOGGER.error("odii sync aborted: dataset {} could not be initialized", dataset);
+                LOGGER.error("ODII_SYNC_TERMINAL status=FAILED phase=INITIALIZE trigger={} dataset={}",
+                        triggerSource, dataset);
                 return;
             }
 
+            LOGGER.info("ODII_SYNC_PHASE phase=LEASE trigger={} dataset={}", triggerSource, dataset);
             SyncRunLease lease = acquireOrRenewLease(dataSource, dataset, OWNER_TOKEN);
             if (lease == null) {
-                LOGGER.info("odii sync skipped: could not acquire sync lease for dataset {}", dataset);
+                LOGGER.warn("ODII_SYNC_TERMINAL status=SKIPPED phase=LEASE trigger={} dataset={}",
+                        triggerSource, dataset);
                 return;
             }
 
-            LOGGER.info("starting odii revision sync (trigger: {}, dataset: {}, activeRevision: {})",
+            LOGGER.info("ODII_SYNC_PHASE phase=FETCH_MAP_STAGE_PUBLISH trigger={} dataset={} activeRevision={}",
                     triggerSource, dataset, activeRevision);
 
             var command = new OdiiSyncCommand(
@@ -90,11 +110,14 @@ public class OdiiSyncSchedulingAdapter {
             );
 
             var result = syncService.sync(command);
-            LOGGER.info("odii revision sync completed with status: {}, staged items: {}, tombstones: {}",
-                    result.status(), result.itemCount(), result.tombstoneCount());
+            LOGGER.info("ODII_SYNC_TERMINAL status={} phase=COMPLETE trigger={} dataset={} "
+                            + "items={} tombstones={}",
+                    result.status(), triggerSource, dataset, result.itemCount(), result.tombstoneCount());
 
         } catch (Exception exception) {
-            LOGGER.error("odii sync failed (trigger: {}): {}", triggerSource, exception.getMessage(), exception);
+            // Do not log exception messages: upstream URLs and provider errors may contain secrets.
+            LOGGER.error("ODII_SYNC_TERMINAL status=FAILED phase=UNKNOWN trigger={} dataset={} exceptionType={}",
+                    triggerSource, dataset, exception.getClass().getName());
         }
     }
 
@@ -137,11 +160,11 @@ public class OdiiSyncSchedulingAdapter {
                 return null;
             } catch (SQLException e) {
                 connection.rollback();
-                LOGGER.warn("failed to acquire lease: {}", e.getMessage());
+                LOGGER.warn("ODII_SYNC_LEASE_FAILED phase=LEASE exceptionType={}", e.getClass().getName());
                 return null;
             }
         } catch (SQLException exception) {
-            LOGGER.warn("failed to connect to database for lease: {}", exception.getMessage());
+            LOGGER.warn("ODII_SYNC_LEASE_FAILED phase=LEASE exceptionType={}", exception.getClass().getName());
             return null;
         }
     }
