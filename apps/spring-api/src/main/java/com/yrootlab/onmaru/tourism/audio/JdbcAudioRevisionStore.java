@@ -1,5 +1,7 @@
 package com.yrootlab.onmaru.tourism.audio;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.audio.sync.ActiveAudioRevision;
 import com.yrootlab.onmaru.audio.sync.AudioRevisionSnapshot;
 import com.yrootlab.onmaru.audio.sync.AudioRevisionStage;
@@ -29,6 +31,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +41,111 @@ import java.util.UUID;
 
 public final class JdbcAudioRevisionStore implements AudioRevisionStore {
 
+    private static final String BULK_STAGE_SQL = """
+            WITH input AS (
+                SELECT * FROM jsonb_to_recordset(?::jsonb) AS row(
+                    spot_id uuid, story_id uuid, provider text, tid text, tlid text,
+                    stid text, stlid text, lang_code text, spot_title text,
+                    longitude numeric, latitude numeric, spot_modified_at timestamptz,
+                    spot_status text, spot_hash text, story_title text, script text,
+                    audio_url text, image_url text, duration_seconds integer,
+                    story_status text, story_hash text, transcript_provenance text,
+                    story_modified_at timestamptz, subtitles jsonb
+                )
+            ), inserted_spots AS (
+                INSERT INTO onmaru.audio_odii_spots
+                    (id, provider, tid, tlid, lang_code, created_at)
+                SELECT DISTINCT ON (provider, tid, tlid)
+                       spot_id, provider, tid, tlid, lang_code, CURRENT_TIMESTAMP
+                FROM input
+                ON CONFLICT (provider, tid, tlid) DO NOTHING
+                RETURNING id, provider, tid, tlid
+            ), spot_ids AS (
+                SELECT id, provider, tid, tlid FROM inserted_spots
+                UNION ALL
+                SELECT existing.id, existing.provider, existing.tid, existing.tlid
+                FROM onmaru.audio_odii_spots existing
+                WHERE EXISTS (SELECT 1 FROM input i WHERE i.provider = existing.provider
+                    AND i.tid = existing.tid AND i.tlid = existing.tlid)
+                  AND NOT EXISTS (SELECT 1 FROM inserted_spots added WHERE added.provider = existing.provider
+                    AND added.tid = existing.tid AND added.tlid = existing.tlid)
+            ), inserted_stories AS (
+                INSERT INTO onmaru.audio_odii_stories
+                    (id, spot_id, provider, stid, stlid, lang_code, created_at)
+                SELECT i.story_id, spot.id, i.provider, i.stid, i.stlid, i.lang_code, CURRENT_TIMESTAMP
+                FROM input i JOIN spot_ids spot USING (provider, tid, tlid)
+                ON CONFLICT (provider, stid, stlid) DO NOTHING
+                RETURNING id, spot_id, provider, stid, stlid
+            ), story_ids AS (
+                SELECT id, spot_id, provider, stid, stlid FROM inserted_stories
+                UNION ALL
+                SELECT existing.id, existing.spot_id, existing.provider, existing.stid, existing.stlid
+                FROM onmaru.audio_odii_stories existing
+                WHERE EXISTS (SELECT 1 FROM input i WHERE i.provider = existing.provider
+                    AND i.stid = existing.stid AND i.stlid = existing.stlid)
+                  AND NOT EXISTS (SELECT 1 FROM inserted_stories added WHERE added.provider = existing.provider
+                    AND added.stid = existing.stid AND added.stlid = existing.stlid)
+            ), staged_spots AS (
+                INSERT INTO onmaru.audio_spot_versions (
+                    revision_id, spot_id, title, location, status, hash,
+                    source_modified_at, observed, missing_observations
+                )
+                SELECT DISTINCT ON (spot.id) ?::uuid, spot.id, i.spot_title,
+                       ST_SetSRID(ST_MakePoint(i.longitude, i.latitude), 4326)::geography,
+                       i.spot_status::onmaru.audio_status, i.spot_hash,
+                       i.spot_modified_at, true, 0
+                FROM input i JOIN spot_ids spot USING (provider, tid, tlid)
+                ON CONFLICT (revision_id, spot_id) DO UPDATE SET
+                    title = EXCLUDED.title, location = EXCLUDED.location,
+                    status = EXCLUDED.status, hash = EXCLUDED.hash,
+                    source_modified_at = EXCLUDED.source_modified_at,
+                    observed = true, missing_observations = 0
+                RETURNING spot_id
+            ), staged_stories AS (
+                INSERT INTO onmaru.audio_story_versions (
+                    revision_id, story_id, spot_id, title, script, audio_url, image_url,
+                    duration_seconds, status, hash, transcript_provenance,
+                    source_modified_at, observed, missing_observations
+                )
+                SELECT ?::uuid, story.id, story.spot_id, i.story_title, i.script,
+                       i.audio_url, i.image_url, i.duration_seconds,
+                       i.story_status::onmaru.audio_status, i.story_hash,
+                       i.transcript_provenance, i.story_modified_at, true, 0
+                FROM input i JOIN story_ids story USING (provider, stid, stlid)
+                ON CONFLICT (revision_id, story_id) DO UPDATE SET
+                    spot_id = EXCLUDED.spot_id, title = EXCLUDED.title,
+                    script = EXCLUDED.script, audio_url = EXCLUDED.audio_url,
+                    image_url = EXCLUDED.image_url, duration_seconds = EXCLUDED.duration_seconds,
+                    status = EXCLUDED.status, hash = EXCLUDED.hash,
+                    transcript_provenance = EXCLUDED.transcript_provenance,
+                    source_modified_at = EXCLUDED.source_modified_at,
+                    observed = true, missing_observations = 0
+                RETURNING story_id
+            ), deleted_subtitles AS (
+                DELETE FROM onmaru.audio_subtitle_lines subtitle
+                USING story_ids story
+                WHERE subtitle.revision_id = ?::uuid AND subtitle.story_id = story.id
+                RETURNING subtitle.story_id
+            ), subtitle_barrier AS (
+                SELECT count(*) FROM deleted_subtitles
+            ), staged_subtitles AS (
+                INSERT INTO onmaru.audio_subtitle_lines
+                    (revision_id, story_id, position, text, start_seconds, timing_mode)
+                SELECT ?::uuid, story.id, line.position, line.text,
+                       line.start_seconds, line.timing_mode
+                FROM input i
+                JOIN story_ids story USING (provider, stid, stlid)
+                CROSS JOIN subtitle_barrier
+                CROSS JOIN LATERAL jsonb_to_recordset(coalesce(i.subtitles, '[]'::jsonb))
+                    AS line(position integer, text text, start_seconds numeric, timing_mode text)
+                RETURNING story_id
+            )
+            SELECT (SELECT count(*) FROM staged_stories),
+                   (SELECT count(*) FROM staged_subtitles)
+            """;
+
     private final DataSource dataSource;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public JdbcAudioRevisionStore(DataSource dataSource) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
@@ -113,13 +220,69 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
 
     @Override
     public void stage(UUID revisionId, List<OdiiMappedStory> stories) {
+        if (stories.isEmpty()) return;
         transaction(connection -> {
             requireOpenStage(connection, revisionId);
-            for (OdiiMappedStory mapped : stories) {
-                upsertMappedStory(connection, revisionId, mapped);
+            try (var statement = connection.prepareStatement(BULK_STAGE_SQL)) {
+                statement.setString(1, json(stories));
+                statement.setObject(2, revisionId);
+                statement.setObject(3, revisionId);
+                statement.setObject(4, revisionId);
+                statement.setObject(5, revisionId);
+                try (var result = statement.executeQuery()) {
+                    if (!result.next() || result.getInt(1) != stories.size()) {
+                        throw new IllegalStateException("Odii bulk stage count mismatch");
+                    }
+                }
             }
             return null;
         });
+    }
+
+    private String json(List<OdiiMappedStory> stories) {
+        List<Map<String, Object>> rows = new ArrayList<>(stories.size());
+        for (OdiiMappedStory mapped : stories) {
+            var spot = mapped.spot();
+            var story = mapped.story();
+            var row = new LinkedHashMap<String, Object>();
+            row.put("spot_id", stableId("spot", spot.identity()).toString());
+            row.put("story_id", stableId("story", story.identity()).toString());
+            row.put("provider", spot.identity().provider());
+            row.put("tid", spot.identity().tid());
+            row.put("tlid", spot.identity().tlid());
+            row.put("stid", story.identity().stid());
+            row.put("stlid", story.identity().stlid());
+            row.put("lang_code", story.identity().langCode());
+            row.put("spot_title", spot.title());
+            row.put("longitude", spot.longitude());
+            row.put("latitude", spot.latitude());
+            row.put("spot_modified_at", spot.sourceModifiedAt().toString());
+            row.put("spot_status", spot.status().name());
+            row.put("spot_hash", spot.contentHash());
+            row.put("story_title", story.title());
+            row.put("script", story.script());
+            row.put("audio_url", story.audioUrl());
+            row.put("image_url", story.imageUrl());
+            row.put("duration_seconds", story.durationSeconds());
+            row.put("story_status", story.status().name());
+            row.put("story_hash", story.contentHash());
+            row.put("transcript_provenance", story.transcriptProvenance().name());
+            row.put("story_modified_at", story.sourceModifiedAt().toString());
+            row.put("subtitles", story.subtitleLines().stream().map(line -> {
+                var subtitle = new LinkedHashMap<String, Object>();
+                subtitle.put("position", line.position());
+                subtitle.put("text", line.text());
+                subtitle.put("start_seconds", line.startSeconds());
+                subtitle.put("timing_mode", line.timingMode().name());
+                return subtitle;
+            }).toList());
+            rows.add(row);
+        }
+        try {
+            return objectMapper.writeValueAsString(rows);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("failed to serialize Odii stage page", exception);
+        }
     }
 
     @Override
@@ -231,6 +394,23 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
             if (!stageReady(connection, plan.revisionId())) {
                 return PublicationStatus.STAGE_INCOMPLETE;
             }
+            if (samePublishedContent(connection, plan.revisionId(), activeRevision)) {
+                execute(connection, """
+                        UPDATE onmaru.operations_sync_watermarks
+                        SET source_modified_at = ?, external_id = ?,
+                            last_full_success_at = ?, last_success_at = ?, revision_id = ?
+                        WHERE dataset = ?
+                        """, statement -> {
+                    statement.setString(1, plan.watermark().sourceModifiedAt());
+                    statement.setString(2, plan.watermark().externalId());
+                    setInstant(statement, 3, plan.watermark().lastSuccessAt());
+                    setInstant(statement, 4, plan.watermark().lastSuccessAt());
+                    statement.setObject(5, activeRevision);
+                    statement.setString(6, lease.dataset());
+                });
+                deleteDuplicateStage(connection, plan.revisionId());
+                return PublicationStatus.PUBLISHED;
+            }
             execute(connection, """
                     UPDATE onmaru.catalog_active_datasets
                     SET revision_id = ?, activated_at = ?
@@ -270,6 +450,61 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
             });
             return PublicationStatus.PUBLISHED;
         });
+    }
+
+    private boolean samePublishedContent(Connection connection, UUID stagedRevision, UUID activeRevision)
+            throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT
+                    (SELECT count(*) FROM onmaru.audio_spot_versions WHERE revision_id = ?)
+                        = (SELECT count(*) FROM onmaru.audio_spot_versions WHERE revision_id = ?)
+                AND NOT EXISTS (
+                    SELECT 1 FROM onmaru.audio_spot_versions staged
+                    LEFT JOIN onmaru.audio_spot_versions active
+                      ON active.revision_id = ? AND active.spot_id = staged.spot_id
+                    WHERE staged.revision_id = ?
+                      AND (active.spot_id IS NULL OR
+                           (staged.hash, staged.status, staged.missing_observations) IS DISTINCT FROM
+                           (active.hash, active.status, active.missing_observations))
+                )
+                AND (SELECT count(*) FROM onmaru.audio_story_versions WHERE revision_id = ?)
+                        = (SELECT count(*) FROM onmaru.audio_story_versions WHERE revision_id = ?)
+                AND NOT EXISTS (
+                    SELECT 1 FROM onmaru.audio_story_versions staged
+                    LEFT JOIN onmaru.audio_story_versions active
+                      ON active.revision_id = ? AND active.story_id = staged.story_id
+                    WHERE staged.revision_id = ?
+                      AND (active.story_id IS NULL OR
+                           (staged.hash, staged.status, staged.missing_observations) IS DISTINCT FROM
+                           (active.hash, active.status, active.missing_observations))
+                )
+                """)) {
+            statement.setObject(1, stagedRevision);
+            statement.setObject(2, activeRevision);
+            statement.setObject(3, activeRevision);
+            statement.setObject(4, stagedRevision);
+            statement.setObject(5, stagedRevision);
+            statement.setObject(6, activeRevision);
+            statement.setObject(7, activeRevision);
+            statement.setObject(8, stagedRevision);
+            try (var result = statement.executeQuery()) {
+                return result.next() && result.getBoolean(1);
+            }
+        }
+    }
+
+    private void deleteDuplicateStage(Connection connection, UUID revisionId) throws SQLException {
+        for (String table : List.of(
+                "audio_story_content_tag_versions",
+                "audio_subtitle_lines",
+                "audio_story_versions",
+                "audio_spot_versions",
+                "audio_revision_stages")) {
+            execute(connection, "DELETE FROM onmaru." + table + " WHERE revision_id = ?",
+                    statement -> statement.setObject(1, revisionId));
+        }
+        execute(connection, "DELETE FROM onmaru.catalog_dataset_revisions WHERE id = ?",
+                statement -> statement.setObject(1, revisionId));
     }
 
     @Override
@@ -471,6 +706,7 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
     private AudioRevisionSnapshot loadSnapshot(Connection connection, UUID revisionId) throws SQLException {
         List<OdiiSpotVersion> spots = new ArrayList<>();
         Map<UUID, OdiiSpotIdentity> spotIdentities = new HashMap<>();
+        Map<UUID, OdiiSpotVersion> spotVersions = new HashMap<>();
         try (var statement = connection.prepareStatement("""
                 SELECT identity.id, identity.provider, identity.tid, identity.tlid, identity.lang_code,
                        version.title, ST_X(version.location::geometry) AS longitude,
@@ -488,14 +724,16 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
                             result.getString("provider"), result.getString("tid"),
                             result.getString("tlid"), result.getString("lang_code"));
                     spotIdentities.put(result.getObject("id", UUID.class), identity);
-                    spots.add(new OdiiSpotVersion(
+                    var spot = new OdiiSpotVersion(
                             identity,
                             result.getString("title"),
                             result.getBigDecimal("longitude"),
                             result.getBigDecimal("latitude"),
                             instant(result, "source_modified_at"),
                             AudioStatus.valueOf(result.getString("status")),
-                            result.getString("hash")));
+                            result.getString("hash"));
+                    spots.add(spot);
+                    spotVersions.put(result.getObject("id", UUID.class), spot);
                 }
             }
         }
@@ -516,14 +754,12 @@ public final class JdbcAudioRevisionStore implements AudioRevisionStore {
             try (var result = statement.executeQuery()) {
                 while (result.next()) {
                     UUID storyId = result.getObject("id", UUID.class);
-                    OdiiSpotIdentity spotIdentity = spotIdentities.get(result.getObject("spot_id", UUID.class));
-                    if (spotIdentity == null) {
+                    UUID spotId = result.getObject("spot_id", UUID.class);
+                    OdiiSpotIdentity spotIdentity = spotIdentities.get(spotId);
+                    OdiiSpotVersion spot = spotVersions.get(spotId);
+                    if (spotIdentity == null || spot == null) {
                         continue;
                     }
-                    OdiiSpotVersion spot = spots.stream()
-                            .filter(candidate -> candidate.identity().equals(spotIdentity))
-                            .findFirst()
-                            .orElseThrow();
                     Integer duration = (Integer) result.getObject("duration_seconds");
                     var story = new OdiiStoryVersion(
                             new OdiiStoryIdentity(

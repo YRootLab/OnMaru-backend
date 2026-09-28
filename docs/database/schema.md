@@ -52,6 +52,46 @@
 // V026은 V021 이전 VisitReview에 결정적 p-legacy-* 공개 ID를 등록하고 가능한 최신
 // published Catalog version의 장소명·지역·좌표 snapshot을 backfill해 JDBC 전환 시
 // 기존 후기가 조회에서 사라지지 않게 한다.
+// 한옥 수결첩의 실행 스키마는 V028을 기준으로 한다. stamp_definitions와
+// stamp_region_rules가 수결 표시 정보와 canonical 지역 조건을 소유하고,
+// stamp_check_ins는 회원·Catalog 장소·15분 bucket 관계와 서버 판정 거리/정확도만 저장하며,
+// CHECK(distance_meters - accuracy_meters <= 200)로 성공 판정 반경도 DB에서 보호한다.
+// 요청 latitude/longitude 원문은 저장하지 않는다. stamp_awards는 회원별 수결을 한 번만
+// 허용하며 trigger_check_in_id와 member_id의 복합 FK로 다른 회원의 체크인을 참조하지 못한다.
+// 체크인·수결·idempotency receipt는 동일 JdbcTransactionRunner transaction으로 commit한다.
+// V029의 stamp_ranking_profiles는 회원별 익명 랭킹 참여 설정을 저장한다. 참여 기본값은 false이며
+// 미참여 시 ranking_public_id와 공개 닉네임 필드는 null이다. 참여 시에만 랜덤 공개 UUID,
+// 생성형 닉네임과 정규화 닉네임, 동의 시각이 필수이고 withdrawn_at은 null이어야 한다.
+// 참여 중인 공개 UUID와 정규화 닉네임에만 partial unique index가 적용된다. 회원 삭제는
+// ON DELETE CASCADE로 설정 row를 함께 제거한다. 순위 점수는 stamp_awards에서 조회 시
+// 계산하며 profile이나 별도 테이블에 저장하지 않는다.
+// V030부터 production OAuth와 회원 lifecycle은 identity_members를 포함한 JDBC 원장을
+// 단일 Source of Truth로 사용한다. identity_oauth_states.pkce_verifier_hash는 PKCE 검증값의
+// SHA-256 hash만 저장하고 상태 consume 시 nonce/provider와 함께 원자적으로 검증한다.
+// 탈퇴 cleanup은 DELETING 회원 row를 잠근 뒤 수결 획득·체크인·랭킹 profile과 회원 UUID를
+// subject_id로 가진 HTTP idempotency receipt를 삭제한다. 각 receipt는 복합 키의 SHA-256으로
+// 식별해 개인정보를 복제하지 않고 deletion ledger에 기록하며, 모든 대상이 사라진 뒤에만
+// 회원 deletion ledger를 COMPLETED로 전환한다. DELETING tombstone은
+// cleanup과 경합한 체크인 또는 랭킹 참여가 개인정보 row를 다시 만들지 못하게 한다.
+// V031은 TourAPI 국문 v4.4에서 기존 areaCode/sigunguCode를 대체한 법정동 코드
+// lDongRegnCd/lDongSignguCd를 catalog_kto_korean_content_versions에 보존한다.
+// 최초 areaBasedList2 전 페이지는 적격성 판정과 무관하게 원천 version에 저장하고,
+// 공개 catalog_place_versions만 공식 lclsSystmCode2 분류명·좌표 정책을 통과한 행으로 구성한다.
+// 제목에 "한옥"이 포함되는지는 공개 적격성 판정 기준으로 사용하지 않는다.
+// V032는 한국관광공사 DataLab의 2026-08-23 전국 응답을 검증 snapshot으로 사용해
+// 시도 16개와 시군구 269개의 provider code를 catalog_regions,
+// catalog_region_source_codes, catalog_datalab_region_mappings에 등록한다.
+// 매핑은 공식 data.go.kr URL과 검증 시각을 보존하며, API의 약 35일 제공 지연을 고려한
+// 일별 방문자 동기화와 DB 기반 행정구역 원형 히트맵의 지역 레지스트리로 사용한다.
+// V033은 ODII 공개 조회를 활성 revision 전체 Java snapshot 복원에서 PostgreSQL read model로
+// 전환한다. audio_odii_spots.public_id와 audio_odii_stories.public_id는 기존 Java
+// UUID.nameUUIDFromBytes 공개 ID와 동일한 generated stored UUID이며 (public_id, lang_code)
+// unique index로 상세 탐색한다. 같은 provider ID의 언어별 identity는 허용하므로
+// public_id 단독은 unique 제약으로 사용하지 않는다.
+// 활성 목록은 audio_story_versions_active_page_idx로 keyset pagination하고, 인기 조회는
+// audio_story_play_events_occurred_story_idx로 기간을 먼저 제한해 DB 안에서 집계한다.
+// 자막은 기존 (revision_id, story_id, position) PK가 상세 한 건 조회와 순서를 모두 지원하므로
+// 중복 index를 추가하지 않는다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 

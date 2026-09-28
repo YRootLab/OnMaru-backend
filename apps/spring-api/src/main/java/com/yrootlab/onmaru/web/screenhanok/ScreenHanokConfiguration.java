@@ -1,8 +1,8 @@
 package com.yrootlab.onmaru.web.screenhanok;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStore;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokSavedStateLookup;
-import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
 import com.yrootlab.onmaru.catalog.screenhanok.InMemoryScreenHanokPlacementStore;
 import com.yrootlab.onmaru.catalog.screenhanok.ScreenHanokIngestionService;
 import com.yrootlab.onmaru.catalog.screenhanok.ScreenHanokPlacementStore;
@@ -68,7 +68,7 @@ class ScreenHanokConfiguration {
     @Bean
     ScreenHanokQueryService screenHanokQueryService(
             ScreenHanokPlacementStore placementStore,
-            InMemoryHanokListStore hanokListStore,
+            HanokListStore hanokListStore,
             HanokSavedStateLookup savedStateLookup) {
         return new ScreenHanokQueryService(placementStore, hanokListStore, savedStateLookup);
     }
@@ -94,7 +94,7 @@ class ScreenHanokConfiguration {
 
     @Bean
     ScreenHanokIngestionService screenHanokIngestionService(
-            InMemoryHanokListStore hanokListStore,
+            HanokListStore hanokListStore,
             ScreenHanokResearchPort screenHanokResearchPort,
             ScreenHanokPlacementStore placementStore,
             Clock clock) {

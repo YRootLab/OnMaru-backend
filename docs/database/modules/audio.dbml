@@ -11,9 +11,11 @@ Table audio_odii_spots [headercolor: #F28E2B] {
   tlid varchar [not null]
   lang_code varchar [not null]
   created_at timestamptz [not null]
+  public_id uuid [not null, note: 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-spot-:tid) compatible']
 
   Indexes {
     (provider, tid, tlid) [unique]
+    (public_id, lang_code) [unique]
   }
 }
 
@@ -25,10 +27,12 @@ Table audio_odii_stories [headercolor: #F28E2B] {
   stlid varchar [not null]
   lang_code varchar [not null]
   created_at timestamptz [not null]
+  public_id uuid [not null, note: 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-story-:stid) compatible']
 
   Indexes {
     (provider, stid, stlid) [unique]
     spot_id
+    (public_id, lang_code) [unique]
   }
 }
 
@@ -69,6 +73,7 @@ Table audio_story_versions [headercolor: #F28E2B] {
   Indexes {
     (revision_id, story_id) [pk]
     (revision_id, spot_id)
+    (revision_id, source_modified_at, story_id) [note: 'V033 partial: status=ACTIVE and source_modified_at is not null; DESC timestamp']
   }
 }
 
@@ -154,5 +159,6 @@ Table audio_story_play_events {
 
   Indexes {
     (story_id, occurred_at)
+    (occurred_at, story_id)
   }
 }

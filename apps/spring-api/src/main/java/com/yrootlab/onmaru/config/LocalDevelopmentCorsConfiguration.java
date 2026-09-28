@@ -9,6 +9,8 @@ public class LocalDevelopmentCorsConfiguration implements WebMvcConfigurer {
 
     private static final String[] ALLOWED_ORIGINS = {
             "https://onmaru-web.onrender.com",
+            "https://www.onmaru.site",
+            "https://onmaru.site",
             "http://localhost:3000",
             "http://localhost:3001",
             "http://localhost:3002",

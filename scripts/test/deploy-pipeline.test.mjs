@@ -39,6 +39,11 @@ describe('container and staging release pipeline', () => {
       /uv sync --frozen --no-dev --no-editable/,
       'ai/Dockerfile must install the app non-editably before copying the venv',
     );
+    assert.match(
+      read('Dockerfile'),
+      /ENV SPRING_PROFILES_ACTIVE=production/,
+      'the deployed Spring image must select JDBC-backed production stores by default',
+    );
   });
 
   it('keeps staging deploy order gated by migration and rollback evidence', () => {
@@ -70,9 +75,26 @@ describe('container and staging release pipeline', () => {
     assert.match(workflow, /concurrency:/);
     assert.match(workflow, /docker\/build-push-action@v6/);
     assert.match(workflow, /aquasecurity\/trivy-action@v0\.36\.0/);
+    assert.equal(
+      workflow.match(/limit-severities-for-sarif:\s+true/g)?.length,
+      2,
+      'both SARIF scans must limit the deploy gate to configured severities',
+    );
     assert.match(workflow, /Dockerfile/);
     assert.match(workflow, /ai\/Dockerfile/);
     assert.match(workflow, /migration-gate:/);
+    const migrationGate = workflow.slice(
+      workflow.indexOf('  migration-gate:'),
+      workflow.indexOf('  staging-smoke:'),
+    );
+    assert.match(migrationGate, /actions\/setup-python@v5/);
+    assert.match(migrationGate, /python-version:\s*["']?3\.12["']?/);
+    assert.match(migrationGate, /pip install -r scripts\/test\/requirements-contract\.txt/);
+    assert.ok(
+      migrationGate.indexOf('pip install -r scripts/test/requirements-contract.txt')
+        < migrationGate.indexOf('bash scripts/verify-contracts'),
+      'migration gate must install contract dependencies before validation',
+    );
     assert.match(workflow, /staging-smoke:/);
     assert.match(workflow, /STAGING_SPRING_URL/);
     assert.match(workflow, /STAGING_AI_URL/);

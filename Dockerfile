@@ -16,6 +16,7 @@ RUN --mount=type=cache,target=/root/.gradle \
 
 FROM eclipse-temurin:21-jre-alpine AS runner
 WORKDIR /app
+ENV SPRING_PROFILES_ACTIVE=production
 
 RUN apk upgrade --no-cache \
     && apk add --no-cache curl \

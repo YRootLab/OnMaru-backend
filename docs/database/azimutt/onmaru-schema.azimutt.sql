@@ -119,6 +119,7 @@ CREATE TABLE "identity_oauth_states" (
   "state_hash" varchar PRIMARY KEY,
   "guest_id" uuid,
   "browser_nonce_hash" varchar NOT NULL,
+  "pkce_verifier_hash" varchar NOT NULL,
   "exploration_id" uuid,
   "provider" varchar NOT NULL,
   "return_path" varchar NOT NULL,
@@ -328,7 +329,8 @@ CREATE TABLE "audio_odii_spots" (
   "tid" varchar NOT NULL,
   "tlid" varchar NOT NULL,
   "lang_code" varchar NOT NULL,
-  "created_at" timestamptz NOT NULL
+  "created_at" timestamptz NOT NULL,
+  "public_id" uuid NOT NULL
 );
 
 CREATE TABLE "audio_odii_stories" (
@@ -338,7 +340,8 @@ CREATE TABLE "audio_odii_stories" (
   "stid" varchar NOT NULL,
   "stlid" varchar NOT NULL,
   "lang_code" varchar NOT NULL,
-  "created_at" timestamptz NOT NULL
+  "created_at" timestamptz NOT NULL,
+  "public_id" uuid NOT NULL
 );
 
 CREATE TABLE "audio_spot_versions" (
@@ -730,6 +733,13 @@ CREATE TABLE "ai_corpus_sync_runs" (
   "finished_at" timestamptz,
   "error_code" varchar
 );
+
+
+
+
+
+
+
 
 
 

@@ -60,6 +60,7 @@ jobs:
           output: trivy-spring-api.sarif
           scanners: vuln
           severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload Spring API scan
@@ -88,6 +89,7 @@ jobs:
           output: trivy-ai-service.sarif
           scanners: vuln
           severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
           exit-code: "1"
           ignore-unfixed: true
           trivyignores: .trivyignore
@@ -113,6 +115,16 @@ jobs:
           java-version: "21"
           distribution: temurin
           cache: gradle
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/test/requirements-contract.txt
+
+      - name: Install contract validator dependencies
+        run: python -m pip install -r scripts/test/requirements-contract.txt
 
       - name: Validate generated contracts before migration
         run: bash scripts/verify-contracts

@@ -77,7 +77,8 @@ class HttpAiProposalClientTests {
                 .containsEntry("X-Revision", "dataset-2026-09-16")
                 .containsEntry("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01");
         assertThat(capturedBody).contains("\"candidateCount\":2");
-        assertThat(capturedBody).doesNotContain("조용한 한옥 코스");
+        assertThat(capturedBody).contains("\"query\":\"조용한 한옥 코스\"");
+        assertThat(capturedBody).contains("\"candidateRefs\":[\"place:001\",\"place:002\"]");
         assertThat(events).contains(new WorkerTelemetryEvent(
                 "journey.worker.ai_call",
                 Map.of(

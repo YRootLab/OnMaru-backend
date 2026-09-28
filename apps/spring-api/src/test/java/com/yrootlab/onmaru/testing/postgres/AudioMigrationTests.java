@@ -90,6 +90,17 @@ class AudioMigrationTests {
                     UUID.randomUUID(),
                     "KTO_ODII",
                     "tid-1",
+                    "tlid-ko-duplicate",
+                    "ko"
+            ))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("audio_odii_spots_public_language_idx");
+
+            assertThatThrownBy(() -> insertSpot(
+                    statement,
+                    UUID.randomUUID(),
+                    "KTO_ODII",
+                    "tid-1",
                     "tlid-ko",
                     "ko"
             ))
@@ -100,6 +111,18 @@ class AudioMigrationTests {
             insertStory(statement, englishStory, koreanSpot, "KTO_ODII", "stid-1", "stlid-en", "en");
             assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.audio_odii_stories"))
                     .isEqualTo(2);
+
+            assertThatThrownBy(() -> insertStory(
+                    statement,
+                    UUID.randomUUID(),
+                    englishSpot,
+                    "KTO_ODII",
+                    "stid-1",
+                    "stlid-ko-duplicate",
+                    "ko"
+            ))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("audio_odii_stories_public_language_idx");
 
             assertThatThrownBy(() -> insertStory(
                     statement,

@@ -8,6 +8,7 @@ import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenRequest;
 import com.yrootlab.onmaru.journey.worker.AiProposalClient;
 import com.yrootlab.onmaru.journey.worker.AiProposalException;
 import com.yrootlab.onmaru.journey.worker.CandidatePayload;
+import com.yrootlab.onmaru.journey.worker.JourneyCandidate;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerPlan;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerRequest;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerTelemetry;
@@ -94,7 +95,9 @@ public final class HttpAiProposalClient implements AiProposalClient {
                 "schemaVersion", "internal.ai.v1",
                 "requestId", request.requestId(),
                 "runId", request.runId().toString(),
-                "candidateCount", payload.candidates().size()));
+                "candidateCount", payload.candidates().size(),
+                "query", request.queryText(),
+                "candidateRefs", payload.candidates().stream().map(JourneyCandidate::ref).toList()));
     }
 
     private JourneyWorkerPlan planFrom(JourneyWorkerRequest request, String body) {

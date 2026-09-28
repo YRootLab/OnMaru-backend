@@ -75,19 +75,47 @@ public final class InsightsController {
             @ApiResponse(responseCode = "200", description = "히트맵 데이터 조회 성공"),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 날짜 또는 파라미터", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
-    @GetMapping({"/api/v1/insights/heatmap", "/api/map/heat"})
+    @GetMapping("/api/v1/insights/heatmap")
     ResponseEntity<?> heatmap(
             @Parameter(description = "행정구역 코드 (미지정 시 전국)", example = "11")
             @RequestParam(required = false) String regionCode,
-            @Parameter(description = "기준 일자 (YYYY-MM-DD)", example = "2026-09-18", required = true)
-            @RequestParam String date,
+            @Parameter(description = "기준 일자 (YYYY-MM-DD, 미지정 시 최신 발행일)", example = "2026-09-18")
+            @RequestParam(required = false) String date,
             @Parameter(description = "메트릭 유형", example = "VISIT_COUNT")
             @RequestParam(required = false) String metric,
             HttpServletRequest request) {
         try {
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.noStore())
-                    .body(queryService.heatmap(regionCode, parseRequiredDate(date, "date"), normalizeMetric(metric)));
+                    .body(queryService.heatmap(regionCode, parseOptionalDate(date, "date"), normalizeMetric(metric)));
+        } catch (InsightsInvalidRequestException exception) {
+            return validationError(request, exception.field());
+        }
+    }
+
+    @Operation(
+            summary = "프론트엔드 지도 온기모드 히트맵 조회",
+            description = "지도 중심 좌표와 반경 안의 실제 시군구 방문 관측값을 FE 온기모드 계약으로 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "viewport 히트맵 조회 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 viewport 파라미터", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    @GetMapping("/api/map/heat")
+    ResponseEntity<?> mapHeat(
+            @RequestParam String lat,
+            @RequestParam String lng,
+            @RequestParam String level,
+            @RequestParam String radius,
+            HttpServletRequest request) {
+        try {
+            double parsedLat = parseCoordinate(lat, "lat", -90.0, 90.0);
+            double parsedLng = parseCoordinate(lng, "lng", -180.0, 180.0);
+            parseLevel(level);
+            double parsedRadius = parsePositiveDouble(radius, "radius");
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.noStore())
+                    .body(queryService.mapHeat(parsedLat, parsedLng, parsedRadius));
         } catch (InsightsInvalidRequestException exception) {
             return validationError(request, exception.field());
         }
@@ -114,6 +142,46 @@ public final class InsightsController {
             return LocalDate.parse(value);
         } catch (DateTimeParseException exception) {
             throw new InsightsInvalidRequestException(field);
+        }
+    }
+
+    private double parseCoordinate(String value, String field, double min, double max) {
+        double parsed = parseDouble(value, field);
+        if (parsed < min || parsed > max) {
+            throw new InsightsInvalidRequestException(field);
+        }
+        return parsed;
+    }
+
+    private double parsePositiveDouble(String value, String field) {
+        double parsed = parseDouble(value, field);
+        if (parsed <= 0) {
+            throw new InsightsInvalidRequestException(field);
+        }
+        return parsed;
+    }
+
+    private double parseDouble(String value, String field) {
+        try {
+            double parsed = Double.parseDouble(value);
+            if (!Double.isFinite(parsed)) {
+                throw new InsightsInvalidRequestException(field);
+            }
+            return parsed;
+        } catch (NumberFormatException exception) {
+            throw new InsightsInvalidRequestException(field);
+        }
+    }
+
+    private int parseLevel(String value) {
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed < 1 || parsed > 14) {
+                throw new InsightsInvalidRequestException("level");
+            }
+            return parsed;
+        } catch (NumberFormatException exception) {
+            throw new InsightsInvalidRequestException("level");
         }
     }
 

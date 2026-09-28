@@ -135,6 +135,12 @@ public final class InMemoryAudioRevisionStore implements AudioRevisionStore {
         if (stage == null || stage.validation == null || !stage.validation.ready()) {
             return PublicationStatus.STAGE_INCOMPLETE;
         }
+        if (activeSnapshot.hasSameContent(stage.snapshot)
+                && missingSpots.equals(stage.missingSpots)
+                && missingStories.equals(stage.missingStories)) {
+            watermark = plan.watermark();
+            return PublicationStatus.PUBLISHED;
+        }
         activeRevision = plan.revisionId();
         activeSnapshot = stage.snapshot.copy();
         watermark = plan.watermark();

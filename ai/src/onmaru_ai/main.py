@@ -1,5 +1,6 @@
 import os
 from collections.abc import Mapping
+from typing import Any
 
 from fastapi import FastAPI
 
@@ -10,6 +11,13 @@ from onmaru_ai.config.secrets import (
     provider_from_environment,
     validate_required_secrets,
 )
+from onmaru_ai.corpus.index import (
+    CorpusIndexService,
+    DeterministicEmbeddingProvider,
+    FixedWordChunker,
+)
+from onmaru_ai.corpus.rest import install_corpus_rest
+from onmaru_ai.corpus.sync import InMemoryCorpusStore
 from onmaru_ai.observability import TelemetrySink, create_telemetry_sink, install_observability
 from onmaru_ai.providers.gemini.adapter import GeminiAdapter
 from onmaru_ai.providers.gemini.models import GeminiConfig, GeminiPricing
@@ -33,11 +41,18 @@ def _screen_hanok_research_enabled(environ: Mapping[str, str] | None = None) -> 
     return source.get("ONMARU_SCREEN_HANOK_RESEARCH_ENABLED", "").strip().lower() == "true"
 
 
+def _journey_gemini_enabled(environ: Mapping[str, str] | None = None) -> bool:
+    source = os.environ if environ is None else environ
+    return source.get("ONMARU_JOURNEY_GEMINI_ENABLED", "").strip().lower() == "true"
+
+
 def create_app(
     secret_provider: SecretProvider | None = None,
     telemetry_sink: TelemetrySink | None = None,
     rag_activation_log: InMemoryRagActivationLog | None = None,
     rag_retriever: RagEvidenceRetriever | None = None,
+    corpus_store: InMemoryCorpusStore | None = None,
+    corpus_index: CorpusIndexService | None = None,
     environ: Mapping[str, str] | None = None,
 ) -> FastAPI:
     provider = secret_provider or provider_from_environment()
@@ -52,6 +67,17 @@ def create_app(
         rag_activation_log=rag_activation_log,
         rag_retriever=rag_retriever,
         rag_feature_enabled=_rag_feature_enabled(environ),
+        journey_llm=_journey_llm(provider, environ),
+    )
+    install_corpus_rest(
+        app,
+        provider,
+        corpus_store or InMemoryCorpusStore(),
+        corpus_index
+        or CorpusIndexService(
+            FixedWordChunker(max_words=120),
+            DeterministicEmbeddingProvider(),
+        ),
     )
 
     if _screen_hanok_research_enabled(environ):
@@ -81,6 +107,30 @@ def create_app(
         return {"status": "ready"}
 
     return app
+
+
+def _journey_llm(secret_provider: SecretProvider, environ: Mapping[str, str] | None) -> Any:
+    if not _journey_gemini_enabled(environ):
+        return None
+    from onmaru_ai.journey_llm import JourneyLlmService
+
+    gemini_secret = secret_provider.get("gemini.api-key")
+    config = GeminiConfig(
+        model_alias="journey-planner",
+        model_name=(os.environ if environ is None else environ).get(
+            "ONMARU_GEMINI_MODEL_NAME", "gemini-2.5-flash"
+        ),
+        max_output_tokens=2048,
+        pricing=GeminiPricing(input_micros_per_million=0, output_micros_per_million=0),
+    )
+    return JourneyLlmService(
+        GeminiAdapter(
+            config,
+            HttpxGeminiTransport(),
+            api_key=gemini_secret.current,
+            telemetry_sink=create_telemetry_sink(),
+        )
+    )
 
 
 app = create_app()

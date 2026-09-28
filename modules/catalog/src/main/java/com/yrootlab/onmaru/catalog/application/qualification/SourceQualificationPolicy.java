@@ -16,7 +16,7 @@ import static java.util.Map.entry;
 
 public final class SourceQualificationPolicy {
 
-    private static final String ALLOWLIST_VERSION = "tourapi-category-allowlist-v4";
+    private static final String ALLOWLIST_VERSION = "tourapi-category-allowlist-v5";
     private static final Pattern SECRET_FIELD_PATTERN = Pattern.compile(".*(key|token|secret|authorization|cookie|requesturl).*", Pattern.CASE_INSENSITIVE);
     private static final Set<String> VOLATILE_HASH_FIELDS = Set.of("createdtime", "modifiedtime", "dist", "mlevel", "tel");
 
@@ -52,7 +52,7 @@ public final class SourceQualificationPolicy {
     public QualificationResult qualify(SourceRecord row) {
         Optional<CanonicalCategory> category = categoryFor(row);
         if (category.isEmpty()) {
-            return quarantine(row, "UNSUPPORTED_CATEGORY");
+            return QualificationResult.skipped();
         }
 
         Double longitude = parseDouble(row.field("mapx"));
@@ -78,6 +78,14 @@ public final class SourceQualificationPolicy {
     }
 
     private Optional<CanonicalCategory> categoryFor(SourceRecord row) {
+        String resolvedV44Category = normalize(row.field("canonicalcategory"));
+        if (!resolvedV44Category.isEmpty()) {
+            try {
+                return Optional.of(CanonicalCategory.valueOf(resolvedV44Category));
+            } catch (IllegalArgumentException ignored) {
+                return Optional.empty();
+            }
+        }
         CategoryKey key = new CategoryKey(
                 normalize(row.field("contenttypeid")),
                 normalize(row.field("cat1")),

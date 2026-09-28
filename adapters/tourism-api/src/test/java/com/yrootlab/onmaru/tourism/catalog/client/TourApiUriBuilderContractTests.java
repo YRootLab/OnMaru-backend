@@ -38,30 +38,47 @@ class TourApiUriBuilderContractTests {
     }
 
     @Test
-    void buildsDetailCommonUriWithRequiredFlags() {
-        URI uri = builder.detailCommon("126508", "12");
+    void buildsV44DetailCommonUriWithoutRemovedLegacyFlags() {
+        URI uri = builder.detailCommon("126508");
 
         assertThat(uri.toString())
                 .startsWith("https://apis.data.go.kr/B551011/KorService2/detailCommon2?")
                 .contains("contentId=126508")
-                .contains("contentTypeId=12")
-                .contains("defaultYN=Y")
-                .contains("firstImageYN=Y")
-                .contains("areacodeYN=Y")
-                .contains("catcodeYN=Y")
-                .contains("addrinfoYN=Y")
-                .contains("mapinfoYN=Y")
-                .contains("overviewYN=Y");
+                .doesNotContain("contentTypeId=")
+                .doesNotContain("defaultYN=");
     }
 
     @Test
-    void buildsAreaCodeUriForQualificationOperation() {
-        URI uri = builder.areaCode(1, 10);
+    void buildsDetailIntroAndInfoWithContentTypeMapping() {
+        assertThat(builder.detailIntro("126508", "12").toString())
+                .contains("/detailIntro2?", "contentId=126508", "contentTypeId=12");
+        assertThat(builder.detailInfo("126508", "12").toString())
+                .contains("/detailInfo2?", "contentId=126508", "contentTypeId=12", "numOfRows=100");
+    }
+
+    @Test
+    void buildsV44LegalDistrictAndClassificationCodeUris() {
+        URI district = builder.legalDistrictCodes(1, 1000, true);
+        URI classification = builder.classificationCodes(1, 1000, true);
+
+        assertThat(district.toString())
+                .startsWith("https://apis.data.go.kr/B551011/KorService2/ldongCode2?")
+                .contains("lDongListYn=Y");
+        assertThat(classification.toString())
+                .startsWith("https://apis.data.go.kr/B551011/KorService2/lclsSystmCode2?")
+                .contains("lclsSystmListYn=Y");
+    }
+
+    @Test
+    void buildsDailySyncUriForVisibleAndHiddenChanges() {
+        URI uri = builder.areaBasedSyncList(2, 1000, Map.of(
+                "showflag", "0", "modifiedtime", "20260927"));
 
         assertThat(uri.toString())
-                .startsWith("https://apis.data.go.kr/B551011/KorService2/areaCode2?")
-                .contains("pageNo=1")
-                .contains("numOfRows=10");
+                .startsWith("https://apis.data.go.kr/B551011/KorService2/areaBasedSyncList2?")
+                .contains("showflag=0")
+                .contains("modifiedtime=20260927")
+                .contains("pageNo=2");
     }
 
     @Test
@@ -72,7 +89,7 @@ class TourApiUriBuilderContractTests {
                 "OnMaru"
         );
 
-        URI uri = encodedKeyBuilder.areaCode(1, 10);
+        URI uri = encodedKeyBuilder.legalDistrictCodes(1, 10, false);
 
         assertThat(uri.toString())
                 .contains("serviceKey=abc%2Bdef%3D")

@@ -107,6 +107,64 @@ class InsightsQueryServiceTests {
         });
     }
 
+    @Test
+    void usesTheLatestPublishedHeatmapDateWhenDateIsOmitted() {
+        store.save(new HeatSpot(
+                "heat-old", "region:kr-45-jeonju", "전주시", region(),
+                new Coordinates(35.8151, 127.1530), 10L, 10.0, "RELAXED", 1.0,
+                "COMPLETE", LocalDate.parse("2026-08-21"), "CONGESTION_SCORE"));
+        store.save(new HeatSpot(
+                "heat-latest", "region:kr-45-jeonju", "전주시", region(),
+                new Coordinates(35.8151, 127.1530), 20L, 20.0, "RELAXED", 1.0,
+                "COMPLETE", LocalDate.parse("2026-08-22"), "CONGESTION_SCORE"));
+
+        HeatmapResponse response = service.heatmap(null, null, "CONGESTION_SCORE");
+
+        assertThat(response.observedDate()).isEqualTo(LocalDate.parse("2026-08-22"));
+        assertThat(response.spots()).extracting(HeatSpot::id).containsExactly("heat-latest");
+    }
+
+    @Test
+    void returnsFrontendCompatibleViewportHeatmapWithActualDailySeries() {
+        store.save(new HeatSpot(
+                "heat-old", "region:kr-45-jeonju", "전주시", region(),
+                new Coordinates(35.8151, 127.1530), 10L, 25.0, "RELAXED", 1.0,
+                "COMPLETE", LocalDate.parse("2026-09-14"), "CONGESTION_SCORE"));
+        store.save(new HeatSpot(
+                "heat-latest", "region:kr-45-jeonju", "전주시", region(),
+                new Coordinates(35.8151, 127.1530), 20L, 75.0, "SURGE", 1.8,
+                "COMPLETE", LocalDate.parse("2026-09-15"), "CONGESTION_SCORE"));
+        store.save(new HeatSpot(
+                "heat-outside", "region:kr-11-seoul", "서울시",
+                new RegionRef("kr-11-seoul", "서울시", "CITY", "kr-11"),
+                new Coordinates(37.5665, 126.9780), 30L, 90.0, "SURGE", 2.0,
+                "COMPLETE", LocalDate.parse("2026-09-15"), "CONGESTION_SCORE"));
+
+        MapHeatResponse response = service.mapHeat(35.8151, 127.1530, 15_000);
+
+        assertThat(response.updatedAt()).isEqualTo(NOW);
+        assertThat(response.count()).isEqualTo(1);
+        assertThat(response.days()).extracting(MapHeatDay::ymd, MapHeatDay::weekday)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("20260914", "월요일"),
+                        org.assertj.core.groups.Tuple.tuple("20260915", "화요일"));
+        assertThat(response.spots()).singleElement().satisfies(spot -> {
+            assertThat(spot.id()).isEqualTo("heat-latest");
+            assertThat(spot.placeId()).isEqualTo("region:kr-45-jeonju");
+            assertThat(spot.name()).isEqualTo("전주시");
+            assertThat(spot.lat()).isEqualTo(35.8151);
+            assertThat(spot.lng()).isEqualTo(127.1530);
+            assertThat(spot.district()).isEqualTo("전북 전주시");
+            assertThat(spot.visitorCount()).isEqualTo(20L);
+            assertThat(spot.congestionScore()).isEqualTo(75.0);
+            assertThat(spot.congestionLevel()).isEqualTo("surge");
+            assertThat(spot.surgeMultiplier()).isEqualTo(1.8);
+            assertThat(spot.intensity()).isEqualTo(0.75);
+            assertThat(spot.series()).containsExactly(25.0, 75.0);
+            assertThat(spot.updatedAt()).isEqualTo(NOW);
+        });
+    }
+
     private RegionRef region() {
         return new RegionRef("kr-45-jeonju", "전북 전주시", "CITY", "kr-45");
     }

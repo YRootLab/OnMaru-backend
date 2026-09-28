@@ -7,11 +7,13 @@ import com.yrootlab.onmaru.catalog.application.query.spatial.MapDataAvailability
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceProjection;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceQueryService;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceStatus;
+import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceStore;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapRegionRef;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapSavedStateLookup;
 import com.yrootlab.onmaru.journey.saved.place.SavedPlaceStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.util.List;
 
@@ -19,6 +21,7 @@ import java.util.List;
 class MapPlaceConfiguration {
 
     @Bean
+    @Profile("!production")
     InMemoryMapPlaceStore mapPlaceStore() {
         var store = new InMemoryMapPlaceStore();
         store.add(place(
@@ -53,7 +56,7 @@ class MapPlaceConfiguration {
 
     @Bean
     MapPlaceQueryService mapPlaceQueryService(
-            InMemoryMapPlaceStore store,
+            MapPlaceStore store,
             MapSavedStateLookup savedStateLookup) {
         return new MapPlaceQueryService(store, savedStateLookup);
     }

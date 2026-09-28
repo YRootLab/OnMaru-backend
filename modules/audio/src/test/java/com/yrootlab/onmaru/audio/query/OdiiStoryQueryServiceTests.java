@@ -82,6 +82,97 @@ class OdiiStoryQueryServiceTests {
     }
 
     @Test
+    void usesRelationalReadPortForListAndDetailWithoutMaterializingTheSnapshot() {
+        var relationalStory = story(
+                "odii-story-10000000-0000-3000-8000-000000000001",
+                "ko-KR",
+                "한옥/고택",
+                "kr-45-jeonju",
+                Instant.parse("2026-09-27T00:00:00Z"),
+                OdiiTranscriptStatus.OFFICIAL,
+                AudioStatus.ACTIVE);
+        OdiiStoryQueryStore unavailableSnapshot = () -> {
+            throw new AssertionError("relational reads must not materialize the active snapshot");
+        };
+        OdiiStoryRelationalReadPort relational = new OdiiStoryRelationalReadPort() {
+            @Override
+            public OdiiStoryReadPage list(
+                    String language,
+                    int limit,
+                    Instant cursorPublishedAt,
+                    String cursorStoryId
+            ) {
+                return new OdiiStoryReadPage(
+                        REVISION_ONE,
+                        "ko-KR",
+                        OdiiLanguageStatus.EXACT,
+                        List.of(relationalStory),
+                        false);
+            }
+
+            @Override
+            public OdiiStoryReadSelection detail(String storyId, String language) {
+                return new OdiiStoryReadSelection(
+                        REVISION_ONE,
+                        "ko-KR",
+                        OdiiLanguageStatus.EXACT,
+                        List.of(relationalStory));
+            }
+
+            @Override
+            public OdiiStoryReadSelection search(
+                    String keyword,
+                    String language,
+                    int limit,
+                    boolean ranked
+            ) {
+                return detail(relationalStory.storyId(), language);
+            }
+
+            @Override
+            public OdiiStoryReadSelection nearby(
+                    double latitude,
+                    double longitude,
+                    double radiusMeters,
+                    String language,
+                    int limit
+            ) {
+                return detail(relationalStory.storyId(), language);
+            }
+
+            @Override
+            public OdiiPopularReadSelection popular(
+                    String language,
+                    String category,
+                    Instant sinceInclusive,
+                    int limit
+            ) {
+                return new OdiiPopularReadSelection(
+                        "ko-KR",
+                        OdiiLanguageStatus.EXACT,
+                        List.of(new OdiiPopularReadCandidate(relationalStory, 2, 1)),
+                        true);
+            }
+        };
+        var relationalService = new OdiiStoryQueryService(
+                unavailableSnapshot,
+                relational,
+                (memberId, storyId) -> false,
+                (spotId, memberId) -> Optional.empty(),
+                new OdiiPublicAudioUrlPolicy(Set.of("cdn.onmaru.example")),
+                cursorCodec,
+                ContentTagPipeline.defaultPipeline(),
+                new InMemoryOdiiStoryPopularityCounter());
+
+        var page = relationalService.list(OdiiStoryQuery.firstPage("ko-KR", 12, Optional.empty()));
+        var detail = relationalService.detail(relationalStory.storyId(), "ko-KR", Optional.empty());
+
+        assertThat(page.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly(relationalStory.storyId());
+        assertThat(detail.story().storyId()).isEqualTo(relationalStory.storyId());
+    }
+
+    @Test
     void searchesStoryTitleAudioTitleAndContentTagsWithoutExposingInactiveStories() {
         store.replaceActive(snapshot(REVISION_ONE,
                 storyWithText("odii-story-palace-01", "경복궁의 궁궐 이야기", "왕실 문화 산책",

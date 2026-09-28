@@ -124,6 +124,7 @@ public final class OdiiRevisionSyncService {
 
         AudioStageCompletion completion = store.completeStage(
                 stage.revisionId(), MISSING_OBSERVATION_THRESHOLD, command.emptyFullSyncReviewed());
+        long stagedItemCount = store.stagedItemCount(stage.revisionId());
         var watermark = new SourceWatermark(
                 latestModifiedAt == null ? null : latestModifiedAt.toString(),
                 latestExternalId,
@@ -137,10 +138,14 @@ public final class OdiiRevisionSyncService {
                 watermark,
                 completion.tombstoneCount()
         ));
+        var effectiveRevisionId = publication.status()
+                == com.yrootlab.onmaru.catalog.application.publication.PublicationStatus.PUBLISHED
+                ? store.activeRevision(command.dataset())
+                : stage.revisionId();
         var tagQuality = OdiiContentTagQualitySummary.from(mappedStories);
         var result = OdiiSyncResult.publication(
-                stage.revisionId(),
-                store.stagedItemCount(stage.revisionId()),
+                effectiveRevisionId,
+                stagedItemCount,
                 completion.tombstoneCount(),
                 publication.status(),
                 tagQuality

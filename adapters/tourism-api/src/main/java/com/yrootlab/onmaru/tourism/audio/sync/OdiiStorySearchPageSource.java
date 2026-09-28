@@ -45,9 +45,12 @@ public final class OdiiStorySearchPageSource implements OdiiPageSource {
             if (providerPage.page() != page) {
                 throw new OdiiSourceException("ODII_PAGE_DRIFT");
             }
+            boolean lastPage = providerPage.totalCount() == 0
+                    || (long) (page - 1) * pageSize + providerPage.items().size()
+                    >= providerPage.totalCount();
             return new OdiiSourcePage(
                     providerPage.items().stream().map(mapper::toSourceStory).toList(),
-                    providerPage.lastPage()
+                    lastPage
             );
         } catch (OdiiClientException exception) {
             throw new OdiiSourceException(exception.getMessage(), exception);

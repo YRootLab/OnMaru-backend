@@ -4,6 +4,16 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #477의 외부 저장소 비의존 공개 헬스체크를 추가하고 Swagger에서 직접 호출할 수 있게 했다.
+- Issue #265의 카카오 OAuth callback이 성공·실패 후 검증된 내부 경로를 OnMaru 프론트엔드 origin에 결합해 복귀하도록 수정했다.
+- Issue #463의 한옥 목록을 한 번에 최대 500건까지 조회하고, 각 카드에 FE 호환 `lat`/`lng` 좌표를 제공한다.
+- Issue #453의 revision 보존 정책을 활성 PUBLISHED 1벌로 축소하고, 동일 TourAPI·ODII snapshot 재사용, TourAPI 실패 원문 미보관, 실패 STAGING 즉시 제거, 72시간 최소 동기화 간격을 적용했다.
+- Issue #444의 한옥 목록 필터·주소/좌표 계약, DataLab 35일 제공 지연 대응, 전국 285개 행정구역 registry와 DB 기반 원형 히트맵을 추가했다.
+- Issue #375의 TourAPI 국문 v4.4 전체 원천 적재, 공식 분류체계 기반 공개 필터, Neon 지도·한옥 snapshot과 TourAPI·Odii 03:00 KST 전체 동기화를 추가했다.
+- Issue #262의 로그인 회원용 위치 기반 한옥 수결첩, PostGIS 체크인, 관계형 수결 지급, OpenAPI와 FE 연동 문서를 추가했다.
+- Issue #262의 명시적 참여형 익명 수결 랭킹, 참여·철회 API, OpenAPI 1.3과 FE 연동 안내를 추가했다.
+- Issue #262의 production OAuth 회원 원장을 JDBC로 연결하고, 탈퇴 시 수결 체크인·획득·랭킹 및 체크인 멱등성 응답 개인정보 삭제와 재생성 차단을 보강했다.
+- Issue #307의 production Odii 저장소 선택 경쟁을 제거하고, JDBC store 필수 구성·fail-fast와 설정 순서 회귀 테스트를 추가했다.
 - Issue #399의 검증 가능한 DataLab 지역 registry, fail-closed 수집, skip/quarantine metric과 staging smoke 자동화를 추가했다.
 - Issue #307의 production Odii 저장소 선택 경쟁을 제거하고, JDBC store 필수 구성·fail-fast와 설정 순서 회귀 테스트를 추가했다.
 - Issues #342, #343, #344, #346의 FE 호환 API, 온기 후기 필드, 스크린 한옥 JDBC 저장, 방문자 수 조회를 구현했다.

@@ -66,6 +66,22 @@ class OdiiRevisionSyncServiceTests {
     }
 
     @Test
+    void reusesActiveRevisionWhenCompletedSnapshotIsUnchanged() {
+        UUID baseRevision = UUID.randomUUID();
+        var unchanged = mapper.map(source("300", "1204", "ko", "562"));
+        var store = store(baseRevision, List.of(unchanged));
+        var source = new StubPageSource()
+                .page("ko", 1, page(List.of(source("300", "1204", "ko", "562")), true));
+        var service = new OdiiRevisionSyncService(store, source, mapper, clock);
+
+        OdiiSyncResult result = service.sync(command(baseRevision, List.of("ko"), 1));
+
+        assertThat(result.status()).isEqualTo(OdiiSyncStatus.PUBLISHED);
+        assertThat(result.stagedRevisionId()).isEqualTo(baseRevision);
+        assertThat(store.activeRevision(DATASET)).isEqualTo(baseRevision);
+    }
+
+    @Test
     void fullCollectionSourceIsFetchedOncePerLanguageWithoutConfiguredKeywordExpansion() {
         UUID baseRevision = UUID.randomUUID();
         var store = store(baseRevision, List.of());
