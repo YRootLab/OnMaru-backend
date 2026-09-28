@@ -1,5 +1,6 @@
 import os
 from collections.abc import Mapping
+from typing import Any
 
 from fastapi import FastAPI
 
@@ -33,6 +34,11 @@ def _screen_hanok_research_enabled(environ: Mapping[str, str] | None = None) -> 
     return source.get("ONMARU_SCREEN_HANOK_RESEARCH_ENABLED", "").strip().lower() == "true"
 
 
+def _journey_gemini_enabled(environ: Mapping[str, str] | None = None) -> bool:
+    source = os.environ if environ is None else environ
+    return source.get("ONMARU_JOURNEY_GEMINI_ENABLED", "").strip().lower() == "true"
+
+
 def create_app(
     secret_provider: SecretProvider | None = None,
     telemetry_sink: TelemetrySink | None = None,
@@ -52,6 +58,7 @@ def create_app(
         rag_activation_log=rag_activation_log,
         rag_retriever=rag_retriever,
         rag_feature_enabled=_rag_feature_enabled(environ),
+        journey_llm=_journey_llm(provider, environ),
     )
 
     if _screen_hanok_research_enabled(environ):
@@ -81,6 +88,30 @@ def create_app(
         return {"status": "ready"}
 
     return app
+
+
+def _journey_llm(secret_provider: SecretProvider, environ: Mapping[str, str] | None) -> Any:
+    if not _journey_gemini_enabled(environ):
+        return None
+    from onmaru_ai.journey_llm import JourneyLlmService
+
+    gemini_secret = secret_provider.get("gemini.api-key")
+    config = GeminiConfig(
+        model_alias="journey-planner",
+        model_name=(os.environ if environ is None else environ).get(
+            "ONMARU_GEMINI_MODEL_NAME", "gemini-2.5-flash"
+        ),
+        max_output_tokens=2048,
+        pricing=GeminiPricing(input_micros_per_million=0, output_micros_per_million=0),
+    )
+    return JourneyLlmService(
+        GeminiAdapter(
+            config,
+            HttpxGeminiTransport(),
+            api_key=gemini_secret.current,
+            telemetry_sink=create_telemetry_sink(),
+        )
+    )
 
 
 app = create_app()
