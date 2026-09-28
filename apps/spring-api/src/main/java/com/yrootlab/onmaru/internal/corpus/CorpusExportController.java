@@ -24,9 +24,24 @@ import java.util.NoSuchElementException;
 public final class CorpusExportController {
 
     private final CorpusExportService corpusExportService;
+    private final HanokCorpusRevisionFactory hanokCorpusRevisionFactory;
 
-    CorpusExportController(CorpusExportService corpusExportService) {
+    CorpusExportController(
+            CorpusExportService corpusExportService,
+            HanokCorpusRevisionFactory hanokCorpusRevisionFactory) {
         this.corpusExportService = corpusExportService;
+        this.hanokCorpusRevisionFactory = hanokCorpusRevisionFactory;
+    }
+
+    @Operation(
+            summary = "현재 공개 한옥 코퍼스 발행",
+            description = "공개 카탈로그에서 한옥 계열만 정규화해 bounded corpus revision으로 발행합니다.",
+            security = @SecurityRequirement(name = "internalSecret")
+    )
+    @PostMapping("/internal/v1/corpus/hanok/publish")
+    ResponseEntity<CorpusManifest> publishHanokCorpus() {
+        var manifest = corpusExportService.publish(hanokCorpusRevisionFactory.current());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(manifest);
     }
 
     @Operation(
