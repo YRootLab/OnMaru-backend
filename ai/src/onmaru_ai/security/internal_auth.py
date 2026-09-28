@@ -58,6 +58,8 @@ class JourneyProposalRequest(BaseModel):
         min_length=1,
         max_length=128,
     )
+    query: str = Field(default="", max_length=500)
+    candidate_refs: list[str] = Field(default_factory=list, alias="candidateRefs", max_length=50)
 
 
 def install_internal_auth(
@@ -67,6 +69,7 @@ def install_internal_auth(
     rag_activation_log: InMemoryRagActivationLog | None = None,
     rag_retriever: RagEvidenceRetriever | None = None,
     rag_feature_enabled: bool = False,
+    journey_llm: Any | None = None,
 ) -> None:
     @app.post(
         "/internal/v1/journey/proposals",
@@ -98,6 +101,24 @@ def install_internal_auth(
                     corpus_revision_id=revision_id,
                     retrieve=lambda: rag_retriever.retrieve(revision_id),
                 )
+        llm_proposal = None
+        if journey_llm is not None and body.query.strip() and body.candidate_refs:
+            llm_proposal = await journey_llm.generate(
+                query=body.query,
+                candidate_refs=body.candidate_refs,
+                request_id=body.request_id,
+            )
+        if llm_proposal is not None:
+            llm_response = {
+                "schemaVersion": "internal.ai.v1",
+                "runId": context.run_id,
+                "orderedRefs": llm_proposal.get("orderedRefs", []),
+                "outcome": "PROPOSAL" if llm_proposal.get("orderedRefs") else "NO_RESULTS",
+                "journey": llm_proposal,
+            }
+            if body.use_rag:
+                llm_response["ragEvidenceRefs"] = list(rag_evidence_refs)
+            return llm_response
         candidate_count = body.candidate_count
         selected_count = min(candidate_count, 3)
         response: dict[str, object] = {
