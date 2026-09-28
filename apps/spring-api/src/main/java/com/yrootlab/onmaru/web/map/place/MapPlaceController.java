@@ -67,8 +67,8 @@ public final class MapPlaceController {
             @RequestParam(required = false) Integer radius,
             @Parameter(description = "장소 카테고리 (HANOK, TOURIST, RESTAURANT 등)", example = "HANOK")
             @RequestParam(required = false) String category,
-            @Parameter(description = "최대 조회 건수 (기본값 20, 최대 100)", example = "20")
-            @RequestParam(required = false, defaultValue = "20") int limit,
+            @Parameter(description = "최대 조회 건수 (기본값 100, 최대 1000)", example = "100")
+            @RequestParam(required = false, defaultValue = "100") int limit,
             @Parameter(description = "회원 세션 쿠키 (저장 여부 판별용)", hidden = true)
             @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
             HttpServletRequest request) {

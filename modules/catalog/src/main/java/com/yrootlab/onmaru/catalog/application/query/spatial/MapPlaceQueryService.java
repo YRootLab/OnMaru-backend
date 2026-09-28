@@ -48,7 +48,7 @@ public final class MapPlaceQueryService {
     }
 
     private void validate(MapPlaceQuery query) {
-        if (query.limit() < 1 || query.limit() > 100) {
+        if (query.limit() < 1 || query.limit() > 1_000) {
             throw new MapPlaceInvalidRequestException("limit");
         }
         if ((query.lat() == null) != (query.lng() == null)) {

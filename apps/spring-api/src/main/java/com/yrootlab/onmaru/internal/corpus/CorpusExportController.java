@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,11 +27,20 @@ public final class CorpusExportController {
     private final CorpusExportService corpusExportService;
     private final HanokCorpusRevisionFactory hanokCorpusRevisionFactory;
 
+    @Autowired
     CorpusExportController(
             CorpusExportService corpusExportService,
             HanokCorpusRevisionFactory hanokCorpusRevisionFactory) {
         this.corpusExportService = corpusExportService;
         this.hanokCorpusRevisionFactory = hanokCorpusRevisionFactory;
+    }
+
+    /**
+     * Compatibility constructor for isolated read/ack controller tests.
+     * Production wiring always supplies the published catalog factory.
+     */
+    CorpusExportController(CorpusExportService corpusExportService) {
+        this(corpusExportService, new HanokCorpusRevisionFactory(java.util.List::of));
     }
 
     @Operation(
