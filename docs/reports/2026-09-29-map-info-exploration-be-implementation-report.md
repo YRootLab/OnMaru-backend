@@ -165,6 +165,8 @@ BE는 viewport 이동 자체를 history나 cursor 상태로 저장하지 않는�
 
 BE는 장소명 label을 직접 결정하지 않는다. label 최대 수, 충돌 회피, 선택·hover 예외는 FE 책임이다. BE는 FE가 전환을 결정할 수 있도록 `renderMode`, count, bounds, `targetZoomLevel`, `servedBbox`를 제공한다.
 
+BE는 지리·집계 데이터만 제공하고 화면 pixel 배치에는 관여하지 않는다. `center`는 WGS84 지리 좌표, `bounds`는 지역 확대 범위이며, 화면 `x/y`, CSS offset, 사이드바·safe area 보정값은 FE가 계산한다. 행정구역 `count`는 snapshot·category mapping·공개 상태 필터·중복 제거 후 해당 지역 전체 geometry에 포함되는 장소 수이며, `totalCountInViewport`와 구분한다. viewport에 지역 일부만 포함되어도 해당 지역 bubble은 하나만 반환하고 지역 전체 count와 bounds를 사용한다.
+
 cluster/region item의 `bounds`는 FE가 확대 범위를 계산하는 데 사용한다. cluster 클릭 후 FE가 지도 이동을 완료하면 최종 idle에서 한 번만 요청하며, BE는 동일 query key에 대해 idempotent cache 응답을 제공한다.
 
 ## 6. persistence·index

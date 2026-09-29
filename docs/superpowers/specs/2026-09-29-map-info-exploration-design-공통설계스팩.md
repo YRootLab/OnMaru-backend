@@ -328,10 +328,10 @@ FE는 지도 `idle` 이벤트마다 BE를 호출하지 않는다.
 - FE는 실제 viewport보다 각 방향으로 25% 확장한 bbox를 요청한다.
 - viewport 응답의 `servedBbox` 안에 현재 viewport가 완전히 포함되고 category·snapshot·render bucket이 같으면 재호출하지 않는다.
 - current viewport가 servedBbox 경계 밖으로 20% 이상 벗어나거나 render bucket이 바뀔 때만 호출한다.
-- 이동 종료 후 650ms debounce하고, 동일 scope에는 하나의 in-flight request만 유지한다.
+- 이동 종료 후 700ms debounce하고, 동일 scope에는 하나의 in-flight request만 유지한다. 700ms는 초기 운영 기준이며, 실제 성능 측정에 따라 600~800ms 범위에서 조정할 수 있다. 1,000ms를 초과하지 않는다.
 - 작은 이동은 기존 viewport 응답을 유지한다. 명시적 재검색 버튼은 예외로 즉시 요청한다.
 
-현재 FE의 약 550ms debounce를 유지할 수 있다. 모든 viewport 요청에는 AbortController 또는 동등한 cancellation을 적용하고, 늦게 도착한 이전 응답이 최신 category/region 결과를 덮어쓰지 못하도록 request sequence를 검사한다.
+모든 viewport 요청에는 AbortController 또는 동등한 cancellation을 적용하고, 늦게 도착한 이전 응답이 최신 category/region 결과를 덮어쓰지 못하도록 request sequence를 검사한다.
 
 ### 6.3 목록 UX
 
@@ -353,6 +353,18 @@ FE는 지도 `idle` 이벤트마다 BE를 호출하지 않는다.
 - 새 응답 전까지 이전 viewport를 유지해 빈 지도 깜빡임을 막는다.
 - 새 viewport가 비어 있으면 지도는 유지하고 `현재 화면에 장소가 없어요`를 표시한다.
 - `ALL`은 broad zoom에서 반드시 aggregate/cluster만 허용한다.
+
+### 6.4.1 지리 좌표와 화면 pixel 책임 경계
+
+- BE는 `lat/lng`, `center`, `bounds`, `count`, `regionCode`, `targetZoomLevel` 등 지리·집계 데이터만 제공한다.
+- BE는 화면 `x/y` pixel, CSS offset, 사이드바 보정값, safe area 보정값, device별 좌표를 계산하거나 반환하지 않는다.
+- FE는 BE의 `center`를 Kakao `LatLng`로 변환해 custom overlay/count bubble을 배치한다.
+- FE는 화면 크기·사이드바·safe area를 기준으로 label 충돌 회피, pixel offset, 표시 우선순위를 결정한다.
+- 행정구역 `center`는 canonical region geometry의 내부 대표점으로 계산한다. 장소 좌표 평균으로 대체하지 않는다.
+- `bounds`는 지역 bubble 클릭 시 지도 확대 범위이며, 화면 배치 좌표가 아니다.
+- 지역 `count`는 snapshot·category mapping·공개 상태 필터·중복 제거 후 해당 지역 전체 geometry에 포함되는 장소 수다.
+- viewport에 지역이 일부만 포함되어도 지역 bubble은 하나만 반환하며, `count`는 부분 viewport 수가 아니라 해당 지역 전체 수를 의미한다.
+- `totalCountInViewport`는 현재 조회 범위의 합계이므로 지역 bubble의 `count`와 구분한다.
 
 ## 7. BE 데이터·쿼리·성능
 
