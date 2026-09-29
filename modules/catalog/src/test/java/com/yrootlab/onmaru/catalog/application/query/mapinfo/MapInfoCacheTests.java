@@ -29,5 +29,46 @@ class MapInfoCacheTests {
         cache.find(query);
 
         assertThat(calls).hasValue(1);
+        assertThat(cache.hitCount()).isEqualTo(1);
+        assertThat(cache.missCount()).isEqualTo(1);
+        assertThat(cache.size()).isEqualTo(1);
+    }
+
+    @Test
+    void invalidatesAnImplicitSnapshotEntryWhenPublicationChanges() {
+        var calls = new AtomicInteger();
+        var delegate = new SnapshotChangingPort(calls);
+        var cache = new CachingMapInfoQueryPort(delegate, Duration.ofSeconds(30), 8,
+                Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
+        var query = new MapInfoSqlQuery(null, List.of("SPOT"), null, null,
+                "NAME", null, null, 30, null, null);
+
+        cache.find(query);
+        delegate.snapshot = new MapInfoSnapshot("rev-2", Instant.EPOCH, "PUBLISHED");
+        cache.find(query);
+
+        assertThat(calls).hasValue(2);
+        assertThat(cache.hitCount()).isZero();
+        assertThat(cache.missCount()).isEqualTo(2);
+    }
+
+    private static final class SnapshotChangingPort implements MapInfoQueryPort, MapInfoSnapshotResolver {
+        private final AtomicInteger calls;
+        private MapInfoSnapshot snapshot = new MapInfoSnapshot("rev-1", Instant.EPOCH, "PUBLISHED");
+
+        private SnapshotChangingPort(AtomicInteger calls) {
+            this.calls = calls;
+        }
+
+        @Override
+        public MapInfoSnapshot currentSnapshot() {
+            return snapshot;
+        }
+
+        @Override
+        public MapInfoQueryResult find(MapInfoSqlQuery query) {
+            calls.incrementAndGet();
+            return new MapInfoQueryResult(snapshot, null, 0, List.of(), null, false);
+        }
     }
 }

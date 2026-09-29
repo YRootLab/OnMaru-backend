@@ -7,23 +7,44 @@ import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportQuer
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportQueryService;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import com.yrootlab.onmaru.web.map.MapInfoRequestExecutor;
+import com.yrootlab.onmaru.web.map.MapInfoRequestTimeoutException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Map;
 import java.util.UUID;
+import java.time.Duration;
 
 @RestController
 public final class MapInfoViewportController {
 
     private final MapInfoViewportQueryService service;
+    private final MeterRegistry meterRegistry;
+    private final MapInfoRequestExecutor requestExecutor;
 
     public MapInfoViewportController(MapInfoViewportQueryService service) {
+        this(service, (MeterRegistry) null, new MapInfoRequestExecutor(Duration.ofSeconds(2)));
+    }
+
+    @Autowired
+    MapInfoViewportController(MapInfoViewportQueryService service, ObjectProvider<MeterRegistry> meterRegistryProvider,
+                              MapInfoRequestExecutor requestExecutor) {
+        this(service, meterRegistryProvider == null ? null : meterRegistryProvider.getIfAvailable(), requestExecutor);
+    }
+
+    MapInfoViewportController(MapInfoViewportQueryService service, MeterRegistry meterRegistry,
+                              MapInfoRequestExecutor requestExecutor) {
         this.service = service;
+        this.meterRegistry = meterRegistry;
+        this.requestExecutor = requestExecutor;
     }
 
     @GetMapping("/api/v1/map/info/viewport")
@@ -37,19 +58,36 @@ public final class MapInfoViewportController {
             @RequestParam(required = false, defaultValue = "500") int limit,
             HttpServletRequest request) {
         try {
+            long started = System.nanoTime();
             var query = new MapInfoViewportQuery(
                     parseBbox(bbox), zoomLevel, parseCategory(category), normalize(regionCode),
                     normalize(snapshotId), language, limit);
-            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.find(query));
+            var response = ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(requestExecutor.execute(() -> service.find(query)));
+            record("success", category, System.nanoTime() - started);
+            return response;
+        } catch (MapInfoRequestTimeoutException exception) {
+            record("timeout", category, 0);
+            return ResponseEntity.status(503).cacheControl(CacheControl.noStore()).body(new ApiErrorResponse(
+                    "1.0", "CATALOG_UNAVAILABLE", "Map catalog data is temporarily unavailable.", requestId(request),
+                    Map.of("timeout", true)));
         } catch (MapInfoViewportInvalidRequestException exception) {
+            record("invalid", category, 0);
             return ResponseEntity.badRequest().cacheControl(CacheControl.noStore()).body(new ApiErrorResponse(
                     "1.0", "INVALID_REQUEST", "The requested map viewport is invalid.", requestId(request),
                     Map.of("field", exception.field())));
         } catch (IllegalStateException exception) {
+            record("unavailable", category, 0);
             return ResponseEntity.status(503).cacheControl(CacheControl.noStore()).body(new ApiErrorResponse(
                     "1.0", "CATALOG_UNAVAILABLE", "Map catalog data is temporarily unavailable.", requestId(request),
                     Map.of()));
         }
+    }
+
+    private void record(String outcome, String category, long elapsedNanos) {
+        if (meterRegistry == null) return;
+        var tags = new String[] {"endpoint", "viewport", "outcome", outcome, "category", category == null ? "unknown" : category};
+        meterRegistry.counter("onmaru.map.info.requests", tags).increment();
+        if (elapsedNanos > 0) meterRegistry.timer("onmaru.map.info.query.duration", tags).record(elapsedNanos, java.util.concurrent.TimeUnit.NANOSECONDS);
     }
 
     private MapInfoBounds parseBbox(String value) {

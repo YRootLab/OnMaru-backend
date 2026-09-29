@@ -7,6 +7,7 @@ import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoPoint;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoProjectionPublication;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoRenderMode;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSnapshot;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSnapshotResolver;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportItem;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportQuery;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportResponse;
@@ -30,7 +31,7 @@ import java.util.UUID;
  * SQL-backed map viewport read model. Every mode is served from W1 projections;
  * the source catalog is never materialized in the JVM.
  */
-public final class JdbcMapViewportQueryRepository implements MapInfoViewportStore {
+public final class JdbcMapViewportQueryRepository implements MapInfoViewportStore, MapInfoSnapshotResolver {
 
     private static final String DATASET = "kto-korean-tour";
     private static final String PROFILE_VERSION = "map-zoom-v1";
@@ -69,6 +70,15 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                     MapInfoCategoryMapping.applied(query.category()), "COMPLETE", query.bbox(), publication);
         } catch (SQLException exception) {
             throw new IllegalStateException("failed to query map information viewport", exception);
+        }
+    }
+
+    @Override
+    public MapInfoSnapshot currentSnapshot() {
+        try (var connection = dataSource.getConnection()) {
+            return snapshot(connection, null);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("failed to resolve active map snapshot", exception);
         }
     }
 
@@ -224,7 +234,6 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                      AND category.place_id = place.place_id
                     WHERE place.revision_id = ?::uuid AND place.status = 'ACTIVE'
                       AND place.location_geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
-                      AND ST_Intersects(place.location_geom, ST_MakeEnvelope(?, ?, ?, ?, 4326))
                       AND (? = 'ALL' OR category.canonical_category = ANY (?))
                       AND (? IS NULL OR place.sido_code = ? OR place.sigungu_code = ?)
                 ), grouped AS (
@@ -251,7 +260,6 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
             statement.setDouble(i++, query.bbox().west()); statement.setDouble(i++, cell);
             statement.setDouble(i++, query.bbox().south()); statement.setDouble(i++, cell);
             statement.setString(i++, revisionId);
-            bindBbox(statement, i, query.bbox()); i += 4;
             bindBbox(statement, i, query.bbox()); i += 4;
             statement.setString(i++, query.category().name());
             bindCategoryArray(connection, statement, i++, query);

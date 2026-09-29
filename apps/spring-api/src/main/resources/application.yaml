@@ -76,6 +76,7 @@ onmaru:
       api-timeout: "${ONMARU_MAP_INFO_API_TIMEOUT:2s}"
       cache-ttl: "${ONMARU_MAP_INFO_CACHE_TTL:30s}"
       profile-version: "${ONMARU_MAP_INFO_PROFILE_VERSION:map-zoom-v1}"
+      cache-max-entries: "${ONMARU_MAP_INFO_CACHE_MAX_ENTRIES:256}"
 
 management:
   otlp:

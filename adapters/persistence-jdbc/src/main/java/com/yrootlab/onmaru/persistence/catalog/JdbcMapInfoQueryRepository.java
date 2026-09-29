@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort {
+public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort, MapInfoSnapshotResolver {
     private static final String DATASET = "kto-korean-tour";
     private final DataSource dataSource;
     private final Duration statementTimeout;
@@ -41,6 +41,15 @@ public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort {
             return new MapInfoQueryResult(snapshot, publication, total, page.items(), page.last(), page.more());
         } catch (SQLException exception) {
             throw new IllegalStateException("failed to query map information projection", exception);
+        }
+    }
+
+    @Override
+    public MapInfoSnapshot currentSnapshot() {
+        try (var connection = dataSource.getConnection()) {
+            return snapshot(connection, null);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("failed to resolve active map snapshot", exception);
         }
     }
 
@@ -124,20 +133,22 @@ public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort {
         appendFilters(sql, args, q);
         appendCursor(sql, args, q);
         sql.append(" ORDER BY ");
-        if ("DISTANCE".equals(q.sort())) sql.append("distance_meters, place.place_id");
-        else if ("NAME".equals(q.sort())) sql.append("place.name, place.place_id");
-        else sql.append("COALESCE(region.name, ''), place.name, place.place_id");
+        if ("DISTANCE".equals(q.sort())) sql.append("distance_meters, place.public_id");
+        else if ("NAME".equals(q.sort())) sql.append("place.name, place.public_id");
+        else sql.append("COALESCE(region.name, ''), place.name, place.public_id");
         sql.append(" LIMIT ?");
         args.add(q.limit() + 1);
         try (var s = c.prepareStatement(sql.toString())) {
             bind(s, c, args);
             var items = new ArrayList<MapInfoPlaceItem>();
             MapInfoCursorPosition last = null;
+            MapInfoCursorPosition previous = null;
             try (var r = s.executeQuery()) {
                 while (r.next()) {
                     var item = new MapInfoPlaceItem(r.getString(1), r.getString(2), r.getString(3),
                             List.of(r.getString(3)), new MapInfoRegionRef(r.getString(4), r.getString(5)),
                             new MapInfoPoint(r.getDouble(6), r.getDouble(7)), r.getString(8), r.getString(9), false);
+                    previous = last;
                     items.add(item);
                     var sortValue = "DISTANCE".equals(q.sort()) ? r.getString(10)
                             : "NAME".equals(q.sort()) ? r.getString(2) : r.getString(5) + "\u0000" + r.getString(2);
@@ -145,7 +156,10 @@ public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort {
                 }
             }
             boolean more = items.size() > q.limit();
-            if (more) items.remove(items.size() - 1);
+            if (more) {
+                items.remove(items.size() - 1);
+                last = previous;
+            }
             return new Page(List.copyOf(items), more ? last : null, more);
         }
     }
@@ -153,8 +167,6 @@ public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort {
     private void appendFilters(StringBuilder sql, List<Object> args, MapInfoSqlQuery q) {
         if (q.bbox() != null) {
             sql.append(" AND place.location_geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)");
-            sql.append(" AND ST_Intersects(place.location_geom, ST_MakeEnvelope(?, ?, ?, ?, 4326))");
-            addBbox(args, q.bbox());
             addBbox(args, q.bbox());
         }
         if (q.regionCode() != null) {
@@ -175,16 +187,16 @@ public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort {
     private void appendCursor(StringBuilder sql, List<Object> args, MapInfoSqlQuery q) {
         if (q.cursor() == null) return;
         if ("DISTANCE".equals(q.sort())) {
-            sql.append(" AND (ST_Distance(place.location_geom::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography), place.place_id) > (?, ?)");
+            sql.append(" AND (ST_Distance(place.location_geom::geography, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography), place.public_id) > (?, ?)");
             args.add(q.lng()); args.add(q.lat()); args.add(q.cursor().distanceMeters()); args.add(q.cursor().placeId());
-        } else if ("NAME".equals(q.sort()) || "REGION_NAME".equals(q.sort())) {
-            sql.append(" AND (COALESCE(region.name, ''), place.name, place.place_id) > (?, ?, ?)");
-            if ("NAME".equals(q.sort())) {
-                args.add(""); args.add(q.cursor().sortValue());
-            } else {
-                var values = q.cursor().sortValue().split("\u0000", -1);
-                args.add(values[0]); args.add(values.length > 1 ? values[1] : "");
-            }
+        } else if ("NAME".equals(q.sort())) {
+            sql.append(" AND (place.name, place.public_id) > (?, ?)");
+            args.add(q.cursor().sortValue());
+            args.add(q.cursor().placeId());
+        } else if ("REGION_NAME".equals(q.sort())) {
+            sql.append(" AND (COALESCE(region.name, ''), place.name, place.public_id) > (?, ?, ?)");
+            var values = q.cursor().sortValue().split("\u0000", -1);
+            args.add(values[0]); args.add(values.length > 1 ? values[1] : "");
             args.add(q.cursor().placeId());
         }
     }

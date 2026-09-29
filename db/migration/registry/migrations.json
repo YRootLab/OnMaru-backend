@@ -300,7 +300,7 @@
       "issueNumber": 495,
       "path": "apps/spring-api/src/main/resources/db/migration/baseline/V034__495_map_info_read_projections.sql",
       "checksum": "map-info-read-projections-v034-20260929",
-      "sha256": "ebf3aeea69344fe7337c44fafd3802bd0e4fff78e1db30a37ce896071283c0ee",
+      "sha256": "f56d5de253d4ec8fa42ecfc53835e7184d2cc5c9d88a3e4b14ebe006ba93f6ef",
       "description": "Information-mode map read projections, category mappings, scope counts, and publication metadata"
     }
   ]

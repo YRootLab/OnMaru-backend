@@ -265,6 +265,16 @@ cache key에는 snapshotId, category, regionCode 또는 bboxHash, zoomLevel/prof
     limit, itemCount, totalCount, queryDurationMs
     cacheHit, coverage, stale, cursorHash
 
+Micrometer metric:
+
+    onmaru.map.info.requests{endpoint,outcome,category}
+    onmaru.map.info.query.duration{endpoint,outcome,category}
+    onmaru.map.info.cache.hit{endpoint}
+    onmaru.map.info.cache.miss{endpoint}
+    onmaru.map.info.cache.entries
+
+목록과 viewport controller는 성공·invalid·unavailable outcome과 조회 시간을 기록하고, 각 public read cache는 hit/miss/entry 수를 기록한다. 장소명·회원 세션·원천 payload는 metric tag나 로그에 넣지 않는다.
+
 ## 8. 테스트 요구사항
 
 ### 8.0 W0 계약 산출물

@@ -33,6 +33,9 @@ CREATE INDEX map_place_read_projection_status_category_idx
     ON onmaru.map_place_read_projection (revision_id, status, display_category, sort_key, place_id);
 CREATE INDEX map_place_read_projection_location_gix
     ON onmaru.map_place_read_projection USING gist (location_geom);
+CREATE INDEX map_place_read_projection_active_location_gix
+    ON onmaru.map_place_read_projection USING gist (location_geom)
+    WHERE status = 'ACTIVE';
 
 CREATE TABLE onmaru.map_place_category_projection (
     revision_id uuid NOT NULL REFERENCES onmaru.catalog_dataset_revisions (id) ON DELETE CASCADE,

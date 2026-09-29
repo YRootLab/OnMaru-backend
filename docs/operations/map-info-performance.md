@@ -5,6 +5,7 @@
 - 목록과 viewport는 map_place_read_projection만 읽는다.
 - 요청 시 원천 TourAPI를 호출하지 않는다.
 - DB statement timeout은 기본 1.5초, HTTP API hard timeout 목표는 2초다.
+- `ONMARU_MAP_INFO_API_TIMEOUT`은 API timeout budget의 기준값이며, DB statement timeout보다 길게 유지한다.
 - timeout은 빈 결과로 위장하지 않고 CATALOG_UNAVAILABLE 또는 기존 snapshot fallback으로 관찰 가능하게 처리한다.
 
 ## 캐시 키
@@ -25,6 +26,6 @@ savedByMe는 공개 캐시에 넣지 않는다. 회원별 저장 상태는 page�
 
 ## 관측 항목
 
-map.info.query.duration, map.info.query.timeout, map.info.cache.hit,
+map.info.query.duration, map.info.query.timeout, map.info.requests, map.info.cache.hit,
 map.info.cache.miss, map.info.coverage, map.info.pool.exhausted를
 endpoint·renderMode·category·snapshot으로 구분하되 장소명과 세션 토큰은 태그로 남기지 않는다.
