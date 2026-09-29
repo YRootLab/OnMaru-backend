@@ -26,6 +26,7 @@ savedByMe는 공개 캐시에 넣지 않는다. 회원별 저장 상태는 page�
 
 ## 관측 항목
 
-map.info.query.duration, map.info.query.timeout, map.info.requests, map.info.cache.hit,
-map.info.cache.miss, map.info.coverage, map.info.pool.exhausted를
+map.info.query.duration, map.info.db.query.duration, map.info.slow.query,
+map.info.query.timeout, map.info.requests, map.info.cache.hit, map.info.cache.miss,
+map.info.coverage, map.info.pool.exhausted를
 endpoint·renderMode·category·snapshot으로 구분하되 장소명과 세션 토큰은 태그로 남기지 않는다.

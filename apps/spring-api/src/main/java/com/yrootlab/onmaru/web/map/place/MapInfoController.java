@@ -74,7 +74,7 @@ public final class MapInfoController {
                     requestId(request), Map.of("field", exception instanceof MapInfoQueryException q ? q.field() : "query")));
         } catch (IllegalStateException exception) {
             record("unavailable", category, 0);
-            return ResponseEntity.internalServerError().body(new ApiErrorResponse(
+            return ResponseEntity.status(503).body(new ApiErrorResponse(
                     "1.0", "CATALOG_UNAVAILABLE", "Map catalog data is temporarily unavailable.",
                     requestId(request), Map.of()));
         }
@@ -84,6 +84,7 @@ public final class MapInfoController {
         if (meterRegistry == null) return;
         var tags = new String[] {"endpoint", "places", "outcome", outcome, "category", category == null ? "unknown" : category};
         meterRegistry.counter("onmaru.map.info.requests", tags).increment();
+        if ("timeout".equals(outcome)) meterRegistry.counter("onmaru.map.info.query.timeout", "endpoint", "places").increment();
         if (elapsedNanos > 0) meterRegistry.timer("onmaru.map.info.query.duration", tags).record(elapsedNanos, java.util.concurrent.TimeUnit.NANOSECONDS);
     }
 

@@ -87,6 +87,7 @@ public final class MapInfoViewportController {
         if (meterRegistry == null) return;
         var tags = new String[] {"endpoint", "viewport", "outcome", outcome, "category", category == null ? "unknown" : category};
         meterRegistry.counter("onmaru.map.info.requests", tags).increment();
+        if ("timeout".equals(outcome)) meterRegistry.counter("onmaru.map.info.query.timeout", "endpoint", "viewport").increment();
         if (elapsedNanos > 0) meterRegistry.timer("onmaru.map.info.query.duration", tags).record(elapsedNanos, java.util.concurrent.TimeUnit.NANOSECONDS);
     }
 

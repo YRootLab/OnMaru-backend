@@ -3,7 +3,7 @@
 
 - 브랜치: `feature/493-map-info-be`
 - Issue: `#493` 지도 정보모드 BE API·SQL·PostGIS 조회 구조
-- 구현: API hard timeout, snapshot 변경 시 cache 무효화, 이름 keyset cursor 수정, active 공간 인덱스 및 PostGIS cluster 쿼리 최적화
-- 검증: map-info 단위/웹 경계 테스트, PostGIS publication·legacy·cursor 통합 테스트, 30,000건 성능 게이트, OpenAPI/fixture 검증, migration policy, `git diff --check` 통과
+- 구현: API hard timeout, snapshot 변경 시 cache 무효화, 이름 keyset cursor 수정, active 공간 인덱스 및 PostGIS cluster 쿼리 최적화, DB query duration/coverage/timeout/pool/slow-query 관측성, places 계약·장애 응답 검증
+- 검증: map-info 단위/웹 경계 테스트, PostGIS publication·legacy·cursor 통합 테스트, 30,000건 성능 게이트(재실행 통과; 최초 1회는 ARM64 Docker 에뮬레이션으로 viewport p95 일시 초과), OpenAPI/fixture 검증, migration policy, `git diff --check` 통과
 - 미추적 파일: `tempGithubIssue/`는 기존 작업물로 보존하고 커밋하지 않음
-- 다음 단계: 커밋·원격 push 후 #493에 결과 기록
+- 다음 단계: 전체 Gradle 검증, 리뷰, 커밋·원격 push 후 PR 생성 및 #493~#499 연결

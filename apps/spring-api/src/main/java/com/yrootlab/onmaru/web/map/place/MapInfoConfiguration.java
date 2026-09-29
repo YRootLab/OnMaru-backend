@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.web.map.place;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.*;
 import com.yrootlab.onmaru.persistence.catalog.JdbcMapInfoQueryRepository;
 import com.yrootlab.onmaru.web.map.MapInfoRequestExecutor;
+import com.yrootlab.onmaru.web.map.MapInfoObservation;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,10 +38,14 @@ class MapInfoConfiguration {
             DataSource dataSource,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.cache-ttl:30s}") Duration cacheTtl,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.db-statement-timeout:1500ms}") Duration statementTimeout,
+            @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.slow-query-threshold:500ms}") Duration slowQueryThreshold,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.cache-max-entries:256}") int maxEntries,
             ObjectProvider<MeterRegistry> meterRegistryProvider) {
-        var cache = new CachingMapInfoQueryPort(new JdbcMapInfoQueryRepository(dataSource, statementTimeout), cacheTtl, maxEntries);
-        registerCacheMetrics(meterRegistryProvider.getIfAvailable(), cache);
+        var registry = meterRegistryProvider.getIfAvailable();
+        MapInfoQueryPort delegate = new JdbcMapInfoQueryRepository(dataSource, statementTimeout);
+        if (registry != null) delegate = new MapInfoObservation(registry, slowQueryThreshold).observe(delegate, "places");
+        var cache = new CachingMapInfoQueryPort(delegate, cacheTtl, maxEntries);
+        registerCacheMetrics(registry, cache);
         return cache;
     }
 

@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportStor
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.InMemoryMapInfoViewportStore;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.CachingMapInfoViewportStore;
 import com.yrootlab.onmaru.persistence.catalog.JdbcMapViewportQueryRepository;
+import com.yrootlab.onmaru.web.map.MapInfoObservation;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,10 +25,13 @@ public class MapInfoViewportConfiguration {
             DataSource dataSource,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.cache-ttl:30s}") Duration cacheTtl,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.db-statement-timeout:1500ms}") Duration statementTimeout,
+            @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.slow-query-threshold:500ms}") Duration slowQueryThreshold,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.cache-max-entries:256}") int maxEntries,
             ObjectProvider<MeterRegistry> meterRegistryProvider) {
-        var cache = new CachingMapInfoViewportStore(new JdbcMapViewportQueryRepository(dataSource, statementTimeout), cacheTtl, maxEntries);
         var registry = meterRegistryProvider.getIfAvailable();
+        MapInfoViewportStore delegate = new JdbcMapViewportQueryRepository(dataSource, statementTimeout);
+        if (registry != null) delegate = new MapInfoObservation(registry, slowQueryThreshold).observe(delegate, "viewport");
+        var cache = new CachingMapInfoViewportStore(delegate, cacheTtl, maxEntries);
         if (registry != null) {
             FunctionCounter.builder("onmaru.map.info.cache.hit", cache, CachingMapInfoViewportStore::hitCount)
                     .tag("endpoint", "viewport").register(registry);
