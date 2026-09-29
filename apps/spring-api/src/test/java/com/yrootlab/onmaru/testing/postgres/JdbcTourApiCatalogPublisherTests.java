@@ -166,25 +166,33 @@ class JdbcTourApiCatalogPublisherTests {
 
         var listRepository = new JdbcMapInfoQueryRepository(dataSource);
         var viewportRepository = new JdbcMapViewportQueryRepository(dataSource);
+        int[] zoomProfiles = {4, 7, 9, 12};
         for (int i = 0; i < 3; i++) {
             listRepository.find(new MapInfoSqlQuery(null, List.of(), null, null, "NAME", null, null, 30, null, null));
-            viewportRepository.find(new MapInfoViewportQuery(
-                    new MapInfoBounds(126.8, 37.4, 127.1, 37.8), 7, MapInfoCategory.ALL,
-                    null, null, "ko-KR", 500));
+            for (int zoom : zoomProfiles) {
+                viewportRepository.find(new MapInfoViewportQuery(
+                        new MapInfoBounds(126.8, 37.4, 127.1, 37.8), zoom, MapInfoCategory.ALL,
+                        null, null, "ko-KR", 500));
+            }
         }
 
         var listSamples = new long[20];
-        var viewportSamples = new long[20];
+        var viewportSamples = new long[zoomProfiles.length][20];
         for (int i = 0; i < 20; i++) {
             listSamples[i] = elapsedNanos(() -> listRepository.find(
                     new MapInfoSqlQuery(null, List.of(), null, null, "NAME", null, null, 30, null, null)));
-            viewportSamples[i] = elapsedNanos(() -> viewportRepository.find(new MapInfoViewportQuery(
-                    new MapInfoBounds(126.8, 37.4, 127.1, 37.8), 7, MapInfoCategory.ALL,
-                    null, null, "ko-KR", 500)));
+            for (int profile = 0; profile < zoomProfiles.length; profile++) {
+                int zoom = zoomProfiles[profile];
+                viewportSamples[profile][i] = elapsedNanos(() -> viewportRepository.find(new MapInfoViewportQuery(
+                        new MapInfoBounds(126.8, 37.4, 127.1, 37.8), zoom, MapInfoCategory.ALL,
+                        null, null, "ko-KR", 500)));
+            }
         }
 
         assertThat(percentile95Millis(listSamples)).isLessThanOrEqualTo(200.0);
-        assertThat(percentile95Millis(viewportSamples)).isLessThanOrEqualTo(500.0);
+        for (long[] samples : viewportSamples) {
+            assertThat(percentile95Millis(samples)).isLessThanOrEqualTo(500.0);
+        }
     }
 
     @Test
