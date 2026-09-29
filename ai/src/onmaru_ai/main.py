@@ -11,6 +11,13 @@ from onmaru_ai.config.secrets import (
     provider_from_environment,
     validate_required_secrets,
 )
+from onmaru_ai.corpus.index import (
+    CorpusIndexService,
+    DeterministicEmbeddingProvider,
+    FixedWordChunker,
+)
+from onmaru_ai.corpus.rest import install_corpus_rest
+from onmaru_ai.corpus.sync import InMemoryCorpusStore
 from onmaru_ai.observability import TelemetrySink, create_telemetry_sink, install_observability
 from onmaru_ai.providers.gemini.adapter import GeminiAdapter
 from onmaru_ai.providers.gemini.models import GeminiConfig, GeminiPricing
@@ -44,6 +51,8 @@ def create_app(
     telemetry_sink: TelemetrySink | None = None,
     rag_activation_log: InMemoryRagActivationLog | None = None,
     rag_retriever: RagEvidenceRetriever | None = None,
+    corpus_store: InMemoryCorpusStore | None = None,
+    corpus_index: CorpusIndexService | None = None,
     environ: Mapping[str, str] | None = None,
 ) -> FastAPI:
     provider = secret_provider or provider_from_environment()
@@ -59,6 +68,16 @@ def create_app(
         rag_retriever=rag_retriever,
         rag_feature_enabled=_rag_feature_enabled(environ),
         journey_llm=_journey_llm(provider, environ),
+    )
+    install_corpus_rest(
+        app,
+        provider,
+        corpus_store or InMemoryCorpusStore(),
+        corpus_index
+        or CorpusIndexService(
+            FixedWordChunker(max_words=120),
+            DeterministicEmbeddingProvider(),
+        ),
     )
 
     if _screen_hanok_research_enabled(environ):

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,9 +25,33 @@ import java.util.NoSuchElementException;
 public final class CorpusExportController {
 
     private final CorpusExportService corpusExportService;
+    private final HanokCorpusRevisionFactory hanokCorpusRevisionFactory;
 
-    CorpusExportController(CorpusExportService corpusExportService) {
+    @Autowired
+    CorpusExportController(
+            CorpusExportService corpusExportService,
+            HanokCorpusRevisionFactory hanokCorpusRevisionFactory) {
         this.corpusExportService = corpusExportService;
+        this.hanokCorpusRevisionFactory = hanokCorpusRevisionFactory;
+    }
+
+    /**
+     * Compatibility constructor for isolated read/ack controller tests.
+     * Production wiring always supplies the published catalog factory.
+     */
+    CorpusExportController(CorpusExportService corpusExportService) {
+        this(corpusExportService, new HanokCorpusRevisionFactory(java.util.List::of));
+    }
+
+    @Operation(
+            summary = "현재 공개 한옥 코퍼스 발행",
+            description = "공개 카탈로그에서 한옥 계열만 정규화해 bounded corpus revision으로 발행합니다.",
+            security = @SecurityRequirement(name = "internalSecret")
+    )
+    @PostMapping("/internal/v1/corpus/hanok/publish")
+    ResponseEntity<CorpusManifest> publishHanokCorpus() {
+        var manifest = corpusExportService.publish(hanokCorpusRevisionFactory.current());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(manifest);
     }
 
     @Operation(

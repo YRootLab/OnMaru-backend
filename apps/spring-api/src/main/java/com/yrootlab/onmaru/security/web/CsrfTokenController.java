@@ -45,7 +45,7 @@ public final class CsrfTokenController {
                 .path("/")
                 .secure(true)
                 .httpOnly(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .maxAge(Duration.ofMinutes(30))
                 .build();
         var response = ResponseEntity.ok()
@@ -57,7 +57,7 @@ public final class CsrfTokenController {
                     .path("/")
                     .secure(true)
                     .httpOnly(true)
-                    .sameSite("Lax")
+                    .sameSite("None")
                     .maxAge(Duration.ofHours(24))
                     .build();
             response.header(HttpHeaders.SET_COOKIE, guestCookie.toString());

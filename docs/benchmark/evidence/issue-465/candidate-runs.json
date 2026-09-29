@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "status": "valid",
+  "commitSha": "9f3b34dca6e8ca4e5ef1c0d2d5e4af5eef279782",
+  "runnerImage": "ubuntu-latest",
+  "dependencyMode": "locked",
+  "cacheState": "unknown",
+  "toolkitSha": "8f68026215ebb8f32bc14e17740f2c87dbdc773d",
+  "runs": [
+    {"runId": 36511784017, "attempt": 2, "workflowWallClockSeconds": 725, "criticalPathSeconds": 410.76, "sumWorkSeconds": 1996.64, "springApi": {"unitContract": 157.95, "postgresCatalog": 211.88, "postgresAudio": 179.02, "postgresOther": 410.76}, "resourceEvidence": "available", "result": "success", "url": "https://github.com/YRootLab/OnMaru-backend/actions/runs/36511784017"},
+    {"runId": 36512788117, "attempt": 1, "workflowWallClockSeconds": 652, "criticalPathSeconds": 411.62, "sumWorkSeconds": 1983.45, "springApi": {"unitContract": 168.11, "postgresCatalog": 217.89, "postgresAudio": 173.86, "postgresOther": 411.62}, "resourceEvidence": "available", "result": "success", "url": "https://github.com/YRootLab/OnMaru-backend/actions/runs/36512788117"},
+    {"runId": 36512792006, "attempt": 1, "workflowWallClockSeconds": 791, "criticalPathSeconds": 504.42, "sumWorkSeconds": 2135.65, "springApi": {"unitContract": 157.88, "postgresCatalog": 203.19, "postgresAudio": 189.64, "postgresOther": 504.42}, "resourceEvidence": "available", "result": "success", "url": "https://github.com/YRootLab/OnMaru-backend/actions/runs/36512792006"}
+  ],
+  "summary": {
+    "criticalPathSeconds": {"samples": [410.76, 411.62, 504.42], "median": 411.62, "maxObserved": 504.42},
+    "workflowWallClockSeconds": {"samples": [725, 652, 791], "median": 725, "maxObserved": 791},
+    "springApiPostgresOtherSeconds": {"samples": [410.76, 411.62, 504.42], "median": 411.62, "maxObserved": 504.42},
+    "queueMillis": null
+  },
+  "notes": [
+    "A same-SHA run on 791497c was cancelled and excluded because the test-contract fix changed the commit identity.",
+    "workflowWallClockSeconds is derived from run timestamps; the reusable aggregate's own field was unavailable.",
+    "p95 is not reported as a stable statistic for n=3. maxObserved is shown instead."
+  ]
+}

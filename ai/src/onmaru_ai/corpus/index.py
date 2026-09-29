@@ -57,14 +57,25 @@ class DeterministicEmbeddingProvider:
 
 
 class CorpusIndexService:
-    def __init__(self, chunker: TextChunker, embeddings: EmbeddingProvider) -> None:
+    def __init__(
+        self,
+        chunker: TextChunker,
+        embeddings: EmbeddingProvider,
+        *,
+        max_chunks_per_document: int | None = 4,
+    ) -> None:
+        if max_chunks_per_document is not None and max_chunks_per_document <= 0:
+            raise ValueError("max_chunks_per_document must be positive")
         self._chunker = chunker
         self._embeddings = embeddings
+        self._max_chunks_per_document = max_chunks_per_document
 
     def build(self, documents: Iterable[CorpusDocument]) -> tuple[CorpusChunk, ...]:
         chunks: list[CorpusChunk] = []
         for document in documents:
             document_chunks = self._chunker.split(document.text)
+            if self._max_chunks_per_document is not None:
+                document_chunks = document_chunks[: self._max_chunks_per_document]
             if not document_chunks:
                 raise CorpusIndexingError("CORPUS_DOCUMENT_EMPTY")
             for index, text in enumerate(document_chunks):

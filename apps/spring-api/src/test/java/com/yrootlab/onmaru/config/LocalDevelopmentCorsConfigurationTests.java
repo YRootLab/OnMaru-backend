@@ -22,7 +22,7 @@ class LocalDevelopmentCorsConfigurationTests {
 
     @Test
     void allowsCorsPreflightFromEverySupportedLocalDevelopmentPort() throws Exception {
-        for (var port = 3000; port <= 3007; port++) {
+        for (var port = 3000; port <= 3008; port++) {
             var origin = "http://localhost:" + port;
 
             mockMvc.perform(options("/api/v1/home/curated-courses")
@@ -47,6 +47,18 @@ class LocalDevelopmentCorsConfigurationTests {
     }
 
     @Test
+    void allowsCorsPreflightFromVercelFrontend() throws Exception {
+        var origin = "https://onmaru-frontend.vercel.app";
+
+        mockMvc.perform(options("/api/v1/members/me")
+                        .header("Origin", origin)
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", origin))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+    }
+
+    @Test
     void allowsCorsPreflightFromBothVercelProductionDomains() throws Exception {
         for (var origin : new String[]{"https://www.onmaru.site", "https://onmaru.site"}) {
             mockMvc.perform(options("/api/v1/map/places")
@@ -61,7 +73,7 @@ class LocalDevelopmentCorsConfigurationTests {
     @Test
     void rejectsCorsPreflightFromOriginsOutsideTheLocalDevelopmentAllowlist() throws Exception {
         mockMvc.perform(options("/api/v1/home/curated-courses")
-                        .header("Origin", "http://localhost:3008")
+                        .header("Origin", "http://localhost:3009")
                         .header("Access-Control-Request-Method", "GET"))
                 .andExpect(status().isForbidden())
                 .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));

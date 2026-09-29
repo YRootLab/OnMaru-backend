@@ -5,6 +5,8 @@ import com.yrootlab.onmaru.tourism.catalog.TourApiClientConfiguration.TourApiSyn
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +28,16 @@ public final class TourApiCatalogSyncSchedulingAdapter {
     @Scheduled(cron = "${onmaru.tourapi.sync.cron:0 0 3 * * *}", zone = "Asia/Seoul")
     public void scheduledSync() {
         run("scheduled-cron");
+    }
+
+    /**
+     * Populate an empty production catalog immediately after boot. Without
+     * this trigger a fresh deployment waited until the next 03:00 KST cron,
+     * leaving map and hanok endpoints on an empty/stale snapshot meanwhile.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void initialSync() {
+        run("application-ready");
     }
 
     public synchronized void run(String trigger) {
