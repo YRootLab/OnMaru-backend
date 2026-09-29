@@ -29,6 +29,7 @@ public final class JdbcInsightsQueryStore implements InsightsQueryStore {
                 JOIN onmaru.catalog_regions region ON region.id=observation.region_id
                 LEFT JOIN onmaru.catalog_regions parent ON parent.id=region.parent_id
                 WHERE active.dataset='kto-datalab-visitor'
+                  AND observation.visitor_type IN ('2', 'DOMESTIC', 'TOTAL')
                 ORDER BY observation.basis_date DESC, region.code
                 """); var result = statement.executeQuery()) {
             var items = new ArrayList<Observation>();

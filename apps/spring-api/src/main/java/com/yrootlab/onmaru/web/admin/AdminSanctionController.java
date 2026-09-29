@@ -9,6 +9,8 @@ import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKeyInvalidException;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKeyMissingException;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -91,6 +93,8 @@ public final class AdminSanctionController {
                         "/api/v1/admin/users/" + memberId + "/sanctions/" + sanction.id(), sanction);
             });
             return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body(response.body());
+        } catch (IdempotencyKeyMissingException | IdempotencyKeyInvalidException exception) {
+            return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (SecurityException exception) {
             return error(HttpStatus.FORBIDDEN, "FORBIDDEN", request);
         } catch (IllegalArgumentException exception) {
@@ -123,6 +127,8 @@ public final class AdminSanctionController {
                 return new IdempotentResponse(204, Map.of(), null);
             });
             return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body(response.body());
+        } catch (IdempotencyKeyMissingException | IdempotencyKeyInvalidException exception) {
+            return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (SecurityException exception) {
             return error(HttpStatus.FORBIDDEN, "FORBIDDEN", request);
         } catch (IllegalArgumentException exception) {

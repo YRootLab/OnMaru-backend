@@ -154,3 +154,12 @@
 - 온기모드 데이터는 장소별 실측이 아니라 SIGUNGU 공공 방문 관측값을 중심 좌표에 표현한 파생 지수다. FE는 이를 장소의 현재 혼잡도라고 표시하지 않아야 한다.
 - FE Issue #245에 메타데이터 처리, 결측/오래된 데이터 처리, DataLab 직접 호출 제거 요구사항을 추가했다.
 - Verification: insights/web boundary 및 JDBC visitor heat spot 테스트 성공, compile 성공, `git diff --check` 성공.
+
+## 2026-09-29 Issue #375 PR 전 리뷰 보강
+
+- FE 기본 요청 `metric=VISIT_COUNT`가 BE의 `CONGESTION_SCORE` spot을 정상적으로 조회하도록 metric 계약을 정규화했다.
+- `observations` JDBC 조회에서 `DOMESTIC`/`TOTAL` 계열만 반환해 LOCAL·DOMESTIC·TOTAL 중복 시계열을 제거했다.
+- 부분 날짜 series를 0으로 합성하지 않고 모든 spot에 관측값이 존재하는 공통 날짜만 반환한다.
+- Idempotency-Key 누락/잘못된 UUID는 인증 실패가 아닌 `400 VALIDATION_ERROR`로 반환하도록 관리자 mutation controller를 보강했다.
+- primary `/api/v1/insights/heatmap`에도 `origin`, `spatialLevel`, 관측 기간, `methodologyVersion`을 추가하고 OpenAPI fixture를 동기화했다.
+- Verification: insights/admin Spring 테스트, contract validation, migration policy, `git diff --check` 성공.

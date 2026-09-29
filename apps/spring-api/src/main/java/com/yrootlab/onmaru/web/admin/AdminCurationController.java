@@ -9,6 +9,8 @@ import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKeyInvalidException;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKeyMissingException;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -62,6 +64,8 @@ public final class AdminCurationController {
                 throw new IllegalArgumentException();
             }
             return ok(Map.of("schemaVersion", "1.0", "items", store.find(category, included, limit), "hasNext", false));
+        } catch (IdempotencyKeyMissingException | IdempotencyKeyInvalidException exception) {
+            return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (RuntimeException exception) {
