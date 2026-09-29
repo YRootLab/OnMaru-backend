@@ -8,6 +8,16 @@
 
 ## 2. 구현 대상 API
 
+### Kakao Map 연동 경계
+
+- Kakao Map JavaScript SDK의 중심·bounds·level은 FE가 관리한다.
+- FE가 `map.getBounds()`로 계산한 `minLng,minLat,maxLng,maxLat`를 viewport API가 받는다.
+- FE의 Kakao `level`을 `zoomLevel`로 받으며, 숫자가 낮을수록 확대 상태다.
+- BE는 Kakao SDK나 Kakao 장소 검색 API를 사용자 요청마다 호출하지 않는다.
+- BE는 게시된 WGS84 decimal degree 좌표와 PostGIS로 bbox·region·cluster를 계산한다.
+- bbox는 `lng,lat,lng,lat`, 장소 좌표 객체는 `{ lat, lng }` 순서다.
+- TourAPI 원천 좌표는 공개 projection 게시 전에 WGS84 범위 검증을 통과해야 한다.
+
 ### 목록 API
 
     GET /api/v1/map/info/places
@@ -188,4 +198,3 @@ Integration:
 - active snapshot과 cursor가 일관된다.
 - TourAPI 장애가 사용자 조회 요청으로 전파되지 않는다.
 - OpenAPI, fixture, contract test, integration test가 통과한다.
-

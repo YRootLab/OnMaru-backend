@@ -121,6 +121,20 @@ mapping은 제목 검색이 아니라 원천 분류 코드와 dataset revision�
 
 ## 5. BE API 계약
 
+### 5.0 Kakao Map SDK와 BE의 책임 경계
+
+이 설계는 FE가 사용하는 Kakao Map JavaScript SDK의 현재 동작을 전제로 한다.
+
+- FE Kakao SDK가 지도 중심, 현재 bounds, Kakao `level`을 관리한다.
+- FE는 `map.getBounds()`에서 `minLng,minLat,maxLng,maxLat`를 계산해 BE에 전달한다.
+- FE는 `map.getLevel()`을 `zoomLevel`로 전달한다. Kakao Map은 level 숫자가 낮을수록 확대 상태다.
+- BE는 Kakao Map SDK나 Kakao 장소 검색 API를 사용자 요청마다 호출하지 않는다.
+- BE는 TourAPI에서 정규화·게시한 WGS84 경위도 좌표와 PostGIS를 사용해 bbox·region·cluster를 계산한다.
+- bbox는 `lng,lat,lng,lat`, 장소 좌표 객체는 `{ lat, lng }` 순서를 계약으로 고정한다.
+- Kakao marker 표시, bounds fit, cluster 클릭 후 확대는 FE 책임이다.
+
+기존 중심점·반경 요청은 호환 기간 동안 유지할 수 있지만, 새 viewport 계약의 정식 입력은 `bbox + zoomLevel`이다.
+
 ### 5.1 전국·지역 목록
 
 ```http

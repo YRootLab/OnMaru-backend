@@ -36,6 +36,16 @@ FE 표시 category와 BE canonical category는 1:1이 아니다. FE는 BE 응답
 
 ## 3. 사용할 BE API
 
+### Kakao Map SDK 연동 규칙
+
+- FE는 Kakao Map SDK에서 `map.getBounds()`를 읽어 `bbox=minLng,minLat,maxLng,maxLat`로 전송한다.
+- FE는 `map.getLevel()`을 `zoomLevel`로 전송한다. Kakao level은 숫자가 낮을수록 확대 상태다.
+- 지도 이동·확대·축소가 끝난 뒤 viewport API를 호출한다.
+- marker 표시, cluster 클릭 후 지도 확대, bounds fit은 FE가 수행한다.
+- BE는 Kakao 지도 SDK나 Kakao 장소 검색 API를 호출하지 않는다.
+- 장소 좌표는 BE가 제공하는 WGS84 `{ lat, lng }`를 사용한다.
+- bbox 문자열은 `lng,lat,lng,lat` 순서이며, 장소 좌표 객체는 `{ lat, lng }` 순서다.
+
 ### 3.1 왼쪽 목록
 
 ```http
