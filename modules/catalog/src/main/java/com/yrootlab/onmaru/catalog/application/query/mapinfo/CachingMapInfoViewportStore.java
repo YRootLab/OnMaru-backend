@@ -7,25 +7,35 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
 /** Snapshot/profile-scoped bounded cache for public viewport aggregates. */
-public final class CachingMapInfoViewportStore implements MapInfoViewportStore {
+public final class CachingMapInfoViewportStore implements MapInfoViewportStore, MapInfoSnapshotResolver {
     private final MapInfoViewportStore delegate;
     private final Clock clock;
     private final long ttlMillis;
+    private final long staleIfErrorMillis;
     private final int maxEntries;
     private final Map<MapInfoViewportQuery, Entry> entries = new ConcurrentHashMap<>();
     private final LongAdder hits = new LongAdder();
     private final LongAdder misses = new LongAdder();
 
     public CachingMapInfoViewportStore(MapInfoViewportStore delegate, Duration ttl, int maxEntries) {
-        this(delegate, ttl, maxEntries, Clock.systemUTC());
+        this(delegate, ttl, maxEntries, Duration.ofSeconds(30), Clock.systemUTC());
     }
 
-    CachingMapInfoViewportStore(MapInfoViewportStore delegate, Duration ttl, int maxEntries, Clock clock) {
+    public CachingMapInfoViewportStore(MapInfoViewportStore delegate, Duration ttl, int maxEntries, Duration staleIfError) {
+        this(delegate, ttl, maxEntries, staleIfError, Clock.systemUTC());
+    }
+
+    CachingMapInfoViewportStore(MapInfoViewportStore delegate, Duration ttl, int maxEntries, Duration staleIfError, Clock clock) {
         if (ttl.isNegative() || ttl.isZero() || maxEntries < 1) throw new IllegalArgumentException("invalid cache policy");
         this.delegate = delegate;
         this.clock = clock;
         this.ttlMillis = ttl.toMillis();
+        this.staleIfErrorMillis = staleIfError.toMillis();
         this.maxEntries = maxEntries;
+    }
+
+    CachingMapInfoViewportStore(MapInfoViewportStore delegate, Duration ttl, int maxEntries, Clock clock) {
+        this(delegate, ttl, maxEntries, Duration.ofSeconds(30), clock);
     }
 
     @Override
@@ -37,7 +47,15 @@ public final class CachingMapInfoViewportStore implements MapInfoViewportStore {
             return cached.value;
         }
         misses.increment();
-        var value = delegate.find(query);
+        MapInfoViewportResponse value;
+        try {
+            value = delegate.find(query);
+        } catch (RuntimeException exception) {
+            if (cached != null && now - cached.createdAtMillis < ttlMillis + staleIfErrorMillis && snapshotMatches(query, cached.value)) {
+                return cached.value.asStale();
+            }
+            throw exception;
+        }
         if (entries.size() >= maxEntries) entries.remove(entries.keySet().stream().findFirst().orElse(query));
         entries.put(query, new Entry(now, value));
         return value;
@@ -46,6 +64,11 @@ public final class CachingMapInfoViewportStore implements MapInfoViewportStore {
     public long hitCount() { return hits.sum(); }
     public long missCount() { return misses.sum(); }
     public int size() { return entries.size(); }
+
+    @Override public MapInfoSnapshot currentSnapshot() {
+        if (delegate instanceof MapInfoSnapshotResolver resolver) return resolver.currentSnapshot();
+        throw new IllegalStateException("map info delegate cannot resolve active snapshot");
+    }
 
     private boolean snapshotMatches(MapInfoViewportQuery query, MapInfoViewportResponse value) {
         if (query.snapshotId() != null) return query.snapshotId().equals(value.snapshot().id());

@@ -67,11 +67,22 @@ public final class MapInfoController {
             return ResponseEntity.status(503).body(new ApiErrorResponse(
                     "1.0", "CATALOG_UNAVAILABLE", "Map catalog data is temporarily unavailable.",
                     requestId(request), Map.of("timeout", true)));
-        } catch (MapInfoQueryException | IllegalArgumentException exception) {
+        } catch (MapInfoQueryException exception) {
+            if ("SNAPSHOT_EXPIRED".equals(exception.code())) {
+                record("snapshot_expired", category, 0);
+                return ResponseEntity.status(409).body(new ApiErrorResponse(
+                        "1.0", "SNAPSHOT_EXPIRED", "The requested map snapshot is no longer available.",
+                        requestId(request), Map.of("field", exception.field())));
+            }
             record("invalid", category, 0);
             return ResponseEntity.badRequest().body(new ApiErrorResponse(
                     "1.0", "INVALID_REQUEST", "The requested map list is invalid.",
-                    requestId(request), Map.of("field", exception instanceof MapInfoQueryException q ? q.field() : "query")));
+                    requestId(request), Map.of("field", exception.field())));
+        } catch (IllegalArgumentException exception) {
+            record("invalid", category, 0);
+            return ResponseEntity.badRequest().body(new ApiErrorResponse(
+                    "1.0", "INVALID_REQUEST", "The requested map list is invalid.",
+                    requestId(request), Map.of("field", "query")));
         } catch (IllegalStateException exception) {
             record("unavailable", category, 0);
             return ResponseEntity.status(503).body(new ApiErrorResponse(

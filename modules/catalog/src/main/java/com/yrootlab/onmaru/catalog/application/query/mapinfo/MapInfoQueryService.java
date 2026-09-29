@@ -78,7 +78,7 @@ public final class MapInfoQueryService {
                 ? encode(resolvedSnapshotId, resolvedQuery, categories, result.lastCursor()) : null;
         return new MapInfoListResponse(
                 SCHEMA_VERSION, resolvedQuery, result.snapshot(), result.totalCount(), items, next,
-                categories, result.hasMore() ? "PARTIAL" : "COMPLETE", result.publication());
+                categories, result.coverage(), result.publication());
     }
 
     private MapInfoListQuery normalize(MapInfoListQuery query) {

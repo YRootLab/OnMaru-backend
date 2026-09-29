@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.web.map;
 
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoQueryPort;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoQueryResult;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSnapshotResolver;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportResponse;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportStore;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -22,7 +23,7 @@ public final class MapInfoObservation {
     }
 
     public MapInfoQueryPort observe(MapInfoQueryPort delegate, String endpoint) {
-        return query -> {
+        MapInfoQueryPort observed = query -> {
             long started = System.nanoTime();
             try {
                 MapInfoQueryResult result = delegate.find(query);
@@ -33,10 +34,14 @@ public final class MapInfoObservation {
                 throw exception;
             }
         };
+        if (delegate instanceof MapInfoSnapshotResolver resolver) {
+            return new ObservedQueryPort(observed, resolver);
+        }
+        return observed;
     }
 
     public MapInfoViewportStore observe(MapInfoViewportStore delegate, String endpoint) {
-        return query -> {
+        MapInfoViewportStore observed = query -> {
             long started = System.nanoTime();
             try {
                 MapInfoViewportResponse result = delegate.find(query);
@@ -47,6 +52,22 @@ public final class MapInfoObservation {
                 throw exception;
             }
         };
+        if (delegate instanceof MapInfoSnapshotResolver resolver) {
+            return new ObservedViewportStore(observed, resolver);
+        }
+        return observed;
+    }
+
+    private record ObservedQueryPort(MapInfoQueryPort delegate, MapInfoSnapshotResolver resolver)
+            implements MapInfoQueryPort, MapInfoSnapshotResolver {
+        @Override public MapInfoQueryResult find(com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSqlQuery query) { return delegate.find(query); }
+        @Override public com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSnapshot currentSnapshot() { return resolver.currentSnapshot(); }
+    }
+
+    private record ObservedViewportStore(MapInfoViewportStore delegate, MapInfoSnapshotResolver resolver)
+            implements MapInfoViewportStore, MapInfoSnapshotResolver {
+        @Override public MapInfoViewportResponse find(com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportQuery query) { return delegate.find(query); }
+        @Override public com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSnapshot currentSnapshot() { return resolver.currentSnapshot(); }
     }
 
     private void recordSuccess(String endpoint, String coverage, long started) {
@@ -83,7 +104,10 @@ public final class MapInfoObservation {
 
     private boolean isPoolExhausted(Throwable throwable) {
         SQLException sqlException = findSqlException(throwable);
-        return sqlException != null && "53300".equals(sqlException.getSQLState());
+        if (sqlException == null) return false;
+        return "53300".equals(sqlException.getSQLState())
+                || "08001".equals(sqlException.getSQLState())
+                || "08004".equals(sqlException.getSQLState());
     }
 
     private SQLException findSqlException(Throwable throwable) {

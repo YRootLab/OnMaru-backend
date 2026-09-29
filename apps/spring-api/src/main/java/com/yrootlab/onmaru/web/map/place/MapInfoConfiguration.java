@@ -39,12 +39,13 @@ class MapInfoConfiguration {
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.cache-ttl:30s}") Duration cacheTtl,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.db-statement-timeout:1500ms}") Duration statementTimeout,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.slow-query-threshold:500ms}") Duration slowQueryThreshold,
+            @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.stale-if-error:30s}") Duration staleIfError,
             @org.springframework.beans.factory.annotation.Value("${onmaru.map.info.cache-max-entries:256}") int maxEntries,
             ObjectProvider<MeterRegistry> meterRegistryProvider) {
         var registry = meterRegistryProvider.getIfAvailable();
         MapInfoQueryPort delegate = new JdbcMapInfoQueryRepository(dataSource, statementTimeout);
         if (registry != null) delegate = new MapInfoObservation(registry, slowQueryThreshold).observe(delegate, "places");
-        var cache = new CachingMapInfoQueryPort(delegate, cacheTtl, maxEntries);
+        var cache = new CachingMapInfoQueryPort(delegate, cacheTtl, maxEntries, staleIfError);
         registerCacheMetrics(registry, cache);
         return cache;
     }

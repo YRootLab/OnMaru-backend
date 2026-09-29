@@ -18,4 +18,9 @@ public record MapInfoViewportResponse(
         items = List.copyOf(items);
         appliedCategories = List.copyOf(appliedCategories);
     }
+
+    public MapInfoViewportResponse asStale() {
+        return new MapInfoViewportResponse(schemaVersion, renderMode, profileVersion, snapshot,
+                totalCountInViewport, items, appliedCategories, "STALE", servedBbox, projection);
+    }
 }

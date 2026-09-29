@@ -74,6 +74,7 @@ onmaru:
     info:
       db-statement-timeout: "${ONMARU_MAP_INFO_DB_STATEMENT_TIMEOUT:1500ms}"
       slow-query-threshold: "${ONMARU_MAP_INFO_SLOW_QUERY_THRESHOLD:500ms}"
+      stale-if-error: "${ONMARU_MAP_INFO_STALE_IF_ERROR:30s}"
       api-timeout: "${ONMARU_MAP_INFO_API_TIMEOUT:2s}"
       cache-ttl: "${ONMARU_MAP_INFO_CACHE_TTL:30s}"
       profile-version: "${ONMARU_MAP_INFO_PROFILE_VERSION:map-zoom-v1}"

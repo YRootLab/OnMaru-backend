@@ -151,7 +151,7 @@ public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort, MapIn
                     previous = last;
                     items.add(item);
                     var sortValue = "DISTANCE".equals(q.sort()) ? r.getString(10)
-                            : "NAME".equals(q.sort()) ? r.getString(2) : r.getString(5) + "\u0000" + r.getString(2);
+                            : "NAME".equals(q.sort()) ? r.getString(2) : (r.getString(5) == null ? "" : r.getString(5)) + "\u0000" + r.getString(2);
                     last = new MapInfoCursorPosition(sortValue, r.getDouble(11), r.getString(1));
                 }
             }

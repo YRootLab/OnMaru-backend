@@ -58,4 +58,18 @@ class MapInfoControllerTests {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("CATALOG_UNAVAILABLE"));
     }
+
+    @Test
+    void returnsConflictWhenTheRequestedSnapshotIsExpired() throws Exception {
+        var result = new MapInfoQueryResult(
+                new MapInfoSnapshot("rev-1", Instant.EPOCH, "PUBLISHED"), null,
+                0, List.of(), null, false);
+        var mvc = MockMvcBuilders.standaloneSetup(
+                new MapInfoController(new MapInfoQueryService((MapInfoQueryPort) query -> result))).build();
+
+        mvc.perform(get("/api/v1/map/info/places")
+                        .param("category", "ALL").param("snapshotId", "rev-2"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SNAPSHOT_EXPIRED"));
+    }
 }

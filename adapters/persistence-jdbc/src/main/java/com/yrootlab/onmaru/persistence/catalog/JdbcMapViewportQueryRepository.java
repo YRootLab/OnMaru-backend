@@ -65,9 +65,10 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                 case CLUSTER -> clusters(connection, snapshot.id(), query);
                 case DISTRICT, REGION -> regions(connection, snapshot.id(), query, mode);
             };
+            var coverage = mode == MapInfoRenderMode.PLACE && items.size() < total ? "PARTIAL" : "COMPLETE";
             return new MapInfoViewportResponse(
                     "1.0", mode, PROFILE_VERSION, snapshot, total, items,
-                    MapInfoCategoryMapping.applied(query.category()), "COMPLETE", query.bbox(), publication);
+                    MapInfoCategoryMapping.applied(query.category()), coverage, query.bbox(), publication);
         } catch (SQLException exception) {
             throw new IllegalStateException("failed to query map information viewport", exception);
         }
