@@ -31,7 +31,7 @@
 
 - 먼저 현재 migration에서 `community_visit_reviews(status, created_at, id)`, `community_review_reports(status, created_at, id)`, `identity_members(status, created_at, id)`, curation latest-row key 인덱스가 있는지 확인한다.
 - 운영 유사 데이터 baseline에서 각 filter/order query에 `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)`를 저장한다. 결과 없이 인덱스를 추가하지 않는다.
-- index가 필요하면 PostgreSQL migration 제약을 확인하고 온라인 생성 정책에 맞춘다. baseline/candidate SQL과 latency·buffer·returned rows를 report에 기록한다.
+- index가 필요하면 PostgreSQL migration 제약을 확인한다. 저장소의 V033 migration은 Flyway schema-history와 DDL 원자성을 위해 `CREATE INDEX CONCURRENTLY`를 의도적으로 쓰지 않는다. 따라서 실제 운영 적용 방식은 migration runner/lock 및 배포 downtime 기준을 함께 검토하고, 근거 없이 `CONCURRENTLY`를 넣지 않는다. baseline/candidate SQL과 latency·buffer·returned rows를 report에 기록한다.
 - Testcontainers에 같은 timestamp의 여러 UUID, status/filter 조합, 크기 101+ fixture를 두고 중복/누락 없이 다음 페이지를 검증한다.
 - snapshot 호출이 pagination 경로에서 호출되지 않는 것을 adapter test로 확인하고, 전체 admin API test 및 OpenAPI contract 검증을 실행한다.
 
