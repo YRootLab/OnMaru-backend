@@ -144,3 +144,13 @@
 - FE Issue #245 원문에 온기모드 히트맵 전환 요구사항을 추가했다. 백엔드는 기존 FE viewport 파라미터와 맞는 `GET /api/map/heat`를 제공하지만, FE `src/app/api/map/heat/route.ts`의 직접 DataLab 호출·혼잡도 계산 제거는 FE 작업으로 남아 있다.
 - Remaining: 관리자 후기·대시보드·운영 큐의 전체 snapshot 조회는 데이터 규모가 커질 경우 SQL 페이지네이션/집계 read port로 추가 전환해야 한다. 이번 변경은 mutation 경로와 최신 curation 조회의 병목을 우선 해소했다.
 - Verification: `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.web.admin.*' --tests 'com.yrootlab.onmaru.admin.*' --no-daemon --console=plain`, `./gradlew :adapters:persistence-jdbc:test --no-daemon --console=plain`, `node --test scripts/test/migration-policy.test.mjs`, `git diff --check` 성공.
+
+## 2026-09-29 Issue #375 온기모드 히트맵 BE 계산 보강
+
+- FE `VisitorService`와 BE 구현을 대조한 결과, 기존 BE는 날짜별 지역 방문자 수를 날짜 최대값으로만 정규화했고 FE는 방문자 수·지역민 수·전체 최대 방문자 수를 조합했다. 또한 DataLab `touDivCd`를 저장 단계에서 `TOTAL`로 소실하고 있었다.
+- `VisitorObservation`에 `visitorType`을 보존하고 DataLab `touDivCd`를 JDBC snapshot에 저장하도록 변경했다. 기존 생성자는 `TOTAL` 기본값을 유지한다.
+- BE 히트맵 점수를 FE 산식에 맞춰 계산하도록 변경했다: `concentration 45% + volume 55%`, `surgeMultiplier`, `RELAXED/MODERATE/BUSY/SURGE` 등급. 지역민 관측값이 없는 기존 데이터는 명시적으로 120,000 baseline을 사용한다.
+- `/api/map/heat`가 FE의 level별 최소 반경 규칙을 적용하고, `coverageStatus`, `origin=DERIVED_INDEX`, `spatialLevel=SIGUNGU`, 관측 기간, `methodologyVersion=warmth-v2` 메타데이터를 반환한다.
+- 온기모드 데이터는 장소별 실측이 아니라 SIGUNGU 공공 방문 관측값을 중심 좌표에 표현한 파생 지수다. FE는 이를 장소의 현재 혼잡도라고 표시하지 않아야 한다.
+- FE Issue #245에 메타데이터 처리, 결측/오래된 데이터 처리, DataLab 직접 호출 제거 요구사항을 추가했다.
+- Verification: insights/web boundary 및 JDBC visitor heat spot 테스트 성공, compile 성공, `git diff --check` 성공.
