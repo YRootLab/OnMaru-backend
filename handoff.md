@@ -80,6 +80,15 @@
 
 ## 2026-09-29 Issue #375 관리자 API 후속 보강
 
+## 2026-09-29 Issue #375 회원 제재와 카카오 OAuth 접근 정책 연결
+
+- Scope: Redis/JTI 영속화는 제외하고, identity 모듈에 공용 `MemberAccessPolicy` 포트를 추가해 카카오 OAuth 신규 로그인과 기존 회원 세션 조회에 동일한 제재 정책을 적용했다.
+- Changed: 활성 제재 회원의 OAuth 세션 발급 거부, 기존 세션 조회 차단, 관리자 제재 생성 시 기존 회원 세션 일괄 폐기, InMemory/JDBC identity store의 회원 세션 일괄 폐기 지원.
+- Policy: `ACTIVE`이며 시작 시각이 도래했고 종료 시각 전인 제재만 접근을 차단한다. `REVOKED`/`EXPIRED` 또는 아직 시작하지 않은 제재는 허용한다.
+- Compatibility: Kakao OAuth 설정만 단독으로 로드되는 테스트/구성에서는 allow-all 기본 정책을 사용하고, 실제 애플리케이션에서는 `AdminSanctionMemberAccessPolicy`가 주입된다.
+- Verification: `:modules:identity:test`, 관리자·Kakao OAuth 설정·web admin 관련 Spring 테스트, 제재 세션 폐기 테스트 성공.
+- Open risk: 제재 저장소 조회가 로그인/기존 세션 확인 경로에 추가되므로 운영 PostgreSQL 인덱스·쿼리 latency를 확인해야 한다. JTI 영속화는 별도 Issue #492 범위다.
+
 - Branch: `feature/375-admin-api`
 - Scope: 병렬 작업으로 관리자 파이프라인 비동기 실행, refresh token family 재사용 탐지, JWT JTI 폐기 기반, 감사 로그 저장소를 추가하고 애플리케이션 wiring을 연결했다.
 - Added: `GET /api/v1/admin/audit-logs`, 제재 만료 상태 전환(`EXPIRED`), 후기 moderation 멱등성 처리, 제재·후기·큐레이션·pipeline 감사 로그 기록.

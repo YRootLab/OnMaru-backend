@@ -1,5 +1,7 @@
 package com.yrootlab.onmaru.identity.oauth;
 
+import com.yrootlab.onmaru.identity.lifecycle.MemberAccessDeniedException;
+import com.yrootlab.onmaru.identity.lifecycle.MemberAccessPolicy;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
@@ -13,12 +15,19 @@ public final class OAuthLoginService {
     private final IdentityStore store;
     private final TokenHasher tokenHasher;
     private final Clock clock;
+    private final MemberAccessPolicy accessPolicy;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public OAuthLoginService(IdentityStore store, TokenHasher tokenHasher, Clock clock) {
+        this(store, tokenHasher, clock, MemberAccessPolicy.allowAll());
+    }
+
+    public OAuthLoginService(
+            IdentityStore store, TokenHasher tokenHasher, Clock clock, MemberAccessPolicy accessPolicy) {
         this.store = store;
         this.tokenHasher = tokenHasher;
         this.clock = clock;
+        this.accessPolicy = accessPolicy;
     }
 
     public OAuthLoginStart startLogin(StartOAuthLoginCommand command) {
@@ -51,6 +60,9 @@ public final class OAuthLoginService {
                         now)
                 .orElseThrow(() -> new OAuthStateRejectedException("invalid oauth state"));
         var memberId = store.linkExternalIdentity(command.externalIdentity(), now);
+        if (!accessPolicy.allows(memberId, now)) {
+            throw new MemberAccessDeniedException();
+        }
         var sessionToken = randomToken();
         var expiresAt = now.plus(SESSION_TTL);
         store.saveSession(new SessionRecord(tokenHasher.hash(sessionToken), memberId, now, now, expiresAt));

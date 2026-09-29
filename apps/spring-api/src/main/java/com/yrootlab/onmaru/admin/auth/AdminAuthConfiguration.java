@@ -8,7 +8,10 @@ import com.yrootlab.onmaru.persistence.admin.JdbcAdminMemberStore;
 import com.yrootlab.onmaru.admin.users.AdminSanctionService;
 import com.yrootlab.onmaru.admin.users.AdminSanctionStore;
 import com.yrootlab.onmaru.admin.users.InMemoryAdminSanctionStore;
+import com.yrootlab.onmaru.admin.users.AdminSanctionMemberAccessPolicy;
 import com.yrootlab.onmaru.persistence.admin.JdbcAdminSanctionStore;
+import com.yrootlab.onmaru.identity.lifecycle.MemberAccessPolicy;
+import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleStore;
 import com.yrootlab.onmaru.admin.curation.AdminCurationStore;
 import com.yrootlab.onmaru.admin.curation.InMemoryAdminCurationStore;
 import com.yrootlab.onmaru.persistence.admin.JdbcAdminCurationStore;
@@ -141,8 +144,14 @@ public class AdminAuthConfiguration {
     }
 
     @Bean
-    AdminSanctionService adminSanctionService(AdminSanctionStore store, Clock clock) {
-        return new AdminSanctionService(store, clock);
+    AdminSanctionService adminSanctionService(
+            AdminSanctionStore store, Clock clock, MemberLifecycleStore memberSessions) {
+        return new AdminSanctionService(store, clock, memberSessions);
+    }
+
+    @Bean
+    MemberAccessPolicy memberAccessPolicy(AdminSanctionStore store, Clock clock) {
+        return new AdminSanctionMemberAccessPolicy(store, clock);
     }
 
     @Bean

@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.admin.users;
 
 import com.yrootlab.onmaru.admin.auth.AdminPrincipal;
+import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleStore;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -11,10 +12,16 @@ public final class AdminSanctionService {
 
     private final AdminSanctionStore store;
     private final Clock clock;
+    private final MemberLifecycleStore memberSessions;
 
     public AdminSanctionService(AdminSanctionStore store, Clock clock) {
+        this(store, clock, null);
+    }
+
+    public AdminSanctionService(AdminSanctionStore store, Clock clock, MemberLifecycleStore memberSessions) {
         this.store = store;
         this.clock = clock;
+        this.memberSessions = memberSessions;
     }
 
     public List<AdminSanction> find(UUID memberId) {
@@ -33,7 +40,11 @@ public final class AdminSanctionService {
                 || (endsAt != null && !endsAt.isAfter(startsAt))) {
             throw new IllegalArgumentException("invalid sanction");
         }
-        return store.create(memberId, actor.id(), reason.trim(), startsAt, endsAt);
+        var sanction = store.create(memberId, actor.id(), reason.trim(), startsAt, endsAt);
+        if (!startsAt.isAfter(clock.instant()) && memberSessions != null) {
+            memberSessions.revokeAllSessions(memberId, clock.instant());
+        }
+        return sanction;
     }
 
     public boolean revoke(AdminPrincipal actor, UUID sanctionId) {

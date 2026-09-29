@@ -2,6 +2,10 @@ package com.yrootlab.onmaru.admin.users;
 
 import com.yrootlab.onmaru.admin.auth.AdminPrincipal;
 import com.yrootlab.onmaru.admin.auth.AdminRole;
+import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
+import com.yrootlab.onmaru.identity.oauth.SessionRecord;
+import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -48,6 +52,21 @@ class AdminSanctionServiceTests {
 
         assertThatThrownBy(() -> service.create(admin, memberId, "사유", NOW, NOW))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void activeSanctionRevokesExistingMemberSessions() {
+        var identityStore = new InMemoryIdentityStore();
+        var tokenHasher = new TokenHasher("test-secret");
+        var sessionToken = "member-session";
+        identityStore.saveSession(new SessionRecord(
+                tokenHasher.hash(sessionToken), memberId, NOW, NOW, NOW.plusSeconds(3600)));
+        var lifecycle = new MemberLifecycleService(identityStore, tokenHasher, fixedClock());
+        var service = new AdminSanctionService(new InMemoryAdminSanctionStore(), fixedClock(), identityStore);
+
+        service.create(admin, memberId, "악성 신고 반복", NOW, null);
+
+        assertThat(lifecycle.currentMember(sessionToken)).isEmpty();
     }
 
     private Clock fixedClock() {
