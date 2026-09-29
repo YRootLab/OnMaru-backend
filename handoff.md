@@ -9,6 +9,10 @@
 - **Plan**: toolkit worktree `docs/superpowers/plans/2026-09-29-spring-api-shard-benchmark.md`
 - **Report target**: `docs/reports/2026-09-29-issue-465-spring-api-shard-benchmark.md`
 - **Baseline rule**: 같은 SHA·runner·cache·Java·명령 identity의 성공 실행 3회 중앙값을 공식 기준선으로 사용하며, 현재 과거 관측값은 참고값으로만 둔다.
+- **Implementation**: 97개 Spring API 테스트를 `unit-contract(63)`, `postgres-catalog(4)`, `postgres-audio(5)`, `postgres-other(25)`로 분할하고 fail-closed aggregate 및 CPU/RSS/wall-clock evidence를 추가했다.
+- **Benchmark**: serial verify median 470초; same-SHA candidate critical-path samples 410.76/411.62/504.42초, median 411.62초(-12.42% proxy). Candidate workflow wall-clock median 725초이며 측정 경계가 달라 최종 CI 개선은 `inconclusive`.
+- **Runs**: [36511784017](https://github.com/YRootLab/OnMaru-backend/actions/runs/36511784017), [36512788117](https://github.com/YRootLab/OnMaru-backend/actions/runs/36512788117), [36512792006](https://github.com/YRootLab/OnMaru-backend/actions/runs/36512792006).
+- **Verification**: backend Node tests 123 pass; local four Spring shards pass; toolkit verification 161 pass / 91% coverage.
 
 ## 2026-09-28 Issue #265 프론트엔드 OAuth 복귀
 
