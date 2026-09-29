@@ -5,6 +5,11 @@ import com.yrootlab.onmaru.admin.audit.AdminAuditLogService;
 import com.yrootlab.onmaru.admin.pipeline.AdminPipelinePort;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,12 +32,17 @@ public final class AdminPipelineController {
     private final AdminAuthenticator authenticator;
     private final AdminPipelinePort pipeline;
     private final AdminAuditLogService auditLogs;
+    private final IdempotencyService idempotency;
 
     public AdminPipelineController(
-            AdminAuthenticator authenticator, AdminPipelinePort pipeline, AdminAuditLogService auditLogs) {
+            AdminAuthenticator authenticator,
+            AdminPipelinePort pipeline,
+            AdminAuditLogService auditLogs,
+            IdempotencyService idempotency) {
         this.authenticator = authenticator;
         this.pipeline = pipeline;
         this.auditLogs = auditLogs;
+        this.idempotency = idempotency;
     }
 
     @Operation(summary = "pipeline 상태 조회")
@@ -44,14 +54,24 @@ public final class AdminPipelineController {
 
     @Operation(summary = "pipeline 실행 요청")
     @PostMapping("/api/v1/admin/pipelines/{dataset}/runs")
-    public ResponseEntity<?> run(@PathVariable String dataset, @RequestHeader(name = "Authorization", required = false) String authorization, HttpServletRequest request) {
+    public ResponseEntity<?> run(
+            @PathVariable String dataset,
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            HttpServletRequest request) {
         try {
             var actor = authenticator.authenticate(authorization);
             if (!actor.role().canManagePipelines()) return error(HttpStatus.FORBIDDEN, "FORBIDDEN", request);
-            var result = pipeline.run(dataset);
-            auditLogs.append(actor, "PIPELINE_RUN_REQUESTED", "pipeline", dataset,
-                    null, null, Map.of(), Map.of("runId", result.runId().toString()), requestId(request));
-            return ResponseEntity.accepted().cacheControl(CacheControl.noStore()).body(result);
+            var key = IdempotencyKey.fromHeader(idempotencyKey);
+            var response = idempotency.execute(new IdempotencyCommand(
+                    key.value(), actor.id().toString(), "POST", "/api/v1/admin/pipelines/" + dataset + "/runs",
+                    IdempotencyFingerprint.sha256("POST", dataset, "admin.pipeline.run", Map.of("dataset", dataset))), () -> {
+                var result = pipeline.run(dataset);
+                auditLogs.append(actor, "PIPELINE_RUN_REQUESTED", "pipeline", dataset,
+                        null, null, Map.of(), Map.of("runId", result.runId().toString()), requestId(request));
+                return IdempotentResponse.accepted(result);
+            });
+            return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body(response.body());
         } catch (UnsupportedOperationException exception) { return error(HttpStatus.NOT_IMPLEMENTED, "NOT_IMPLEMENTED", request); }
         catch (RuntimeException exception) { return error(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", request); }
     }

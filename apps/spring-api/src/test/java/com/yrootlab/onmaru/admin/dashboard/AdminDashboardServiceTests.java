@@ -4,6 +4,9 @@ import com.yrootlab.onmaru.community.moderation.InMemoryReviewReportStore;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
+import com.yrootlab.onmaru.admin.pipeline.AdminPipelinePort;
+import com.yrootlab.onmaru.admin.pipeline.AdminPipelineRunResult;
+import com.yrootlab.onmaru.admin.pipeline.AdminPipelineStatus;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -41,6 +44,26 @@ class AdminDashboardServiceTests {
         assertThatThrownBy(() -> service.summarize(
                 LocalDate.parse("2026-09-30"), LocalDate.parse("2026-09-29")))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void exposesLivePipelineStatusInDashboardSummary() {
+        var pipeline = new AdminPipelinePort() {
+            @Override public AdminPipelineStatus status(String dataset) {
+                return new AdminPipelineStatus(dataset, "RUNNING", null, 2);
+            }
+
+            @Override public AdminPipelineRunResult run(String dataset) {
+                return new AdminPipelineRunResult(UUID.randomUUID(), "QUEUED");
+            }
+        };
+
+        var result = new AdminDashboardService(
+                new InMemoryVisitReviewStore(), new InMemoryReviewReportStore(), pipeline)
+                .summarize(LocalDate.parse("2026-09-29"), LocalDate.parse("2026-09-29"));
+
+        assertThat(result.pipeline().status()).isEqualTo("RUNNING");
+        assertThat(result.pipeline().failureCount()).isEqualTo(2);
     }
 
     private VisitReviewProjection review(String id, String createdAt, VisitReviewStatus status) {

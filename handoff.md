@@ -134,3 +134,13 @@
 - Worklog: `troubleshooting-worklog/26.09.28 odii-full-revision-read-origin-and-fix.md` (7,521자).
 - Key conclusion: revision의 원자적 게시 목적은 유지하되, 조회 시에는 활성 revision ID를 SQL 조건으로 사용하고 응답에 필요한 최소 행만 Java로 전달한다.
 - Verification: 문서 분량·구성 확인과 `git diff --check`를 수행한다. 코드 변경과 배포는 없다.
+
+## 2026-09-29 Issue #375 SQL·레이어 최적화 및 FE 히트맵 계약
+
+- V035 `catalog_admin_curation_overrides(canonical_place_id, category, version DESC, updated_at DESC)` 인덱스를 추가하고, 큐레이션 조회가 place/category별 최신 override만 DB에서 선택하도록 변경했다.
+- `JdbcVisitReviewStore.update`를 단일 JDBC transaction과 `SELECT ... FOR UPDATE` 기반 단건 조회·수정으로 변경해 전체 리뷰 snapshot 및 다중 transaction 호출을 제거했다.
+- 관리자 dashboard pipeline 상태를 하드코딩하지 않고 `AdminPipelinePort`의 실제 상태를 표시하도록 연결했다.
+- curation/sanction/pipeline mutation에 `Idempotency-Key` 처리를 확대하고 OpenAPI 계약을 동기화했다.
+- FE Issue #245 원문에 온기모드 히트맵 전환 요구사항을 추가했다. 백엔드는 기존 FE viewport 파라미터와 맞는 `GET /api/map/heat`를 제공하지만, FE `src/app/api/map/heat/route.ts`의 직접 DataLab 호출·혼잡도 계산 제거는 FE 작업으로 남아 있다.
+- Remaining: 관리자 후기·대시보드·운영 큐의 전체 snapshot 조회는 데이터 규모가 커질 경우 SQL 페이지네이션/집계 read port로 추가 전환해야 한다. 이번 변경은 mutation 경로와 최신 curation 조회의 병목을 우선 해소했다.
+- Verification: `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.web.admin.*' --tests 'com.yrootlab.onmaru.admin.*' --no-daemon --console=plain`, `./gradlew :adapters:persistence-jdbc:test --no-daemon --console=plain`, `node --test scripts/test/migration-policy.test.mjs`, `git diff --check` 성공.

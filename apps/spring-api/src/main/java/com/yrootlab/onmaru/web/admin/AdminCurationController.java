@@ -6,6 +6,11 @@ import com.yrootlab.onmaru.admin.curation.AdminCuration;
 import com.yrootlab.onmaru.admin.curation.AdminCurationStore;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,12 +35,17 @@ public final class AdminCurationController {
     private final AdminAuthenticator authenticator;
     private final AdminCurationStore store;
     private final AdminAuditLogService auditLogs;
+    private final IdempotencyService idempotency;
 
     public AdminCurationController(
-            AdminAuthenticator authenticator, AdminCurationStore store, AdminAuditLogService auditLogs) {
+            AdminAuthenticator authenticator,
+            AdminCurationStore store,
+            AdminAuditLogService auditLogs,
+            IdempotencyService idempotency) {
         this.authenticator = authenticator;
         this.store = store;
         this.auditLogs = auditLogs;
+        this.idempotency = idempotency;
     }
 
     @Operation(summary = "큐레이션 override 목록 조회")
@@ -65,17 +75,24 @@ public final class AdminCurationController {
             @PathVariable UUID placeId,
             @RequestBody CurationRequest body,
             @RequestHeader(name = "Authorization", required = false) String authorization,
+            @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
             HttpServletRequest request) {
         try {
             var actor = authenticator.authenticate(authorization);
             if (body == null || !List.of("VILLAGE", "STAY", "ROUTE").contains(body.category()) || body.badges() == null) {
                 throw new IllegalArgumentException();
             }
-            var result = store.upsert(placeId, body.category(), body.included(), body.badges(), actor.id());
-            auditLogs.append(actor, "CURATION_UPDATED", "place_curation", placeId.toString(),
-                    null, null, Map.of(), Map.of(
-                            "category", body.category(), "included", body.included(), "badges", body.badges()), requestId(request));
-            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(result);
+            var key = IdempotencyKey.fromHeader(idempotencyKey);
+            var response = idempotency.execute(new IdempotencyCommand(
+                    key.value(), actor.id().toString(), "PUT", "/api/v1/admin/curations/" + placeId,
+                    IdempotencyFingerprint.sha256("PUT", placeId.toString(), "admin.curation.upsert", body)), () -> {
+                var result = store.upsert(placeId, body.category(), body.included(), body.badges(), actor.id());
+                auditLogs.append(actor, "CURATION_UPDATED", "place_curation", placeId.toString(),
+                        null, null, Map.of(), Map.of(
+                                "category", body.category(), "included", body.included(), "badges", body.badges()), requestId(request));
+                return IdempotentResponse.ok(result);
+            });
+            return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body(response.body());
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (RuntimeException exception) {

@@ -6,6 +6,11 @@ import com.yrootlab.onmaru.admin.users.AdminSanction;
 import com.yrootlab.onmaru.admin.users.AdminSanctionService;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,14 +37,17 @@ public final class AdminSanctionController {
     private final AdminAuthenticator authenticator;
     private final AdminSanctionService sanctionService;
     private final AdminAuditLogService auditLogs;
+    private final IdempotencyService idempotency;
 
     public AdminSanctionController(
             AdminAuthenticator authenticator,
             AdminSanctionService sanctionService,
-            AdminAuditLogService auditLogs) {
+            AdminAuditLogService auditLogs,
+            IdempotencyService idempotency) {
         this.authenticator = authenticator;
         this.sanctionService = sanctionService;
         this.auditLogs = auditLogs;
+        this.idempotency = idempotency;
     }
 
     @Operation(summary = "회원 제재 이력 조회")
@@ -65,16 +73,24 @@ public final class AdminSanctionController {
             @PathVariable UUID memberId,
             @RequestBody SanctionRequest body,
             @RequestHeader(name = "Authorization", required = false) String authorization,
+            @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
             HttpServletRequest request) {
         try {
             var actor = authenticator.authenticate(authorization);
             if (body == null) {
                 throw new IllegalArgumentException();
             }
-            var sanction = sanctionService.create(actor, memberId, body.reason(), body.startsAt(), body.endsAt());
-            auditLogs.append(actor, "SANCTION_CREATED", "member_sanction", sanction.id().toString(),
-                    body.reason(), null, Map.of(), Map.of("status", sanction.status()), requestId(request));
-            return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(sanction);
+            var key = IdempotencyKey.fromHeader(idempotencyKey);
+            var response = idempotency.execute(new IdempotencyCommand(
+                    key.value(), actor.id().toString(), "POST", "/api/v1/admin/users/" + memberId + "/sanctions",
+                    IdempotencyFingerprint.sha256("POST", memberId.toString(), "admin.sanction.create", body)), () -> {
+                var sanction = sanctionService.create(actor, memberId, body.reason(), body.startsAt(), body.endsAt());
+                auditLogs.append(actor, "SANCTION_CREATED", "member_sanction", sanction.id().toString(),
+                        body.reason(), null, Map.of(), Map.of("status", sanction.status()), requestId(request));
+                return IdempotentResponse.created(
+                        "/api/v1/admin/users/" + memberId + "/sanctions/" + sanction.id(), sanction);
+            });
+            return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body(response.body());
         } catch (SecurityException exception) {
             return error(HttpStatus.FORBIDDEN, "FORBIDDEN", request);
         } catch (IllegalArgumentException exception) {
@@ -90,15 +106,23 @@ public final class AdminSanctionController {
             @PathVariable UUID memberId,
             @PathVariable UUID sanctionId,
             @RequestHeader(name = "Authorization", required = false) String authorization,
+            @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
             HttpServletRequest request) {
         try {
             var actor = authenticator.authenticate(authorization);
-            if (!sanctionService.revoke(actor, sanctionId)) {
-                return error(HttpStatus.NOT_FOUND, "NOT_FOUND", request);
-            }
-            auditLogs.append(actor, "SANCTION_REVOKED", "member_sanction", sanctionId.toString(),
-                    null, null, Map.of("status", "ACTIVE"), Map.of("status", "REVOKED"), requestId(request));
-            return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+            var key = IdempotencyKey.fromHeader(idempotencyKey);
+            var response = idempotency.execute(new IdempotencyCommand(
+                    key.value(), actor.id().toString(), "DELETE",
+                    "/api/v1/admin/users/" + memberId + "/sanctions/" + sanctionId,
+                    IdempotencyFingerprint.sha256("DELETE", sanctionId.toString(), "admin.sanction.revoke", sanctionId)), () -> {
+                if (!sanctionService.revoke(actor, sanctionId)) {
+                    return new IdempotentResponse(404, Map.of(), null);
+                }
+                auditLogs.append(actor, "SANCTION_REVOKED", "member_sanction", sanctionId.toString(),
+                        null, null, Map.of("status", "ACTIVE"), Map.of("status", "REVOKED"), requestId(request));
+                return new IdempotentResponse(204, Map.of(), null);
+            });
+            return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body(response.body());
         } catch (SecurityException exception) {
             return error(HttpStatus.FORBIDDEN, "FORBIDDEN", request);
         } catch (IllegalArgumentException exception) {

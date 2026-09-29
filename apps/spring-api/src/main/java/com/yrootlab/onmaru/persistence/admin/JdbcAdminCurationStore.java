@@ -25,7 +25,14 @@ public final class JdbcAdminCurationStore implements AdminCurationStore {
     public List<AdminCuration> find(String category, Boolean included, int limit) {
         StringBuilder sql = new StringBuilder("""
                 SELECT id, canonical_place_id, category, included, badges, source_revision_id, version, updated_by, updated_at
-                FROM onmaru.catalog_admin_curation_overrides WHERE 1=1
+                FROM (
+                    SELECT DISTINCT ON (canonical_place_id, category)
+                           id, canonical_place_id, category, included, badges, source_revision_id,
+                           version, updated_by, updated_at
+                    FROM onmaru.catalog_admin_curation_overrides
+                    ORDER BY canonical_place_id, category, version DESC, updated_at DESC, id DESC
+                ) latest
+                WHERE 1=1
                 """);
         if (category != null) sql.append(" AND category = ?");
         if (included != null) sql.append(" AND included = ?");

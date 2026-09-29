@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.community.moderation.ReviewReport;
 import com.yrootlab.onmaru.community.moderation.ReviewReportStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
+import com.yrootlab.onmaru.admin.pipeline.AdminPipelinePort;
 import com.yrootlab.onmaru.community.query.VisitReviewStore;
 
 import java.time.Instant;
@@ -17,10 +18,17 @@ public final class AdminDashboardService {
 
     private final VisitReviewStore reviewStore;
     private final ReviewReportStore reportStore;
+    private final AdminPipelinePort pipeline;
 
     public AdminDashboardService(VisitReviewStore reviewStore, ReviewReportStore reportStore) {
+        this(reviewStore, reportStore, null);
+    }
+
+    public AdminDashboardService(
+            VisitReviewStore reviewStore, ReviewReportStore reportStore, AdminPipelinePort pipeline) {
         this.reviewStore = reviewStore;
         this.reportStore = reportStore;
+        this.pipeline = pipeline;
     }
 
     public AdminDashboardSummary summarize(LocalDate from, LocalDate to) {
@@ -51,7 +59,15 @@ public final class AdminDashboardService {
                         new DashboardMetric("REPORTS_PENDING", reports.size())),
                 reviews.stream().limit(5).map(ReviewSummary::from).toList(),
                 reports.stream().limit(5).map(ReportSummary::from).toList(),
-                new PipelineStatus("community-moderation", "MISSING", null, 0));
+                pipelineStatus());
+    }
+
+    private PipelineStatus pipelineStatus() {
+        if (pipeline == null) {
+            return new PipelineStatus("kto-korean-tour", "MISSING", null, 0);
+        }
+        var status = pipeline.status("kto-korean-tour");
+        return new PipelineStatus(status.dataset(), status.status(), status.lastSuccessAt(), status.failureCount());
     }
 
     private boolean inRange(Instant value, Instant start, Instant endExclusive) {
