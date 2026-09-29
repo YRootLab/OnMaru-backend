@@ -293,6 +293,15 @@
       "checksum": "odii-public-query-keys-v033-20260928",
       "sha256": "007481a11f7c40c27fbf563a6ca6f0ddae659ed547483fb67a12a6cd7bfdca96",
       "description": "Indexable public IDs and query indexes for direct Odii PostgreSQL reads"
+    },
+    {
+      "version": "034",
+      "reservedFor": "ADMIN_FOUNDATION",
+      "issueNumber": 375,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V034__375_admin_foundation.sql",
+      "checksum": "admin-foundation-v034-20260929",
+      "sha256": "9d1de987bcb7a84b2aee3ed4c0e81d8abb9b4ae74493e58870dec1f79434c265",
+      "description": "Admin accounts, sessions, member sanctions, curation overrides, and append-only audit log"
     }
   ]
 }

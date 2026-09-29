@@ -11,6 +11,7 @@ import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
 import com.yrootlab.onmaru.community.moderation.ReviewReportIdGenerator;
 import com.yrootlab.onmaru.community.moderation.ReviewReportStore;
 import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
+import com.yrootlab.onmaru.admin.dashboard.AdminDashboardService;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.RegionVisitorCountLookup;
@@ -143,6 +144,13 @@ class VisitReviewQueryConfiguration {
             ReviewReportStore reportStore,
             Clock clock) {
         return new ModerationQueueService(reviewStore, reportStore, clock);
+    }
+
+    @Bean
+    AdminDashboardService adminDashboardService(
+            MutableVisitReviewStore reviewStore,
+            ReviewReportStore reportStore) {
+        return new AdminDashboardService(reviewStore, reportStore);
     }
 
     @Bean

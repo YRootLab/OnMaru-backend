@@ -1,5 +1,21 @@
 # handoff.md
 
+## 2026-09-29 Issue #375 Admin API foundation
+
+- Branch: `feature/375-admin-api`
+- User request: Admin API 설계안을 실제 구현으로 진행한다.
+- Changed paths: Admin auth domain/JWT/password hash/login-me controller, refresh session/JDBC store, admin reviews/reports controller, V034 Admin foundation migration, Admin OpenAPI draft, design spec, secret configuration, migration registry/schema docs.
+- Implemented: `POST /api/v1/auth/admin/login`, `POST /api/v1/auth/admin/refresh`, `POST /api/v1/auth/admin/logout`, `GET /api/v1/auth/admin/me`, `GET /api/v1/admin/reviews`, `GET /api/v1/admin/reports`, `GET /api/v1/admin/moderation/queue`, `POST /api/v1/admin/reviews/{reviewId}/moderation-actions`, `GET /api/v1/admin/dashboard/summary`, `GET /api/v1/admin/users`, `GET/POST /api/v1/admin/users/{memberId}/sanctions`, `DELETE /api/v1/admin/users/{memberId}/sanctions/{sanctionId}`, `GET /api/v1/admin/curations`, `PUT /api/v1/admin/curations/{placeId}`, `GET /api/v1/admin/pipelines/{dataset}/status`, `POST /api/v1/admin/pipelines/{dataset}/runs`.
+- Dashboard는 실제 community review/report 데이터를 날짜 범위로 집계하고, Users는 production JDBC에서 회원 상태·가입일·후기 수를 조회한다. Pipeline 실행 명령과 Curation mutation은 아직 의도적으로 노출하지 않았다.
+- Sanctions는 ADMIN만 생성·해제 가능하고, 활성 제재는 회원당 1건으로 제한한다. production은 `identity_member_sanctions`에 JDBC로 저장하고, EDITOR는 조회만 허용한다.
+- Curations는 버전 증가형 override로 저장하고, Pipelines는 production에서 `kto-korean-tour` TourAPI full snapshot sync를 실행한다. sync adapter가 없는 환경에서는 상태를 `MISSING`, 실행을 `NOT_IMPLEMENTED`로 명시한다.
+- production bootstrap은 `onmaru.admin.bootstrap.email/password/nickname` 설정이 모두 있을 때만 최초 ADMIN 계정을 `ON CONFLICT DO NOTHING`으로 생성한다. password가 없으면 임의 계정을 만들지 않고 skip한다.
+- `AdminApiWebBoundaryTests`를 추가해 신규 관리자 endpoint의 missing Bearer 및 CSRF 경계를 검증했다. 이 테스트로 `AdminLoginService`의 Spring 다중 생성자 autowire 누락도 수정했다.
+- Security: refresh token은 HttpOnly/Secure/SameSite=Strict cookie로 전달하고 DB에는 SHA-256 hash만 저장한다. 회전된 이전 token 재사용은 거부한다.
+- Verification: Admin auth/session/dashboard/curation/pipeline/sanction tests와 `AdminApiWebBoundaryTests` 성공, `:apps:spring-api:compileJava` 성공, migration policy 성공, OpenAPI YAML 검증 성공, PostgreSQL baseline/upgrade 대상 테스트 성공, `git diff --check` 성공. 전체 Spring suite는 Testcontainers 장기 실행으로 최종 완료 전 중단함.
+- Next step: controller boundary/OpenAPI contract test와 production bootstrap/배포 secret 주입을 마무리한다.
+- Open risk: V034 schema는 account seed를 만들지 않으므로 운영에서는 bootstrap admin provisioning이 필요하다. `admin.jwt-signing-key` secret도 Render에 설정해야 한다.
+
 ## 2026-09-28 Issue #265 프론트엔드 OAuth 복귀
 
 - Branch: `fix/265-kakao-frontend-redirect`
