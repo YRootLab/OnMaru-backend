@@ -1,0 +1,31 @@
+name: Release Version Policy
+
+on:
+  pull_request:
+    branches:
+      - master
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.event_name == 'push' || startsWith(github.head_ref, 'release/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release version
+        env:
+          RELEASE_REF: ${{ github.head_ref }}
+        run: node scripts/release/version-policy.mjs "$RELEASE_REF"
+
+      - name: Test release version policy
+        run: node --test scripts/test/release-version-policy.test.mjs
