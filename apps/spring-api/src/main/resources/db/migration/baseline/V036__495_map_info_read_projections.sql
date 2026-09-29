@@ -1,4 +1,4 @@
--- onmaru-checksum: map-info-read-projections-v034-20260929
+-- onmaru-checksum: map-info-read-projections-v036-20260929
 -- Issue: #495 Publish the map information-mode read projections atomically with a catalog revision.
 
 CREATE TABLE onmaru.map_place_read_projection (
@@ -98,7 +98,7 @@ GRANT ALL PRIVILEGES ON
 INSERT INTO onmaru_registry.migration_version_reservations (
     version, reserved_for, issue_number, description
 ) VALUES (
-    '034', 'MAP_INFO_READ_PROJECTIONS', 495,
+    '036', 'MAP_INFO_READ_PROJECTIONS', 495,
     'Information-mode map read projections, category mappings, scope counts, and publication metadata'
 ) ON CONFLICT (version) DO UPDATE
 SET reserved_for = EXCLUDED.reserved_for,
