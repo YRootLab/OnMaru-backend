@@ -168,7 +168,7 @@ public final class KakaoOAuthController {
                 .path("/")
                 .secure(true)
                 .httpOnly(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .maxAge(Duration.ofDays(7))
                 .build();
     }
