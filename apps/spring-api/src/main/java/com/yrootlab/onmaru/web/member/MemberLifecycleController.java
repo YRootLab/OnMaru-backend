@@ -128,7 +128,7 @@ public final class MemberLifecycleController {
                 .path("/")
                 .secure(true)
                 .httpOnly(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .maxAge(Duration.ZERO)
                 .build();
     }

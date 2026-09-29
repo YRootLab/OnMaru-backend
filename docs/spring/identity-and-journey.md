@@ -45,7 +45,7 @@ actor_key는 서버가 MEMBER:<uuid>/GUEST:<uuid>로 생성한다. guest 재생�
 
 ## 세션·로그인·인가
 
-OnMaru opaque session을 사용한다. 32 random bytes 이상의 session/guest/state 원문은 cookie 또는 OAuth 요청에만 보내고 DB에는 SHA-256 digest만 저장한다. 서버 응답 cookie는 `Secure; HttpOnly; SameSite=Lax; Path=/`, host-only `__Host-` prefix를 사용한다. TLS가 없는 local은 별도 이름으로 격리한다. 회원 session idle 24h, 절대 7일, guest 절대 24h, OAuth state 10분이다. last_seen 갱신은 최대 5분에 1회다.
+OnMaru opaque session을 사용한다. 32 random bytes 이상의 session/guest/state 원문은 cookie 또는 OAuth 요청에만 보내고 DB에는 SHA-256 digest만 저장한다. 브라우저 API 호출에 사용하는 session/guest/CSRF cookie는 cross-site FE에서도 전송되도록 `Secure; HttpOnly; SameSite=None; Path=/`, host-only `__Host-` prefix를 사용하며, OAuth nonce/verifier는 top-level callback 검증을 위해 `SameSite=Lax`를 사용한다. TLS가 없는 local은 별도 이름으로 격리한다. 회원 session idle 24h, 절대 7일, guest 절대 24h, OAuth state 10분이다. last_seen 갱신은 최대 5분에 1회다.
 
 `GET /auth/csrf`는 익명에서도 guest cookie와 session-bound CSRF token을 마련한다. FE는 unsafe method에 `X-CSRF-TOKEN`을 전송한다. cookie가 인증 수단인 모든 POST/DELETE에 검증하고, 로그인/로그아웃 후 새 token을 받는다. JSON content type만 허용하고 Origin allowlist도 검사한다. CORS는 동일 origin 기본이며 `*`+credential 조합은 금지다. 구현 시 Spring Security의 [SPA CSRF 처리](https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html)에 맞춰 토큰 회전·노출을 검증한다.
 
