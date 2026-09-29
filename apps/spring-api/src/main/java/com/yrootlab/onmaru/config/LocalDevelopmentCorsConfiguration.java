@@ -9,6 +9,7 @@ public class LocalDevelopmentCorsConfiguration implements WebMvcConfigurer {
 
     private static final String[] ALLOWED_ORIGINS = {
             "https://onmaru-web.onrender.com",
+            "https://onmaru-frontend.vercel.app",
             "https://www.onmaru.site",
             "https://onmaru.site",
             "http://localhost:3000",
@@ -18,7 +19,8 @@ public class LocalDevelopmentCorsConfiguration implements WebMvcConfigurer {
             "http://localhost:3004",
             "http://localhost:3005",
             "http://localhost:3006",
-            "http://localhost:3007"
+            "http://localhost:3007",
+            "http://localhost:3008"
     };
 
     @Override

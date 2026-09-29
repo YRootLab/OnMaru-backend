@@ -4,6 +4,7 @@ This project uses semantic version tags from `main`. Release notes should be gen
 
 ## Unreleased
 
+- Issue #487의 cross-site 로그인 쿠키를 `SameSite=None`으로 전환하고 Vercel 및 localhost:3000~3008 CORS 허용 origin을 추가했다.
 - Issue #477의 외부 저장소 비의존 공개 헬스체크를 추가하고 Swagger에서 직접 호출할 수 있게 했다.
 - Issue #265의 카카오 OAuth callback이 성공·실패 후 검증된 내부 경로를 OnMaru 프론트엔드 origin에 결합해 복귀하도록 수정했다.
 - Issue #463의 한옥 목록을 한 번에 최대 500건까지 조회하고, 각 카드에 FE 호환 `lat`/`lng` 좌표를 제공한다.

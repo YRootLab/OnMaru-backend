@@ -6,12 +6,12 @@ test('benchmark catalog covers every current backend test entrypoint and full-su
   const catalog = JSON.parse(await readFile('.github/benchmark-modules.yml', 'utf8'));
   const ids = new Set(catalog.modules.map((module) => module.id));
 
-  for (const id of ['tourism-api', 'persistence-jdbc', 'catalog', 'audio', 'community', 'identity', 'insights', 'journey', 'operations', 'shared-web', 'spring-api', 'ai']) {
+  for (const id of ['tourism-api', 'persistence-jdbc', 'catalog', 'audio', 'community', 'identity', 'insights', 'journey', 'operations', 'shared-web', 'spring-api-unit-contract', 'spring-api-postgres-catalog', 'spring-api-postgres-audio', 'spring-api-postgres-other', 'ai']) {
     assert.ok(ids.has(id), `missing ${id}`);
   }
   assert.ok(catalog.always_full_paths.includes('build-logic/**'));
   assert.ok(catalog.always_full_paths.includes('.github/workflows/**'));
-  assert.equal(catalog.modules.find((module) => module.id === 'spring-api').resource_profile, 'heavy');
+  for (const module of catalog.modules.filter((module) => module.id.startsWith('spring-api-'))) assert.equal(module.resource_profile, 'heavy');
   assert.equal(
     catalog.modules.find((module) => module.id === 'ai').test_command,
     'python3 -m pip install --user uv && export PATH="$HOME/.local/bin:$PATH" && cd ai && uv run pytest',
