@@ -61,3 +61,31 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly(libs.postgresql)
 }
+
+val requestedSpringApiShard = providers.gradleProperty("onmaru.test.shard")
+
+tasks.named<Test>("test") {
+    requestedSpringApiShard.orNull?.let { shard ->
+        filter {
+            when (shard) {
+                "unit-contract" -> {
+                    excludeTestsMatching("com.yrootlab.onmaru.testing.postgres.*")
+                    excludeTestsMatching("com.yrootlab.onmaru.tourism.audio.*")
+                }
+                "postgres-catalog" -> includeTestsMatching("com.yrootlab.onmaru.testing.postgres.*Catalog*")
+                "postgres-audio" -> {
+                    includeTestsMatching("com.yrootlab.onmaru.testing.postgres.*Audio*")
+                    includeTestsMatching("com.yrootlab.onmaru.testing.postgres.*Odii*")
+                    includeTestsMatching("com.yrootlab.onmaru.tourism.audio.*")
+                }
+                "postgres-other" -> {
+                    includeTestsMatching("com.yrootlab.onmaru.testing.postgres.*")
+                    excludeTestsMatching("com.yrootlab.onmaru.testing.postgres.*Catalog*")
+                    excludeTestsMatching("com.yrootlab.onmaru.testing.postgres.*Audio*")
+                    excludeTestsMatching("com.yrootlab.onmaru.testing.postgres.*Odii*")
+                }
+                else -> error("Unknown onmaru.test.shard: $shard")
+            }
+        }
+    }
+}

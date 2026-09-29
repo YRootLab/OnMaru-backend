@@ -163,3 +163,9 @@
 - Idempotency-Key 누락/잘못된 UUID는 인증 실패가 아닌 `400 VALIDATION_ERROR`로 반환하도록 관리자 mutation controller를 보강했다.
 - primary `/api/v1/insights/heatmap`에도 `origin`, `spatialLevel`, 관측 기간, `methodologyVersion`을 추가하고 OpenAPI fixture를 동기화했다.
 - Verification: insights/admin Spring 테스트, contract validation, migration policy, `git diff --check` 성공.
+
+## 2026-09-29 Issue #375 PR 충돌 정리
+
+- PR #510이 `develop` 갱신으로 `DIRTY` 상태가 되어 `origin/develop`을 현재 작업 브랜치에 병합했다.
+- `handoff.md`는 현재 세션의 PR·검증·운영 위험을 보존해야 하므로 작업 브랜치 버전을 유지했고, `develop`의 삭제 변경과 충돌을 해결했다.
+- Next step: merge commit을 커밋·push한 뒤 PR #510의 CI 재실행과 mergeable 상태를 확인한다.

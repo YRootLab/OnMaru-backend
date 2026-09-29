@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "status": "valid",
+  "suite": "verify-serial",
+  "runCount": 3,
+  "identity": {
+    "commitSha": "764c2c187f351fa7d49e172fd5187abb408a74e0",
+    "runnerImage": "ubuntu-latest",
+    "dependencyMode": "locked",
+    "cacheState": "unknown",
+    "javaVersion": "21",
+    "pythonVersion": "3.12",
+    "commands": [".github/workflows/ci.yml: verify"]
+  },
+  "metrics": {
+    "verifyJobWallClockMillis": {"samples": [469000, 470000, 510000], "median": 470000, "maxObserved": 510000},
+    "springApiStepWallClockMillis": {"samples": [301000, 294000, 302000], "median": 301000, "maxObserved": 302000},
+    "queueMillis": null,
+    "cpuMillis": null,
+    "peakRssBytes": null
+  },
+  "resourceEvidence": "unavailable-from-actions-api",
+  "runUrls": [
+    "https://github.com/YRootLab/OnMaru-backend/actions/runs/36220535315",
+    "https://github.com/YRootLab/OnMaru-backend/actions/runs/36220951233",
+    "https://github.com/YRootLab/OnMaru-backend/actions/runs/36221367380"
+  ],
+  "notes": [
+    "The disabled collector workflow was reproduced locally from the GitHub Actions API.",
+    "verify job start-to-completion wall-clock is used; the former step-sum metric was corrected.",
+    "Cache state is unknown because the Actions API does not expose a complete cache identity."
+  ]
+}

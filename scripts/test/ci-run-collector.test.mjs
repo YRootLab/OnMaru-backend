@@ -10,7 +10,7 @@ const identity = {
 test('normalizes a successful GitHub Actions CI run into serial baseline evidence without inventing resource metrics', () => {
   const evidence = normalizeCiRun({
     run: { id: 123, conclusion: 'success', head_sha: sha, html_url: 'https://github.com/YRootLab/OnMaru-backend/actions/runs/123' },
-    jobs: { jobs: [{ name: 'verify', conclusion: 'success', steps: [
+    jobs: { jobs: [{ name: 'verify', conclusion: 'success', started_at: '2026-09-25T00:00:00Z', completed_at: '2026-09-25T00:03:00Z', steps: [
       { name: 'Checkout', conclusion: 'success', started_at: '2026-09-25T00:00:00Z', completed_at: '2026-09-25T00:00:05Z' },
       { name: 'Spring API tests', conclusion: 'success', started_at: '2026-09-25T00:00:05Z', completed_at: '2026-09-25T00:02:05Z' },
     ] }] },
@@ -23,6 +23,7 @@ test('normalizes a successful GitHub Actions CI run into serial baseline evidenc
   assert.equal(evidence.steps[1].durationMillis, 120000);
   assert.equal(evidence.steps[1].cpuMillis, null);
   assert.equal(evidence.steps[1].maxRssBytes, null);
+  assert.equal(evidence.wallClockMillis, 180000);
   assert.equal(evidence.resourceEvidence, 'unavailable-from-actions-api');
 });
 
