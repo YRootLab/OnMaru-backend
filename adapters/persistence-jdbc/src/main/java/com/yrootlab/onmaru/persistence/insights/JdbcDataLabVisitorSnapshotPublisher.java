@@ -123,7 +123,7 @@ public final class JdbcDataLabVisitorSnapshotPublisher implements DataLabVisitor
                     revision_id, region_id, basis_date, visitor_type, provider, spatial_level,
                     visitor_count, coverage_status, source_observed_at, fetched_at
                 )
-                SELECT ?, region.id, ?, 'TOTAL', ?, ?, ?, ?, ?, now()
+                SELECT ?, region.id, ?, ?, ?, ?, ?, ?, ?, now()
                 FROM onmaru.catalog_regions region
                 WHERE region.code = ? AND region.active
                 ON CONFLICT (revision_id, region_id, basis_date, visitor_type) DO UPDATE
@@ -136,16 +136,17 @@ public final class JdbcDataLabVisitorSnapshotPublisher implements DataLabVisitor
                 """)) {
             statement.setObject(1, revisionId);
             statement.setObject(2, observation.basisDate());
-            statement.setString(3, observation.provider());
-            statement.setString(4, observation.spatialLevel().name());
+            statement.setString(3, observation.visitorType());
+            statement.setString(4, observation.provider());
+            statement.setString(5, observation.spatialLevel().name());
             if (observation.value() == null) {
-                statement.setNull(5, java.sql.Types.BIGINT);
+                statement.setNull(6, java.sql.Types.BIGINT);
             } else {
-                statement.setLong(5, observation.value());
+                statement.setLong(6, observation.value());
             }
-            statement.setString(6, observation.coverageStatus().name());
-            statement.setObject(7, OffsetDateTime.ofInstant(observation.sourceObservedAt(), ZoneOffset.UTC));
-            statement.setString(8, observation.regionCode());
+            statement.setString(7, observation.coverageStatus().name());
+            statement.setObject(8, OffsetDateTime.ofInstant(observation.sourceObservedAt(), ZoneOffset.UTC));
+            statement.setString(9, observation.regionCode());
             if (statement.executeUpdate() != 1) {
                 throw new IllegalArgumentException("No active Catalog region for DataLab regionCode: "
                         + observation.regionCode());

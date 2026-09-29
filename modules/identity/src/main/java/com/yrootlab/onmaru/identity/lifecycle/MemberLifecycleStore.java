@@ -10,6 +10,8 @@ public interface MemberLifecycleStore {
 
     boolean revokeSession(String sessionTokenHash, Instant now);
 
+    int revokeAllSessions(UUID memberId, Instant now);
+
     Optional<MemberLifecycleStatus> requestDeletion(String sessionTokenHash, Instant now);
 
     boolean allowsLateWrite(UUID memberId);

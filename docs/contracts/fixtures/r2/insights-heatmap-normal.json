@@ -19,6 +19,11 @@
       "metric": "CONGESTION_SCORE",
       "observedDate": "2026-09-14",
       "generatedAt": "2026-09-14T08:35:00Z",
+      "origin": "DERIVED_INDEX",
+      "spatialLevel": "SIGUNGU",
+      "observedFrom": "2026-09-14",
+      "observedTo": "2026-09-14",
+      "methodologyVersion": "warmth-v2",
       "spots": [
         {
           "id": "heat-p-jeonju-hanok-village-2026-09-14",
@@ -35,6 +40,7 @@
             "lng": 127.153
           },
           "visitorCount": 18240,
+          "localCount": null,
           "congestionScore": 72.4,
           "congestionLevel": "BUSY",
           "surgeMultiplier": 1.8,

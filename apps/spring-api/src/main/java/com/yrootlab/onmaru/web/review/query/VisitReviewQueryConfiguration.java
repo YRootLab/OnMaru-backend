@@ -11,6 +11,8 @@ import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
 import com.yrootlab.onmaru.community.moderation.ReviewReportIdGenerator;
 import com.yrootlab.onmaru.community.moderation.ReviewReportStore;
 import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
+import com.yrootlab.onmaru.admin.dashboard.AdminDashboardService;
+import com.yrootlab.onmaru.admin.pipeline.AdminPipelinePort;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.RegionVisitorCountLookup;
@@ -29,6 +31,7 @@ import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
@@ -143,6 +146,14 @@ class VisitReviewQueryConfiguration {
             ReviewReportStore reportStore,
             Clock clock) {
         return new ModerationQueueService(reviewStore, reportStore, clock);
+    }
+
+    @Bean
+    AdminDashboardService adminDashboardService(
+            MutableVisitReviewStore reviewStore,
+            ReviewReportStore reportStore,
+            ObjectProvider<AdminPipelinePort> pipeline) {
+        return new AdminDashboardService(reviewStore, reportStore, pipeline.getIfAvailable());
     }
 
     @Bean

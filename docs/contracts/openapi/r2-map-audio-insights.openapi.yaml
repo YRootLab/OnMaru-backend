@@ -716,6 +716,7 @@ components:
         - region
         - coordinates
         - visitorCount
+        - localCount
         - congestionScore
         - congestionLevel
         - surgeMultiplier
@@ -735,6 +736,9 @@ components:
         visitorCount:
           type: [integer, 'null']
           minimum: 0
+        localCount:
+          type: [integer, 'null']
+          minimum: 0
         congestionScore:
           type: [number, 'null']
           minimum: 0
@@ -750,7 +754,7 @@ components:
     HeatmapResponse:
       type: object
       additionalProperties: false
-      required: [schemaVersion, coverageStatus, metric, observedDate, generatedAt, spots]
+      required: [schemaVersion, coverageStatus, metric, observedDate, generatedAt, spots, origin, spatialLevel, observedFrom, observedTo, methodologyVersion]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -768,6 +772,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HeatSpot'
+        origin:
+          type: string
+          enum: [DERIVED_INDEX]
+        spatialLevel:
+          type: string
+          enum: [SIGUNGU]
+        observedFrom:
+          type: string
+          format: date
+        observedTo:
+          type: string
+          format: date
+        methodologyVersion:
+          type: string
     Error:
       type: object
       additionalProperties: false

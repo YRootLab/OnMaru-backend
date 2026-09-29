@@ -102,8 +102,8 @@ class JdbcVisitorObservationStoreTests {
                     assertThat(spot.coordinates().lat()).isEqualTo(35.815);
                     assertThat(spot.coordinates().lng()).isEqualTo(127.153);
                     assertThat(spot.visitorCount()).isEqualTo(19_420L);
-                    assertThat(spot.congestionScore()).isEqualTo(100.0);
-                    assertThat(spot.congestionLevel()).isEqualTo("SURGE");
+                    assertThat(spot.congestionScore()).isEqualTo(61.0);
+                    assertThat(spot.congestionLevel()).isEqualTo("BUSY");
                 });
     }
 

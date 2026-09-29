@@ -232,7 +232,8 @@ final class DataLabVisitorSourceAdapter implements DataLabVisitorSource {
                 "persons",
                 mapping.level() == DataLabRegionMapping.Level.SIDO ? SpatialLevel.SIDO : SpatialLevel.SIGUNGU,
                 count == null ? ObservationCoverageStatus.NOT_AVAILABLE : ObservationCoverageStatus.COMPLETE,
-                observedAt);
+                observedAt,
+                record.visitorDivisionCode());
     }
 
     private DataLabRegionMapping.Level regionLevel(DataLabVisitorRequest.Scope scope) {
