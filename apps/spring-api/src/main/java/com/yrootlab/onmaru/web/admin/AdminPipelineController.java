@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.web.admin;
 
 import com.yrootlab.onmaru.admin.auth.AdminAuthenticator;
+import com.yrootlab.onmaru.admin.audit.AdminAuditLogService;
 import com.yrootlab.onmaru.admin.pipeline.AdminPipelinePort;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
@@ -25,10 +26,13 @@ import java.util.UUID;
 public final class AdminPipelineController {
     private final AdminAuthenticator authenticator;
     private final AdminPipelinePort pipeline;
+    private final AdminAuditLogService auditLogs;
 
-    public AdminPipelineController(AdminAuthenticator authenticator, AdminPipelinePort pipeline) {
+    public AdminPipelineController(
+            AdminAuthenticator authenticator, AdminPipelinePort pipeline, AdminAuditLogService auditLogs) {
         this.authenticator = authenticator;
         this.pipeline = pipeline;
+        this.auditLogs = auditLogs;
     }
 
     @Operation(summary = "pipeline 상태 조회")
@@ -44,7 +48,10 @@ public final class AdminPipelineController {
         try {
             var actor = authenticator.authenticate(authorization);
             if (!actor.role().canManagePipelines()) return error(HttpStatus.FORBIDDEN, "FORBIDDEN", request);
-            return ResponseEntity.accepted().cacheControl(CacheControl.noStore()).body(pipeline.run(dataset));
+            var result = pipeline.run(dataset);
+            auditLogs.append(actor, "PIPELINE_RUN_REQUESTED", "pipeline", dataset,
+                    null, null, Map.of(), Map.of("runId", result.runId().toString()), requestId(request));
+            return ResponseEntity.accepted().cacheControl(CacheControl.noStore()).body(result);
         } catch (UnsupportedOperationException exception) { return error(HttpStatus.NOT_IMPLEMENTED, "NOT_IMPLEMENTED", request); }
         catch (RuntimeException exception) { return error(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", request); }
     }
@@ -54,5 +61,14 @@ public final class AdminPipelineController {
         Object attribute = request.getAttribute(RequestIdFilter.ATTRIBUTE);
         String requestId = attribute instanceof String text && !text.isBlank() ? text : UUID.randomUUID().toString();
         return ResponseEntity.status(status).cacheControl(CacheControl.noStore()).body(new ApiErrorResponse("1.2", code, code, requestId, Map.of()));
+    }
+
+    private UUID requestId(HttpServletRequest request) {
+        Object value = request.getAttribute(RequestIdFilter.ATTRIBUTE);
+        try {
+            return value == null ? null : UUID.fromString(value.toString());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 }

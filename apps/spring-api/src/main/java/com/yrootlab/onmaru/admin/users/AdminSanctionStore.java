@@ -11,4 +11,6 @@ public interface AdminSanctionStore {
     AdminSanction create(UUID memberId, UUID adminId, String reason, Instant startsAt, Instant endsAt);
 
     boolean revoke(UUID sanctionId, UUID adminId, Instant revokedAt);
+
+    int expireDue(Instant now);
 }

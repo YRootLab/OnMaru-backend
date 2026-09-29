@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.web.admin;
 
 import com.yrootlab.onmaru.admin.auth.AdminAuthenticator;
+import com.yrootlab.onmaru.admin.audit.AdminAuditLogService;
 import com.yrootlab.onmaru.admin.curation.AdminCuration;
 import com.yrootlab.onmaru.admin.curation.AdminCurationStore;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
@@ -28,10 +29,13 @@ import java.util.UUID;
 public final class AdminCurationController {
     private final AdminAuthenticator authenticator;
     private final AdminCurationStore store;
+    private final AdminAuditLogService auditLogs;
 
-    public AdminCurationController(AdminAuthenticator authenticator, AdminCurationStore store) {
+    public AdminCurationController(
+            AdminAuthenticator authenticator, AdminCurationStore store, AdminAuditLogService auditLogs) {
         this.authenticator = authenticator;
         this.store = store;
+        this.auditLogs = auditLogs;
     }
 
     @Operation(summary = "큐레이션 override 목록 조회")
@@ -68,6 +72,9 @@ public final class AdminCurationController {
                 throw new IllegalArgumentException();
             }
             var result = store.upsert(placeId, body.category(), body.included(), body.badges(), actor.id());
+            auditLogs.append(actor, "CURATION_UPDATED", "place_curation", placeId.toString(),
+                    null, null, Map.of(), Map.of(
+                            "category", body.category(), "included", body.included(), "badges", body.badges()), requestId(request));
             return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(result);
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
@@ -83,6 +90,15 @@ public final class AdminCurationController {
         String requestId = attribute instanceof String text && !text.isBlank() ? text : UUID.randomUUID().toString();
         return ResponseEntity.status(status).cacheControl(CacheControl.noStore())
                 .body(new ApiErrorResponse("1.2", code, code, requestId, Map.of()));
+    }
+
+    private UUID requestId(HttpServletRequest request) {
+        Object value = request.getAttribute(RequestIdFilter.ATTRIBUTE);
+        try {
+            return value == null ? null : UUID.fromString(value.toString());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     private record CurationRequest(String category, boolean included, List<String> badges) {}

@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.web.admin;
 
 import com.yrootlab.onmaru.admin.auth.AdminAuthenticator;
+import com.yrootlab.onmaru.admin.audit.AdminAuditLogService;
 import com.yrootlab.onmaru.admin.users.AdminSanction;
 import com.yrootlab.onmaru.admin.users.AdminSanctionService;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
@@ -30,10 +31,15 @@ public final class AdminSanctionController {
 
     private final AdminAuthenticator authenticator;
     private final AdminSanctionService sanctionService;
+    private final AdminAuditLogService auditLogs;
 
-    public AdminSanctionController(AdminAuthenticator authenticator, AdminSanctionService sanctionService) {
+    public AdminSanctionController(
+            AdminAuthenticator authenticator,
+            AdminSanctionService sanctionService,
+            AdminAuditLogService auditLogs) {
         this.authenticator = authenticator;
         this.sanctionService = sanctionService;
+        this.auditLogs = auditLogs;
     }
 
     @Operation(summary = "회원 제재 이력 조회")
@@ -66,6 +72,8 @@ public final class AdminSanctionController {
                 throw new IllegalArgumentException();
             }
             var sanction = sanctionService.create(actor, memberId, body.reason(), body.startsAt(), body.endsAt());
+            auditLogs.append(actor, "SANCTION_CREATED", "member_sanction", sanction.id().toString(),
+                    body.reason(), null, Map.of(), Map.of("status", sanction.status()), requestId(request));
             return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(sanction);
         } catch (SecurityException exception) {
             return error(HttpStatus.FORBIDDEN, "FORBIDDEN", request);
@@ -88,6 +96,8 @@ public final class AdminSanctionController {
             if (!sanctionService.revoke(actor, sanctionId)) {
                 return error(HttpStatus.NOT_FOUND, "NOT_FOUND", request);
             }
+            auditLogs.append(actor, "SANCTION_REVOKED", "member_sanction", sanctionId.toString(),
+                    null, null, Map.of("status", "ACTIVE"), Map.of("status", "REVOKED"), requestId(request));
             return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
         } catch (SecurityException exception) {
             return error(HttpStatus.FORBIDDEN, "FORBIDDEN", request);
@@ -104,6 +114,15 @@ public final class AdminSanctionController {
                 ? text : UUID.randomUUID().toString();
         return ResponseEntity.status(status).cacheControl(CacheControl.noStore())
                 .body(new ApiErrorResponse("1.2", code, code, requestId, Map.of()));
+    }
+
+    private UUID requestId(HttpServletRequest request) {
+        Object value = request.getAttribute(RequestIdFilter.ATTRIBUTE);
+        try {
+            return value == null ? null : UUID.fromString(value.toString());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     private record SanctionRequest(String reason, Instant startsAt, Instant endsAt) {

@@ -12,6 +12,10 @@ import com.yrootlab.onmaru.persistence.admin.JdbcAdminSanctionStore;
 import com.yrootlab.onmaru.admin.curation.AdminCurationStore;
 import com.yrootlab.onmaru.admin.curation.InMemoryAdminCurationStore;
 import com.yrootlab.onmaru.persistence.admin.JdbcAdminCurationStore;
+import com.yrootlab.onmaru.admin.audit.AdminAuditLogService;
+import com.yrootlab.onmaru.admin.audit.AdminAuditLogStore;
+import com.yrootlab.onmaru.admin.audit.InMemoryAdminAuditLogStore;
+import com.yrootlab.onmaru.persistence.admin.JdbcAdminAuditLogStore;
 import com.yrootlab.onmaru.admin.pipeline.AdminPipelinePort;
 import com.yrootlab.onmaru.admin.pipeline.InMemoryAdminPipelinePort;
 import com.yrootlab.onmaru.admin.pipeline.TourApiAdminPipelinePort;
@@ -48,14 +52,44 @@ public class AdminAuthConfiguration {
     }
 
     @Bean
-    AdminJwtTokenCodec adminJwtTokenCodec(SecretProvider secrets, Clock clock) {
+    AdminJwtTokenCodec adminJwtTokenCodec(
+            SecretProvider secrets, Clock clock, AdminJtiRevocationStore revokedJtis) {
         return new AdminJwtTokenCodec(
                 secrets,
                 "admin.jwt-signing-key",
                 "onmaru-admin",
                 "onmaru-admin-web",
                 Duration.ofMinutes(15),
-                clock);
+                clock, revokedJtis);
+    }
+
+    @Bean
+    AdminJtiRevocationStore adminJtiRevocationStore() {
+        return new InMemoryAdminJtiRevocationStore();
+    }
+
+    @Bean
+    AdminTokenRevocationService adminTokenRevocationService(
+            AdminJtiRevocationStore store, Clock clock) {
+        return new AdminTokenRevocationService(store, clock);
+    }
+
+    @Bean
+    @Profile("!production")
+    AdminAuditLogStore inMemoryAdminAuditLogStore() {
+        return new InMemoryAdminAuditLogStore();
+    }
+
+    @Bean
+    @Profile("production")
+    @ConditionalOnBean(DataSource.class)
+    AdminAuditLogStore jdbcAdminAuditLogStore(DataSource dataSource, ObjectMapper mapper) {
+        return new JdbcAdminAuditLogStore(dataSource, mapper);
+    }
+
+    @Bean
+    AdminAuditLogService adminAuditLogService(AdminAuditLogStore store, Clock clock) {
+        return new AdminAuditLogService(store, clock);
     }
 
     @Bean

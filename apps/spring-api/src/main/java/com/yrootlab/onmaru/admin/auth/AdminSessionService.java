@@ -56,15 +56,24 @@ public final class AdminSessionService {
         }
         Instant now = clock.instant();
         AdminSession current = sessions.findByTokenHash(hash(refreshToken))
-                .filter(session -> session.activeAt(now))
                 .orElseThrow(AdminAuthenticationException::new);
+        if (!current.activeAt(now)) {
+            // A rotated token being presented again is a refresh-token theft signal.
+            // Revoke the complete forward chain so a concurrently stolen child
+            // cannot continue refreshing this session family.
+            if (current.revokedAt() != null && current.rotatedToHash() != null) {
+                sessions.revokeFamily(current, now);
+            }
+            throw new AdminAuthenticationException();
+        }
         AdminAccount account = accounts.findById(current.adminId())
                 .filter(candidate -> candidate.status() == AdminAccountStatus.ACTIVE)
                 .orElseThrow(AdminAuthenticationException::new);
         String replacementToken = newToken();
         AdminSession replacement = new AdminSession(
                 hash(replacementToken), current.adminId(), now, now, now.plus(REFRESH_TOKEN_TTL), null, null);
-        sessions.replace(current, current.rotatedTo(replacement.tokenHash(), now));
+        AdminSession rotatedCurrent = current.rotatedTo(replacement.tokenHash(), now);
+        sessions.replace(rotatedCurrent, replacement);
         return result(account.principal(), replacementToken);
     }
 

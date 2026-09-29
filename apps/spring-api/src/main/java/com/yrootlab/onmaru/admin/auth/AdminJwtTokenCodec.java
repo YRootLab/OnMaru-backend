@@ -32,6 +32,7 @@ public final class AdminJwtTokenCodec {
     private final String audience;
     private final Duration lifetime;
     private final Clock clock;
+    private final AdminJtiRevocationStore revokedJtis;
 
     public AdminJwtTokenCodec(
             SecretProvider secrets,
@@ -40,12 +41,34 @@ public final class AdminJwtTokenCodec {
             String audience,
             Duration lifetime,
             Clock clock) {
+        this(secrets, secretName, issuer, audience, lifetime, clock, new AdminJtiRevocationStore() {
+            @Override
+            public void revoke(String jti, Instant expiresAt) {
+                // Backward-compatible no-op until the application wiring opts in.
+            }
+
+            @Override
+            public boolean isRevoked(String jti, Instant now) {
+                return false;
+            }
+        });
+    }
+
+    public AdminJwtTokenCodec(
+            SecretProvider secrets,
+            String secretName,
+            String issuer,
+            String audience,
+            Duration lifetime,
+            Clock clock,
+            AdminJtiRevocationStore revokedJtis) {
         this.secrets = secrets;
         this.secretName = secretName;
         this.issuer = issuer;
         this.audience = audience;
         this.lifetime = lifetime;
         this.clock = clock;
+        this.revokedJtis = revokedJtis;
     }
 
     public String issue(AdminPrincipal principal) {
@@ -61,6 +84,10 @@ public final class AdminJwtTokenCodec {
     }
 
     public AdminPrincipal verify(String authorizationOrToken) {
+        return verifyToken(authorizationOrToken).principal();
+    }
+
+    public AdminAccessToken verifyToken(String authorizationOrToken) {
         String token = authorizationOrToken == null
                 ? ""
                 : authorizationOrToken.startsWith(BEARER)
@@ -83,16 +110,22 @@ public final class AdminJwtTokenCodec {
             }
             Map<String, Object> claims = readMap(parts[1]);
             long now = Instant.now(clock).getEpochSecond();
+            long expiresAt = number(claims, "exp");
             if (!issuer.equals(claims.get("iss"))
                     || !audience.equals(claims.get("aud"))
-                    || number(claims, "exp") <= now
+                    || expiresAt <= now
                     || number(claims, "iat") > now + 30) {
                 throw new AdminAuthenticationException();
             }
-            return new AdminPrincipal(
+            AdminPrincipal principal = new AdminPrincipal(
                     UUID.fromString(string(claims, "sub")),
                     string(claims, "email"),
                     AdminRole.valueOf(string(claims, "role")));
+            String jti = string(claims, "jti");
+            if (revokedJtis.isRevoked(jti, Instant.ofEpochSecond(now))) {
+                throw new AdminAuthenticationException();
+            }
+            return new AdminAccessToken(principal, jti, Instant.ofEpochSecond(expiresAt));
         } catch (AdminAuthenticationException exception) {
             throw exception;
         } catch (RuntimeException | IOException exception) {

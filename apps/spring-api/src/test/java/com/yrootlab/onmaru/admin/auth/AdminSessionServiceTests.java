@@ -37,6 +37,26 @@ class AdminSessionServiceTests {
     }
 
     @Test
+    void reusedRotatedRefreshTokenInvalidatesTheWholeForwardFamily() {
+        var account = account();
+        var accounts = new InMemoryAdminAccountStore(account);
+        var sessions = new InMemoryAdminSessionStore();
+        var service = new AdminSessionService(accounts, sessions, codec(), fixedClock(), new java.security.SecureRandom());
+
+        var first = service.create(account.principal());
+        var second = service.refresh(first.refreshToken());
+
+        assertThatThrownBy(() -> service.refresh(first.refreshToken()))
+                .isInstanceOf(AdminAuthenticationException.class);
+        assertThatThrownBy(() -> service.refresh(second.refreshToken()))
+                .isInstanceOf(AdminAuthenticationException.class);
+        assertThat(sessions.findByTokenHash(AdminSessionService.hash(second.refreshToken())))
+                .get()
+                .extracting(AdminSession::revokedAt)
+                .isNotNull();
+    }
+
+    @Test
     void revokedOrSuspendedSessionCannotRefresh() {
         var account = account();
         var accounts = new InMemoryAdminAccountStore(account);

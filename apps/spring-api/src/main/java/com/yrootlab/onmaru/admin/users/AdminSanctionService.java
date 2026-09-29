@@ -21,6 +21,7 @@ public final class AdminSanctionService {
         if (memberId == null) {
             throw new IllegalArgumentException("memberId is required");
         }
+        store.expireDue(clock.instant());
         return store.findByMember(memberId);
     }
 

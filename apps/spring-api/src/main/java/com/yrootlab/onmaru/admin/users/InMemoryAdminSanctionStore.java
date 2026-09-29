@@ -41,4 +41,20 @@ public final class InMemoryAdminSanctionStore implements AdminSanctionStore {
         }
         return false;
     }
+
+    @Override
+    public synchronized int expireDue(Instant now) {
+        int changed = 0;
+        for (int index = 0; index < sanctions.size(); index++) {
+            var current = sanctions.get(index);
+            if ("ACTIVE".equals(current.status()) && current.endsAt() != null
+                    && !current.endsAt().isAfter(now)) {
+                sanctions.set(index, new AdminSanction(
+                        current.id(), current.memberId(), "EXPIRED", current.reason(), current.startsAt(),
+                        current.endsAt(), current.createdBy(), current.revokedBy(), current.revokedAt(), current.createdAt()));
+                changed++;
+            }
+        }
+        return changed;
+    }
 }

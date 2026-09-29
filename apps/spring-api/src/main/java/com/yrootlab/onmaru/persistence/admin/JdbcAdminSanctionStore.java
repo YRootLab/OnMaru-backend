@@ -78,6 +78,20 @@ public final class JdbcAdminSanctionStore implements AdminSanctionStore {
         }
     }
 
+    @Override
+    public int expireDue(Instant now) {
+        try (var connection = dataSource.getConnection(); var statement = connection.prepareStatement("""
+                UPDATE onmaru.identity_member_sanctions
+                SET status = 'EXPIRED'
+                WHERE status = 'ACTIVE' AND ends_at IS NOT NULL AND ends_at <= ?
+                """)) {
+            statement.setObject(1, now);
+            return statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Failed to expire member sanctions", exception);
+        }
+    }
+
     private AdminSanction read(java.sql.ResultSet result) throws SQLException {
         return new AdminSanction(
                 result.getObject("id", UUID.class), result.getObject("member_id", UUID.class),

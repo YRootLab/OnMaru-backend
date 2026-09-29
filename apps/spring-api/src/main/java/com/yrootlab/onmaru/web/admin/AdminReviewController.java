@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.web.admin;
 
 import com.yrootlab.onmaru.admin.auth.AdminAuthenticator;
+import com.yrootlab.onmaru.admin.audit.AdminAuditLogService;
 import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
 import com.yrootlab.onmaru.community.moderation.ModerationReason;
 import com.yrootlab.onmaru.community.moderation.ReviewReport;
@@ -10,6 +11,11 @@ import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import com.yrootlab.onmaru.community.query.VisitReviewStore;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyCommand;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyFingerprint;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyKey;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
+import com.yrootlab.onmaru.web.common.idempotency.IdempotentResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,16 +43,22 @@ public final class AdminReviewController {
     private final VisitReviewStore reviewStore;
     private final VisitReviewModerationService moderationService;
     private final ModerationQueueService queueService;
+    private final AdminAuditLogService auditLogs;
+    private final IdempotencyService idempotency;
 
     public AdminReviewController(
             AdminAuthenticator authenticator,
             VisitReviewStore reviewStore,
             VisitReviewModerationService moderationService,
-            ModerationQueueService queueService) {
+            ModerationQueueService queueService,
+            AdminAuditLogService auditLogs,
+            IdempotencyService idempotency) {
         this.authenticator = authenticator;
         this.reviewStore = reviewStore;
         this.moderationService = moderationService;
         this.queueService = queueService;
+        this.auditLogs = auditLogs;
+        this.idempotency = idempotency;
     }
 
     @Operation(summary = "관리자 후기 목록 조회")
@@ -107,24 +119,31 @@ public final class AdminReviewController {
             @PathVariable UUID reviewId,
             @RequestBody ModerationRequest body,
             @RequestHeader(name = "Authorization", required = false) String authorization,
+            @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
             HttpServletRequest request) {
         try {
             var principal = authenticator.authenticate(authorization);
             if (body == null || body.nextStatus() == null || body.reason() == null) {
                 throw new IllegalArgumentException();
             }
-            var action = moderationService.moderate(
-                    reviewId,
-                    principal.email(),
-                    VisitReviewStatus.valueOf(body.nextStatus().toUpperCase()),
-                    ModerationReason.valueOf(body.reason().toUpperCase()));
-            return ok(Map.of(
-                    "schemaVersion", "1.0",
-                    "actionId", action.actionId(),
-                    "reviewId", action.reviewId(),
-                    "previousStatus", action.previousStatus(),
-                    "nextStatus", action.nextStatus(),
-                    "createdAt", action.createdAt()));
+            var key = IdempotencyKey.fromHeader(idempotencyKey);
+            var command = new ModerationRequest(body.nextStatus(), body.reason());
+            var response = idempotency.execute(new IdempotencyCommand(
+                    key.value(), principal.id().toString(), "POST",
+                    "/api/v1/admin/reviews/" + reviewId + "/moderation-actions",
+                    IdempotencyFingerprint.sha256("POST", reviewId.toString(), "admin.review.moderate", command)), () -> {
+                var action = moderationService.moderate(
+                        reviewId, principal.email(), VisitReviewStatus.valueOf(body.nextStatus().toUpperCase()),
+                        ModerationReason.valueOf(body.reason().toUpperCase()));
+                auditLogs.append(principal, "REVIEW_MODERATED", "review", reviewId.toString(),
+                        body.reason(), null, Map.of("status", action.previousStatus()),
+                        Map.of("status", action.nextStatus()), requestId(request));
+                return IdempotentResponse.ok(Map.of(
+                        "schemaVersion", "1.0", "actionId", action.actionId(), "reviewId", action.reviewId(),
+                        "previousStatus", action.previousStatus(), "nextStatus", action.nextStatus(),
+                        "createdAt", action.createdAt()));
+            });
+            return ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore()).body(response.body());
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (RuntimeException exception) {
@@ -132,6 +151,15 @@ public final class AdminReviewController {
                 return error(HttpStatus.NOT_FOUND, "NOT_FOUND", request);
             }
             return error(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", request);
+        }
+    }
+
+    private UUID requestId(HttpServletRequest request) {
+        Object value = request.getAttribute(RequestIdFilter.ATTRIBUTE);
+        try {
+            return value == null ? null : UUID.fromString(value.toString());
+        } catch (IllegalArgumentException exception) {
+            return null;
         }
     }
 

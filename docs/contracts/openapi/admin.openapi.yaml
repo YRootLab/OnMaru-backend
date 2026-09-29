@@ -15,6 +15,7 @@ tags:
   - name: AdminUsers
   - name: AdminCurations
   - name: AdminPipelines
+  - name: AdminAuditLogs
 paths:
   /auth/admin/login:
     post:
@@ -261,6 +262,21 @@ paths:
                 badges: {type: array, items: {type: string, maxLength: 40}}
       responses:
         '200': {description: 저장된 curation override}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/audit-logs:
+    get:
+      tags: [AdminAuditLogs]
+      operationId: listAdminAuditLogs
+      summary: 관리자 감사 로그 조회
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: actorAdminId, in: query, schema: {type: string, format: uuid}}
+        - {name: resourceType, in: query, schema: {type: string, maxLength: 80}}
+        - {name: resourceId, in: query, schema: {type: string, maxLength: 160}}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200': {description: 감사 로그 목록}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
   /admin/pipelines/{dataset}/status:

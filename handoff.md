@@ -78,6 +78,15 @@
 
 ## 병합된 후속 작업: #307 / #382
 
+## 2026-09-29 Issue #375 관리자 API 후속 보강
+
+- Branch: `feature/375-admin-api`
+- Scope: 병렬 작업으로 관리자 파이프라인 비동기 실행, refresh token family 재사용 탐지, JWT JTI 폐기 기반, 감사 로그 저장소를 추가하고 애플리케이션 wiring을 연결했다.
+- Added: `GET /api/v1/admin/audit-logs`, 제재 만료 상태 전환(`EXPIRED`), 후기 moderation 멱등성 처리, 제재·후기·큐레이션·pipeline 감사 로그 기록.
+- Security: refresh token 원문/JWT 원문은 저장하지 않으며 JTI와 해시만 사용한다. 현재 JTI 폐기 저장소는 애플리케이션 메모리 기반이므로 운영 Redis/DB 영속화가 후속 필요하다.
+- Verification: `./gradlew :apps:spring-api:test --tests 'com.yrootlab.onmaru.admin.*' --tests 'com.yrootlab.onmaru.web.admin.*' --no-daemon --console=plain` 성공.
+- Open risk: 회원 제재를 일반 회원 OAuth 로그인·기존 세션·전체 쓰기 경계에 연결하는 것은 identity 모듈과의 의존성 경계 검토 후 별도 작업이 필요하다. 관리자 mutate 전체 endpoint의 멱등성 확대도 남아 있다.
+
 - **브랜치**: `fix/307-odii-production-jdbc-store`
 - **관련 이슈**: #307, #382
 - **상태**: production의 in-memory `AudioRevisionStore` 선택 경쟁 재현 및 수정, 운영 재배포 전

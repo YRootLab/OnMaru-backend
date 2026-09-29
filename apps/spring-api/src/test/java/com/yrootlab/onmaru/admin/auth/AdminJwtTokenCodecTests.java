@@ -65,4 +65,25 @@ class AdminJwtTokenCodecTests {
         assertThatThrownBy(() -> codec.verify("Bearer not-a-jwt"))
                 .isInstanceOf(AdminAuthenticationException.class);
     }
+
+    @Test
+    void rejectsAccessTokenAfterItsJtiIsRevoked() {
+        var revokedJtis = new InMemoryAdminJtiRevocationStore();
+        var revocableCodec = new AdminJwtTokenCodec(
+                secrets,
+                "admin.jwt-signing-key",
+                "onmaru-admin",
+                "onmaru-admin-web",
+                java.time.Duration.ofMinutes(15),
+                CLOCK,
+                revokedJtis);
+        String token = revocableCodec.issue(new AdminPrincipal(
+                UUID.randomUUID(), "admin@onmaru.kr", AdminRole.ADMIN));
+        AdminAccessToken accessToken = revocableCodec.verifyToken(token);
+
+        new AdminTokenRevocationService(revokedJtis, CLOCK).revoke(accessToken);
+
+        assertThatThrownBy(() -> revocableCodec.verify(token))
+                .isInstanceOf(AdminAuthenticationException.class);
+    }
 }
