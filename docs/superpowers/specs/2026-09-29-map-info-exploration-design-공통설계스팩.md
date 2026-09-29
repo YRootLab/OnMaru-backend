@@ -395,6 +395,75 @@ CREATE INDEX ... ON catalog_place_versions (revision_id, status, name, place_id)
 
 기존 index가 active revision predicate를 충분히 지원하지 못하면 partial/materialized read projection을 검토한다. 별도 Redis나 타일 서버는 첫 구현의 필수 조건이 아니다.
 
+### 7.2.1 요청 경로의 데이터 접근 원칙
+
+정보모드 요청은 Java 애플리케이션이 장소 3만 건을 모두 읽어 Stream/filter/sort하는 방식으로 구현하지 않는다. DB가 필터·정렬·집계·limit을 수행하고 Java는 제한된 projection DTO만 수신한다.
+
+- Spring API는 read-only transaction과 JDBC/jOOQ 등 명시적 projection query를 사용한다. JPA entity 전체 hydrate와 요청 중 aggregate 복원은 사용하지 않는다.
+- raw TourAPI 원장, 이미지 상세, 장소별 외부 API는 사용자 요청 경로에서 조회하지 않는다.
+- FE category를 canonical category 집합으로 확장하는 mapping은 게시 시점에 검증·고정하고, 요청에서는 mapping registry/read projection을 조회한다.
+- 한 장소가 여러 canonical category에 매칭되어도 public place projection에서는 `place_id` 기준으로 1회만 반환한다.
+- 목록 item의 thumbnail/detail은 N+1로 조회하지 않는다. 필요한 공개 필드는 projection에 포함하거나 제한된 batch query로 가져온다.
+- `totalCount`는 페이지 item을 모두 읽어 계산하지 않는다. 게시 시 생성한 scope/category count read model 또는 인덱스를 활용하고, 불가한 경우 DB `COUNT` query를 별도로 실행한다.
+- 요청마다 임시 테이블, 애플리케이션 정렬, 전체 결과 materialization을 만들지 않는다.
+
+### 7.2.2 권장 read projection과 index
+
+최초 구현은 기존 catalog 원장을 직접 조인하기보다 active revision 게시 시 다음 논리 projection을 구축하는 방향을 우선한다.
+
+```text
+map_place_read_projection
+  revision_id, place_id, public_id, name, normalized_name,
+  status, location_geom, sido_code, sigungu_code, eupmyeondong_code,
+  display_category, thumbnail_url, summary
+
+map_place_category_projection
+  revision_id, place_id, canonical_category
+
+map_scope_count_projection
+  revision_id, scope_type, region_code, canonical_category, place_count
+```
+
+필수 접근 경로:
+
+- 목록: `(revision_id, canonical_category, region_code, sort_key, place_id)` keyset index
+- 전체 목록: `(revision_id, sort_key, place_id)` keyset index
+- bbox: `location_geom` GiST index + revision/status/category 조건
+- 행정구역 집계: `region_code`와 `map_scope_count_projection` 조회
+- grid cluster: bbox로 후보를 먼저 제한한 뒤 grid cell별 `GROUP BY`
+
+논리 projection을 실제 테이블 또는 materialized projection으로 구현할 때의 최소 index 계약:
+
+```sql
+-- 실제 migration에서는 프로젝트의 snake_case/table naming과 partial predicate를 확정한다.
+CREATE UNIQUE INDEX map_place_read_revision_place_uq
+    ON map_place_read_projection (revision_id, place_id);
+
+CREATE INDEX map_place_read_list_idx
+    ON map_place_read_projection (revision_id, region_code, sort_key, place_id)
+    WHERE status = 'ACTIVE';
+
+CREATE INDEX map_place_read_all_list_idx
+    ON map_place_read_projection (revision_id, sort_key, place_id)
+    WHERE status = 'ACTIVE';
+
+CREATE INDEX map_place_read_location_gist_idx
+    ON map_place_read_projection USING GIST (location_geom);
+
+CREATE UNIQUE INDEX map_place_category_revision_place_category_uq
+    ON map_place_category_projection (revision_id, place_id, canonical_category);
+
+CREATE INDEX map_place_category_lookup_idx
+    ON map_place_category_projection (revision_id, canonical_category, place_id);
+
+CREATE UNIQUE INDEX map_scope_count_revision_scope_category_uq
+    ON map_scope_count_projection (revision_id, scope_type, region_code, canonical_category);
+```
+
+`location_geom`은 기존 원천의 `geography(Point,4326)`를 요청 경로에서 반복 cast하지 않도록 map projection에 `geometry(Point,4326)`으로 게시하거나 동일 의미의 expression index를 제공한다. 거리 정렬이 필요한 별도 API는 geography 연산을 사용하되, 정보모드 bbox·region query와 인덱스 타입을 혼용하지 않는다.
+
+projection은 불완전한 revision이 사용자 조회에 노출되기 전에 원자적으로 교체한다. active revision 전환과 projection row 수/checksum 검증은 같은 publication gate에서 처리한다.
+
 ### 7.3 cluster 계산
 
 초기 구현은 PostGIS와 zoom별 deterministic grid를 사용한다.
@@ -406,6 +475,36 @@ CREATE INDEX ... ON catalog_place_versions (revision_id, status, name, place_id)
 - region aggregate는 행정구역 경계와 canonical region table을 사용한다.
 - 단순 위경도 반올림으로 행정구역을 추정하지 않는다.
 
+실행 방식:
+
+- `DISTRICT`/`REGION`은 canonical region geometry를 매 요청마다 장소 전체와 조인해 세지 않고, 게시 시 생성한 `map_scope_count_projection`에서 count를 읽는다. viewport와 교차하는 지역 geometry만 반환한다.
+- `CLUSTER`는 `location_geom && requestBbox`로 후보를 먼저 줄인 뒤 deterministic grid key를 계산하고 `GROUP BY grid_key`한다. 후보 장소 전체를 Java로 가져오지 않는다.
+- `PLACE`는 필요한 컬럼만 `ORDER BY sort_key, place_id LIMIT (:limit + 1)`로 가져온다. limit을 초과하면 일부 장소를 잘라 반환하지 않고 상위 render mode를 사용한다.
+- `center`와 `bounds`는 DB/PostGIS 또는 게시된 region geometry에서 계산한다. 화면 pixel 좌표는 계산하지 않는다.
+- 동일 query signature가 반복되면 snapshot 기반 public cache를 사용하되, cache miss에서도 DB query가 제한된 projection과 index를 사용해야 한다.
+
+권장 SQL 형태:
+
+```sql
+-- 목록: keyset pagination, entity hydration 금지
+SELECT place_id, public_id, name, region_code, location_geom,
+       thumbnail_url, summary
+FROM map_place_read_projection
+WHERE revision_id = :revision_id
+  AND status = 'ACTIVE'
+  AND (:category = 'ALL' OR place_id IN (
+      SELECT place_id FROM map_place_category_projection
+      WHERE revision_id = :revision_id
+        AND canonical_category = ANY(:categories)
+  ))
+  AND (:region_code IS NULL OR region_code = :region_code)
+  AND (:cursor_sort IS NULL OR (sort_key, place_id) > (:cursor_sort, :cursor_place_id))
+ORDER BY sort_key, place_id
+LIMIT :limit_plus_one;
+```
+
+실제 구현에서는 `IN`/subquery보다 projection 조인 또는 category bitset이 더 좋은지 `EXPLAIN (ANALYZE, BUFFERS)`로 비교하고, 선택한 query plan을 fixture와 함께 고정한다.
+
 ### 7.4 제한값
 
 - 목록 `limit`: 기본 30, 최대 100
@@ -413,8 +512,21 @@ CREATE INDEX ... ON catalog_place_versions (revision_id, status, name, place_id)
 - aggregate/cluster item limit: 500
 - 비정상적인 전 지구 bbox는 `400 INVALID_REQUEST`
 - 요청 timeout: 2초 목표, 5초 hard timeout
+- DB statement timeout: 1.5초 목표, API hard timeout보다 짧게 설정한다.
+- 목록/viewport 응답의 Java heap materialization은 반환 상한(`limit`, `500` 또는 `1000`)을 넘기지 않는다.
+- bbox는 대한민국 서비스 범위와 최대 면적을 검증하며, 전 지구 또는 비정상적으로 큰 bbox는 `400 INVALID_REQUEST`로 거절한다.
 
 제한에 도달하면 실패 대신 `coverage=PARTIAL`, `hasMore=true` 또는 `renderMode=CLUSTER`로 전환한다.
+
+### 7.5 SQL·성능 검증 기준
+
+- 목록·viewport·count·cluster query에 대해 `EXPLAIN (ANALYZE, BUFFERS)` 결과를 저장한다.
+- active revision, category, region, bbox 조건이 실제 계획에 반영되는지 검증한다.
+- 3만 건 snapshot에서 정상 상세 bbox, 시군구 bbox, 전국/ALL 요청을 별도 측정한다.
+- 목표값은 목록 첫 page p95 200ms 이하, viewport p95 500ms 이하, count/aggregate p95 500ms 이하로 시작한다. 운영 측정 전까지 목표값은 예산이며, 초과 시 query plan·projection·cache를 조정한다.
+- 단일 요청의 SQL round trip은 목록/viewport 핵심 query 기준 1~3회 이내로 유지하고, 장소별 반복 query(N+1)는 0건이어야 한다.
+- connection pool 고갈, statement timeout, slow query, cache hit/miss를 metric으로 남긴다.
+- index가 있어도 선택도가 낮은 전국 ALL query에서 무조건 index scan을 강제하지 않는다. planner plan과 실제 p95를 기준으로 판단한다.
 
 ## 8. 오류·부분 실패·캐시
 
