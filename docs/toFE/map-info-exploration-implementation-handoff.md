@@ -233,7 +233,7 @@ else:
   fetch
 ```
 
-요청은 지도 `idle` 후 650ms debounce한다. 같은 시점에는 category·region·viewport별 요청을 하나만 유지하고, 이전 요청은 AbortController로 취소한다.
+요청은 지도 `idle` 후 700ms debounce한다. 같은 시점에는 category·region·viewport별 요청을 하나만 유지하고, 이전 요청은 AbortController로 취소한다. 700ms는 초기 운영 기준이며, 실제 성능 측정에 따라 600~800ms 범위에서 조정할 수 있다. 1,000ms를 초과하지 않는다.
 
 FE는 실제 viewport보다 각 방향으로 25% 확장한 `requestBbox`를 요청한다. 이렇게 하면 작은 이동에는 기존 응답을 재사용할 수 있다. 확장된 범위가 대한민국 전체를 넘지 않도록 clamp한다.
 
@@ -308,7 +308,7 @@ viewportError: string | null
 현재 `idle + debounce` 흐름은 유지한다.
 
 - 지도 이동 중 요청하지 않는다.
-- idle 후 약 550ms debounce한다.
+- idle 후 700ms debounce한다.
 - `bbox`, `zoomLevel`, `category`, `regionCode`를 보낸다.
 - 실제 viewport보다 25% 확장한 `requestBbox`를 보낸다.
 - 이전 응답은 새 응답이 올 때까지 유지한다.
@@ -362,8 +362,38 @@ viewportError: string | null
 - 작은 pan으로 current viewport가 servedBbox 안에 있으면 viewport 요청이 발생하지 않는다.
 - servedBbox를 20% 이상 벗어나면 viewport 요청이 발생한다.
 - render bucket이 바뀌면 viewport 요청이 발생한다.
-- 이동 중에는 요청하지 않고 idle 후 650ms debounce 뒤 요청한다.
+- 이동 중에는 요청하지 않고 idle 후 700ms debounce 뒤 요청한다.
 - 실제 viewport보다 25% 확장된 requestBbox를 사용한다.
+
+## 3.5 지역 집계 응답과 FE·BE 화면 좌표 책임 경계
+
+`level 8~9`의 지역별 장소 수는 FE가 장소 목록을 받아 직접 계산하지 않는다. FE는 Kakao Map에서 현재 `bbox`와 `level`을 읽어 viewport API에 전달하고, BE가 반환한 지역 집계 item을 지도 위에 렌더링한다.
+
+BE viewport 응답의 지역 집계 item은 `type`, `regionCode`, `name`, `count`, `categoryCounts`, `center`, `bounds`, `targetZoomLevel`을 제공한다.
+
+```json
+{
+  "type": "DISTRICT",
+  "regionCode": "11110",
+  "name": "종로구",
+  "count": 184,
+  "categoryCounts": { "SPOT": 80, "FOOD": 31, "CAFE": 20 },
+  "center": { "lat": 37.5949, "lng": 126.9773 },
+  "bounds": { "west": 126.94, "south": 37.56, "east": 127.02, "north": 37.64 },
+  "targetZoomLevel": 10
+}
+```
+
+- `center`는 FE가 count bubble/지역명 overlay를 배치할 WGS84 좌표다.
+- `bounds`는 지역 bubble 클릭 시 Kakao `LatLngBounds`로 확대할 범위다.
+- `count`는 snapshot·category mapping·공개 상태 필터·중복 제거 후 해당 지역 전체 geometry에 포함되는 장소 수다.
+- 행정구역 대표점을 장소 좌표 평균으로 계산하지 않는다. 지역 geometry의 내부 대표점을 사용한다.
+- 부분적으로 viewport에 걸친 지역도 하나의 bubble로 표시하며, `count`는 부분 viewport count가 아닌 지역 전체 count다.
+- BE는 화면 `x/y` pixel, CSS offset, 사이드바·safe area 보정값을 제공하지 않는다.
+- FE는 `center`를 Kakao `LatLng`로 변환하고, 화면 크기·사이드바를 고려해 overlay 충돌 회피와 pixel 보정을 담당한다.
+- `totalCountInViewport`는 현재 조회 범위 합계이므로 지역 bubble의 `count`와 혼용하지 않는다.
+
+지역 bubble 클릭 시 FE는 `bounds`와 `targetZoomLevel`을 사용해 확대하고, 최종 Kakao `idle` 이후 viewport API를 1회 호출한다. FE가 행정구역 count나 대표 좌표를 재계산하지 않는다.
 
 ## 6. BE 의존성
 
