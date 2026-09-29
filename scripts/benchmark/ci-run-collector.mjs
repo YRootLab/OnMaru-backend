@@ -31,6 +31,7 @@ export function normalizeCiRun({ run, jobs, identity, commands }) {
   const completedJobs = (jobs?.jobs ?? jobs ?? []).filter((job) => job.conclusion === 'success');
   const verify = completedJobs.find((job) => job.name === 'verify') ?? completedJobs[0];
   if (!verify || !Array.isArray(verify.steps) || verify.steps.length === 0) fail('successful job steps are required');
+  const verifyWallClockMillis = durationMillis(verify);
   const steps = verify.steps
     .filter((step) => step.conclusion === 'success' && step.name !== 'Set up job' && !step.name.startsWith('Post '))
     .map((step) => ({ name: requireText(step.name, 'step.name'), durationMillis: durationMillis(step), cpuMillis: null, maxRssBytes: null }));
@@ -38,6 +39,7 @@ export function normalizeCiRun({ run, jobs, identity, commands }) {
   return {
     runId: String(run.id), artifactUrl: run.html_url, status: 'success',
     identity: { commitSha: run.head_sha, ...identity }, commands, steps,
+    wallClockMillis: verifyWallClockMillis,
     resourceEvidence: 'unavailable-from-actions-api',
   };
 }
