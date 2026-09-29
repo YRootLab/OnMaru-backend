@@ -33,6 +33,28 @@ flowchart LR
 
 변경 후 shard 분류는 fail-closed다. 분류되지 않는 테스트가 생기면 inventory 검증이 실패하며, aggregate는 shard 실패·취소·누락을 성공으로 간주하지 않는다. 전체 suite를 대체하지 않고, 각 shard의 합집합이 97개임을 inventory artifact로 고정했다.
 
+### 한눈에 보는 수치 그래프
+
+아래 그래프는 serial verify job과 병렬 matrix critical path를 같은 초 단위로 놓은 참고 비교다. 측정 경계가 다르므로 이 값만으로 전체 CI 개선률을 확정하지 않는다.
+
+```mermaid
+xychart-beta
+    title "Serial baseline vs parallel candidate (seconds)"
+    x-axis [Serial_verify_median, Candidate_1, Candidate_2, Candidate_3]
+    y-axis "seconds" 0 --> 550
+    bar [470, 410.76, 411.62, 504.42]
+```
+
+| 기준 | 시간 | baseline 대비 |
+|---|---:|---:|
+| Serial verify median | 470.00초 | 기준 |
+| Candidate 1 critical path | 410.76초 | **12.60% 단축** |
+| Candidate 2 critical path | 411.62초 | **12.42% 단축** |
+| Candidate 3 critical path | 504.42초 | **7.32% 증가** |
+| Candidate critical path median | 411.62초 | **12.42% 단축(proxy)** |
+
+세 회차 중 두 회차는 단축됐지만 한 회차는 증가했다. 평균값으로 개선을 과장하지 않고 중앙값과 변동성을 함께 제시한다.
+
 ## 실제 시간과 critical path
 
 ### Serial baseline
@@ -64,6 +86,28 @@ flowchart LR
 
 `postgres-other`가 세 회 모두 critical path를 결정했다. 3회 모두 exit code 0이며 candidate 실패율은 0/3 run, 0/12 Spring shard execution이다. CPU/RSS evidence는 candidate에 대해 사용 가능했고, `postgres-other`의 CPU 중앙값은 7.19초, peak RSS 중앙값은 약 158.5 MiB였다. baseline은 Actions API만으로 CPU/RSS를 복원할 수 없었다.
 
+```mermaid
+xychart-beta
+    title "Spring API shard median wall-clock"
+    x-axis [unit_contract, postgres_catalog, postgres_audio, postgres_other]
+    y-axis "seconds" 0 --> 450
+    bar [157.95, 211.88, 179.02, 411.62]
+```
+
+`postgres-other`는 shard median 411.62초로 unit-contract보다 2.61배 길고, 전체 critical path의 100%를 차지한다. 병렬화 구조는 완성됐지만 균등한 shard 분배까지 완료된 것은 아니다.
+
+### 무엇을 어떻게 개선했는가
+
+| 개선 대상 | 변경 방법 | 직접 관측된 효과 | 남은 한계 |
+|---|---|---|---|
+| 단일 Spring API 테스트 병목 | Gradle `onmaru.test.shard` property와 include/exclude filter 추가 | 97개 테스트가 4개 독립 실행 단위로 분리됨 | `postgres-other`에 25개가 집중됨 |
+| CI 병렬 실행 | Toolkit module catalog를 4개 Spring module matrix entry로 확장 | 후보에서 shard 4개가 동시에 실행되고 critical path 측정 가능 | runner queue time은 미측정 |
+| 실패 전파 | aggregate에서 실패·취소·누락 artifact를 fail-closed 처리 | 후보 3회 12개 shard execution 모두 성공, 실패율 0% | required CI 동일 경계 검증 필요 |
+| 성능 모니터링 | `/usr/bin/time -v` 기반 wall-clock, CPU seconds, peak RSS artifact 추가 | candidate CPU/RSS 사용 가능, baseline은 unavailable | cache identity와 queue는 API 한계 |
+| 재현성·검증 | 97개 inventory와 report contract test 추가 | Node 테스트 123개, shard 미분류 0개 | 5회 이상 장기 추세가 필요 |
+
+그래프로 보면 이번 변경의 가장 확실한 개선은 한 작업을 여러 독립 작업으로 실행할 수 있게 만든 구조적 개선이고, 가장 큰 남은 병목은 `postgres-other`의 실행 편중이다. 성능 수치 자체는 runner 변동과 측정 경계 차이 때문에 추가 required-CI 측정 전까지 잠정값이다.
+
 ## 변경 효과와 해석
 
 | 비교 | 계산 | 결과 | 판정 |
@@ -91,4 +135,4 @@ flowchart LR
 3. 실패율이 0이 아니거나 artifact 누락이 있으면 개선률을 계산하지 않고 fail-closed 원인부터 해결한다.
 4. 전체 workflow wall-clock을 목표 지표로 삼는다면 reusable workflow 안에서 run 시작부터 summary 완료까지를 공식적으로 export하도록 후속 변경한다.
 
-검증 결과: backend Node 테스트 122개 통과, 로컬 Spring shard 4개 모두 성공, toolkit 검증 161개 통과(coverage 91%)이다.
+검증 결과: backend Node 테스트 123개 통과, 로컬 Spring shard 4개 모두 성공, toolkit 검증 161개 통과(coverage 91%)이다.
