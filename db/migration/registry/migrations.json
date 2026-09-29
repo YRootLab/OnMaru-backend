@@ -296,12 +296,21 @@
     },
     {
       "version": "034",
-      "reservedFor": "MAP_INFO_READ_PROJECTIONS",
-      "issueNumber": 495,
-      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V034__495_map_info_read_projections.sql",
-      "checksum": "map-info-read-projections-v034-20260929",
-      "sha256": "f56d5de253d4ec8fa42ecfc53835e7184d2cc5c9d88a3e4b14ebe006ba93f6ef",
-      "description": "Information-mode map read projections, category mappings, scope counts, and publication metadata"
+      "reservedFor": "ADMIN_FOUNDATION",
+      "issueNumber": 375,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V034__375_admin_foundation.sql",
+      "checksum": "admin-foundation-v034-20260929",
+      "sha256": "9d1de987bcb7a84b2aee3ed4c0e81d8abb9b4ae74493e58870dec1f79434c265",
+      "description": "Admin accounts, sessions, member sanctions, curation overrides, and append-only audit log"
+    },
+    {
+      "version": "035",
+      "reservedFor": "ADMIN_QUERY_INDEXES",
+      "issueNumber": 375,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V035__375_admin_query_indexes.sql",
+      "checksum": "admin-query-indexes-v035-20260929",
+      "sha256": "e039841ff8458e634141f82679d2969b1bf2fc56ed9e29c16b99fbbc932ab1a6",
+      "description": "Latest-version curation lookup index for admin API"
     }
   ]
 }

@@ -1,0 +1,512 @@
+openapi: 3.1.0
+info:
+  title: OnMaru Admin API
+  version: 1.0.0-draft
+  description: >-
+    관리자 콘솔용 인증, 대시보드, 후기/신고 검수, 사용자 제재, 큐레이션,
+    데이터 파이프라인 운영 계약. 모든 변경은 감사 로그와 멱등성 키를 사용한다.
+servers:
+  - url: /api/v1
+tags:
+  - name: AdminAuth
+  - name: AdminDashboard
+  - name: AdminReviews
+  - name: AdminReports
+  - name: AdminUsers
+  - name: AdminCurations
+  - name: AdminPipelines
+  - name: AdminAuditLogs
+paths:
+  /auth/admin/login:
+    post:
+      tags: [AdminAuth]
+      operationId: adminLogin
+      summary: 관리자 로그인
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminLoginRequest'}
+      responses:
+        '200':
+          description: access token과 관리자 principal
+          headers:
+            Set-Cookie: {$ref: '#/components/headers/RefreshCookie'}
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminLoginResponse'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+  /admin/reviews/{reviewId}/moderation-actions:
+    post:
+      tags: [AdminReviews]
+      operationId: moderateAdminReview
+      summary: 후기 검수 상태 변경
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: reviewId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ModerationActionRequest'}
+      responses:
+        '200': {$ref: '#/components/responses/Review'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /auth/admin/refresh:
+    post:
+      tags: [AdminAuth]
+      operationId: refreshAdminToken
+      summary: 관리자 access token 갱신
+      security: [{adminRefreshCookie: []}]
+      responses:
+        '200':
+          description: 회전된 access token
+          headers:
+            Set-Cookie: {$ref: '#/components/headers/RefreshCookie'}
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminLoginResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+  /auth/admin/logout:
+    post:
+      tags: [AdminAuth]
+      operationId: adminLogout
+      summary: 관리자 refresh session 폐기
+      security: [{adminBearer: []}]
+      responses:
+        '204':
+          description: 로그아웃 완료
+          headers:
+            Set-Cookie: {$ref: '#/components/headers/ClearedRefreshCookie'}
+            Cache-Control: {$ref: '#/components/headers/NoStore'}
+        '401': {$ref: '#/components/responses/Error'}
+  /auth/admin/me:
+    get:
+      tags: [AdminAuth]
+      operationId: getAdminMe
+      summary: 현재 관리자 principal 조회
+      security: [{adminBearer: []}]
+      responses:
+        '200':
+          description: 현재 관리자
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminPrincipal'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/dashboard/summary:
+    get:
+      tags: [AdminDashboard]
+      operationId: getAdminDashboardSummary
+      summary: 관리자 대시보드 요약
+      security: [{adminBearer: []}]
+      parameters:
+        - {$ref: '#/components/parameters/FromDate'}
+        - {$ref: '#/components/parameters/ToDate'}
+      responses:
+        '200':
+          description: 집계 요약
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DashboardSummary'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/reviews:
+    get:
+      tags: [AdminReviews]
+      operationId: listAdminReviews
+      summary: 후기 목록 조회
+      security: [{adminBearer: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Status'}
+        - {name: query, in: query, schema: {type: string, maxLength: 120}}
+        - {name: reported, in: query, schema: {type: boolean}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: 후기 페이지
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReviewPage'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/reports:
+    get:
+      tags: [AdminReports]
+      operationId: listAdminReports
+      summary: 신고 목록 조회
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: status, in: query, schema: {type: string, enum: [PENDING, RESOLVED, REJECTED]}}
+        - {name: reason, in: query, schema: {type: string}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: 신고 페이지
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReportPage'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/users:
+    get:
+      tags: [AdminUsers]
+      operationId: listAdminUsers
+      summary: 사용자 목록 조회
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: status, in: query, schema: {type: string, enum: [ACTIVE, SUSPENDED]}}
+        - {name: query, in: query, schema: {type: string, maxLength: 120}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: 사용자 페이지
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/UserPage'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/users/{memberId}/sanctions:
+    get:
+      tags: [AdminUsers]
+      operationId: listAdminMemberSanctions
+      summary: 회원 제재 이력 조회
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: memberId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 제재 이력
+          content:
+            application/json:
+              schema: {type: object, required: [schemaVersion, items], properties: {schemaVersion: {type: string}, items: {type: array, items: {$ref: '#/components/schemas/MemberSanction'}}}}
+        '401': {$ref: '#/components/responses/Error'}
+    post:
+      tags: [AdminUsers]
+      operationId: createAdminMemberSanction
+      summary: 회원 제재 생성
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: memberId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MemberSanctionRequest'}
+      responses:
+        '201':
+          description: 제재 생성 완료
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MemberSanction'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+  /admin/users/{memberId}/sanctions/{sanctionId}:
+    delete:
+      tags: [AdminUsers]
+      operationId: revokeAdminMemberSanction
+      summary: 회원 제재 해제
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: memberId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: sanctionId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '204': {description: 제재 해제 완료}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /admin/curations:
+    get:
+      tags: [AdminCurations]
+      operationId: listAdminCurations
+      summary: 큐레이션 대상 목록 조회
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: category, in: query, required: true, schema: {type: string, enum: [VILLAGE, STAY, ROUTE]}}
+        - {name: included, in: query, schema: {type: string, enum: [ALL, INCLUDED, EXCLUDED], default: ALL}}
+        - {name: query, in: query, schema: {type: string, maxLength: 120}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: 큐레이션 페이지
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CurationPage'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/curations/{placeId}:
+    put:
+      tags: [AdminCurations]
+      operationId: upsertAdminCuration
+      summary: 큐레이션 override 저장
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: placeId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category, included, badges]
+              additionalProperties: false
+              properties:
+                category: {type: string, enum: [VILLAGE, STAY, ROUTE]}
+                included: {type: boolean}
+                badges: {type: array, items: {type: string, maxLength: 40}}
+      responses:
+        '200': {description: 저장된 curation override}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/audit-logs:
+    get:
+      tags: [AdminAuditLogs]
+      operationId: listAdminAuditLogs
+      summary: 관리자 감사 로그 조회
+      security: [{adminBearer: []}]
+      parameters:
+        - {name: actorAdminId, in: query, schema: {type: string, format: uuid}}
+        - {name: resourceType, in: query, schema: {type: string, maxLength: 80}}
+        - {name: resourceId, in: query, schema: {type: string, maxLength: 160}}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200': {description: 감사 로그 목록}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /admin/pipelines/{dataset}/status:
+    get:
+      tags: [AdminPipelines]
+      operationId: getAdminPipelineStatus
+      summary: 데이터 파이프라인 상태 조회
+      security: [{adminBearer: []}]
+      parameters: [{$ref: '#/components/parameters/Dataset'}]
+      responses:
+        '200':
+          description: pipeline 상태
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PipelineStatus'}
+        '401': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /admin/pipelines/{dataset}/runs:
+    post:
+      tags: [AdminPipelines]
+      operationId: startAdminPipelineRun
+      summary: 데이터 pipeline 수동 실행
+      security: [{adminBearer: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Dataset'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scope, reason]
+              properties:
+                scope: {type: string, enum: [FULL, VILLAGE, STAY, ROUTE]}
+                reason: {type: string, minLength: 1, maxLength: 300}
+      responses:
+        '202':
+          description: pipeline 실행 접수
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RunAccepted'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    adminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    adminRefreshCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-onmaru-admin-refresh
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    Cursor:
+      name: cursor
+      in: query
+      schema: {type: string, maxLength: 512}
+    Status:
+      name: status
+      in: query
+      schema: {type: string, enum: [PUBLISHED, HIDDEN, REMOVED]}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, format: uuid}
+    Dataset:
+      name: dataset
+      in: path
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 80}
+    FromDate:
+      name: from
+      in: query
+      schema: {type: string, format: date}
+    ToDate:
+      name: to
+      in: query
+      schema: {type: string, format: date}
+  headers:
+    NoStore:
+      schema: {type: string, const: no-store}
+    RefreshCookie:
+      schema: {type: string}
+    ClearedRefreshCookie:
+      schema: {type: string}
+  responses:
+    Error:
+      description: 표준 API 오류
+      headers:
+        Cache-Control: {$ref: '#/components/headers/NoStore'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Review:
+      description: 변경된 후기
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Review'}
+  schemas:
+    AdminLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: {type: string, format: email, maxLength: 254}
+        password: {type: string, minLength: 12, maxLength: 128, writeOnly: true}
+    AdminLoginResponse:
+      type: object
+      required: [schemaVersion, accessToken, expiresIn, admin]
+      properties:
+        schemaVersion: {type: string, const: '1.0'}
+        accessToken: {type: string}
+        expiresIn: {type: integer, minimum: 1}
+        admin: {$ref: '#/components/schemas/AdminPrincipal'}
+    AdminPrincipal:
+      type: object
+      required: [id, email, nickname, role]
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        nickname: {type: string}
+        role: {type: string, enum: [ADMIN, EDITOR]}
+    DashboardSummary:
+      type: object
+      required: [schemaVersion, range, stats, recentReviews, pendingReports, pipeline]
+      properties:
+        schemaVersion: {type: string}
+        range: {type: object, properties: {from: {type: string, format: date}, to: {type: string, format: date}}}
+        stats: {type: array, items: {type: object}}
+        recentReviews: {type: array, items: {$ref: '#/components/schemas/Review'}}
+        pendingReports: {type: array, items: {type: object}}
+        pipeline: {$ref: '#/components/schemas/PipelineStatus'}
+    Review:
+      type: object
+      required: [id, status, createdAt, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [PUBLISHED, HIDDEN, REMOVED]}
+        content: {type: string}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    ReviewPage:
+      type: object
+      required: [items, hasNext]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Review'}}
+        nextCursor: {type: string, nullable: true}
+        hasNext: {type: boolean}
+    ReportPage:
+      type: object
+      required: [items, hasNext]
+      properties:
+        items: {type: array, items: {type: object}}
+        nextCursor: {type: string, nullable: true}
+        hasNext: {type: boolean}
+    UserPage:
+      type: object
+      required: [items, hasNext]
+      properties:
+        items: {type: array, items: {type: object}}
+        nextCursor: {type: string, nullable: true}
+        hasNext: {type: boolean}
+    MemberSanctionRequest:
+      type: object
+      required: [reason, startsAt]
+      additionalProperties: false
+      properties:
+        reason: {type: string, minLength: 1, maxLength: 300}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time, nullable: true}
+    MemberSanction:
+      type: object
+      required: [id, memberId, status, reason, startsAt, createdBy, createdAt]
+      properties:
+        id: {type: string, format: uuid}
+        memberId: {type: string, format: uuid}
+        status: {type: string, enum: [ACTIVE, REVOKED, EXPIRED]}
+        reason: {type: string}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time, nullable: true}
+        createdBy: {type: string, format: uuid}
+        revokedBy: {type: string, format: uuid, nullable: true}
+        revokedAt: {type: string, format: date-time, nullable: true}
+        createdAt: {type: string, format: date-time}
+    CurationPage:
+      type: object
+      required: [items, hasNext]
+      properties:
+        items: {type: array, items: {type: object}}
+        nextCursor: {type: string, nullable: true}
+        hasNext: {type: boolean}
+    PipelineStatus:
+      type: object
+      required: [dataset, status]
+      properties:
+        dataset: {type: string}
+        status: {type: string, enum: [IDLE, RUNNING, SUCCEEDED, FAILED, CANCELLED, MISSING]}
+        lastSuccessAt: {type: string, format: date-time, nullable: true}
+        failureCount: {type: integer, minimum: 0}
+    RunAccepted:
+      type: object
+      required: [runId, status]
+      properties:
+        runId: {type: string, format: uuid}
+        status: {type: string, enum: [QUEUED, RUNNING]}
+    ModerationActionRequest:
+      type: object
+      additionalProperties: false
+      required: [nextStatus, reason]
+      properties:
+        nextStatus: {type: string, enum: [PUBLISHED, HIDDEN, REMOVED]}
+        reason: {type: string, enum: [POLICY_VIOLATION, SPAM_CONFIRMED, FALSE_REPORT, OTHER]}
+        note: {type: string, maxLength: 1000}
+    ApiError:
+      type: object
+      required: [schemaVersion, code, message, requestId]
+      properties:
+        schemaVersion: {type: string}
+        code: {type: string}
+        message: {type: string}
+        requestId: {type: string, format: uuid}
+        details: {type: object}
