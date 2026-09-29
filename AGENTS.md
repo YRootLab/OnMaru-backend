@@ -57,7 +57,7 @@
 - Normal release promotion is one-way: `develop` → `release/*` → `master`. Do not reverse-merge `master` or `release/*` into `develop` as part of ordinary release work.
 - If `develop` advances after a release branch is cut, open a PR from `develop` into that `release/*` branch before staging or master promotion. Confirm the release branch contains the intended `origin/develop` commit range with `git log`/`git diff`.
 - Production-only fixes must also be implemented or forward-ported through a separate PR into `develop`; a reverse merge is allowed only as an explicitly documented emergency exception.
-- Emergency fixes: `hotfix/*` merge into `master` and back into `develop`.
+- Emergency fixes: `hotfix/*` merge into `master`; forward-port the same fix to `develop` through a separate Pull Request. Reverse merge only under the documented emergency exception above.
 - Direct pushes to `develop` and `master` are prohibited.
 - Required CI check: `verify` from the `CI` workflow must pass before every merge.
 - Work branch names must carry the Issue number and pass the branch parser contract unless the branch is a long-lived integration, production, release, or externally managed branch.
