@@ -97,7 +97,8 @@ describe('container and staging release pipeline', () => {
     );
     assert.match(workflow, /staging-smoke:/);
     assert.match(workflow, /STAGING_SPRING_URL/);
-    assert.match(workflow, /STAGING_AI_URL/);
+    assert.match(workflow, /AI staging service is not provisioned yet/);
+    assert.doesNotMatch(workflow, /\$\{\{ vars\.STAGING_AI_URL \}\}/);
     assert.match(workflow, /curl --fail --silent --show-error/);
     assert.match(workflow, /rollback-on-failure:/);
     assert.match(workflow, /environment:\s+staging/);
