@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const workflowPath = '.github/workflows/module-benchmark.yml';
-const toolkitSha = 'ff3028ae728de076ea38aa56135529c1566f25a8';
+const toolkitSha = '8f68026215ebb8f32bc14e17740f2c87dbdc773d';
 
 test('shadow benchmark caller uses the pinned read-only Toolkit contract', async () => {
   const workflow = await readFile(workflowPath, 'utf8');

@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SecurityWebBoundaryTests {
 
     private static final Pattern CSRF_COOKIE =
-            Pattern.compile("(__Host-onmaru-csrf)=([^;]+);.*Path=/.*Secure.*HttpOnly.*SameSite=Lax");
+            Pattern.compile("(__Host-onmaru-csrf)=([^;]+);.*Path=/.*Secure.*HttpOnly.*SameSite=None");
 
     @Autowired
     private MockMvc mockMvc;

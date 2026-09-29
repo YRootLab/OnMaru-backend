@@ -29,7 +29,7 @@ class KakaoOAuthWebBoundaryTests {
     private static final Pattern STATE_COOKIE =
             Pattern.compile("(__Host-onmaru-oauth-nonce)=([^;]+);.*Path=/.*Secure.*HttpOnly.*SameSite=Lax");
     private static final Pattern SESSION_COOKIE =
-            Pattern.compile("(__Host-onmaru-session)=([^;]+);.*Path=/.*Secure.*HttpOnly.*SameSite=Lax");
+            Pattern.compile("(__Host-onmaru-session)=([^;]+);.*Path=/.*Secure.*HttpOnly.*SameSite=None");
 
     @Autowired
     private MockMvc mockMvc;

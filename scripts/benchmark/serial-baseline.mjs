@@ -32,6 +32,7 @@ function validateRun(run) {
   validateIdentity(run.identity);
   if (!Array.isArray(run.commands) || run.commands.length === 0 || run.commands.some((command) => typeof command !== 'string' || !command)) fail(`run ${run.runId} commands are required`);
   if (!Array.isArray(run.steps) || run.steps.length === 0) fail(`run ${run.runId} steps are required`);
+  if (run.wallClockMillis !== undefined && (!Number.isFinite(run.wallClockMillis) || run.wallClockMillis < 0)) fail(`run ${run.runId} has invalid wall clock`);
   const resourceEvidence = run.resourceEvidence ?? 'available';
   if (!['available', 'unavailable-from-actions-api'].includes(resourceEvidence)) fail(`run ${run.runId} has invalid resource evidence`);
   for (const step of run.steps) {
@@ -59,7 +60,7 @@ export function createSerialBaseline({ suite, runs }) {
     if ((run.resourceEvidence ?? 'available') !== (first.resourceEvidence ?? 'available')) fail('runs are not comparable: resourceEvidence');
   }
   const resourceEvidence = first.resourceEvidence ?? 'available';
-  const runDurations = runs.map((run) => run.steps.reduce((total, step) => total + step.durationMillis, 0));
+  const runDurations = runs.map((run) => run.wallClockMillis ?? run.steps.reduce((total, step) => total + step.durationMillis, 0));
   return {
     schemaVersion: 1,
     status: 'valid',

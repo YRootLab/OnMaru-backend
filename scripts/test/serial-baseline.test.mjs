@@ -11,12 +11,13 @@ const identity = {
   pythonVersion: '3.12',
 };
 
-function run(id, verifyDurationMillis) {
+function run(id, verifyDurationMillis, wallClockMillis = verifyDurationMillis + 500) {
   return {
     runId: id,
     artifactUrl: `https://github.com/YRootLab/OnMaru-backend/actions/runs/${id}`,
     status: 'success',
     identity,
+    wallClockMillis,
     commands: ['./gradlew :apps:spring-api:test --no-daemon', 'uv run pytest'],
     steps: [
       { name: 'Spring API tests', durationMillis: verifyDurationMillis, cpuMillis: 1200, maxRssBytes: 1024 },
@@ -26,12 +27,12 @@ function run(id, verifyDurationMillis) {
 }
 
 test('creates a comparable baseline only from exactly three successful serial runs', () => {
-  const baseline = createSerialBaseline({ suite: 'verify-serial', runs: [run('101', 1300), run('102', 1100), run('103', 1200)] });
+  const baseline = createSerialBaseline({ suite: 'verify-serial', runs: [run('101', 1300, 2300), run('102', 1100, 2100), run('103', 1200, 2200)] });
 
   assert.equal(baseline.status, 'valid');
   assert.equal(baseline.runCount, 3);
   assert.equal(baseline.identity.commitSha, identity.commitSha);
-  assert.equal(baseline.metrics.verifyWallClockMedianMillis, 1700);
+  assert.equal(baseline.metrics.verifyWallClockMedianMillis, 2200);
   assert.deepEqual(baseline.artifactUrls, [
     'https://github.com/YRootLab/OnMaru-backend/actions/runs/101',
     'https://github.com/YRootLab/OnMaru-backend/actions/runs/102',
@@ -51,12 +52,21 @@ test('rejects failed or non-comparable candidates instead of creating a baseline
 });
 
 test('keeps resource metrics unavailable when the Actions API cannot provide them', () => {
-  const apiRun = (id) => ({ ...run(id, 1200), steps: [
+  const apiRun = (id) => { const value = { ...run(id, 1200), steps: [
     { name: 'verify', durationMillis: 1200, cpuMillis: null, maxRssBytes: null },
-  ], resourceEvidence: 'unavailable-from-actions-api' });
+  ], resourceEvidence: 'unavailable-from-actions-api' }; delete value.wallClockMillis; return value; };
   const baseline = createSerialBaseline({ suite: 'verify-serial', runs: [apiRun('201'), apiRun('202'), apiRun('203')] });
   assert.equal(baseline.metrics.verifyWallClockMedianMillis, 1200);
   assert.equal(baseline.metrics.verifyWorkMedianMillis, null);
   assert.equal(baseline.metrics.peakRssBytes, null);
   assert.equal(baseline.resourceEvidence, 'unavailable-from-actions-api');
+});
+
+test('uses the completed verify job wall-clock instead of summing step durations', () => {
+  const baseline = createSerialBaseline({
+    suite: 'verify-serial',
+    runs: [run('301', 1200, 5000), run('302', 1200, 4700), run('303', 1200, 4900)],
+  });
+
+  assert.equal(baseline.metrics.verifyWallClockMedianMillis, 4900);
 });

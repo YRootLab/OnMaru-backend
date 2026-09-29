@@ -76,7 +76,7 @@ sequenceDiagram
     BE->>DB: linkExternalIdentity(KAKAO, issuer, subject)
     Note over DB: 기존 회원이면 재사용, 없으면 identity.members 생성
     BE->>DB: saveSession(sessionTokenHash, memberId, TTL 7일)
-    BE-->>U: 303 {returnTo}?auth=success<br/>+ __Host-onmaru-session 발급<br/>(HttpOnly·Secure·SameSite=Lax·__Host- prefix·7일)<br/>+ nonce/verifier 쿠키 만료
+    BE-->>U: 303 {returnTo}?auth=success<br/>+ __Host-onmaru-session 발급<br/>(HttpOnly·Secure·SameSite=None·__Host- prefix·7일)<br/>+ nonce/verifier 쿠키 만료
 
     Note over U: 이후 모든 API 요청에 세션 쿠키가 자동 첨부됨
 ```

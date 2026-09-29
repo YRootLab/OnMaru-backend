@@ -565,7 +565,7 @@ class ExplorationWebBoundaryTests {
 
         assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
                 .anyMatch(value -> value.startsWith("__Host-onmaru-guest="))
-                .anyMatch(value -> value.contains("Secure") && value.contains("HttpOnly") && value.contains("SameSite=Lax"));
+                .anyMatch(value -> value.contains("Secure") && value.contains("HttpOnly") && value.contains("SameSite=None"));
     }
 
     @Test
