@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-09-29 Issue #487 카카오 로그인 CORS·쿠키 경계
+
+- Branch: `fix/487-kakao-login`
+- Issue: #487
+- Scope: cross-site FE에서 인증 쿠키가 전송되도록 session/guest/CSRF 쿠키를 `SameSite=None`으로 변경하고, CORS에 `https://onmaru-frontend.vercel.app` 및 `http://localhost:3000`~`http://localhost:3008`을 허용한다. OAuth nonce/verifier는 `SameSite=Lax`를 유지한다.
+- Verification: 수정 전 기대 동작 테스트 4건 실패 확인 후 대상 경계 테스트 성공, `./gradlew :apps:spring-api:test --no-daemon --max-workers=1` 성공(10m 27s), `git diff --check` 예정.
+- Next step: 변경사항 리뷰 후 Issue #487 대상 PR을 `develop`으로 생성한다.
+- Open risk: Render 재배포 후 실제 브라우저에서 `credentials: include`와 `Secure; SameSite=None` 쿠키가 전송되는지 확인해야 한다.
+
 ## 2026-09-28 Issue #265 프론트엔드 OAuth 복귀
 
 - Branch: `fix/265-kakao-frontend-redirect`
