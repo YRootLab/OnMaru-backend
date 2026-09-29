@@ -1,0 +1,63 @@
+{
+  "name": "map-info-places-normal",
+  "description": "Information-mode list page exposes totalCount, opaque cursor, expanded categories, snapshot, and publication metadata.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/info/places",
+    "query": {
+      "category": "SPOT",
+      "regionCode": "kr-45-jeonju",
+      "language": "ko-KR",
+      "limit": 30
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "MapInfoPlacePage",
+    "body": {
+      "schemaVersion": "1.0",
+      "query": {
+        "category": "SPOT",
+        "regionCode": "kr-45-jeonju",
+        "bbox": null,
+        "cursor": null,
+        "snapshotId": "rev-20260929-001",
+        "language": "ko-KR",
+        "limit": 30,
+        "sort": "REGION_NAME",
+        "lat": null,
+        "lng": null
+      },
+      "snapshot": {
+        "id": "rev-20260929-001",
+        "publishedAt": "2026-09-29T03:10:00Z",
+        "status": "PUBLISHED"
+      },
+      "totalCount": 2,
+      "items": [
+        {
+          "placeId": "p-jeonju-hanok-village",
+          "name": "전주 한옥마을",
+          "displayCategory": "SPOT",
+          "matchedCategories": ["HANOK", "HISTORIC_SITE"],
+          "region": {"regionCode": "kr-45-jeonju", "name": "전북 전주시"},
+          "coordinates": {"lat": 35.8151, "lng": 127.153},
+          "thumbnailUrl": "https://cdn.onmaru.example/places/p-jeonju-hanok-village/cover.jpg",
+          "summary": "한옥 골목과 전통 체험을 함께 둘러볼 수 있는 대표 한옥 권역입니다.",
+          "savedByMe": false
+        }
+      ],
+      "nextCursor": "eyJ2IjoiMSIsInBsYWNlSWQiOiJwLWplb25qdS1oYW5vay12aWxsYWdlIn0",
+      "appliedCategories": ["HANOK", "HISTORIC_SITE", "CULTURE_ART"],
+      "coverage": "COMPLETE",
+      "projection": {
+        "projectionName": "map_place_read_projection",
+        "revisionId": "rev-20260929-001",
+        "publishedAt": "2026-09-29T03:10:00Z",
+        "checksum": "sha256:map-info-fixture-001",
+        "rowCount": 30000,
+        "mappingVersion": "map-category-v1"
+      }
+    }
+  }
+}

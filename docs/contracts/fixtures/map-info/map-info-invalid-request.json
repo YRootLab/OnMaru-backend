@@ -1,0 +1,20 @@
+{
+  "name": "map-info-invalid-request",
+  "description": "Invalid viewport input uses the map-info error contract.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/info/viewport",
+    "query": {"bbox": "invalid", "zoomLevel": 9}
+  },
+  "response": {
+    "status": 400,
+    "schema": "MapInfoError",
+    "body": {
+      "schemaVersion": "1.0",
+      "code": "INVALID_REQUEST",
+      "message": "The requested map information viewport is invalid.",
+      "requestId": "req-map-info-invalid",
+      "details": {"field": "bbox"}
+    }
+  }
+}

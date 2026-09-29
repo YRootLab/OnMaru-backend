@@ -293,6 +293,15 @@
       "checksum": "odii-public-query-keys-v033-20260928",
       "sha256": "007481a11f7c40c27fbf563a6ca6f0ddae659ed547483fb67a12a6cd7bfdca96",
       "description": "Indexable public IDs and query indexes for direct Odii PostgreSQL reads"
+    },
+    {
+      "version": "034",
+      "reservedFor": "MAP_INFO_READ_PROJECTIONS",
+      "issueNumber": 495,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V034__495_map_info_read_projections.sql",
+      "checksum": "map-info-read-projections-v034-20260929",
+      "sha256": "ebf3aeea69344fe7337c44fafd3802bd0e4fff78e1db30a37ce896071283c0ee",
+      "description": "Information-mode map read projections, category mappings, scope counts, and publication metadata"
     }
   ]
 }

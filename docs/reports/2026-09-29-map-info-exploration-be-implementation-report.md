@@ -263,6 +263,17 @@ cache key에는 snapshotId, category, regionCode 또는 bboxHash, zoomLevel/prof
 
 ## 8. 테스트 요구사항
 
+### 8.0 W0 계약 산출물
+
+Wave 0의 기계 판독 계약은 다음 파일을 기준으로 한다.
+
+- `docs/contracts/openapi/map-info.openapi.yaml`
+- `docs/contracts/fixtures/map-info/`
+- `modules/catalog/src/main/java/com/yrootlab/onmaru/catalog/application/query/mapinfo/`
+- `docs/database/modules/catalog.dbml`의 `map_*_projection` 및 `map_projection_publications`
+
+이 단계는 API schema/DTO/fixture와 논리 projection metadata만 동결한다. 실제 Spring controller wiring, keyset SQL, PostGIS cluster/region query, publication refresh는 #495~#497에서 구현한다.
+
 Contract fixture:
 
 - list normal, empty, next page, snapshot expired
