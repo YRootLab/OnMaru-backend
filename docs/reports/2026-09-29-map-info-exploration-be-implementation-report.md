@@ -54,7 +54,8 @@
 응답 필수 필드:
 
     schemaVersion, renderMode, profileVersion, snapshot
-    totalCountInViewport, items, appliedCategories, coverage
+totalCountInViewport, items, appliedCategories, coverage
+servedBbox, renderMode, profileVersion
 
 item type:
 
@@ -100,6 +101,34 @@ item type:
 - category가 없으면 SPOT을 기본값으로 한다.
 
 ## 5. viewport·cluster query
+
+## 5.0 FE 호출 억제를 위한 BE 계약
+
+BE는 FE가 작은 이동을 재사용할 수 있도록 viewport 응답에 실제 조회 범위인 `servedBbox`를 반환한다.
+
+```text
+servedBbox = { west, south, east, north }
+```
+
+FE는 실제 화면보다 각 방향으로 25% 확장한 bbox를 요청한다. BE는 요청 bbox를 검증·clamp한 뒤, 응답에 최종 조회 범위를 `servedBbox`로 돌려준다.
+
+BE viewport cache key는 다음을 포함한다.
+
+```text
+snapshotId + category + regionCode + servedBboxHash + renderBucket + language
+```
+
+작은 지도 이동 여부를 BE가 매번 판단할 필요는 없다. FE가 `currentViewport ⊆ servedBbox`인지 판단하고, BE는 동일한 query signature에 대해 빠르게 재사용 가능한 응답을 제공한다.
+
+다만 다음 요청은 반드시 새 query로 처리한다.
+
+- category 변경
+- snapshot 변경
+- render bucket 변경
+- region scope 변경
+- 현재 viewport가 servedBbox를 크게 벗어난 경우
+
+BE는 viewport 이동 자체를 history나 cursor 상태로 저장하지 않는다. region scope 진입만 `regionCode`로 처리한다.
 
 초기 Kakao level 기준:
 
@@ -160,6 +189,7 @@ Contract fixture:
 - list normal, empty, next page, snapshot expired
 - ALL response와 SPOT expanded category response
 - viewport REGION, DISTRICT, CLUSTER, PLACE
+- viewport servedBbox와 render profile
 - partial/stale response
 - invalid bbox/category/zoom/limit
 
@@ -174,6 +204,7 @@ Integration:
 - quarantine·좌표 결측 제외
 - festival이 place count에 혼입되지 않음
 - 3만 건 snapshot 전국·시도·시군구·상세 bbox 성능
+- 동일 servedBbox 재요청 cache hit와 작은 pan 재사용 시나리오
 
 ## 9. 구현 순서와 완료 조건
 

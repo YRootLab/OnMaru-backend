@@ -299,6 +299,21 @@ type MapInfoState = {
 - aggregate/cluster 클릭: URL scope를 갱신하고 목록 첫 페이지와 viewport 하위 범위를 병렬 호출한다.
 - 장소 선택: 기존 detail API만 호출한다.
 
+### 6.2.1 호출 억제 정책
+
+FE는 지도 `idle` 이벤트마다 BE를 호출하지 않는다.
+
+- 사용자 위치가 없으면 초기 Kakao level은 9, 사용자 위치가 있으면 7로 시작한다.
+- 초기 category는 `spot`이며, 최초 왼쪽 목록은 전국 category 목록이다.
+- 최초 목록은 `totalCount`와 첫 page 30건을 보여준다.
+- category 변경 시 현재 중심·level을 유지한 채 list와 viewport를 각각 1회 조회한다.
+- 왼쪽 목록은 지도 이동만으로 바꾸지 않는다. region/cluster 클릭으로 하위 scope에 들어갈 때만 지역 목록을 조회한다.
+- FE는 실제 viewport보다 각 방향으로 25% 확장한 bbox를 요청한다.
+- viewport 응답의 `servedBbox` 안에 현재 viewport가 완전히 포함되고 category·snapshot·render bucket이 같으면 재호출하지 않는다.
+- current viewport가 servedBbox 경계 밖으로 20% 이상 벗어나거나 render bucket이 바뀔 때만 호출한다.
+- 이동 종료 후 650ms debounce하고, 동일 scope에는 하나의 in-flight request만 유지한다.
+- 작은 이동은 기존 viewport 응답을 유지한다. 명시적 재검색 버튼은 예외로 즉시 요청한다.
+
 현재 FE의 약 550ms debounce를 유지할 수 있다. 모든 viewport 요청에는 AbortController 또는 동등한 cancellation을 적용하고, 늦게 도착한 이전 응답이 최신 category/region 결과를 덮어쓰지 못하도록 request sequence를 검사한다.
 
 ### 6.3 목록 UX
