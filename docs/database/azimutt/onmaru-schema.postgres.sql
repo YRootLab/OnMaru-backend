@@ -211,6 +211,51 @@ CREATE TABLE "catalog_place_versions" (
   PRIMARY KEY ("revision_id", "place_id")
 );
 
+CREATE TABLE "map_place_read_projection" (
+  "revision_id" uuid NOT NULL,
+  "place_id" uuid NOT NULL,
+  "public_id" varchar NOT NULL,
+  "name" varchar NOT NULL,
+  "normalized_name" varchar NOT NULL,
+  "status" catalog_place_status NOT NULL,
+  "location_geom" geometry NOT NULL,
+  "sido_code" varchar,
+  "sigungu_code" varchar,
+  "eupmyeondong_code" varchar,
+  "display_category" varchar NOT NULL,
+  "thumbnail_url" text,
+  "summary" text,
+  "sort_key" varchar NOT NULL,
+  PRIMARY KEY ("revision_id", "place_id")
+);
+
+CREATE TABLE "map_place_category_projection" (
+  "revision_id" uuid NOT NULL,
+  "place_id" uuid NOT NULL,
+  "canonical_category" varchar NOT NULL,
+  PRIMARY KEY ("revision_id", "place_id", "canonical_category")
+);
+
+CREATE TABLE "map_scope_count_projection" (
+  "revision_id" uuid NOT NULL,
+  "scope_type" varchar NOT NULL,
+  "region_code" varchar NOT NULL,
+  "canonical_category" varchar NOT NULL,
+  "place_count" int NOT NULL,
+  PRIMARY KEY ("revision_id", "scope_type", "region_code", "canonical_category")
+);
+
+CREATE TABLE "map_projection_publications" (
+  "revision_id" uuid NOT NULL,
+  "projection_name" varchar NOT NULL,
+  "mapping_version" varchar NOT NULL,
+  "row_count" int NOT NULL,
+  "checksum" varchar NOT NULL,
+  "published_at" timestamptz NOT NULL,
+  "status" catalog_dataset_status NOT NULL,
+  PRIMARY KEY ("revision_id", "projection_name")
+);
+
 CREATE TABLE "catalog_kto_korean_content_versions" (
   "revision_id" uuid NOT NULL,
   "source_ref_id" uuid NOT NULL,
@@ -770,6 +815,18 @@ CREATE INDEX ON "catalog_place_versions" USING GIST ("location");
 
 CREATE INDEX ON "catalog_place_versions" ("status", "category");
 
+CREATE UNIQUE INDEX ON "map_place_read_projection" ("revision_id", "public_id");
+
+CREATE INDEX ON "map_place_read_projection" ("revision_id", "sigungu_code", "sort_key", "place_id");
+
+CREATE INDEX ON "map_place_read_projection" ("revision_id", "sort_key", "place_id");
+
+CREATE INDEX ON "map_place_read_projection" ("revision_id", "status", "display_category", "sort_key", "place_id");
+
+CREATE INDEX ON "map_place_read_projection" USING GIST ("location_geom");
+
+CREATE INDEX ON "map_place_category_projection" ("revision_id", "canonical_category", "place_id");
+
 CREATE INDEX ON "catalog_kto_korean_content_versions" ("contentid");
 
 CREATE INDEX ON "catalog_kto_korean_content_versions" ("areacode", "sigungucode");
@@ -902,6 +959,10 @@ COMMENT ON COLUMN "catalog_place_sources"."external_id" IS 'KTO Korean contentid
 
 COMMENT ON COLUMN "catalog_place_versions"."location" IS 'PostGIS Point(4326)';
 
+COMMENT ON COLUMN "map_place_read_projection"."location_geom" IS 'PostGIS Point(4326), WGS84 geometry for bbox queries';
+
+COMMENT ON COLUMN "map_scope_count_projection"."scope_type" IS 'DISTRICT or REGION';
+
 COMMENT ON COLUMN "audio_odii_spots"."public_id" IS 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-spot-:tid) compatible';
 
 COMMENT ON COLUMN "audio_odii_stories"."public_id" IS 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-story-:stid) compatible';
@@ -1031,6 +1092,14 @@ ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("place_id") REFEREN
 ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("source_ref_id") REFERENCES "catalog_place_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "catalog_place_content_tag_versions" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "map_place_read_projection" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "map_place_category_projection" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "map_scope_count_projection" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "map_projection_publications" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "audio_odii_stories" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

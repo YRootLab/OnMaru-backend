@@ -1,0 +1,43 @@
+{
+  "name": "map-info-viewport-cluster",
+  "description": "Intermediate views return deterministic grid clusters rather than hiding all map information.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/info/viewport",
+    "query": {"bbox": "126.9,37.4,127.2,37.7", "zoomLevel": 7, "category": "FOOD", "limit": 500}
+  },
+  "response": {
+    "status": 200,
+    "schema": "MapInfoViewportResponse",
+    "body": {
+      "schemaVersion": "1.0",
+      "renderMode": "CLUSTER",
+      "profileVersion": "map-zoom-v1",
+      "snapshot": {"id": "rev-20260929-001", "publishedAt": "2026-09-29T03:10:00Z", "status": "PUBLISHED"},
+      "totalCountInViewport": 1250,
+      "items": [
+        {
+          "type": "CLUSTER",
+          "id": "cluster-map-zoom-v1-7-2201-1498",
+          "name": "종로·중구 생활권",
+          "center": {"lat": 37.565, "lng": 126.99},
+          "bounds": {"west": 126.96, "south": 37.54, "east": 127.02, "north": 37.59},
+          "count": 120,
+          "categoryCounts": {"FOOD": 120},
+          "targetZoomLevel": 6
+        }
+      ],
+      "appliedCategories": ["TRADITIONAL_FOOD"],
+      "coverage": "COMPLETE",
+      "servedBbox": {"west": 126.825, "south": 37.325, "east": 127.275, "north": 37.775},
+      "projection": {
+        "projectionName": "map_info_projection",
+        "revisionId": "rev-20260929-001",
+        "publishedAt": "2026-09-29T03:10:00Z",
+        "checksum": "sha256:map-info-fixture-001",
+        "rowCount": 30000,
+        "mappingVersion": "map-category-v1"
+      }
+    }
+  }
+}

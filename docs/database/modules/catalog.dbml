@@ -133,6 +133,73 @@ Table catalog_place_versions [headercolor: #59A14F] {
   }
 }
 
+// Information-mode map read projections. These tables are built from a staged
+// catalog revision and become visible with catalog_active_datasets in one
+// transaction. location_geom is geometry for bbox/GiST work; source location
+// remains geography for distance calculations.
+Table map_place_read_projection [headercolor: #4E79A7] {
+  revision_id uuid [not null]
+  place_id uuid [not null]
+  public_id varchar [not null]
+  name varchar [not null]
+  normalized_name varchar [not null]
+  status catalog_place_status [not null]
+  location_geom geometry [not null, note: 'PostGIS Point(4326), WGS84 geometry for bbox queries']
+  sido_code varchar
+  sigungu_code varchar
+  eupmyeondong_code varchar
+  display_category varchar [not null]
+  thumbnail_url text
+  summary text
+  sort_key varchar [not null]
+
+  Indexes {
+    (revision_id, place_id) [pk]
+    (revision_id, public_id) [unique]
+    (revision_id, sigungu_code, sort_key, place_id)
+    (revision_id, sort_key, place_id)
+    (revision_id, status, display_category, sort_key, place_id)
+    location_geom [type: gist]
+  }
+}
+
+Table map_place_category_projection [headercolor: #4E79A7] {
+  revision_id uuid [not null]
+  place_id uuid [not null]
+  canonical_category varchar [not null]
+
+  Indexes {
+    (revision_id, place_id, canonical_category) [pk]
+    (revision_id, canonical_category, place_id)
+  }
+}
+
+Table map_scope_count_projection [headercolor: #4E79A7] {
+  revision_id uuid [not null]
+  scope_type varchar [not null, note: 'DISTRICT or REGION']
+  region_code varchar [not null]
+  canonical_category varchar [not null]
+  place_count int [not null]
+
+  Indexes {
+    (revision_id, scope_type, region_code, canonical_category) [pk]
+  }
+}
+
+Table map_projection_publications [headercolor: #4E79A7] {
+  revision_id uuid [not null]
+  projection_name varchar [not null]
+  mapping_version varchar [not null]
+  row_count int [not null]
+  checksum varchar [not null]
+  published_at timestamptz [not null]
+  status catalog_dataset_status [not null]
+
+  Indexes {
+    (revision_id, projection_name) [pk]
+  }
+}
+
 Table catalog_kto_korean_content_versions [headercolor: #59A14F] {
   revision_id uuid [not null]
   source_ref_id uuid [not null]
@@ -289,6 +356,10 @@ TableGroup catalog [color: #59A14F, note: 'Canonical places, administrative regi
   catalog_place_image_versions
   catalog_hanok_detail_versions
   catalog_place_content_tag_versions
+  map_place_read_projection
+  map_place_category_projection
+  map_scope_count_projection
+  map_projection_publications
   content_tag_overrides
 }
 
@@ -315,3 +386,7 @@ Ref: catalog_hanok_detail_versions.revision_id > catalog_dataset_revisions.id
 Ref: catalog_hanok_detail_versions.place_id > catalog_place_identity.id
 Ref: catalog_hanok_detail_versions.source_ref_id > catalog_place_sources.id
 Ref: catalog_place_content_tag_versions.(revision_id, place_id) > catalog_place_versions.(revision_id, place_id)
+Ref: map_place_read_projection.(revision_id, place_id) > catalog_place_versions.(revision_id, place_id)
+Ref: map_place_category_projection.(revision_id, place_id) > catalog_place_versions.(revision_id, place_id)
+Ref: map_scope_count_projection.revision_id > catalog_dataset_revisions.id
+Ref: map_projection_publications.revision_id > catalog_dataset_revisions.id

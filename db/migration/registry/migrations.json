@@ -311,6 +311,15 @@
       "checksum": "admin-query-indexes-v035-20260929",
       "sha256": "e039841ff8458e634141f82679d2969b1bf2fc56ed9e29c16b99fbbc932ab1a6",
       "description": "Latest-version curation lookup index for admin API"
+    },
+    {
+      "version": "036",
+      "reservedFor": "MAP_INFO_READ_PROJECTIONS",
+      "issueNumber": 495,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V036__495_map_info_read_projections.sql",
+      "checksum": "map-info-read-projections-v036-20260929",
+      "sha256": "e312651f9433a12aab967f0b8fb7d29c3af2ca7162c3a52bf86ce1ff5c937e3a",
+      "description": "Information-mode map read projections, category mappings, scope counts, and publication metadata"
     }
   ]
 }

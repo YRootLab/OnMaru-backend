@@ -70,6 +70,15 @@ onmaru:
       page-size: ${ONMARU_DATALAB_VISITOR_PAGE_SIZE:100}
       sync:
         cron: "${ONMARU_DATALAB_VISITOR_SYNC_CRON:0 30 3 * * *}"
+  map:
+    info:
+      db-statement-timeout: "${ONMARU_MAP_INFO_DB_STATEMENT_TIMEOUT:1500ms}"
+      slow-query-threshold: "${ONMARU_MAP_INFO_SLOW_QUERY_THRESHOLD:500ms}"
+      stale-if-error: "${ONMARU_MAP_INFO_STALE_IF_ERROR:30s}"
+      api-timeout: "${ONMARU_MAP_INFO_API_TIMEOUT:2s}"
+      cache-ttl: "${ONMARU_MAP_INFO_CACHE_TTL:30s}"
+      profile-version: "${ONMARU_MAP_INFO_PROFILE_VERSION:map-zoom-v1}"
+      cache-max-entries: "${ONMARU_MAP_INFO_CACHE_MAX_ENTRIES:256}"
 
 management:
   otlp:

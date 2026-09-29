@@ -1,0 +1,32 @@
+{
+  "name": "map-info-viewport-partial",
+  "description": "A partially published category mapping is explicit and does not silently appear complete.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/info/viewport",
+    "query": {"bbox": "126.9,37.4,127.2,37.7", "zoomLevel": 6, "category": "ALL", "limit": 500}
+  },
+  "response": {
+    "status": 200,
+    "schema": "MapInfoViewportResponse",
+    "body": {
+      "schemaVersion": "1.0",
+      "renderMode": "CLUSTER",
+      "profileVersion": "map-zoom-v1",
+      "snapshot": {"id": "rev-20260929-001", "publishedAt": "2026-09-29T03:10:00Z", "status": "PUBLISHED"},
+      "totalCountInViewport": 320,
+      "items": [],
+      "appliedCategories": ["HANOK", "HISTORIC_SITE", "TRADITIONAL_FOOD", "HANOK_CAFE"],
+      "coverage": "PARTIAL",
+      "servedBbox": {"west": 126.825, "south": 37.325, "east": 127.275, "north": 37.775},
+      "projection": {
+        "projectionName": "map_info_projection",
+        "revisionId": "rev-20260929-001",
+        "publishedAt": "2026-09-29T03:10:00Z",
+        "checksum": "sha256:map-info-fixture-001",
+        "rowCount": 30000,
+        "mappingVersion": "map-category-v1"
+      }
+    }
+  }
+}
