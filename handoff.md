@@ -1,5 +1,15 @@
 # handoff.md
 
+## 2026-09-29 Issue #465 Spring API shard benchmark
+
+- **Branch**: `fix/465-spring-api-shard-benchmark`
+- **Related Issue**: [#465](https://github.com/YRootLab/OnMaru-backend/issues/465)
+- **Scope**: Spring API serial CI 병목을 네 개 shard로 분리하고 Toolkit matrix/fan-in, 동일 조건 전후 benchmark, monitoring evidence, 시각화 상세 보고서를 연결한다.
+- **Toolkit branch**: `YRootLab/OnMaru-backend-ci-toolkit` `fix/465-spring-api-shard-benchmark`
+- **Plan**: toolkit worktree `docs/superpowers/plans/2026-09-29-spring-api-shard-benchmark.md`
+- **Report target**: `docs/reports/2026-09-29-issue-465-spring-api-shard-benchmark.md`
+- **Baseline rule**: 같은 SHA·runner·cache·Java·명령 identity의 성공 실행 3회 중앙값을 공식 기준선으로 사용하며, 현재 과거 관측값은 참고값으로만 둔다.
+
 ## 2026-09-28 Issue #265 프론트엔드 OAuth 복귀
 
 - Branch: `fix/265-kakao-frontend-redirect`
