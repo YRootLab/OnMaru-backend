@@ -249,6 +249,23 @@ Query:
 
 `items.type`은 `REGION`, `DISTRICT`, `CLUSTER`, `PLACE` 중 하나다. aggregate item에는 `regionCode`, `name`, `count`, `center`, `bounds`, `categoryCounts`를 제공한다. cluster 클릭은 장소 상세가 아니라 해당 bounds fit 또는 region scope 재조회로 처리한다.
 
+### 5.2.1 지도 정보 밀도 정책
+
+FE는 장소명을 모든 줌에서 표시하지 않는다.
+
+- level 1~4: 선택·hover 장소명만 표시
+- level 5: 충돌하지 않는 label 최대 40개
+- level 6: singleton marker와 소형 cluster 혼합
+- level 7: count cluster 중심
+- level 8~9: 읍·면·동/생활권 집계
+- level 10: 시군구 집계
+- level 11~12: 시도·광역권 집계
+- level 13~14: 전국/광역권 요약
+
+하나의 viewport에서 시각 요소는 60개 이하를 목표로 하며, cluster count는 2~9, 10~49, 50~199, 200+ 구간으로 표시한다. 장소명 label 충돌 회피와 선택·hover 예외는 FE가 담당하고, BE는 `renderMode`, `count`, `bounds`, `targetZoomLevel`, `servedBbox`를 제공한다.
+
+cluster 또는 지역 aggregate 클릭은 즉시 목록을 펼치는 것이 아니라 bounds fit/zoom 이동 후 최종 idle에서 viewport를 한 번 조회한다. 왼쪽 목록은 사용자가 `이 지역 장소 보기` 또는 지역 cluster를 선택한 경우에만 전국 scope에서 지역 scope로 전환한다.
+
 ### 5.3 기존 API 호환
 
 - 기존 `/api/v1/map/places`, `/api/map/places`는 새 API 전환 동안 유지한다.

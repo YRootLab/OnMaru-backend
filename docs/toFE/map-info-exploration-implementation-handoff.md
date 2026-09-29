@@ -2,7 +2,7 @@
 
 ## 1. 목적
 
-상위 설계는 [공동 설계 스펙](../superpowers/specs/2026-09-29-map-info-exploration-design.md)이다.
+상위 설계는 [공동 설계 스펙](../superpowers/specs/2026-09-29-map-info-exploration-design-공통설계스팩.md)이다.
 
 현재 FE는 category가 선택되면 TourAPI를 여러 번 직접 호출하는 fallback 경로가 있다. 이번 변경에서는 정보모드 장소 조회를 BE API로 통일한다.
 
@@ -109,6 +109,76 @@ PLACE    개별 장소 marker
 | 6~7 | 지도 cluster |
 | 8~10 | 시군구·읍면동 집계 |
 | 11 이상 | 시도·광역권 집계 |
+
+## 3.2.1 지도 정보 밀도와 장소명 노출 정책
+
+Kakao MarkerClusterer와 Naver MarkerClustering의 공통 패턴을 적용한다. 두 SDK 모두 줌 구간, grid size, 최소 cluster size, count 구간별 스타일을 기준으로 marker를 묶는다. 따라서 모든 줌에서 장소명을 노출하지 않고 지도에서 읽을 수 있는 정보량을 일정하게 유지한다.
+
+### 줌 단계별 화면 규칙
+
+| Kakao level | 지도 표현 | 장소명 | 숫자/지역명 | 사용자 행동 |
+|---:|---|---|---|---|
+| 1~4 | 상세 장소 | 선택·hover 장소만 표시 | 표시하지 않음 | marker 클릭 → 상세 |
+| 5 | 장소 marker | 충돌하지 않는 최대 40개 | 표시하지 않음 | marker 클릭 → 상세 |
+| 6 | 혼합 marker/소형 cluster | singleton 또는 선택 장소만 | 2개 이상 cluster count | cluster 클릭 → 1~2단계 확대 |
+| 7 | 소형 cluster 중심 | 표시하지 않음 | cluster count | cluster 클릭 → child 범위 확대 |
+| 8~9 | 읍·면·동/생활권 집계 | 표시하지 않음 | 지역명 + 장소 수 | 지역 집계 클릭 → 지역 진입 |
+| 10 | 시군구 집계 | 표시하지 않음 | 시군구명 + 장소 수 | 시군구 클릭 → district scope |
+| 11~12 | 시도/광역권 집계 | 표시하지 않음 | 시도명 + 장소 수 | 시도 클릭 → 하위 지역 확대 |
+| 13~14 | 전국/광역권 요약 | 표시하지 않음 | 광역권 count | 광역권 클릭 → 확대 |
+
+### 장소명 표시 규칙
+
+- 영구 장소명 label은 Kakao level 5 이하에서만 허용한다.
+- level 5에서도 화면 안 label은 최대 40개다.
+- label 우선순위는 선택 장소, 현재 위치와 가까운 장소, 추천 장소, 나머지 장소 순이다.
+- label 간 화면 픽셀 거리가 44px 미만이면 우선순위가 낮은 label을 숨긴다.
+- level 6 이상에서는 기본적으로 장소명을 숨기고 category icon 또는 cluster count만 표시한다.
+- 선택·hover·검색 결과 장소는 줌과 무관하게 임시 label을 표시할 수 있다.
+- `ALL`에서는 중립 cluster를 사용하고, 내부 category 분포는 클릭 시 보여준다.
+- 단일 장소 cluster는 숫자 `1`을 표시하지 않고 장소 marker로 표시한다.
+
+### cluster count 시각 규칙
+
+| count | 표현 |
+|---:|---|
+| 2~9 | 작은 원형 count badge |
+| 10~49 | 중간 cluster badge |
+| 50~199 | 큰 cluster badge |
+| 200 이상 | 큰 badge + `200+` 축약 |
+
+`200+`는 200개 이상이라는 의미이며, 정확한 수는 왼쪽 목록의 `totalCount` 또는 cluster 상세에서 확인한다.
+
+### 지도 시각 요소 상한
+
+- 하나의 viewport에서 동시에 보이는 시각 요소는 기본 60개 이하를 목표로 한다.
+- 개별 marker가 60개를 초과하면 FE가 임의로 자르지 않고 BE cluster 응답으로 전환한다.
+- label은 별도로 최대 40개다.
+- cluster는 count 크기에 따라 3~4단계 스타일만 사용한다.
+- 로딩 중에는 기존 marker/cluster를 유지하고 새 응답 도착 후 cross-fade한다.
+
+### cluster 클릭 동작
+
+- cluster 클릭은 즉시 장소 목록을 펼치지 않는다.
+- FE는 cluster의 `bounds`로 fitBounds하거나 `targetZoomLevel`까지 1~2단계 확대한다.
+- 확대 애니메이션이 끝난 뒤 최종 `idle` 이벤트에서 viewport API를 1회 호출한다.
+- click handler와 idle handler가 중복 요청하지 않도록 동일 request key를 dedupe한다.
+- 지역 aggregate 클릭도 같은 방식으로 동작한다.
+
+### 지도와 왼쪽 목록의 분리
+
+- 지도 marker/cluster는 호출 억제 정책에 따라 갱신한다.
+- 왼쪽 목록은 category 전국 목록을 유지한다.
+- 사용자가 지역 cluster를 클릭하거나 `이 지역 장소 보기`를 선택할 때만 region scope 목록으로 전환한다.
+- region scope에 들어가면 제목과 breadcrumb을 `서울특별시 · 종로구 장소`처럼 변경한다.
+- `전국으로 돌아가기`를 누르면 전국 목록과 전국 지도 집계로 돌아간다.
+
+참고한 공식 SDK 패턴:
+
+- Kakao MarkerClusterer: `minLevel`, `gridSize`, `minClusterSize`, `calculator`, `disableClickZoom`
+  - https://apis.map.kakao.com/web/documentation/
+- Naver MarkerClustering: `maxZoom`, `minClusterSize`, `gridSize`, count 구간별 `indexGenerator`
+  - https://navermaps.github.io/maps.js.en/docs/tutorial-marker-cluster.example.html
 
 ## 3.3 초기 지도와 목록 범위 정책
 

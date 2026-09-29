@@ -2,7 +2,7 @@
 
 ## 1. 목적
 
-상위 설계는 [공동 설계 스펙](../superpowers/specs/2026-09-29-map-info-exploration-design.md)이다.
+상위 설계는 [공동 설계 스펙](../superpowers/specs/2026-09-29-map-info-exploration-design-공통설계스팩.md)이다.
 
 목표는 FE가 category마다 TourAPI를 직접 여러 번 호출하지 않고, BE가 게시된 canonical catalog snapshot을 집계·조회하도록 만드는 것이다.
 
@@ -149,6 +149,23 @@ BE는 viewport 이동 자체를 history나 cursor 상태로 저장하지 않는�
 - cluster ID는 snapshot·zoom·grid cell에 대해 deterministic해야 한다.
 - PLACE limit을 초과하면 임의의 일부 장소를 반환하지 말고 cluster 응답으로 전환한다.
 - 단순 위경도 반올림으로 시군구를 추정하지 않는다.
+
+### FE가 사용할 상세 zoom profile
+
+| Kakao level | BE renderMode | BE 응답 의도 |
+|---:|---|---|
+| 1~4 | PLACE | 상세 장소 중심 |
+| 5 | PLACE | 장소 marker, FE label 최대 40개 |
+| 6 | CLUSTER | singleton + 소형 cluster 혼합 |
+| 7 | CLUSTER | cluster count 중심 |
+| 8~9 | DISTRICT | 읍·면·동/생활권 집계 |
+| 10 | DISTRICT | 시군구 집계 |
+| 11~12 | REGION | 시도·광역권 집계 |
+| 13~14 | REGION | 전국·광역권 요약 |
+
+BE는 장소명 label을 직접 결정하지 않는다. label 최대 수, 충돌 회피, 선택·hover 예외는 FE 책임이다. BE는 FE가 전환을 결정할 수 있도록 `renderMode`, count, bounds, `targetZoomLevel`, `servedBbox`를 제공한다.
+
+cluster/region item의 `bounds`는 FE가 확대 범위를 계산하는 데 사용한다. cluster 클릭 후 FE가 지도 이동을 완료하면 최종 idle에서 한 번만 요청하며, BE는 동일 query key에 대해 idempotent cache 응답을 제공한다.
 
 ## 6. persistence·index
 
