@@ -14,7 +14,7 @@ public final class InMemoryMapInfoViewportStore implements MapInfoViewportStore 
                 "map_place_read_projection", snapshot.id(), Instant.EPOCH, "0".repeat(64), 0, "dev");
         return new MapInfoViewportResponse(
                 "1.0", renderMode(query.zoomLevel()), "map-zoom-v1", snapshot, 0,
-                List.of(), List.of(query.category().name()), "COMPLETE", query.bbox(), publication);
+                List.of(), MapInfoCategoryMapping.applied(query.category()), "COMPLETE", query.bbox(), publication);
     }
 
     private MapInfoRenderMode renderMode(int zoom) {

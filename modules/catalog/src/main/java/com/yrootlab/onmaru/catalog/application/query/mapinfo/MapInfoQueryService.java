@@ -57,7 +57,7 @@ public final class MapInfoQueryService {
         var queryWithSnapshot = new MapInfoListQuery(
                 normalized.category(), normalized.regionCode(), normalized.bbox(), normalized.cursor(),
                 snapshotId, normalized.language(), normalized.limit(), normalized.sort(), normalized.lat(), normalized.lng());
-        var queryCategories = normalized.category() == MapInfoCategory.ALL ? List.<String>of() : categories;
+        var queryCategories = MapInfoCategoryMapping.queryValues(normalized.category());
         var result = port.find(new MapInfoSqlQuery(
                 snapshotId, queryCategories, normalized.regionCode(), normalized.bbox(),
                 normalized.sort(), normalized.lat(), normalized.lng(), normalized.limit(), cursor, null));

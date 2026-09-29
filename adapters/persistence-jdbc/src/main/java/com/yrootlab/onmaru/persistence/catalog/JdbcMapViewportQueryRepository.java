@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.persistence.catalog;
 
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoBounds;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoCategory;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoCategoryMapping;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoPoint;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoProjectionPublication;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoRenderMode;
@@ -17,6 +18,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,9 +37,15 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
     private static final String PUBLICATION = "map_place_read_projection";
 
     private final DataSource dataSource;
+    private final Duration statementTimeout;
 
     public JdbcMapViewportQueryRepository(DataSource dataSource) {
+        this(dataSource, Duration.ofMillis(1500));
+    }
+
+    public JdbcMapViewportQueryRepository(DataSource dataSource, Duration statementTimeout) {
         this.dataSource = Objects.requireNonNull(dataSource);
+        this.statementTimeout = Objects.requireNonNull(statementTimeout);
     }
 
     @Override
@@ -45,6 +53,9 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
         var mode = mode(query.zoomLevel());
         try (var connection = dataSource.getConnection()) {
             connection.setReadOnly(true);
+            try (var timeout = connection.createStatement()) {
+                timeout.execute("SET statement_timeout = '" + statementTimeout.toMillis() + "ms'");
+            }
             var snapshot = snapshot(connection, query.snapshotId());
             var publication = publication(connection, snapshot.id());
             var total = totalCount(connection, snapshot.id(), query);
@@ -55,7 +66,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
             };
             return new MapInfoViewportResponse(
                     "1.0", mode, PROFILE_VERSION, snapshot, total, items,
-                    List.of(query.category().name()), "COMPLETE", query.bbox(), publication);
+                    MapInfoCategoryMapping.applied(query.category()), "COMPLETE", query.bbox(), publication);
         } catch (SQLException exception) {
             throw new IllegalStateException("failed to query map information viewport", exception);
         }
@@ -134,7 +145,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                       SELECT 1 FROM onmaru.map_place_category_projection category
                       WHERE category.revision_id = place.revision_id
                         AND category.place_id = place.place_id
-                        AND category.canonical_category = ?))
+                        AND category.canonical_category = ANY (?)))
                   AND (? IS NULL OR place.sido_code = ? OR place.sigungu_code = ?)
                 """;
         try (var statement = connection.prepareStatement(sql)) {
@@ -143,7 +154,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
             bindBbox(statement, i, query.bbox()); i += 4;
             bindBbox(statement, i, query.bbox()); i += 4;
             statement.setString(i++, query.category().name());
-            statement.setString(i++, query.category().name());
+            bindCategoryArray(connection, statement, i++, query);
             statement.setString(i++, query.regionCode());
             statement.setString(i++, query.regionCode());
             statement.setString(i, query.regionCode());
@@ -167,7 +178,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                       SELECT 1 FROM onmaru.map_place_category_projection category
                       WHERE category.revision_id = place.revision_id
                         AND category.place_id = place.place_id
-                        AND category.canonical_category = ?))
+                        AND category.canonical_category = ANY (?)))
                   AND (? IS NULL OR place.sido_code = ? OR place.sigungu_code = ?)
                 ORDER BY place.sort_key, place.place_id
                 LIMIT ?
@@ -179,7 +190,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
             bindBbox(statement, i, query.bbox()); i += 4;
             bindBbox(statement, i, query.bbox()); i += 4;
             statement.setString(i++, query.category().name());
-            statement.setString(i++, query.category().name());
+            bindCategoryArray(connection, statement, i++, query);
             statement.setString(i++, query.regionCode());
             statement.setString(i++, query.regionCode());
             statement.setString(i++, query.regionCode());
@@ -204,34 +215,35 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
         double cell = Math.max(width, height) / Math.max(4.0, Math.sqrt(query.limit()));
         var sql = """
                 WITH candidates AS (
-                    SELECT place.place_id, place.display_category, place.location_geom,
+                    SELECT place.place_id, category.canonical_category, place.location_geom,
                            floor((ST_X(place.location_geom) - ?) / ?) AS gx,
                            floor((ST_Y(place.location_geom) - ?) / ?) AS gy
                     FROM onmaru.map_place_read_projection place
+                    JOIN onmaru.map_place_category_projection category
+                      ON category.revision_id = place.revision_id
+                     AND category.place_id = place.place_id
                     WHERE place.revision_id = ?::uuid AND place.status = 'ACTIVE'
                       AND place.location_geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)
                       AND ST_Intersects(place.location_geom, ST_MakeEnvelope(?, ?, ?, ?, 4326))
-                      AND (? = 'ALL' OR EXISTS (
-                          SELECT 1 FROM onmaru.map_place_category_projection category
-                          WHERE category.revision_id = place.revision_id
-                            AND category.place_id = place.place_id
-                            AND category.canonical_category = ?))
+                      AND (? = 'ALL' OR category.canonical_category = ANY (?))
                       AND (? IS NULL OR place.sido_code = ? OR place.sigungu_code = ?)
                 ), grouped AS (
                     SELECT gx, gy, count(DISTINCT place_id) AS count,
                            ST_Centroid(ST_Collect(location_geom)) AS center,
                            ST_Envelope(ST_Extent(location_geom)) AS bounds
                     FROM candidates GROUP BY gx, gy
+                    ORDER BY gx, gy
+                    LIMIT ?
                 ), category_grouped AS (
-                    SELECT gx, gy, display_category, count(DISTINCT place_id) AS category_count
-                    FROM candidates GROUP BY gx, gy, display_category
+                    SELECT gx, gy, canonical_category, count(DISTINCT place_id) AS category_count
+                    FROM candidates GROUP BY gx, gy, canonical_category
                 )
                 SELECT grouped.gx, grouped.gy, grouped.count, ST_Y(grouped.center), ST_X(grouped.center),
                        ST_XMin(grouped.bounds), ST_YMin(grouped.bounds), ST_XMax(grouped.bounds), ST_YMax(grouped.bounds),
-                       category_grouped.display_category, category_grouped.category_count
+                       category_grouped.canonical_category, category_grouped.category_count
                 FROM grouped
                 JOIN category_grouped ON category_grouped.gx = grouped.gx AND category_grouped.gy = grouped.gy
-                ORDER BY grouped.gx, grouped.gy, category_grouped.display_category
+                ORDER BY grouped.gx, grouped.gy, category_grouped.canonical_category
                 """;
         var aggregates = new LinkedHashMap<String, ClusterAggregate>();
         try (var statement = connection.prepareStatement(sql)) {
@@ -241,9 +253,11 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
             statement.setString(i++, revisionId);
             bindBbox(statement, i, query.bbox()); i += 4;
             bindBbox(statement, i, query.bbox()); i += 4;
-            statement.setString(i++, query.category().name()); statement.setString(i++, query.category().name());
+            statement.setString(i++, query.category().name());
+            bindCategoryArray(connection, statement, i++, query);
             statement.setString(i++, query.regionCode()); statement.setString(i++, query.regionCode());
             statement.setString(i++, query.regionCode());
+            statement.setInt(i++, query.limit());
             try (var rows = statement.executeQuery()) {
                 while (rows.next()) {
                     int gx = rows.getInt(1), gy = rows.getInt(2);
@@ -259,7 +273,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                 }
             }
         }
-        return aggregates.values().stream().limit(query.limit()).map(aggregate -> new MapInfoViewportItem(
+        return aggregates.values().stream().map(aggregate -> new MapInfoViewportItem(
                 "CLUSTER", aggregate.id, null, aggregate.center, aggregate.bounds, aggregate.count,
                 aggregate.categoryCounts, targetZoomLevel(MapInfoRenderMode.CLUSTER), null, null, null)).toList();
     }
@@ -289,7 +303,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                       AND (? IS NULL OR region.code = ? OR EXISTS (
                           SELECT 1 FROM onmaru.catalog_regions parent
                           WHERE parent.id = region.parent_id AND parent.code = ?))
-                      AND (? = 'ALL' OR count_projection.canonical_category = ?)
+                      AND (? = 'ALL' OR count_projection.canonical_category = ANY (?))
                 )
                 SELECT code, name,
                        ST_Y(ST_Centroid(ST_Collect(geometry))), ST_X(ST_Centroid(ST_Collect(geometry))),
@@ -306,8 +320,9 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
             statement.setString(i++, scope); statement.setString(i++, revisionId);
             bindBbox(statement, i, query.bbox()); i += 4; bindBbox(statement, i, query.bbox()); i += 4;
             statement.setString(i++, query.regionCode()); statement.setString(i++, query.regionCode());
-            statement.setString(i++, query.regionCode()); statement.setString(i++, query.category().name());
+            statement.setString(i++, query.regionCode());
             statement.setString(i++, query.category().name());
+            bindCategoryArray(connection, statement, i++, query);
             try (var rows = statement.executeQuery()) {
                 while (rows.next()) {
                     var code = rows.getString(1);
@@ -332,6 +347,12 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
     private void bindBbox(PreparedStatement statement, int index, MapInfoBounds bbox) throws SQLException {
         statement.setDouble(index, bbox.west()); statement.setDouble(index + 1, bbox.south());
         statement.setDouble(index + 2, bbox.east()); statement.setDouble(index + 3, bbox.north());
+    }
+
+    private void bindCategoryArray(Connection connection, PreparedStatement statement, int index,
+                                   MapInfoViewportQuery query) throws SQLException {
+        var categories = MapInfoCategoryMapping.queryValues(query.category());
+        statement.setArray(index, connection.createArrayOf("varchar", categories.toArray(String[]::new)));
     }
 
     private static final class Aggregate {

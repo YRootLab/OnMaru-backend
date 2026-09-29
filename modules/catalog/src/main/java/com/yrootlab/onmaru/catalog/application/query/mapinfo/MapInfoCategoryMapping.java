@@ -10,7 +10,7 @@ public final class MapInfoCategoryMapping {
     public static final String VERSION = "map-category-v1";
 
     private static final Map<MapInfoCategory, List<String>> MAPPING = Map.ofEntries(
-            Map.entry(MapInfoCategory.SPOT, List.of("HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_VILLAGE", "GOTAek", "SPOT")),
+            Map.entry(MapInfoCategory.SPOT, List.of("HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_VILLAGE", "GOTAEK", "SPOT")),
             Map.entry(MapInfoCategory.EXPERIENCE, List.of("HANOK_EXPERIENCE", "LOCAL_SCENE", "EXPERIENCE")),
             Map.entry(MapInfoCategory.CULTURE, List.of("CULTURE", "CULTURE_ART", "CULTURAL_HERITAGE")),
             Map.entry(MapInfoCategory.FESTIVAL, List.of("FESTIVAL", "EVENT")),
@@ -19,12 +19,21 @@ public final class MapInfoCategoryMapping {
             Map.entry(MapInfoCategory.CAFE, List.of("HANOK_CAFE", "TEA_HOUSE", "CAFE", "COFFEE_SHOP")),
             Map.entry(MapInfoCategory.MARKET, List.of("TRADITIONAL_MARKET", "MARKET", "LOCAL_MARKET")));
 
+    private static final List<String> ALL_CATEGORIES = List.of(
+            "HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_VILLAGE", "GOTAEK", "SPOT",
+            "HANOK_EXPERIENCE", "LOCAL_SCENE", "EXPERIENCE",
+            "CULTURE", "CULTURAL_HERITAGE", "FESTIVAL", "EVENT",
+            "HANOK_STAY", "HANOK_HOTEL", "STAY",
+            "TRADITIONAL_FOOD", "KOREAN_RESTAURANT", "RESTAURANT", "FOOD",
+            "HANOK_CAFE", "TEA_HOUSE", "CAFE", "COFFEE_SHOP",
+            "TRADITIONAL_MARKET", "MARKET", "LOCAL_MARKET");
+
     private MapInfoCategoryMapping() {
     }
 
     public static List<String> applied(MapInfoCategory category) {
         if (category == null || category == MapInfoCategory.ALL) {
-            return MAPPING.values().stream().flatMap(List::stream).distinct().toList();
+            return ALL_CATEGORIES;
         }
         return MAPPING.getOrDefault(category, List.of(category.name())).stream().distinct().toList();
     }
@@ -32,4 +41,9 @@ public final class MapInfoCategoryMapping {
     public static String canonical(String value) {
         return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
     }
+
+    public static List<String> queryValues(MapInfoCategory category) {
+        return category == null || category == MapInfoCategory.ALL ? List.of() : List.of(category.name());
+    }
+
 }

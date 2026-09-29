@@ -233,6 +233,10 @@ publication 시 projection을 원자적으로 교체하고 row count/checksum을
 
 ## 7. 오류·cache·관측성
 
+구현 시 공개 projection 조회 port와 viewport store 앞에 snapshot-aware bounded in-memory cache를 둔다. 기본 TTL은 30초, 최대 엔트리는 256개이며 `MapInfoQuery`/`MapInfoViewportQuery` 전체가 cache key가 된다. snapshotId·category·region/bbox·zoom·language가 key에 포함되므로 publication revision이 바뀌면 이전 응답과 충돌하지 않는다. `savedByMe`는 이 public read cache에 저장하지 않고 조회 후 결합한다. Redis는 이후 다중 인스턴스 hit율 요구가 확인될 때 교체 가능한 운영 선택지다.
+
+기존 `/api/v1/map/places`, `/api/map/places`는 production에서 `MapInfoLegacyQueryAdapter`를 통해 동일한 projection SQL 경로를 사용하고 기존 응답 DTO로 변환한다. 따라서 FE #246 전환 기간에도 기존 호출이 원천 catalog 전체를 JVM으로 적재해 필터링하지 않는다. 기존 응답의 `linkedOdiiStoryIds`와 관측 availability는 신규 map projection에 없는 경우 빈 값/`MISSING`으로 유지하며, 신규 정보모드 API의 상세 계약은 `/api/v1/map/info/places`를 사용한다.
+
 - invalid category/bbox/zoom/limit: 400 INVALID_REQUEST
 - cursor snapshot 불일치: 409 SNAPSHOT_EXPIRED
 - active snapshot 없음: 503 CATALOG_UNAVAILABLE

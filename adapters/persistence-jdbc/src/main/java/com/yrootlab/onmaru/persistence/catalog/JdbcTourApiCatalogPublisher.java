@@ -841,7 +841,28 @@ public final class JdbcTourApiCatalogPublisher {
         try (var statement = connection.prepareStatement("""
                 INSERT INTO onmaru.map_place_category_projection
                     (revision_id, place_id, canonical_category)
-                SELECT revision_id, place_id, display_category
+                SELECT revision_id, place_id,
+                       CASE upper(display_category)
+                           WHEN 'HANOK' THEN 'SPOT'
+                           WHEN 'HISTORIC_SITE' THEN 'SPOT'
+                           WHEN 'CULTURE_ART' THEN 'CULTURE'
+                           WHEN 'HANOK_VILLAGE' THEN 'SPOT'
+                           WHEN 'GOTAEK' THEN 'SPOT'
+                           WHEN 'HANOK_EXPERIENCE' THEN 'EXPERIENCE'
+                           WHEN 'LOCAL_SCENE' THEN 'EXPERIENCE'
+                           WHEN 'HANOK_STAY' THEN 'STAY'
+                           WHEN 'HANOK_HOTEL' THEN 'STAY'
+                           WHEN 'TRADITIONAL_FOOD' THEN 'FOOD'
+                           WHEN 'KOREAN_RESTAURANT' THEN 'FOOD'
+                           WHEN 'RESTAURANT' THEN 'FOOD'
+                           WHEN 'HANOK_CAFE' THEN 'CAFE'
+                           WHEN 'TEA_HOUSE' THEN 'CAFE'
+                           WHEN 'COFFEE_SHOP' THEN 'CAFE'
+                           WHEN 'TRADITIONAL_MARKET' THEN 'MARKET'
+                           WHEN 'LOCAL_MARKET' THEN 'MARKET'
+                           WHEN 'EVENT' THEN 'FESTIVAL'
+                           ELSE upper(display_category)
+                       END
                 FROM onmaru.map_place_read_projection
                 WHERE revision_id = ?
                 ON CONFLICT (revision_id, place_id, canonical_category) DO NOTHING

@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,14 +17,23 @@ import java.util.Objects;
 public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort {
     private static final String DATASET = "kto-korean-tour";
     private final DataSource dataSource;
+    private final Duration statementTimeout;
 
     public JdbcMapInfoQueryRepository(DataSource dataSource) {
+        this(dataSource, Duration.ofMillis(1500));
+    }
+
+    public JdbcMapInfoQueryRepository(DataSource dataSource, Duration statementTimeout) {
         this.dataSource = Objects.requireNonNull(dataSource);
+        this.statementTimeout = Objects.requireNonNull(statementTimeout);
     }
 
     @Override
     public MapInfoQueryResult find(MapInfoSqlQuery query) {
         try (var connection = dataSource.getConnection()) {
+            try (var timeout = connection.createStatement()) {
+                timeout.execute("SET statement_timeout = '" + statementTimeout.toMillis() + "ms'");
+            }
             var snapshot = snapshot(connection, query.snapshotId());
             var publication = publication(connection, snapshot.id());
             var total = count(connection, query, snapshot.id());
