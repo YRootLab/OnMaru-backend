@@ -925,7 +925,7 @@ public final class JdbcTourApiCatalogPublisher {
         try (var statement = connection.prepareStatement("""
                 INSERT INTO onmaru.map_projection_publications
                     (revision_id, projection_name, mapping_version, row_count, checksum, published_at, status)
-                VALUES (?, 'map-info', 'map-category-v1', ?, ?, ?, 'PUBLISHED')
+                VALUES (?, 'map_place_read_projection', 'map-category-v1', ?, ?, ?, 'PUBLISHED')
                 """)) {
             statement.setObject(1, revisionId);
             statement.setInt(2, rowCount);
