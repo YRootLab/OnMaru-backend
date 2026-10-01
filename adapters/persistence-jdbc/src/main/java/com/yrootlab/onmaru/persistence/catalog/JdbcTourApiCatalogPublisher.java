@@ -800,7 +800,7 @@ public final class JdbcTourApiCatalogPublisher {
                        COALESCE(parent.code, raw.ldong_regn_cd),
                        CASE
                            WHEN region.level = 'SIGUNGU' THEN region.code
-                           ELSE NULLIF(concat_ws(':', raw.ldong_regn_cd, raw.ldong_signgu_cd), ':')
+                           ELSE NULLIF(concat_ws(':', raw.ldong_regn_cd, raw.ldong_signgu_cd), '')
                        END,
                        NULL,
                        version.category,
@@ -826,11 +826,6 @@ public final class JdbcTourApiCatalogPublisher {
                 WHERE version.revision_id = ?
                   AND version.status = 'ACTIVE'
                   AND version.location IS NOT NULL
-                  AND COALESCE(
-                        parent.code,
-                        raw.ldong_regn_cd,
-                        CASE WHEN region.level = 'SIDO' THEN region.code END
-                      ) IS NOT NULL
                 """)) {
             statement.setObject(1, revisionId);
             statement.executeUpdate();
@@ -969,20 +964,9 @@ public final class JdbcTourApiCatalogPublisher {
                      FROM onmaru.catalog_place_versions version
                      LEFT JOIN onmaru.catalog_place_public_ids public_id
                        ON public_id.place_id = version.place_id
-                     LEFT JOIN onmaru.catalog_place_sources source
-                       ON source.id = version.source_ref_id
-                     LEFT JOIN onmaru.catalog_kto_korean_content_versions raw
-                       ON raw.revision_id = version.revision_id
-                      AND raw.source_ref_id = version.source_ref_id
-                     LEFT JOIN onmaru.catalog_regions region
-                       ON region.id = version.region_id AND region.active
-                     LEFT JOIN onmaru.catalog_regions parent
-                       ON parent.id = region.parent_id AND parent.active
                      WHERE version.revision_id = ?
                        AND version.status = 'ACTIVE'
-                       AND (version.location IS NULL OR public_id.public_id IS NULL OR
-                            COALESCE(parent.code, raw.ldong_regn_cd,
-                                     CASE WHEN region.level = 'SIDO' THEN region.code END) IS NULL)
+                       AND (version.location IS NULL OR public_id.public_id IS NULL)
                     ) AS invalid_count
                 """)) {
             statement.setObject(1, revisionId);

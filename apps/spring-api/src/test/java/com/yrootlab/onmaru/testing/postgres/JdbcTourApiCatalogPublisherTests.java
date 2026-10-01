@@ -36,6 +36,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import javax.sql.DataSource;
 import java.sql.DriverManager;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -72,6 +73,62 @@ class JdbcTourApiCatalogPublisherTests {
                 .locations("classpath:db/migration/baseline")
                 .baselineOnMigrate(true).baselineVersion("0").load().migrate();
         dataSource = new DriverManagerDataSource(url(), "onmaru_test", "onmaru_test");
+    }
+
+    @Test
+    void publishesLocatedPlaceWhenRegionIsUnknown() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(row("unknown-region", "지역 미상 장소", "HANOK")));
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("UPDATE onmaru.catalog_place_versions SET region_id = NULL");
+            statement.executeUpdate("UPDATE onmaru.catalog_kto_korean_content_versions "
+                    + "SET ldong_regn_cd = NULL, ldong_signgu_cd = NULL");
+        }
+
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        assertThat(queryCount("onmaru.map_place_read_projection WHERE sido_code IS NULL AND sigungu_code IS NULL"))
+                .isEqualTo(1);
+        assertThat(queryCount("onmaru.map_projection_publications")).isEqualTo(1);
+    }
+
+    @Test
+    void backfillsAnOlderActiveRevisionWithoutRegionCodes() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(row("legacy-1", "지역 미상 장소", "HANOK")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("UPDATE onmaru.catalog_place_versions SET region_id = NULL");
+            statement.executeUpdate("UPDATE onmaru.catalog_kto_korean_content_versions "
+                    + "SET ldong_regn_cd = NULL, ldong_signgu_cd = NULL");
+            statement.executeUpdate("DELETE FROM onmaru.map_projection_publications");
+            statement.executeUpdate("DELETE FROM onmaru.map_scope_count_projection");
+            statement.executeUpdate("DELETE FROM onmaru.map_place_category_projection");
+            statement.executeUpdate("DELETE FROM onmaru.map_place_read_projection");
+
+            var resource = JdbcTourApiCatalogPublisherTests.class.getResourceAsStream(
+                    "/db/migration/baseline/V037__553_backfill_active_map_projection.sql");
+            assertThat(resource).isNotNull();
+            var migration = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
+            statement.execute(migration);
+            statement.execute(migration);
+        }
+
+        assertThat(queryCount("onmaru.map_place_read_projection")).isEqualTo(1);
+        assertThat(queryCount("onmaru.map_place_category_projection")).isEqualTo(1);
+        assertThat(queryCount("onmaru.map_projection_publications")).isEqualTo(1);
+        assertThat(queryCount("onmaru.map_place_read_projection WHERE sido_code IS NULL AND sigungu_code IS NULL"))
+                .isEqualTo(1);
+        var result = new JdbcMapInfoQueryRepository(dataSource).find(new MapInfoSqlQuery(
+                null, List.of(), null, null, "NAME", null, null, 10, null, null));
+        assertThat(result.items()).extracting(MapInfoPlaceItem::name).containsExactly("지역 미상 장소");
     }
 
     @Test
