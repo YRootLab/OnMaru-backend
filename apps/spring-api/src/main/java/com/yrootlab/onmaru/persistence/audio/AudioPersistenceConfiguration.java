@@ -4,7 +4,6 @@ import com.yrootlab.onmaru.audio.placelink.AudioPlaceLinkStore;
 import com.yrootlab.onmaru.audio.sync.AudioRevisionStore;
 import com.yrootlab.onmaru.observability.TelemetrySink;
 import com.yrootlab.onmaru.tourism.audio.JdbcAudioRevisionStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +29,6 @@ public class AudioPersistenceConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean(AudioPlaceLinkStore.class)
     AudioPlaceLinkStore jdbcAudioPlaceLinkStore(
             DataSource dataSource,

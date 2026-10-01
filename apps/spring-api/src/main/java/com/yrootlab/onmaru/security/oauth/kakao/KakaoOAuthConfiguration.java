@@ -12,7 +12,6 @@ import com.yrootlab.onmaru.identity.oauth.IdentityStore;
 import com.yrootlab.onmaru.identity.oauth.OAuthLoginService;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
 import com.yrootlab.onmaru.persistence.identity.JdbcIdentityStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -41,7 +40,6 @@ public class KakaoOAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     JdbcIdentityStore jdbcIdentityStore(DataSource dataSource) {
         return new JdbcIdentityStore(dataSource);
     }

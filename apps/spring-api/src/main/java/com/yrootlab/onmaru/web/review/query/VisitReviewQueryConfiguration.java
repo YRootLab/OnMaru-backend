@@ -32,7 +32,6 @@ import com.yrootlab.onmaru.persistence.admin.JdbcAdminDashboardReadStore;
 import com.yrootlab.onmaru.persistence.web.JdbcIdempotencyStore;
 import com.yrootlab.onmaru.persistence.insights.JdbcVisitorObservationStore;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.ObjectProvider;
@@ -69,14 +68,12 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     JdbcTransactionRunner jdbcTransactionRunner(DataSource dataSource) {
         return new JdbcTransactionRunner(dataSource);
     }
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean(CatalogPublicPlaceIdStore.class)
     CatalogPublicPlaceIdStore catalogPublicPlaceIdStore(DataSource dataSource) {
         return new JdbcCatalogPublicPlaceIdStore(dataSource);
@@ -84,7 +81,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean(MutableVisitReviewStore.class)
     MutableVisitReviewStore jdbcVisitReviewStore(
             DataSource dataSource,
@@ -109,7 +105,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     RegionVisitorCountLookup jdbcRegionVisitorCountLookup(DataSource dataSource) {
         return new JdbcVisitorObservationStore(dataSource);
     }
@@ -127,7 +122,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     ReviewReportStore jdbcReviewReportStore(
             DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
         return new JdbcReviewReportStore(dataSource, jdbcTransactionRunner);
@@ -162,7 +156,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     ModerationQueueReadStore jdbcModerationQueueReadStore(DataSource dataSource) {
         return new JdbcModerationQueueReadStore(dataSource);
     }
@@ -183,7 +176,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     AdminDashboardReadPort jdbcAdminDashboardReadPort(DataSource dataSource) {
         return new JdbcAdminDashboardReadStore(dataSource);
     }
@@ -219,7 +211,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     VisitReviewPlaceLookup jdbcVisitReviewPlaceLookup(DataSource dataSource) {
         return new JdbcVisitReviewPlaceLookup(dataSource);
     }
@@ -243,7 +234,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     IdempotencyService jdbcIdempotencyService(
             DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner, Clock clock) {
         return new IdempotencyService(new JdbcIdempotencyStore(dataSource, jdbcTransactionRunner), clock);
