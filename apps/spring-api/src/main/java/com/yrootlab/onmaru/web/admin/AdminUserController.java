@@ -3,6 +3,8 @@ package com.yrootlab.onmaru.web.admin;
 import com.yrootlab.onmaru.admin.auth.AdminAuthenticator;
 import com.yrootlab.onmaru.admin.users.AdminMember;
 import com.yrootlab.onmaru.admin.users.AdminMemberStore;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
+import com.yrootlab.onmaru.admin.pagination.AdminCursorCodec;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,10 +28,12 @@ public final class AdminUserController {
 
     private final AdminAuthenticator authenticator;
     private final AdminMemberStore memberStore;
+    private final AdminCursorCodec cursorCodec;
 
-    public AdminUserController(AdminAuthenticator authenticator, AdminMemberStore memberStore) {
+    public AdminUserController(AdminAuthenticator authenticator, AdminMemberStore memberStore, AdminCursorCodec cursorCodec) {
         this.authenticator = authenticator;
         this.memberStore = memberStore;
+        this.cursorCodec = cursorCodec;
     }
 
     @Operation(summary = "관리자 회원 목록 조회")
@@ -37,6 +41,7 @@ public final class AdminUserController {
     public ResponseEntity<?> users(
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor,
             @RequestHeader(name = "Authorization", required = false) String authorization,
             HttpServletRequest request) {
         try {
@@ -44,9 +49,24 @@ public final class AdminUserController {
             if (limit < 1 || limit > 100) {
                 throw new IllegalArgumentException();
             }
-            List<UserResponse> items = memberStore.find(status, limit).stream().map(UserResponse::from).toList();
-            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of(
-                    "schemaVersion", "1.0", "items", items, "hasNext", false));
+            if (cursor != null && cursor.length() > 512) throw new IllegalArgumentException();
+            String normalizedStatus = status == null || status.isBlank() ? "" : status.trim().toUpperCase();
+            if (!normalizedStatus.isEmpty() && !List.of("ACTIVE", "DELETING").contains(normalizedStatus)) {
+                throw new IllegalArgumentException();
+            }
+            AdminCursor decoded = cursorCodec.decodeOptional(cursor, "users", limit, "status=" + normalizedStatus);
+            var page = memberStore.findPage(normalizedStatus.isEmpty() ? null : normalizedStatus, limit, decoded);
+            List<UserResponse> items = page.items().stream().map(UserResponse::from).toList();
+            String nextCursor = page.hasNext() && !page.items().isEmpty()
+                    ? cursorCodec.encode(new AdminCursor("users", limit, "status=" + normalizedStatus,
+                            page.items().getLast().createdAt(), page.items().getLast().id()))
+                    : null;
+            Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("schemaVersion", "1.0");
+            response.put("items", items);
+            response.put("hasNext", page.hasNext());
+            if (nextCursor != null) response.put("nextCursor", nextCursor);
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (RuntimeException exception) {

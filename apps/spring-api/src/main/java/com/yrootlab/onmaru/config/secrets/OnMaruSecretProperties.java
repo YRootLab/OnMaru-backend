@@ -16,6 +16,7 @@ public class OnMaruSecretProperties {
             "gemini.api-key",
             "oauth.client-secret",
             "admin.jwt-signing-key",
+            "admin.cursor-signing-key",
             "otlp.exporter-token",
             "moderation.operator-token",
             "datalab.operations-token"));
