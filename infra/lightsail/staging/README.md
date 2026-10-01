@@ -10,6 +10,18 @@
 4. FE 개발자에게 **전용 SSH 공개키만** 받아 서버의 별도 임시 파일로 전달하고 `sudo staging/install-operator.sh /path/to/developer.pub`를 실행한다. 개인키나 운영 `.env`는 전달하지 않는다. 이 계정은 아래 세 명령만 실행할 수 있다.
 5. FE의 고정 스테이징 도메인 `https://staging.onmaru.site`를 Vercel Preview에 연결하고, 해당 배포의 `NEXT_PUBLIC_API_URL`을 `https://staging-api.onmaru.site`로 설정해 재배포한다. Kakao 개발자 설정에는 `https://staging-api.onmaru.site/auth/kakao/callback`을 추가한다. 운영 Vercel Production 설정은 유지한다.
 
+## 검증된 develop 이미지 반영 (운영자)
+
+스테이징을 중지한 상태에서만 새 이미지를 준비한다. GitHub Actions의 `Build Images and Optional Staging Deploy`를 `develop` ref로 수동 실행하며 `deploy_staging=true`를 선택한다. 이 작업은 같은 commit의 `CI / verify`, 이미지 취약점 검사, migration gate가 모두 통과한 뒤에만 진행된다. 이미지와 migration 파일을 해당 `develop` commit으로 맞추지만 스테이징 컨테이너는 시작하지 않는다. FE의 다음 `start`에서 Flyway와 Spring이 새 버전으로 기동한다.
+
+```bash
+gh workflow run deploy.yml --ref develop -f deploy_staging=true
+```
+
+최초 설정에는 GitHub `staging` 환경에 `STAGING_DEPLOY_SSH_KEY` secret과 `STAGING_SSH_KNOWN_HOSTS` variable이 필요하다. 운영자 개인 SSH 키를 GitHub에 올리지 않는다. CI 전용 Ed25519 키 쌍을 생성해 개인키만 GitHub 환경 secret에 등록하고, 서버에는 공개키만 전달해 `sudo staging/install-deployer.sh /path/to/ci.pub`를 실행한다. 설치 스크립트는 전용 계정에 배포 명령 하나만 허용하며, 일반 셸·운영 Compose 접근 권한을 주지 않는다. 서버 host key는 기존에 신뢰한 SSH 연결의 fingerprint와 대조한 뒤 GitHub variable에 고정한다. CI의 단기 GHCR token은 SSH 표준 입력으로만 전달되고 서버의 임시 Docker 인증 디렉터리는 이미지 pull 후 삭제된다.
+
+실행 중인 스테이징에 새 이미지를 적용하려 하면 배포가 실패하므로 FE가 테스트를 마치고 `stop`한 뒤 다시 실행한다. 배포 스크립트는 이전 이미지 참조를 `/var/lib/onmaru/staging-previous-image`에 보관한다. 배포 실패나 새 버전 기동 실패 시 운영자가 원인과 migration 호환성을 확인한 뒤 이전 이미지로 되돌린다. DB migration은 자동 역적용되지 않는다.
+
 ## FE 개발자의 사용법
 
 FE 팀에 전달할 짧은 절차는 [FE 스테이징 안내](../../../docs/operations/staging-fe-guide.md)에 정리했다.
@@ -30,4 +42,4 @@ ssh -i ~/.ssh/onmaru-staging onmaru-staging-operator@13.125.191.16 stop
 
 운영자는 첫 기동 시 Spring health, Flyway, 합성 장소 조회, CSRF, OAuth redirect, FE 로그인·쓰기·SSE 및 운영 health를 확인한다. `docker stats`와 `free -h`로 동시 실행 시 swap·메모리를 감시한다. 운영 상태가 흔들리면 즉시 `stop`을 실행한다.
 
-현재 `.github/workflows/deploy.yml`의 이름은 `Build Images and Optional Staging Smoke`이며 Lightsail 자동 배포는 하지 않는다. `develop` SHA 이미지 빌드·검증 후 스테이징 `.env`의 SHA 갱신, pull, 기동 검증은 별도 운영 작업이다. `STAGING_SPRING_URL`은 실제 staging API가 준비된 뒤 `https://staging-api.onmaru.site`로 바꾼다. 운영 URL로 우회하지 않는다. staging smoke는 FE 개발자가 서버를 켠 상태에서 workflow를 수동 실행할 때만 선택한다.
+현재 `.github/workflows/deploy.yml`은 `master` push에서 이미지를 빌드·검사하지만 Lightsail 운영 배포는 하지 않는다. `develop` 스테이징 이미지 반영은 위 수동 명령으로만 수행한다. `STAGING_SPRING_URL`은 `https://staging-api.onmaru.site`이며 운영 URL로 우회하지 않는다. 공개 staging smoke는 DNS/TLS가 준비되고 FE 개발자가 서버를 켠 상태에서 workflow를 수동 실행할 때만 `run_staging_smoke=true`로 선택한다. 이 smoke는 배포와 별도 실행한다.
