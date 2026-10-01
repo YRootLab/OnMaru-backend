@@ -1,0 +1,6 @@
+[Unit]
+Description=Stop the on-demand OnMaru staging containers
+
+[Service]
+Type=oneshot
+ExecStart=/opt/onmaru/staging-repo/infra/lightsail/staging/stop.sh --from-timer

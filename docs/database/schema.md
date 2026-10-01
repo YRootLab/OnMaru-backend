@@ -100,6 +100,9 @@
 // identity_admin_sessions에 저장하며, 후기/신고 변경은 기존 community moderation command와
 // 같은 transaction에서 audit row를 남긴다. curation override는 TourAPI 원천 행을 수정하지 않고
 // active Catalog projection에 별도로 적용한다.
+// V037은 V036보다 먼저 게시된 활성 TourAPI revision의 지도 장소·카테고리·지역 집계
+// projection 및 publication을 원천 장소 변경 없이 채운다. 지역 코드가 없는 장소도
+// 위치와 공개 ID가 있으면 지도 목록에 포함하고 지역 집계에서는 제외한다.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 
 // 에러 없이 시각화된 ERD(관계도)를 볼 수 있습니다.
 

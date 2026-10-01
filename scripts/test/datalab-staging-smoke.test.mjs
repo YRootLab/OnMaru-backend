@@ -17,8 +17,10 @@ describe('DataLab staging smoke contract', () => {
       '../../.github/workflows/datalab-staging-smoke.yml', import.meta.url,
     )), 'utf8');
 
-    assert.match(workflow, /ref:.*workflow_run\.head_sha/);
-    assert.match(workflow, /EXPECTED_DEPLOYED_SHA:.*workflow_run\.head_sha/);
+    assert.match(workflow, /workflow_dispatch:/);
+    assert.doesNotMatch(workflow, /workflow_run:/);
+    assert.match(workflow, /ref:.*github\.sha/);
+    assert.match(workflow, /EXPECTED_DEPLOYED_SHA:.*github\.sha/);
     assert.match(workflow, /keepsThePreviousActiveRevisionWhenStagingFails/);
     assert.match(workflow, /PRESERVATION_OUTCOME.*steps\.preservation\.outcome/);
   });
