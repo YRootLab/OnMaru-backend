@@ -52,7 +52,7 @@ public final class JdbcInsightsQueryStore implements InsightsQueryStore {
                            AVG(observation.visitor_count) FILTER (WHERE observation.visitor_type IN ('1', 'LOCAL')) AS local_count,
                            MAX(observation.coverage_status) AS coverage_status,
                            region.code, region.name, region.level::text AS level,
-                           parent.code AS parent_code,
+                           parent.code AS parent_code, parent.name AS parent_name,
                            region.id AS catalog_region_id
                     FROM onmaru.catalog_active_datasets active
                     JOIN onmaru.insights_visitor_observations observation
@@ -62,27 +62,45 @@ public final class JdbcInsightsQueryStore implements InsightsQueryStore {
                     WHERE active.dataset = 'kto-datalab-visitor'
                       AND region.level = 'SIGUNGU'
                     GROUP BY observation.revision_id, observation.region_id, observation.basis_date,
-                             region.id, region.code, region.name, region.level, parent.code
+                             region.id, region.code, region.name, region.level, parent.code, parent.name
                 ), active_observations AS (
                     SELECT regional_observations.*,
                            MAX(visitor_count) OVER () AS max_count,
                            AVG(local_count) OVER (PARTITION BY catalog_region_id) AS regional_local_count
                     FROM regional_observations
-                )
-                SELECT observation.*, center.latitude, center.longitude
-                FROM active_observations observation
-                JOIN LATERAL (
-                    SELECT AVG(ST_Y(version.location::geometry)) AS latitude,
-                           AVG(ST_X(version.location::geometry)) AS longitude
+                ), active_place_locations AS MATERIALIZED (
+                    SELECT version.region_id,
+                           split_part(btrim(version.address), ' ', 1) AS sido_name,
+                           split_part(btrim(version.address), ' ', 2) AS sigungu_name,
+                           ST_Y(version.location::geometry) AS latitude,
+                           ST_X(version.location::geometry) AS longitude
                     FROM onmaru.catalog_active_datasets catalog_active
                     JOIN onmaru.catalog_place_versions version
                       ON version.revision_id = catalog_active.revision_id
                     WHERE catalog_active.dataset = 'kto-korean-tour'
                       AND version.status = 'ACTIVE'
                       AND version.location IS NOT NULL
-                      AND (version.region_id = observation.region_id
-                           OR version.address LIKE '%' || observation.name || '%')
-                ) center ON center.latitude IS NOT NULL AND center.longitude IS NOT NULL
+                ), region_centers AS (
+                    SELECT region_id, AVG(latitude) AS latitude, AVG(longitude) AS longitude
+                    FROM active_place_locations
+                    WHERE region_id IS NOT NULL
+                    GROUP BY region_id
+                ), address_centers AS (
+                    SELECT sido_name, sigungu_name,
+                           AVG(latitude) AS latitude, AVG(longitude) AS longitude
+                    FROM active_place_locations
+                    WHERE sido_name <> '' AND sigungu_name <> ''
+                    GROUP BY sido_name, sigungu_name
+                )
+                SELECT observation.*,
+                       COALESCE(region_center.latitude, address_center.latitude) AS latitude,
+                       COALESCE(region_center.longitude, address_center.longitude) AS longitude
+                FROM active_observations observation
+                LEFT JOIN region_centers region_center ON region_center.region_id = observation.region_id
+                LEFT JOIN address_centers address_center
+                  ON address_center.sido_name = observation.parent_name
+                 AND address_center.sigungu_name = observation.name
+                WHERE COALESCE(region_center.latitude, address_center.latitude) IS NOT NULL
                 ORDER BY observation.basis_date DESC, observation.code
                 """); var result = statement.executeQuery()) {
             var items = new ArrayList<HeatSpot>();

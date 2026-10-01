@@ -107,6 +107,71 @@ class JdbcVisitorObservationStoreTests {
                 });
     }
 
+    @Test
+    void separatesSameNamedDistrictsByTheirParentRegion() throws Exception {
+        seedDataLabRegion("kr-datalab-11500", "서울특별시", "강서구");
+        seedDataLabRegion("kr-datalab-26440", "부산광역시", "강서구");
+        var store = new JdbcVisitorObservationStore(dataSource);
+        store.save(activeRevisionId, completeFor("kr-datalab-11500", 20_000L));
+        store.save(activeRevisionId, completeFor("kr-datalab-26440", 10_000L));
+        seedActiveCatalogPlace();
+        seedPlace("서울특별시 강서구 마곡중앙로 1", 126.83, 37.56);
+        seedPlace("부산광역시 강서구 명지오션시티로 1", 128.90, 35.10);
+
+        var spots = new JdbcInsightsQueryStore(dataSource).heatSpots();
+        assertThat(spots).filteredOn(spot -> spot.region().regionCode().equals("kr-datalab-11500"))
+                .singleElement().satisfies(spot -> {
+                    assertThat(spot.coordinates().lat()).isEqualTo(37.56);
+                    assertThat(spot.coordinates().lng()).isEqualTo(126.83);
+                });
+        assertThat(spots).filteredOn(spot -> spot.region().regionCode().equals("kr-datalab-26440"))
+                .singleElement().satisfies(spot -> {
+                    assertThat(spot.coordinates().lat()).isEqualTo(35.10);
+                    assertThat(spot.coordinates().lng()).isEqualTo(128.90);
+                });
+    }
+
+    private VisitorObservation completeFor(String regionCode, long value) {
+        return new VisitorObservation(
+                "KTO_DATALAB", regionCode, LocalDate.parse("2026-09-15"),
+                ObservationMetric.VISITOR_COUNT, value, "persons", SpatialLevel.SIGUNGU,
+                ObservationCoverageStatus.COMPLETE, Instant.parse("2026-09-16T00:00:00Z"));
+    }
+
+    private void seedDataLabRegion(String code, String parentName, String name) throws Exception {
+        UUID parentId = UUID.randomUUID();
+        UUID regionId = UUID.randomUUID();
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                    VALUES ('%s', NULL, '%s-parent', '%s', 'SIDO', true),
+                           ('%s', '%s', '%s', '%s', 'SIGUNGU', true)
+                    """.formatted(parentId, code, parentName, regionId, parentId, code, name));
+        }
+    }
+
+    private void seedPlace(String address, double lng, double lat) throws Exception {
+        UUID placeId = UUID.randomUUID();
+        UUID sourceId = UUID.randomUUID();
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.catalog_place_identity (id, created_at) VALUES ('%s', now());
+                    INSERT INTO onmaru.catalog_place_sources
+                        (id, place_id, provider, dataset, external_id, language, fetched_at)
+                    VALUES ('%s', '%s', 'KTO', 'kto-korean-tour', '%s', 'ko-KR', now());
+                    INSERT INTO onmaru.catalog_place_versions (
+                        revision_id, place_id, source_ref_id, name, category, address,
+                        location, visit_review_eligible, status, normalized_hash
+                    ) SELECT active.revision_id, '%s', '%s', '테스트 장소', 'HANOK', '%s',
+                             ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography,
+                             true, 'ACTIVE', '%s'
+                    FROM onmaru.catalog_active_datasets active
+                    WHERE active.dataset = 'kto-korean-tour'
+                    """.formatted(placeId, sourceId, placeId, sourceId, placeId, sourceId,
+                    address, lng, lat, sourceId));
+        }
+    }
+
     private VisitorObservation complete(String basisDate, long value) {
         return new VisitorObservation(
                 "KTO_DATALAB", "kr-45-jeonju", LocalDate.parse(basisDate),
