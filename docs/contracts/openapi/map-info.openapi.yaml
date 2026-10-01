@@ -1,0 +1,341 @@
+openapi: 3.1.0
+info:
+  title: OnMaru Map Information API
+  version: 1.0.0-draft
+  description: >-
+    Contract-first public read API for the information mode map. The endpoints
+    read a published catalog snapshot. Query, projection publication, and
+    render metadata are stable contracts; SQL/PostGIS implementations are
+    supplied by downstream issues.
+servers:
+  - url: /api/v1
+tags:
+  - name: Map information
+paths:
+  /map/info/places:
+    get:
+      tags: [Map information]
+      operationId: listMapInfoPlaces
+      summary: List information-mode places with keyset pagination.
+      parameters:
+        - $ref: '#/components/parameters/Category'
+        - $ref: '#/components/parameters/RegionCode'
+        - $ref: '#/components/parameters/Bbox'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/SnapshotId'
+        - $ref: '#/components/parameters/Language'
+        - $ref: '#/components/parameters/ListLimit'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [REGION_NAME, NAME, DISTANCE]
+            default: REGION_NAME
+        - name: lat
+          in: query
+          description: Required with lng when sort=DISTANCE.
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lng
+          in: query
+          description: Required with lat when sort=DISTANCE.
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+      responses:
+        '200':
+          description: Stable page from one published snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapInfoPlacePage'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '409':
+          $ref: '#/components/responses/SnapshotExpired'
+        '503':
+          $ref: '#/components/responses/CatalogUnavailable'
+  /map/info/viewport:
+    get:
+      tags: [Map information]
+      operationId: getMapInfoViewport
+      summary: Return places or geographic aggregates for a Kakao viewport.
+      parameters:
+        - $ref: '#/components/parameters/BboxRequired'
+        - name: zoomLevel
+          in: query
+          required: true
+          description: Kakao Map level; a smaller number means a closer view.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 14
+        - $ref: '#/components/parameters/Category'
+        - $ref: '#/components/parameters/RegionCode'
+        - $ref: '#/components/parameters/SnapshotId'
+        - $ref: '#/components/parameters/Language'
+        - $ref: '#/components/parameters/ViewportLimit'
+      responses:
+        '200':
+          description: Viewport items with a deterministic render mode.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapInfoViewportResponse'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '409':
+          $ref: '#/components/responses/SnapshotExpired'
+        '503':
+          $ref: '#/components/responses/CatalogUnavailable'
+components:
+  parameters:
+    Category:
+      name: category
+      in: query
+      schema:
+        type: string
+        enum: [ALL, SPOT, EXPERIENCE, CULTURE, FESTIVAL, STAY, FOOD, CAFE, MARKET]
+        default: ALL
+    RegionCode:
+      name: regionCode
+      in: query
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 32
+    Bbox:
+      name: bbox
+      in: query
+      description: west,south,east,north in WGS84 decimal degrees.
+      schema:
+        type: string
+        pattern: '^-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?$'
+    BboxRequired:
+      name: bbox
+      in: query
+      required: true
+      description: west,south,east,north in WGS84 decimal degrees.
+      schema:
+        type: string
+        pattern: '^-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?$'
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 2048
+    SnapshotId:
+      name: snapshotId
+      in: query
+      description: Pins pagination and viewport reads to a published snapshot.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    Language:
+      name: language
+      in: query
+      schema:
+        type: string
+        default: ko-KR
+    ListLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+    ViewportLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 500
+  responses:
+    InvalidRequest:
+      description: Invalid category, bbox, zoom, limit, or cursor input.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapInfoError'
+    SnapshotExpired:
+      description: Cursor or snapshot no longer refers to the active snapshot.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapInfoError'
+    CatalogUnavailable:
+      description: No usable published catalog projection is available.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapInfoError'
+  schemas:
+    MapInfoError:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, code, message, requestId]
+      properties:
+        schemaVersion: { type: string, const: '1.0' }
+        code: { type: string, enum: [INVALID_REQUEST, SNAPSHOT_EXPIRED, CATALOG_UNAVAILABLE] }
+        message: { type: string }
+        requestId: { type: string }
+        details: { type: object, additionalProperties: true }
+    MapInfoPoint:
+      type: object
+      additionalProperties: false
+      required: [lat, lng]
+      properties:
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+    MapInfoBounds:
+      type: object
+      additionalProperties: false
+      required: [west, south, east, north]
+      properties:
+        west: { type: number, minimum: -180, maximum: 180 }
+        south: { type: number, minimum: -90, maximum: 90 }
+        east: { type: number, minimum: -180, maximum: 180 }
+        north: { type: number, minimum: -90, maximum: 90 }
+    MapInfoSnapshot:
+      type: object
+      additionalProperties: false
+      required: [id, publishedAt, status]
+      properties:
+        id: { type: string }
+        publishedAt: { type: string, format: date-time }
+        status: { type: string, const: PUBLISHED }
+    MapInfoProjectionPublication:
+      type: object
+      additionalProperties: false
+      required: [projectionName, revisionId, publishedAt, checksum, rowCount, mappingVersion]
+      properties:
+        projectionName: { type: string, enum: [map_place_read_projection, map_info_projection] }
+        revisionId: { type: string }
+        publishedAt: { type: string, format: date-time }
+        checksum: { type: string, minLength: 1 }
+        rowCount: { type: integer, minimum: 0 }
+        mappingVersion: { type: string, minLength: 1 }
+    MapInfoPlaceItem:
+      type: object
+      additionalProperties: false
+      required: [placeId, name, displayCategory, matchedCategories, region, coordinates, thumbnailUrl, summary, savedByMe]
+      properties:
+        placeId: { type: string, pattern: '^p-[a-z0-9-]{3,80}$' }
+        name: { type: string }
+        displayCategory: { type: string }
+        matchedCategories:
+          type: array
+          minItems: 1
+          items: { type: string }
+        region:
+          type: object
+          additionalProperties: false
+          required: [regionCode, name]
+          properties:
+            regionCode: { type: string }
+            name: { type: string }
+        coordinates: { $ref: '#/components/schemas/MapInfoPoint' }
+        thumbnailUrl: { type: [string, 'null'], format: uri }
+        summary: { type: string }
+        savedByMe: { type: boolean }
+    MapInfoListQuery:
+      type: object
+      additionalProperties: false
+      required: [category, language, limit, sort]
+      properties:
+        category: { type: string }
+        regionCode: { type: [string, 'null'] }
+        bbox: { anyOf: [{ $ref: '#/components/schemas/MapInfoBounds' }, { type: 'null' }] }
+        cursor: { type: [string, 'null'] }
+        snapshotId: { type: [string, 'null'] }
+        language: { type: string }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        sort: { type: string, enum: [REGION_NAME, NAME, DISTANCE] }
+        lat: { type: [number, 'null'], minimum: -90, maximum: 90 }
+        lng: { type: [number, 'null'], minimum: -180, maximum: 180 }
+    MapInfoPlacePage:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, query, snapshot, totalCount, items, nextCursor, appliedCategories, coverage, projection]
+      properties:
+        schemaVersion: { type: string, const: '1.0' }
+        query: { $ref: '#/components/schemas/MapInfoListQuery' }
+        snapshot: { $ref: '#/components/schemas/MapInfoSnapshot' }
+        totalCount: { type: integer, minimum: 0 }
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/MapInfoPlaceItem' }
+        nextCursor: { type: [string, 'null'] }
+        appliedCategories:
+          type: array
+          items: { type: string }
+        coverage: { type: string, enum: [COMPLETE, PARTIAL, STALE] }
+        projection: { $ref: '#/components/schemas/MapInfoProjectionPublication' }
+    MapInfoCategoryCounts:
+      type: object
+      additionalProperties: { type: integer, minimum: 0 }
+    MapInfoViewportItem:
+      oneOf:
+        - $ref: '#/components/schemas/MapInfoPlaceViewportItem'
+        - $ref: '#/components/schemas/MapInfoAggregateViewportItem'
+      discriminator:
+        propertyName: type
+    MapInfoPlaceViewportItem:
+      type: object
+      additionalProperties: false
+      required: [type, id, center, count, categoryCounts, targetZoomLevel, placeId, name, displayCategory]
+      properties:
+        type: { type: string, const: PLACE }
+        id: { type: string }
+        name: { type: string }
+        center: { $ref: '#/components/schemas/MapInfoPoint' }
+        bounds: { type: [object, 'null'] }
+        count: { type: integer, const: 1 }
+        categoryCounts: { $ref: '#/components/schemas/MapInfoCategoryCounts' }
+        targetZoomLevel: { type: integer, minimum: 1, maximum: 14 }
+        placeId: { type: string }
+        displayCategory: { type: string }
+    MapInfoAggregateViewportItem:
+      type: object
+      additionalProperties: false
+      required: [type, id, center, bounds, count, categoryCounts, targetZoomLevel]
+      properties:
+        type: { type: string, enum: [CLUSTER, DISTRICT, REGION] }
+        id: { type: string }
+        name: { type: string }
+        center: { $ref: '#/components/schemas/MapInfoPoint' }
+        bounds: { $ref: '#/components/schemas/MapInfoBounds' }
+        count: { type: integer, minimum: 0 }
+        categoryCounts: { $ref: '#/components/schemas/MapInfoCategoryCounts' }
+        targetZoomLevel: { type: integer, minimum: 1, maximum: 14 }
+        regionCode: { type: string }
+    MapInfoViewportResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, renderMode, profileVersion, snapshot, totalCountInViewport, items, appliedCategories, coverage, servedBbox, projection]
+      properties:
+        schemaVersion: { type: string, const: '1.0' }
+        renderMode: { type: string, enum: [PLACE, CLUSTER, DISTRICT, REGION] }
+        profileVersion: { type: string, const: map-zoom-v1 }
+        snapshot: { $ref: '#/components/schemas/MapInfoSnapshot' }
+        totalCountInViewport: { type: integer, minimum: 0 }
+        items:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/MapInfoViewportItem' }
+        appliedCategories:
+          type: array
+          items: { type: string }
+        coverage: { type: string, enum: [COMPLETE, PARTIAL, STALE] }
+        servedBbox: { $ref: '#/components/schemas/MapInfoBounds' }
+        projection: { $ref: '#/components/schemas/MapInfoProjectionPublication' }

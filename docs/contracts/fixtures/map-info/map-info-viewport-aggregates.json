@@ -1,0 +1,55 @@
+{
+  "name": "map-info-viewport-aggregates",
+  "description": "Wide views return deterministic geographic aggregates with center, bounds, total count, category counts, and target zoom.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/info/viewport",
+    "query": {"bbox": "126.0,34.0,129.5,38.6", "zoomLevel": 9, "category": "ALL", "limit": 500}
+  },
+  "response": {
+    "status": 200,
+    "schema": "MapInfoViewportResponse",
+    "body": {
+      "schemaVersion": "1.0",
+      "renderMode": "DISTRICT",
+      "profileVersion": "map-zoom-v1",
+      "snapshot": {"id": "rev-20260929-001", "publishedAt": "2026-09-29T03:10:00Z", "status": "PUBLISHED"},
+      "totalCountInViewport": 30000,
+      "items": [
+        {
+          "type": "DISTRICT",
+          "id": "district-kr-11-jongno",
+          "name": "서울 종로구",
+          "center": {"lat": 37.5948, "lng": 126.977},
+          "bounds": {"west": 126.94, "south": 37.56, "east": 127.02, "north": 37.65},
+          "count": 483,
+          "categoryCounts": {"SPOT": 220, "CULTURE": 90, "STAY": 40, "FOOD": 80, "CAFE": 43, "MARKET": 10},
+          "targetZoomLevel": 8,
+          "regionCode": "kr-11-jongno"
+        },
+        {
+          "type": "REGION",
+          "id": "region-kr-45",
+          "name": "전북특별자치도",
+          "center": {"lat": 35.72, "lng": 127.15},
+          "bounds": {"west": 126.3, "south": 35.0, "east": 127.9, "north": 36.2},
+          "count": 2100,
+          "categoryCounts": {"SPOT": 1100, "CULTURE": 400, "STAY": 200, "FOOD": 180, "CAFE": 120, "MARKET": 100},
+          "targetZoomLevel": 11,
+          "regionCode": "kr-45"
+        }
+      ],
+      "appliedCategories": ["HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_STAY", "TRADITIONAL_FOOD", "HANOK_CAFE", "TRADITIONAL_MARKET"],
+      "coverage": "COMPLETE",
+      "servedBbox": {"west": 125.125, "south": 32.85, "east": 130.375, "north": 39.75},
+      "projection": {
+        "projectionName": "map_info_projection",
+        "revisionId": "rev-20260929-001",
+        "publishedAt": "2026-09-29T03:10:00Z",
+        "checksum": "sha256:map-info-fixture-001",
+        "rowCount": 30000,
+        "mappingVersion": "map-category-v1"
+      }
+    }
+  }
+}

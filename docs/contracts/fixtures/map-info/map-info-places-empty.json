@@ -1,0 +1,42 @@
+{
+  "name": "map-info-places-empty",
+  "description": "A valid information-mode list can return no public places without conflating it with an unavailable catalog.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/info/places",
+    "query": {"category": "CAFE", "regionCode": "kr-46-muju", "limit": 30}
+  },
+  "response": {
+    "status": 200,
+    "schema": "MapInfoPlacePage",
+    "body": {
+      "schemaVersion": "1.0",
+      "query": {
+        "category": "CAFE",
+        "regionCode": "kr-46-muju",
+        "bbox": null,
+        "cursor": null,
+        "snapshotId": "rev-20260929-001",
+        "language": "ko-KR",
+        "limit": 30,
+        "sort": "REGION_NAME",
+        "lat": null,
+        "lng": null
+      },
+      "snapshot": {"id": "rev-20260929-001", "publishedAt": "2026-09-29T03:10:00Z", "status": "PUBLISHED"},
+      "totalCount": 0,
+      "items": [],
+      "nextCursor": null,
+      "appliedCategories": ["HANOK_CAFE", "TRADITIONAL_TEA"],
+      "coverage": "COMPLETE",
+      "projection": {
+        "projectionName": "map_place_read_projection",
+        "revisionId": "rev-20260929-001",
+        "publishedAt": "2026-09-29T03:10:00Z",
+        "checksum": "sha256:map-info-fixture-001",
+        "rowCount": 30000,
+        "mappingVersion": "map-category-v1"
+      }
+    }
+  }
+}

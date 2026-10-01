@@ -66,6 +66,22 @@ class InsightsWebBoundaryTests {
     }
 
     @Test
+    void heatmapAcceptsFrontendVisitCountMetricAndReturnsDerivedMetadata() throws Exception {
+        mockMvc.perform(get("/api/v1/insights/heatmap")
+                        .param("regionCode", "kr-45-jeonju")
+                        .param("date", "2026-09-14")
+                        .param("metric", "VISIT_COUNT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.metric").value("VISIT_COUNT"))
+                .andExpect(jsonPath("$.origin").value("DERIVED_INDEX"))
+                .andExpect(jsonPath("$.spatialLevel").value("SIGUNGU"))
+                .andExpect(jsonPath("$.observedFrom").value("2026-09-14"))
+                .andExpect(jsonPath("$.observedTo").value("2026-09-14"))
+                .andExpect(jsonPath("$.methodologyVersion").value("warmth-v2"))
+                .andExpect(jsonPath("$.spots").isNotEmpty());
+    }
+
+    @Test
     void mapHeatPathReturnsTheFrontendViewportContract() throws Exception {
         mockMvc.perform(get("/api/map/heat")
                         .param("lat", "35.8151")

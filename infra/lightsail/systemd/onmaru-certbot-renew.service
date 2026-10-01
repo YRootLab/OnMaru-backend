@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew the OnMaru Lightsail TLS certificate and reload Nginx
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/onmaru/infra/lightsail
+ExecStart=/opt/onmaru/infra/lightsail/renew-certificates.sh

@@ -1,5 +1,27 @@
 # Runtime and reliability
 
+## Odii sync 운영 확인 (#382)
+
+로그에서 `ODII_SYNC_STARTED`의 `runId`를 찾고 같은 ID의 `ODII_SYNC_PHASE` 및 `ODII_SYNC_TERMINAL`을 확인한다. `reason=MISSING_COMPONENT`이면 로그의 boolean으로 누락된 wiring을 확인하고, `reason=LEASE_NOT_ACQUIRED`이면 다른 owner의 lease 만료 시각을 확인한다. 실패 로그에는 upstream 예외 메시지를 기록하지 않으며 `phase`와 exception type만 남긴다.
+
+Neon에서 최근 실행 이력과 게시 revision을 읽을 때는 다음 read-only SQL을 사용한다.
+
+```sql
+SELECT id, dataset, status, revision_id, started_at, finished_at, error_code, counts
+FROM onmaru.operations_sync_runs
+WHERE dataset = 'odii-audio'
+ORDER BY COALESCE(started_at, scheduled_for) DESC, id DESC
+LIMIT 20;
+
+SELECT active.dataset, active.revision_id, count(story.id) AS active_story_count
+FROM onmaru.catalog_active_datasets active
+LEFT JOIN onmaru.audio_story_versions story ON story.revision_id = active.revision_id
+WHERE active.dataset = 'odii-audio'
+GROUP BY active.dataset, active.revision_id;
+```
+
+복구 성공은 운영 `GET /api/v1/home/trending-sounds?language=ko-KR&limit=5`가 200이고, 활성 `odii-audio` revision과 story가 존재하는 경우로 판정한다. 이 로그 계측은 startup/cron scheduler 실행을 대상으로 하며, scheduler 외부에서 직접 호출한 sync의 run 이력 저장을 대신하지 않는다.
+
 2026-09-11 개선안. 다음 값은 단일 Spring 인스턴스·작은 pilot 대상의 **초기 상한 설정**이며 실제 무료 상품이 이를 제공한다는 뜻이 아니다. 호스팅 memory/DB limit을 확인해 더 낮출 수 있고, 부하 시험 전 처리량을 보장하지 않는다.
 
 ## HTTP, SSE, snapshot 복구를 기능에 맞춰 구분한다

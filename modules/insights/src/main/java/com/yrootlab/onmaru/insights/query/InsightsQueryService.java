@@ -33,9 +33,12 @@ public final class InsightsQueryService {
     }
 
     public HeatmapResponse heatmap(String regionCode, LocalDate observedDate, String metric) {
+        String requestedMetric = metric == null ? "CONGESTION_SCORE" : metric;
+        String storedMetric = "VISIT_COUNT".equals(requestedMetric)
+                ? "CONGESTION_SCORE" : requestedMetric;
         List<HeatSpot> candidates = store.heatSpots().stream()
                 .filter(spot -> regionCode == null || spot.region().regionCode().equals(regionCode))
-                .filter(spot -> metric == null || spot.metric().equals(metric))
+                .filter(spot -> spot.metric().equals(storedMetric))
                 .toList();
         LocalDate resolvedDate = observedDate == null
                 ? candidates.stream().map(HeatSpot::observedDate).max(LocalDate::compareTo)
@@ -45,18 +48,25 @@ public final class InsightsQueryService {
                 .filter(spot -> spot.observedDate().equals(resolvedDate))
                 .sorted(Comparator.comparing(HeatSpot::id))
                 .toList();
-        String resolvedMetric = metric == null ? "CONGESTION_SCORE" : metric;
-        return new HeatmapResponse(SCHEMA_VERSION, aggregateCoverage(spots), resolvedMetric, resolvedDate, clock.instant(), spots);
+        return new HeatmapResponse(SCHEMA_VERSION, aggregateCoverage(spots), requestedMetric,
+                resolvedDate, clock.instant(), spots, "DERIVED_INDEX", "SIGUNGU",
+                resolvedDate, resolvedDate, "warmth-v2");
     }
 
     public MapHeatResponse mapHeat(double lat, double lng, double radiusMeters) {
+        return mapHeat(lat, lng, 7, radiusMeters);
+    }
+
+    public MapHeatResponse mapHeat(double lat, double lng, int level, double radiusMeters) {
+        double effectiveRadius = Math.max(radiusMeters, level <= 5 ? 5_000.0 : 15_000.0);
         List<HeatSpot> candidates = store.heatSpots().stream()
                 .filter(this::hasCompleteHeatValues)
-                .filter(spot -> distanceMeters(lat, lng, spot.coordinates().lat(), spot.coordinates().lng()) <= radiusMeters)
+                .filter(spot -> distanceMeters(lat, lng, spot.coordinates().lat(), spot.coordinates().lng()) <= effectiveRadius)
                 .sorted(Comparator.comparing(HeatSpot::observedDate))
                 .toList();
         if (candidates.isEmpty()) {
-            return new MapHeatResponse(List.of(), List.of(), 0, clock.instant());
+            return new MapHeatResponse(List.of(), List.of(), 0, clock.instant(),
+                    "DERIVED_INDEX", "MISSING", "SIGUNGU", null, null, "warmth-v2");
         }
 
         Map<String, List<HeatSpot>> seriesByPlace = candidates.stream()
@@ -77,7 +87,11 @@ public final class InsightsQueryService {
                 .map(series -> toMapHeatSpot(series, dates, generatedAt))
                 .sorted(Comparator.comparing(MapHeatSpot::id))
                 .toList();
-        return new MapHeatResponse(spots, days, spots.size(), generatedAt);
+        LocalDate observedFrom = dates.stream().min(LocalDate::compareTo).orElse(null);
+        LocalDate observedTo = dates.stream().max(LocalDate::compareTo).orElse(null);
+        return new MapHeatResponse(spots, days, spots.size(), generatedAt,
+                "DERIVED_INDEX", aggregateCoverage(candidates), "SIGUNGU",
+                observedFrom, observedTo, "warmth-v2");
     }
 
     private MapHeatSpot toMapHeatSpot(List<HeatSpot> series, List<LocalDate> dates, java.time.Instant generatedAt) {

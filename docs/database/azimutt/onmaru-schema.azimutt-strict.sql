@@ -125,6 +125,51 @@ CREATE TABLE "catalog_place_versions" (
   PRIMARY KEY ("revision_id", "place_id")
 );
 
+CREATE TABLE "map_place_read_projection" (
+  "revision_id" varchar(36) NOT NULL,
+  "place_id" varchar(36) NOT NULL,
+  "public_id" varchar NOT NULL,
+  "name" varchar NOT NULL,
+  "normalized_name" varchar NOT NULL,
+  "status" varchar(32) NOT NULL,
+  "location_geom" text NOT NULL,
+  "sido_code" varchar,
+  "sigungu_code" varchar,
+  "eupmyeondong_code" varchar,
+  "display_category" varchar NOT NULL,
+  "thumbnail_url" text,
+  "summary" text,
+  "sort_key" varchar NOT NULL,
+  PRIMARY KEY ("revision_id", "place_id")
+);
+
+CREATE TABLE "map_place_category_projection" (
+  "revision_id" varchar(36) NOT NULL,
+  "place_id" varchar(36) NOT NULL,
+  "canonical_category" varchar NOT NULL,
+  PRIMARY KEY ("revision_id", "place_id", "canonical_category")
+);
+
+CREATE TABLE "map_scope_count_projection" (
+  "revision_id" varchar(36) NOT NULL,
+  "scope_type" varchar NOT NULL,
+  "region_code" varchar NOT NULL,
+  "canonical_category" varchar NOT NULL,
+  "place_count" int NOT NULL,
+  PRIMARY KEY ("revision_id", "scope_type", "region_code", "canonical_category")
+);
+
+CREATE TABLE "map_projection_publications" (
+  "revision_id" varchar(36) NOT NULL,
+  "projection_name" varchar NOT NULL,
+  "mapping_version" varchar NOT NULL,
+  "row_count" int NOT NULL,
+  "checksum" varchar NOT NULL,
+  "published_at" timestamp NOT NULL,
+  "status" varchar(32) NOT NULL,
+  PRIMARY KEY ("revision_id", "projection_name")
+);
+
 CREATE TABLE "catalog_kto_korean_content_versions" (
   "revision_id" varchar(36) NOT NULL,
   "source_ref_id" varchar(36) NOT NULL,
@@ -737,6 +782,14 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
+
+
+
+
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -847,6 +900,14 @@ ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("place_id") REFEREN
 ALTER TABLE "catalog_hanok_detail_versions" ADD FOREIGN KEY ("source_ref_id") REFERENCES "catalog_place_sources" ("id");
 
 ALTER TABLE "catalog_place_content_tag_versions" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id");
+
+ALTER TABLE "map_place_read_projection" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id");
+
+ALTER TABLE "map_place_category_projection" ADD FOREIGN KEY ("revision_id", "place_id") REFERENCES "catalog_place_versions" ("revision_id", "place_id");
+
+ALTER TABLE "map_scope_count_projection" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
+
+ALTER TABLE "map_projection_publications" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
 
 ALTER TABLE "audio_odii_stories" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id");
 
