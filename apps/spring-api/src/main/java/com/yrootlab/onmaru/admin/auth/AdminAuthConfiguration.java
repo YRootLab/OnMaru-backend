@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.admin.auth;
 
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
+import com.yrootlab.onmaru.admin.pagination.AdminCursorCodec;
 import com.yrootlab.onmaru.persistence.admin.JdbcAdminAccountStore;
 import com.yrootlab.onmaru.admin.users.AdminMemberStore;
 import com.yrootlab.onmaru.admin.users.InMemoryAdminMemberStore;
@@ -64,6 +65,11 @@ public class AdminAuthConfiguration {
                 "onmaru-admin-web",
                 Duration.ofMinutes(15),
                 clock, revokedJtis);
+    }
+
+    @Bean
+    AdminCursorCodec adminCursorCodec(SecretProvider secrets, Clock clock) {
+        return new AdminCursorCodec(secrets, "admin.cursor-signing-key", clock);
     }
 
     @Bean

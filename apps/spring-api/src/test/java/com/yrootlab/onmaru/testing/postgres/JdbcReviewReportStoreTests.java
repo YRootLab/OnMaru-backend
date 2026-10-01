@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.testing.postgres;
 
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
 import com.yrootlab.onmaru.community.moderation.ModerationAction;
 import com.yrootlab.onmaru.community.moderation.ModerationActorType;
 import com.yrootlab.onmaru.community.moderation.ModerationReason;
@@ -47,6 +48,63 @@ class JdbcReviewReportStoreTests {
         assertThat(reloaded.auditLog()).containsExactly(action);
         reloaded.closeOpenReports(reviewId, ReviewReportStatus.RESOLVED);
         assertThat(new JdbcReviewReportStore(dataSource).openReports()).isEmpty();
+    }
+    @Test void openReportPagesKeepSameTimestampRowsWithoutDuplicates() throws Exception {
+        var store = new JdbcReviewReportStore(dataSource);
+        var at = Instant.parse("2026-09-25T00:00:00Z");
+        for (int suffix = 1; suffix <= 4; suffix++) {
+            UUID reporter = suffix == 1 ? reporterId : new UUID(1, suffix);
+            if (suffix > 1) {
+                try (var connection = dataSource.getConnection();
+                     var statement = connection.prepareStatement(
+                             "INSERT INTO onmaru.identity_members (id,status,created_at) VALUES (?, 'ACTIVE', ?)")) {
+                    statement.setObject(1, reporter);
+                    statement.setObject(2, OffsetDateTime.ofInstant(at, ZoneOffset.UTC));
+                    statement.executeUpdate();
+                }
+            }
+            store.saveOrFindOpen(new ReviewReport(new UUID(0, suffix), reviewId, reporter,
+                    ReviewReportReason.SPAM, "신고", ReviewReportStatus.OPEN, at));
+        }
+
+        var first = store.openReportsPage(2, null);
+        assertThat(first.items()).extracting(ReviewReport::reportId)
+                .containsExactly(new UUID(0, 4), new UUID(0, 3));
+        assertThat(first.hasNext()).isTrue();
+        var last = first.items().getLast();
+        var second = store.openReportsPage(2,
+                new AdminCursor("reports", 2, "status=OPEN", last.createdAt(), last.reportId()));
+        assertThat(second.items()).extracting(ReviewReport::reportId)
+                .containsExactly(new UUID(0, 2), new UUID(0, 1));
+        assertThat(second.hasNext()).isFalse();
+    }
+    @Test void reportReasonFilterKeepsTheCursorWithinMatchingRows() throws Exception {
+        var store = new JdbcReviewReportStore(dataSource);
+        var at = Instant.parse("2026-09-25T00:00:00Z");
+        for (int suffix = 1; suffix <= 3; suffix++) {
+            UUID reporter = suffix == 1 ? reporterId : new UUID(1, suffix);
+            if (suffix > 1) {
+                try (var connection = dataSource.getConnection();
+                     var statement = connection.prepareStatement(
+                             "INSERT INTO onmaru.identity_members (id,status,created_at) VALUES (?, 'ACTIVE', ?)")) {
+                    statement.setObject(1, reporter);
+                    statement.setObject(2, OffsetDateTime.ofInstant(at, ZoneOffset.UTC));
+                    statement.executeUpdate();
+                }
+            }
+            store.saveOrFindOpen(new ReviewReport(new UUID(0, suffix), reviewId, reporter,
+                    suffix == 2 ? ReviewReportReason.ABUSE : ReviewReportReason.SPAM,
+                    "신고", ReviewReportStatus.OPEN, at));
+        }
+
+        var first = store.openReportsPage(ReviewReportReason.SPAM, 1, null);
+        assertThat(first.items()).extracting(ReviewReport::reportId).containsExactly(new UUID(0, 3));
+        assertThat(first.hasNext()).isTrue();
+        var last = first.items().getLast();
+        var second = store.openReportsPage(ReviewReportReason.SPAM, 1,
+                new AdminCursor("reports", 1, "status=OPEN&reason=SPAM", last.createdAt(), last.reportId()));
+        assertThat(second.items()).extracting(ReviewReport::reportId).containsExactly(new UUID(0, 1));
+        assertThat(second.hasNext()).isFalse();
     }
     private void seedReview() throws Exception {
         var author = UUID.randomUUID(); var place = UUID.randomUUID(); var at = OffsetDateTime.of(2026,9,25,0,0,0,0,ZoneOffset.UTC);

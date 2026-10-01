@@ -16,6 +16,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
 class AdminDashboardServiceTests {
 
@@ -64,6 +66,35 @@ class AdminDashboardServiceTests {
 
         assertThat(result.pipeline().status()).isEqualTo("RUNNING");
         assertThat(result.pipeline().failureCount()).isEqualTo(2);
+    }
+
+    @Test
+    void sqlReadPortSummarizesWithoutLoadingReviewOrReportSnapshots() {
+        var reviews = spy(new InMemoryVisitReviewStore());
+        var reports = spy(new InMemoryReviewReportStore());
+        doThrow(new AssertionError("dashboard must not load all reviews")).when(reviews).findSnapshot();
+        doThrow(new AssertionError("dashboard must not load all reports")).when(reports).openReports();
+        var readPort = new AdminDashboardReadPort() {
+            @Override public AdminDashboardMetrics metrics(Instant from, Instant to) {
+                return new AdminDashboardMetrics(3, 2, 1, 0, 1);
+            }
+            @Override public java.util.List<AdminDashboardService.ReviewSummary> recentReviews(
+                    Instant from, Instant to, int limit) {
+                assertThat(limit).isEqualTo(5);
+                return java.util.List.of();
+            }
+            @Override public java.util.List<AdminDashboardService.ReportSummary> recentOpenReports(
+                    Instant from, Instant to, int limit) {
+                assertThat(limit).isEqualTo(5);
+                return java.util.List.of();
+            }
+        };
+
+        var result = new AdminDashboardService(reviews, reports, null, readPort)
+                .summarize(LocalDate.parse("2026-09-29"), LocalDate.parse("2026-09-29"));
+
+        assertThat(result.stats()).extracting(AdminDashboardService.DashboardMetric::value)
+                .containsExactly(3L, 2L, 1L, 0L, 1L);
     }
 
     private VisitReviewProjection review(String id, String createdAt, VisitReviewStatus status) {
