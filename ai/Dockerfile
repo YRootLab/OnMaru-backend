@@ -13,6 +13,7 @@ WORKDIR /app
 
 RUN apk upgrade --no-cache \
     && python -m pip install --no-cache-dir --upgrade pip "setuptools>=83.0.0" \
+    && python -m pip uninstall --yes pip \
     && addgroup -S onmaru \
     && adduser -S onmaru -G onmaru
 

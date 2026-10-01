@@ -1,0 +1,7 @@
+[Unit]
+Description=Automatically stop OnMaru staging two hours after it starts
+
+[Timer]
+OnActiveSec=2h
+AccuracySec=1m
+Unit=onmaru-staging-auto-stop.service
