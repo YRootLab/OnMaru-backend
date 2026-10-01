@@ -75,11 +75,13 @@ test('CI runs a shared-workspace Java lane in parallel with independent lanes', 
   for (const job of ['plan', 'hygiene', 'java', 'contract', 'ai', 'verify']) {
     assert.match(workflow, new RegExp(`^  ${job}:$`, 'm'));
   }
+  assert.match(workflow, /^  java:\n    name: Java 모듈 및 Spring API 전체 테스트$/m);
   assert.match(workflow, /^    needs: plan$/m);
   assert.match(workflow, /^    needs: \[plan, hygiene, java, contract, ai\]$/m);
   assert.match(workflow, /node scripts\/ci\/select-ci-lanes\.mjs/);
   assert.match(workflow, /node scripts\/ci\/verify-ci-lanes\.mjs/);
   assert.match(workflow, /:adapters:tourism-api:test[\s\\]+:modules:insights:test[\s\\]+:modules:catalog:test/);
   assert.match(workflow, /:modules:operations:test[\s\\]+:apps:spring-api:test/);
+  assert.match(workflow, /:apps:spring-api:test[\s\\]+:apps:spring-api:bootJar/);
   assert.match(workflow, /-Ponmaru\.ci\.performance\.enabled=true/);
 });

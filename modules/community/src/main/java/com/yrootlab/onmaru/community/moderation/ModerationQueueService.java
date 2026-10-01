@@ -15,6 +15,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminPage;
 
 public final class ModerationQueueService {
 
@@ -25,14 +27,59 @@ public final class ModerationQueueService {
     private final VisitReviewStore reviewStore;
     private final ReviewReportStore reportStore;
     private final Clock clock;
+    private final ModerationQueueReadStore readStore;
 
     public ModerationQueueService(
             VisitReviewStore reviewStore,
             ReviewReportStore reportStore,
             Clock clock) {
+        this(reviewStore, reportStore, clock, null);
+    }
+
+    public ModerationQueueService(
+            VisitReviewStore reviewStore,
+            ReviewReportStore reportStore,
+            Clock clock,
+            ModerationQueueReadStore readStore) {
         this.reviewStore = reviewStore;
         this.reportStore = reportStore;
         this.clock = clock;
+        this.readStore = readStore;
+    }
+
+    public AdminPage<ModerationQueueItem> page(int limit, AdminCursor cursor) {
+        if (limit < 1 || limit > MAX_LIMIT) {
+            throw new IllegalArgumentException("limit must be between 1 and 100");
+        }
+        if (readStore != null) return readStore.page(limit, cursor, clock.instant());
+
+        // Local/test profile only: production uses the bounded JDBC read model.
+        List<ModerationQueueItem> items = reportStore.executeAtomically(() ->
+                allQueueItems(clock.instant()).stream()
+                        .filter(item -> after(item, cursor))
+                        .limit(limit + 1L)
+                        .toList());
+        boolean hasNext = items.size() > limit;
+        return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+    }
+
+    public long oldestQueueAgeSeconds() {
+        Instant now = clock.instant();
+        return readStore == null
+                ? snapshot(MAX_LIMIT).oldestOpenReportAgeSeconds()
+                : readStore.oldestQueueAgeSeconds(now);
+    }
+
+    public Instant generatedAt() {
+        return clock.instant();
+    }
+
+    private boolean after(ModerationQueueItem item, AdminCursor cursor) {
+        if (cursor == null) return true;
+        int priority = item.priority().compareTo(ModerationQueuePriority.valueOf(cursor.sortGroup()));
+        if (priority != 0) return priority > 0;
+        int timestamp = item.oldestOpenReportAt().compareTo(cursor.timestamp());
+        return timestamp > 0 || timestamp == 0 && item.reviewId().compareTo(cursor.id()) > 0;
     }
 
     public ModerationQueueSnapshot snapshot(int limit) {
@@ -44,6 +91,15 @@ public final class ModerationQueueService {
             throw new IllegalArgumentException("limit must be between 1 and 100");
         }
         Instant now = clock.instant();
+        List<ModerationQueueItem> projected = allQueueItems(now);
+        long oldestAge = projected.stream()
+                .mapToLong(ModerationQueueItem::ageSeconds)
+                .max()
+                .orElse(0L);
+        return new ModerationQueueSnapshot(now, oldestAge, projected.stream().limit(limit).toList());
+    }
+
+    private List<ModerationQueueItem> allQueueItems(Instant now) {
         Map<UUID, VisitReviewProjection> reviews = reviewStore.findSnapshot().stream()
                 .collect(Collectors.toMap(VisitReviewProjection::id, Function.identity()));
         Map<UUID, List<ModerationAction>> actions = reportStore.auditLog().stream()
@@ -61,11 +117,7 @@ public final class ModerationQueueService {
                         now))
                 .sorted(queueOrder())
                 .toList();
-        long oldestAge = projected.stream()
-                .mapToLong(ModerationQueueItem::ageSeconds)
-                .max()
-                .orElse(0L);
-        return new ModerationQueueSnapshot(now, oldestAge, projected.stream().limit(limit).toList());
+        return projected;
     }
 
     private ModerationQueueItem project(

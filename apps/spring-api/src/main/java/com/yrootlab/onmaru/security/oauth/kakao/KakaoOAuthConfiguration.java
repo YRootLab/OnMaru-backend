@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.security.oauth.kakao;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleStore;
+import com.yrootlab.onmaru.identity.lifecycle.MemberAccessPolicy;
 import com.yrootlab.onmaru.identity.guest.GuestCredentialService;
 import com.yrootlab.onmaru.identity.guest.GuestGrantService;
 import com.yrootlab.onmaru.identity.guest.InMemoryGuestOwnershipStore;
@@ -11,7 +12,7 @@ import com.yrootlab.onmaru.identity.oauth.IdentityStore;
 import com.yrootlab.onmaru.identity.oauth.OAuthLoginService;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
 import com.yrootlab.onmaru.persistence.identity.JdbcIdentityStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +27,12 @@ import java.time.Clock;
 public class KakaoOAuthConfiguration {
 
     @Bean
+    @ConditionalOnMissingBean(MemberAccessPolicy.class)
+    MemberAccessPolicy defaultMemberAccessPolicy() {
+        return MemberAccessPolicy.allowAll();
+    }
+
+    @Bean
     @Profile("!production")
     InMemoryIdentityStore identityStore() {
         return new InMemoryIdentityStore();
@@ -33,28 +40,31 @@ public class KakaoOAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     JdbcIdentityStore jdbcIdentityStore(DataSource dataSource) {
         return new JdbcIdentityStore(dataSource);
     }
 
     @Bean
-    OAuthLoginService oauthLoginService(IdentityStore store, SecretProvider secretProvider, Clock clock) {
+    OAuthLoginService oauthLoginService(
+            IdentityStore store, SecretProvider secretProvider, Clock clock, MemberAccessPolicy accessPolicy) {
         return new OAuthLoginService(
                 store,
                 new TokenHasher(secretProvider.get("oauth.client-secret").current()),
-                clock);
+                clock,
+                accessPolicy);
     }
 
     @Bean
     MemberLifecycleService memberLifecycleService(
             MemberLifecycleStore store,
             SecretProvider secretProvider,
-            Clock clock) {
+            Clock clock,
+            MemberAccessPolicy accessPolicy) {
         return new MemberLifecycleService(
                 store,
                 new TokenHasher(secretProvider.get("oauth.client-secret").current()),
-                clock);
+                clock,
+                accessPolicy);
     }
 
     @Bean

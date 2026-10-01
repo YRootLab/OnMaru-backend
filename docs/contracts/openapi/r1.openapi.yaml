@@ -264,12 +264,20 @@ components:
       const: '1.2'
     HanokCategory:
       type: string
+      description: Canonical category returned by the hanok list and detail APIs. Values describe catalog content and are not limited to traditional hanok buildings.
       enum:
         - HANOK
         - HANOK_STAY
         - HANOK_CAFE
         - HANOK_EXPERIENCE
+        - HISTORIC_SITE
+        - NATURE_SITE
         - TRADITIONAL_MARKET
+        - CULTURE_ART
+        - TRADITIONAL_FOOD
+        - GARDEN_ECOLOGY
+        - LOCAL_SCENE
+        - LEISURE_ACTIVITY
     PlaceId:
       type: string
       pattern: '^p-[a-z0-9-]{3,80}$'

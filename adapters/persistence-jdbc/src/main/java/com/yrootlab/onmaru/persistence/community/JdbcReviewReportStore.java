@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminPage;
 
 /** PostgreSQL report/audit store sharing one transaction with review mutations. */
 public final class JdbcReviewReportStore implements ReviewReportStore {
@@ -35,6 +37,37 @@ public final class JdbcReviewReportStore implements ReviewReportStore {
 
     @Override public List<ReviewReport> openReports() {
         return transactions.execute(connection -> reports(connection, "WHERE status='OPEN'"));
+    }
+
+    @Override public AdminPage<ReviewReport> openReportsPage(ReviewReportReason reason, int limit, AdminCursor cursor) {
+        return transactions.execute(connection -> {
+            StringBuilder sql = new StringBuilder("SELECT id,review_id,reporter_member_id,reason,detail,status,created_at FROM onmaru.community_review_reports WHERE status='OPEN'");
+            if (reason != null) sql.append(" AND reason = ?");
+            if (cursor != null) sql.append(" AND (created_at, id) < (?, ?)");
+            sql.append(" ORDER BY created_at DESC, id DESC LIMIT ?");
+            try (var statement = connection.prepareStatement(sql.toString())) {
+                int index = 1;
+                if (reason != null) statement.setString(index++, reason.name());
+                if (cursor != null) {
+                    statement.setObject(index++, OffsetDateTime.ofInstant(cursor.timestamp(), ZoneOffset.UTC));
+                    statement.setObject(index++, cursor.id());
+                }
+                statement.setInt(index, limit + 1);
+                try (var result = statement.executeQuery()) {
+                    var items = new ArrayList<ReviewReport>();
+                    while (result.next()) items.add(new ReviewReport(
+                            result.getObject("id", UUID.class), result.getObject("review_id", UUID.class),
+                            result.getObject("reporter_member_id", UUID.class),
+                            ReviewReportReason.valueOf(result.getString("reason")), result.getString("detail"),
+                            ReviewReportStatus.valueOf(result.getString("status")),
+                            result.getObject("created_at", OffsetDateTime.class).toInstant()));
+                    boolean hasNext = items.size() > limit;
+                    return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+                }
+            } catch (Exception exception) {
+                throw failure("Review report page query failed", exception);
+            }
+        });
     }
 
     @Override public void closeOpenReports(UUID reviewId, ReviewReportStatus status) {

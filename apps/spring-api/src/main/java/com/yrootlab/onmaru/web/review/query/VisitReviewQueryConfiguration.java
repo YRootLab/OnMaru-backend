@@ -8,9 +8,13 @@ import com.yrootlab.onmaru.community.command.review.VisitReviewPlaceLookup;
 import com.yrootlab.onmaru.community.like.VisitReviewLikeService;
 import com.yrootlab.onmaru.community.moderation.InMemoryReviewReportStore;
 import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
+import com.yrootlab.onmaru.community.moderation.ModerationQueueReadStore;
 import com.yrootlab.onmaru.community.moderation.ReviewReportIdGenerator;
 import com.yrootlab.onmaru.community.moderation.ReviewReportStore;
 import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
+import com.yrootlab.onmaru.admin.dashboard.AdminDashboardService;
+import com.yrootlab.onmaru.admin.dashboard.AdminDashboardReadPort;
+import com.yrootlab.onmaru.admin.pipeline.AdminPipelinePort;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.RegionVisitorCountLookup;
@@ -23,14 +27,18 @@ import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPublicPlaceIdStore;
 import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewPlaceLookup;
 import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewStore;
 import com.yrootlab.onmaru.persistence.community.JdbcReviewReportStore;
+import com.yrootlab.onmaru.persistence.community.JdbcModerationQueueReadStore;
+import com.yrootlab.onmaru.persistence.admin.JdbcAdminDashboardReadStore;
 import com.yrootlab.onmaru.persistence.web.JdbcIdempotencyStore;
 import com.yrootlab.onmaru.persistence.insights.JdbcVisitorObservationStore;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import javax.sql.DataSource;
 import java.time.Clock;
@@ -60,14 +68,12 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     JdbcTransactionRunner jdbcTransactionRunner(DataSource dataSource) {
         return new JdbcTransactionRunner(dataSource);
     }
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean(CatalogPublicPlaceIdStore.class)
     CatalogPublicPlaceIdStore catalogPublicPlaceIdStore(DataSource dataSource) {
         return new JdbcCatalogPublicPlaceIdStore(dataSource);
@@ -75,7 +81,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean(MutableVisitReviewStore.class)
     MutableVisitReviewStore jdbcVisitReviewStore(
             DataSource dataSource,
@@ -100,7 +105,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     RegionVisitorCountLookup jdbcRegionVisitorCountLookup(DataSource dataSource) {
         return new JdbcVisitorObservationStore(dataSource);
     }
@@ -118,7 +122,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     ReviewReportStore jdbcReviewReportStore(
             DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
         return new JdbcReviewReportStore(dataSource, jdbcTransactionRunner);
@@ -141,8 +144,40 @@ class VisitReviewQueryConfiguration {
     ModerationQueueService moderationQueueService(
             MutableVisitReviewStore reviewStore,
             ReviewReportStore reportStore,
-            Clock clock) {
-        return new ModerationQueueService(reviewStore, reportStore, clock);
+            Clock clock,
+            ObjectProvider<ModerationQueueReadStore> readStore,
+            Environment environment) {
+        ModerationQueueReadStore configuredReadStore = readStore.getIfAvailable();
+        if (configuredReadStore == null && environment.acceptsProfiles(Profiles.of("production"))) {
+            throw new IllegalStateException("production requires the bounded JDBC moderation queue read store");
+        }
+        return new ModerationQueueService(reviewStore, reportStore, clock, configuredReadStore);
+    }
+
+    @Bean
+    @Profile("production")
+    ModerationQueueReadStore jdbcModerationQueueReadStore(DataSource dataSource) {
+        return new JdbcModerationQueueReadStore(dataSource);
+    }
+
+    @Bean
+    AdminDashboardService adminDashboardService(
+            MutableVisitReviewStore reviewStore,
+            ReviewReportStore reportStore,
+            ObjectProvider<AdminPipelinePort> pipeline,
+            ObjectProvider<AdminDashboardReadPort> readPort,
+            Environment environment) {
+        AdminDashboardReadPort configuredReadPort = readPort.getIfAvailable();
+        if (configuredReadPort == null && environment.acceptsProfiles(Profiles.of("production"))) {
+            throw new IllegalStateException("production requires the bounded JDBC admin dashboard read store");
+        }
+        return new AdminDashboardService(reviewStore, reportStore, pipeline.getIfAvailable(), configuredReadPort);
+    }
+
+    @Bean
+    @Profile("production")
+    AdminDashboardReadPort jdbcAdminDashboardReadPort(DataSource dataSource) {
+        return new JdbcAdminDashboardReadStore(dataSource);
     }
 
     @Bean
@@ -176,7 +211,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     VisitReviewPlaceLookup jdbcVisitReviewPlaceLookup(DataSource dataSource) {
         return new JdbcVisitReviewPlaceLookup(dataSource);
     }
@@ -200,7 +234,6 @@ class VisitReviewQueryConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     IdempotencyService jdbcIdempotencyService(
             DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner, Clock clock) {
         return new IdempotencyService(new JdbcIdempotencyStore(dataSource, jdbcTransactionRunner), clock);

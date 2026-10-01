@@ -4,6 +4,8 @@ import com.yrootlab.onmaru.catalog.publicid.CatalogPublicPlaceIdStore;
 import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminPage;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
 
 import javax.sql.DataSource;
@@ -57,6 +59,59 @@ public final class JdbcVisitReviewStore implements MutableVisitReviewStore {
     @Override
     public List<VisitReviewProjection> findSnapshot() {
         return transactions.execute(connection -> findSnapshot(connection));
+    }
+
+    @Override
+    public AdminPage<VisitReviewProjection> findAdminPage(VisitReviewStatus status, String query, int limit, AdminCursor cursor) {
+        return transactions.execute(connection -> {
+            StringBuilder sql = new StringBuilder("""
+                    SELECT review.id, review.member_id, review.public_place_id, review.place_name,
+                           review.region_code, review.latitude, review.longitude, review.text,
+                           review.mood, review.score, review.tags, review.created_at, review.status
+                    FROM onmaru.community_visit_reviews review
+                    WHERE review.public_place_id IS NOT NULL
+                      AND review.latitude IS NOT NULL
+                      AND review.longitude IS NOT NULL
+                    """);
+            if (status != null) sql.append(" AND review.status = ?::onmaru.community_review_status");
+            if (query != null) sql.append(" AND (strpos(lower(review.text), lower(?)) > 0 OR strpos(lower(coalesce(review.place_name, '')), lower(?)) > 0)");
+            if (cursor != null) sql.append(" AND (review.created_at, review.id) < (?, ?)");
+            sql.append(" ORDER BY review.created_at DESC, review.id DESC LIMIT ?");
+            try (var statement = connection.prepareStatement(sql.toString())) {
+                int index = 1;
+                if (status != null) statement.setString(index++, status.name());
+                if (query != null) {
+                    statement.setString(index++, query);
+                    statement.setString(index++, query);
+                }
+                if (cursor != null) {
+                    statement.setObject(index++, OffsetDateTime.ofInstant(cursor.timestamp(), ZoneOffset.UTC));
+                    statement.setObject(index++, cursor.id());
+                }
+                statement.setInt(index, limit + 1);
+                try (var result = statement.executeQuery()) {
+                    var items = new ArrayList<VisitReviewProjection>();
+                    while (result.next()) {
+                        Number latitudeValue = (Number) result.getObject("latitude");
+                        Number longitudeValue = (Number) result.getObject("longitude");
+                        if (latitudeValue == null || longitudeValue == null) continue;
+                        items.add(new VisitReviewProjection(
+                                result.getObject("id", UUID.class), result.getString("public_place_id"),
+                                result.getString("place_name"), result.getString("region_code"),
+                                latitudeValue.doubleValue(), longitudeValue.doubleValue(), result.getString("text"),
+                                result.getString("mood"), result.getObject("score", Integer.class),
+                                tags(result.getString("tags")),
+                                result.getObject("created_at", OffsetDateTime.class).toInstant(),
+                                result.getObject("member_id", UUID.class), Set.of(),
+                                VisitReviewStatus.valueOf(result.getString("status"))));
+                    }
+                    boolean hasNext = items.size() > limit;
+                    return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+                }
+            } catch (Exception exception) {
+                throw databaseFailure(exception);
+            }
+        });
     }
 
     private List<VisitReviewProjection> findSnapshot(java.sql.Connection connection) {
@@ -123,7 +178,19 @@ public final class JdbcVisitReviewStore implements MutableVisitReviewStore {
                 .orElseThrow(() -> new IllegalArgumentException("VisitReview placeId is not registered by Catalog"));
         transactions.execute(connection -> {
             try {
-                try (var update = connection.prepareStatement("""
+                replace(connection, review, catalogPlaceId);
+                return null;
+            } catch (Exception exception) {
+                throw databaseFailure(exception);
+            }
+        });
+    }
+
+    private void replace(
+            java.sql.Connection connection,
+            VisitReviewProjection review,
+            UUID catalogPlaceId) throws SQLException {
+        try (var update = connection.prepareStatement("""
                         UPDATE onmaru.community_visit_reviews
                         SET member_id = ?, place_id = ?, text = ?, mood = ?, score = ?, tags = ?::jsonb,
                             status = ?::onmaru.community_review_status, created_at = ?,
@@ -150,41 +217,81 @@ public final class JdbcVisitReviewStore implements MutableVisitReviewStore {
                     update.setDouble(13, review.lat());
                     update.setDouble(14, review.lng());
                     update.setObject(15, review.id());
-                    if (update.executeUpdate() != 1) {
-                        throw new IllegalArgumentException("VisitReview does not exist");
-                    }
-                }
-                replaceLikes(connection, review.id(), review.likedMemberIds());
-                return null;
-            } catch (Exception exception) {
-                throw databaseFailure(exception);
+            if (update.executeUpdate() != 1) {
+                throw new IllegalArgumentException("VisitReview does not exist");
             }
-        });
+        }
+        replaceLikes(connection, review.id(), review.likedMemberIds());
     }
 
     @Override
     public Optional<VisitReviewProjection> update(
             UUID reviewId,
             Function<VisitReviewProjection, VisitReviewProjection> updater) {
-        return transactions.execute(ignored -> {
-            lockReview(reviewId);
-            var current = findSnapshot().stream().filter(review -> review.id().equals(reviewId)).findFirst();
+        return transactions.execute(connection -> {
+            var current = findOne(connection, reviewId);
             if (current.isEmpty()) return Optional.empty();
             var updated = updater.apply(current.get());
-            replace(updated);
+            var catalogPlaceId = publicPlaceIds.findPlaceId(updated.placeId())
+                    .orElseThrow(() -> new IllegalArgumentException("VisitReview placeId is not registered by Catalog"));
+            try {
+                replace(connection, updated, catalogPlaceId);
+            } catch (SQLException exception) {
+                throw databaseFailure(exception);
+            }
             return Optional.of(updated);
         });
     }
 
-    private void lockReview(UUID reviewId) {
-        transactions.execute(connection -> {
-            try (var statement = connection.prepareStatement(
-                    "SELECT id FROM onmaru.community_visit_reviews WHERE id = ? FOR UPDATE")) {
-                statement.setObject(1, reviewId);
-                statement.executeQuery();
-                return null;
-            } catch (SQLException exception) { throw databaseFailure(exception); }
-        });
+    private Optional<VisitReviewProjection> findOne(java.sql.Connection connection, UUID reviewId) {
+        try (var statement = connection.prepareStatement("""
+                SELECT review.id, review.member_id, review.public_place_id, review.place_name,
+                       review.region_code, review.latitude, review.longitude, review.text,
+                       review.mood, review.score, review.tags, review.created_at, review.status,
+                       COALESCE(array_agg(like_row.member_id) FILTER (WHERE like_row.member_id IS NOT NULL),
+                                ARRAY[]::uuid[]) AS liked_member_ids
+                FROM (
+                    SELECT id, member_id, public_place_id, place_name, region_code, latitude,
+                           longitude, text, mood, score, tags, created_at, status
+                    FROM onmaru.community_visit_reviews
+                    WHERE id = ? AND public_place_id IS NOT NULL
+                    FOR UPDATE
+                ) review
+                LEFT JOIN onmaru.community_review_likes like_row ON like_row.review_id = review.id
+                GROUP BY review.id, review.member_id, review.public_place_id, review.place_name,
+                         review.region_code, review.latitude, review.longitude, review.text,
+                         review.mood, review.score, review.tags, review.created_at, review.status
+                """)) {
+            statement.setObject(1, reviewId);
+            try (var result = statement.executeQuery()) {
+                return result.next() ? Optional.of(readReview(result)) : Optional.empty();
+            }
+        } catch (Exception exception) {
+            throw databaseFailure(exception);
+        }
+    }
+
+    private VisitReviewProjection readReview(java.sql.ResultSet result) throws SQLException {
+        Number latitudeValue = (Number) result.getObject("latitude");
+        Number longitudeValue = (Number) result.getObject("longitude");
+        if (latitudeValue == null || longitudeValue == null) {
+            throw new IllegalArgumentException("VisitReview coordinates are required");
+        }
+        return new VisitReviewProjection(
+                result.getObject("id", UUID.class),
+                result.getString("public_place_id"),
+                result.getString("place_name"),
+                result.getString("region_code"),
+                latitudeValue.doubleValue(),
+                longitudeValue.doubleValue(),
+                result.getString("text"),
+                result.getString("mood"),
+                result.getObject("score", Integer.class),
+                tags(result.getString("tags")),
+                result.getObject("created_at", OffsetDateTime.class).toInstant(),
+                result.getObject("member_id", UUID.class),
+                uuidSet(result.getArray("liked_member_ids").getArray()),
+                VisitReviewStatus.valueOf(result.getString("status")));
     }
 
     private void insertReview(java.sql.Connection connection, VisitReviewProjection review, UUID catalogPlaceId) throws SQLException {

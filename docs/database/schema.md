@@ -94,6 +94,12 @@
 // 중복 index를 추가하지 않는다.
 // Historical Odii model. The 2026-09-09 successor proposal is in
 // ../planning/data-api-design.md; executable migrations are not yet created.
+// V034는 Admin actor 계정/refresh session, 회원 제재, Catalog curation override와
+// append-only Admin audit log의 저장 경계를 추가한다. Admin actor의 ADMIN/EDITOR role은
+// 일반 회원의 USER 표시값과 분리한다. refresh token 원문은 저장하지 않고 SHA-256 hash만
+// identity_admin_sessions에 저장하며, 후기/신고 변경은 기존 community moderation command와
+// 같은 transaction에서 audit row를 남긴다. curation override는 TourAPI 원천 행을 수정하지 않고
+// active Catalog projection에 별도로 적용한다.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 
 // 에러 없이 시각화된 ERD(관계도)를 볼 수 있습니다.
 

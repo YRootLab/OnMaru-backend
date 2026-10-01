@@ -82,6 +82,19 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
     }
 
     @Override
+    public synchronized int revokeAllSessions(UUID memberId, Instant now) {
+        int changed = 0;
+        for (var entry : sessions.entrySet()) {
+            var session = entry.getValue();
+            if (session.session().memberId().equals(memberId) && session.revokedAt() == null) {
+                sessions.put(entry.getKey(), new StoredSession(session.session(), now));
+                changed++;
+            }
+        }
+        return changed;
+    }
+
+    @Override
     public synchronized Optional<MemberLifecycleStatus> requestDeletion(String sessionTokenHash, Instant now) {
         var summary = findActiveMemberBySessionHash(sessionTokenHash, now);
         if (summary.isEmpty()) {

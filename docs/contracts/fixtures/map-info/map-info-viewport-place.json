@@ -1,0 +1,45 @@
+{
+  "name": "map-info-viewport-place",
+  "description": "Close Kakao levels return individual place markers; pixel placement remains a FE responsibility.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/info/viewport",
+    "query": {"bbox": "127.152,35.814,127.154,35.816", "zoomLevel": 4, "category": "ALL", "limit": 500}
+  },
+  "response": {
+    "status": 200,
+    "schema": "MapInfoViewportResponse",
+    "body": {
+      "schemaVersion": "1.0",
+      "renderMode": "PLACE",
+      "profileVersion": "map-zoom-v1",
+      "snapshot": {"id": "rev-20260929-001", "publishedAt": "2026-09-29T03:10:00Z", "status": "PUBLISHED"},
+      "totalCountInViewport": 1,
+      "items": [
+        {
+          "type": "PLACE",
+          "id": "place-p-jeonju-hanok-village",
+          "name": "전주 한옥마을",
+          "center": {"lat": 35.8151, "lng": 127.153},
+          "bounds": null,
+          "count": 1,
+          "categoryCounts": {"SPOT": 1},
+          "targetZoomLevel": 4,
+          "placeId": "p-jeonju-hanok-village",
+          "displayCategory": "SPOT"
+        }
+      ],
+      "appliedCategories": ["HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_CAFE", "TRADITIONAL_FOOD", "TRADITIONAL_MARKET"],
+      "coverage": "COMPLETE",
+      "servedBbox": {"west": 127.1515, "south": 35.8135, "east": 127.1545, "north": 35.8165},
+      "projection": {
+        "projectionName": "map_place_read_projection",
+        "revisionId": "rev-20260929-001",
+        "publishedAt": "2026-09-29T03:10:00Z",
+        "checksum": "sha256:map-info-fixture-001",
+        "rowCount": 30000,
+        "mappingVersion": "map-category-v1"
+      }
+    }
+  }
+}

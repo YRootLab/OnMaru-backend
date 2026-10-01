@@ -11,18 +11,27 @@ public final class MemberLifecycleService {
     private final MemberLifecycleStore store;
     private final TokenHasher tokenHasher;
     private final Clock clock;
+    private final MemberAccessPolicy accessPolicy;
 
     public MemberLifecycleService(MemberLifecycleStore store, TokenHasher tokenHasher, Clock clock) {
+        this(store, tokenHasher, clock, MemberAccessPolicy.allowAll());
+    }
+
+    public MemberLifecycleService(
+            MemberLifecycleStore store, TokenHasher tokenHasher, Clock clock, MemberAccessPolicy accessPolicy) {
         this.store = store;
         this.tokenHasher = tokenHasher;
         this.clock = clock;
+        this.accessPolicy = accessPolicy;
     }
 
     public Optional<MemberSummary> currentMember(String sessionToken) {
         if (sessionToken == null || sessionToken.isBlank()) {
             return Optional.empty();
         }
-        return store.findActiveMemberBySessionHash(tokenHasher.hash(sessionToken), clock.instant());
+        var now = clock.instant();
+        return store.findActiveMemberBySessionHash(tokenHasher.hash(sessionToken), now)
+                .filter(member -> accessPolicy.allows(member.id(), now));
     }
 
     public void logout(String sessionToken) {
@@ -39,5 +48,9 @@ public final class MemberLifecycleService {
 
     public boolean allowsLateWrite(UUID memberId) {
         return store.allowsLateWrite(memberId);
+    }
+
+    public int revokeAllSessions(UUID memberId) {
+        return store.revokeAllSessions(memberId, clock.instant());
     }
 }
