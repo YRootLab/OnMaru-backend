@@ -1,10 +1,13 @@
 package com.yrootlab.onmaru.web.admin;
 
 import com.yrootlab.onmaru.admin.auth.AdminAuthenticator;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
+import com.yrootlab.onmaru.admin.pagination.AdminCursorCodec;
 import com.yrootlab.onmaru.admin.audit.AdminAuditLogService;
 import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
 import com.yrootlab.onmaru.community.moderation.ModerationReason;
 import com.yrootlab.onmaru.community.moderation.ReviewReport;
+import com.yrootlab.onmaru.community.moderation.ReviewReportReason;
 import com.yrootlab.onmaru.community.moderation.VisitReviewModerationService;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
@@ -47,6 +50,7 @@ public final class AdminReviewController {
     private final ModerationQueueService queueService;
     private final AdminAuditLogService auditLogs;
     private final IdempotencyService idempotency;
+    private final AdminCursorCodec cursorCodec;
 
     public AdminReviewController(
             AdminAuthenticator authenticator,
@@ -54,20 +58,24 @@ public final class AdminReviewController {
             VisitReviewModerationService moderationService,
             ModerationQueueService queueService,
             AdminAuditLogService auditLogs,
-            IdempotencyService idempotency) {
+            IdempotencyService idempotency,
+            AdminCursorCodec cursorCodec) {
         this.authenticator = authenticator;
         this.reviewStore = reviewStore;
         this.moderationService = moderationService;
         this.queueService = queueService;
         this.auditLogs = auditLogs;
         this.idempotency = idempotency;
+        this.cursorCodec = cursorCodec;
     }
 
     @Operation(summary = "관리자 후기 목록 조회")
     @GetMapping("/api/v1/admin/reviews")
     public ResponseEntity<?> reviews(
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor,
             @RequestHeader(name = "Authorization", required = false) String authorization,
             HttpServletRequest request) {
         try {
@@ -75,15 +83,26 @@ public final class AdminReviewController {
             if (limit < 1 || limit > 100) {
                 throw new IllegalArgumentException();
             }
+            if (cursor != null && cursor.length() > 512) throw new IllegalArgumentException();
             VisitReviewStatus requestedStatus = status == null || status.isBlank()
                     ? null : VisitReviewStatus.valueOf(status.toUpperCase());
-            List<ReviewResponse> items = reviewStore.findSnapshot().stream()
-                    .filter(review -> requestedStatus == null || review.status() == requestedStatus)
-                    .sorted((left, right) -> right.createdAt().compareTo(left.createdAt()))
-                    .limit(limit)
-                    .map(ReviewResponse::from)
-                    .toList();
-            return ok(Map.of("schemaVersion", "1.0", "items", items, "hasMore", false));
+            String normalizedQuery = query == null ? null : query.trim();
+            if (normalizedQuery != null && (normalizedQuery.isEmpty() || normalizedQuery.length() > 120)) {
+                throw new IllegalArgumentException();
+            }
+            String filter = "status=" + (requestedStatus == null ? "" : requestedStatus.name())
+                    + (normalizedQuery == null ? "" : "&query=" + normalizedQuery);
+            AdminCursor decoded = cursorCodec.decodeOptional(cursor, "reviews", limit, filter);
+            var page = reviewStore.findAdminPage(requestedStatus, normalizedQuery, limit, decoded);
+            List<ReviewResponse> items = page.items().stream().map(ReviewResponse::from).toList();
+            Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("schemaVersion", "1.0"); response.put("items", items);
+            response.put("hasMore", page.hasNext()); response.put("hasNext", page.hasNext());
+            if (page.hasNext() && !page.items().isEmpty()) {
+                var last = page.items().getLast();
+                response.put("nextCursor", cursorCodec.encode(new AdminCursor("reviews", limit, filter, last.createdAt(), last.id())));
+            }
+            return ok(response);
         } catch (IdempotencyKeyMissingException | IdempotencyKeyInvalidException exception) {
             return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (IllegalArgumentException exception) {
@@ -96,7 +115,9 @@ public final class AdminReviewController {
     @Operation(summary = "관리자 미처리 신고 목록 조회")
     @GetMapping("/api/v1/admin/reports")
     public ResponseEntity<?> reports(
-            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(required = false) String reason,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor,
             @RequestHeader(name = "Authorization", required = false) String authorization,
             HttpServletRequest request) {
         try {
@@ -104,12 +125,21 @@ public final class AdminReviewController {
             if (limit < 1 || limit > 100) {
                 throw new IllegalArgumentException();
             }
-            List<ReportResponse> items = moderationService.openReports().stream()
-                    .sorted((left, right) -> right.createdAt().compareTo(left.createdAt()))
-                    .limit(limit)
-                    .map(ReportResponse::from)
-                    .toList();
-            return ok(Map.of("schemaVersion", "1.0", "items", items, "hasMore", false));
+            if (cursor != null && cursor.length() > 512) throw new IllegalArgumentException();
+            ReviewReportReason requestedReason = reason == null ? null
+                    : ReviewReportReason.valueOf(reason.trim().toUpperCase(java.util.Locale.ROOT));
+            String filter = "status=OPEN" + (requestedReason == null ? "" : "&reason=" + requestedReason.name());
+            AdminCursor decoded = cursorCodec.decodeOptional(cursor, "reports", limit, filter);
+            var page = moderationService.openReportsPage(requestedReason, limit, decoded);
+            List<ReportResponse> items = page.items().stream().map(ReportResponse::from).toList();
+            Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("schemaVersion", "1.0"); response.put("items", items);
+            response.put("hasMore", page.hasNext()); response.put("hasNext", page.hasNext());
+            if (page.hasNext() && !page.items().isEmpty()) {
+                var last = page.items().getLast();
+                response.put("nextCursor", cursorCodec.encode(new AdminCursor("reports", limit, filter, last.createdAt(), last.reportId())));
+            }
+            return ok(response);
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (RuntimeException exception) {
@@ -170,13 +200,30 @@ public final class AdminReviewController {
     @Operation(summary = "관리자 moderation queue 조회")
     @GetMapping("/api/v1/admin/moderation/queue")
     public ResponseEntity<?> queue(
-            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor,
             @RequestHeader(name = "Authorization", required = false) String authorization,
             HttpServletRequest request) {
         try {
             authenticator.authenticate(authorization);
-            var snapshot = queueService.snapshot(limit);
-            return ok(snapshot);
+            if (limit < 1 || limit > 100 || cursor != null && cursor.length() > 512) {
+                throw new IllegalArgumentException();
+            }
+            AdminCursor decoded = cursorCodec.decodeOptional(cursor, "moderation-queue", limit, "priority=all");
+            var page = queueService.page(limit, decoded);
+            Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("schemaVersion", "1.2");
+            response.put("generatedAt", queueService.generatedAt());
+            response.put("oldestOpenReportAgeSeconds", queueService.oldestQueueAgeSeconds());
+            response.put("items", page.items());
+            response.put("hasNext", page.hasNext());
+            if (page.hasNext() && !page.items().isEmpty()) {
+                var last = page.items().getLast();
+                response.put("nextCursor", cursorCodec.encode(new AdminCursor(
+                        "moderation-queue", limit, "priority=all", last.oldestOpenReportAt(),
+                        last.reviewId(), last.priority().name())));
+            }
+            return ok(response);
         } catch (IllegalArgumentException exception) {
             return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", request);
         } catch (RuntimeException exception) {

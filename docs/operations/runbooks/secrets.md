@@ -14,8 +14,10 @@ Spring API와 FastAPI AI service는 같은 naming 규칙을 사용한다.
 | `oauth.client-secret` | `ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT` | `ONMARU_SECRET_OAUTH_CLIENT_SECRET_PREVIOUS` |
 | `otlp.exporter-token` | `ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT` | `ONMARU_SECRET_OTLP_EXPORTER_TOKEN_PREVIOUS` |
 | `moderation.operator-token` | `ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT` | `ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_PREVIOUS` |
+| `admin.cursor-signing-key` | `ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT` | `ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_PREVIOUS` |
 
 `*_CURRENT`는 environment provider를 사용하는 런타임에서 필수다. `*_PREVIOUS`는 rotation overlap window 동안만 둔다.
+`admin.cursor-signing-key`는 최소 32바이트의 임의 값이어야 한다. 이전 키는 최대 커서 수명(15분) 이상 유지한 뒤 제거한다.
 
 ## Runtime Modes
 

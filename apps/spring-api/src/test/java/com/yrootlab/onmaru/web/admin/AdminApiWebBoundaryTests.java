@@ -1,11 +1,16 @@
 package com.yrootlab.onmaru.web.admin;
 
 import com.yrootlab.onmaru.OnMaruApplication;
+import com.yrootlab.onmaru.admin.auth.AdminJwtTokenCodec;
+import com.yrootlab.onmaru.admin.auth.AdminPrincipal;
+import com.yrootlab.onmaru.admin.auth.AdminRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,6 +26,9 @@ class AdminApiWebBoundaryTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private AdminJwtTokenCodec tokenCodec;
 
     @Test
     void allAdminRoutesRejectMissingBearerToken() throws Exception {
@@ -48,6 +56,21 @@ class AdminApiWebBoundaryTests {
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(delete("/api/v1/admin/users/" + memberId + "/sanctions/" + sanctionId).with(csrf()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listRoutesReturnValidationErrorForDamagedCursor() throws Exception {
+        String bearer = "Bearer " + tokenCodec.issue(new AdminPrincipal(
+                UUID.fromString("00000000-0000-0000-0000-000000000509"),
+                "admin@example.com", AdminRole.ADMIN));
+        for (String path : new String[] {
+                "/api/v1/admin/reviews", "/api/v1/admin/reports",
+                "/api/v1/admin/users", "/api/v1/admin/curations",
+                "/api/v1/admin/moderation/queue"}) {
+            mockMvc.perform(get(path).param("cursor", "damaged").header("Authorization", bearer))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        }
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor csrf() {

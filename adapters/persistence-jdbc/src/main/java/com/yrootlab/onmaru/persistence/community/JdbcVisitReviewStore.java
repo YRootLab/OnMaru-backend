@@ -4,6 +4,8 @@ import com.yrootlab.onmaru.catalog.publicid.CatalogPublicPlaceIdStore;
 import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminPage;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
 
 import javax.sql.DataSource;
@@ -57,6 +59,59 @@ public final class JdbcVisitReviewStore implements MutableVisitReviewStore {
     @Override
     public List<VisitReviewProjection> findSnapshot() {
         return transactions.execute(connection -> findSnapshot(connection));
+    }
+
+    @Override
+    public AdminPage<VisitReviewProjection> findAdminPage(VisitReviewStatus status, String query, int limit, AdminCursor cursor) {
+        return transactions.execute(connection -> {
+            StringBuilder sql = new StringBuilder("""
+                    SELECT review.id, review.member_id, review.public_place_id, review.place_name,
+                           review.region_code, review.latitude, review.longitude, review.text,
+                           review.mood, review.score, review.tags, review.created_at, review.status
+                    FROM onmaru.community_visit_reviews review
+                    WHERE review.public_place_id IS NOT NULL
+                      AND review.latitude IS NOT NULL
+                      AND review.longitude IS NOT NULL
+                    """);
+            if (status != null) sql.append(" AND review.status = ?::onmaru.community_review_status");
+            if (query != null) sql.append(" AND (strpos(lower(review.text), lower(?)) > 0 OR strpos(lower(coalesce(review.place_name, '')), lower(?)) > 0)");
+            if (cursor != null) sql.append(" AND (review.created_at, review.id) < (?, ?)");
+            sql.append(" ORDER BY review.created_at DESC, review.id DESC LIMIT ?");
+            try (var statement = connection.prepareStatement(sql.toString())) {
+                int index = 1;
+                if (status != null) statement.setString(index++, status.name());
+                if (query != null) {
+                    statement.setString(index++, query);
+                    statement.setString(index++, query);
+                }
+                if (cursor != null) {
+                    statement.setObject(index++, OffsetDateTime.ofInstant(cursor.timestamp(), ZoneOffset.UTC));
+                    statement.setObject(index++, cursor.id());
+                }
+                statement.setInt(index, limit + 1);
+                try (var result = statement.executeQuery()) {
+                    var items = new ArrayList<VisitReviewProjection>();
+                    while (result.next()) {
+                        Number latitudeValue = (Number) result.getObject("latitude");
+                        Number longitudeValue = (Number) result.getObject("longitude");
+                        if (latitudeValue == null || longitudeValue == null) continue;
+                        items.add(new VisitReviewProjection(
+                                result.getObject("id", UUID.class), result.getString("public_place_id"),
+                                result.getString("place_name"), result.getString("region_code"),
+                                latitudeValue.doubleValue(), longitudeValue.doubleValue(), result.getString("text"),
+                                result.getString("mood"), result.getObject("score", Integer.class),
+                                tags(result.getString("tags")),
+                                result.getObject("created_at", OffsetDateTime.class).toInstant(),
+                                result.getObject("member_id", UUID.class), Set.of(),
+                                VisitReviewStatus.valueOf(result.getString("status"))));
+                    }
+                    boolean hasNext = items.size() > limit;
+                    return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+                }
+            } catch (Exception exception) {
+                throw databaseFailure(exception);
+            }
+        });
     }
 
     private List<VisitReviewProjection> findSnapshot(java.sql.Connection connection) {
