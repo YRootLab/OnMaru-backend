@@ -4,6 +4,7 @@ plugins {
 }
 
 dependencies {
+    api(project(":modules:catalog"))
     testImplementation(platform("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}"))
     testImplementation("org.assertj:assertj-core")
     testImplementation("org.junit.jupiter:junit-jupiter")

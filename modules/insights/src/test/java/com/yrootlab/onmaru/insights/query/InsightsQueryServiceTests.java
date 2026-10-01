@@ -108,6 +108,22 @@ class InsightsQueryServiceTests {
     }
 
     @Test
+    void acceptsFrontendVisitCountMetricAndReturnsDerivedCongestionSpots() {
+        store.save(new HeatSpot(
+                "heat-visit-count", "region:kr-45-jeonju", "전주시", region(),
+                new Coordinates(35.8151, 127.1530), 18240L, 72.4, "BUSY", 1.8,
+                "COMPLETE", LocalDate.parse("2026-09-14"), "CONGESTION_SCORE"));
+
+        HeatmapResponse response = service.heatmap(
+                "kr-45-jeonju", LocalDate.parse("2026-09-14"), "VISIT_COUNT");
+
+        assertThat(response.metric()).isEqualTo("VISIT_COUNT");
+        assertThat(response.coverageStatus()).isEqualTo("COMPLETE");
+        assertThat(response.spots()).singleElement().extracting(HeatSpot::id)
+                .isEqualTo("heat-visit-count");
+    }
+
+    @Test
     void usesTheLatestPublishedHeatmapDateWhenDateIsOmitted() {
         store.save(new HeatSpot(
                 "heat-old", "region:kr-45-jeonju", "전주시", region(),

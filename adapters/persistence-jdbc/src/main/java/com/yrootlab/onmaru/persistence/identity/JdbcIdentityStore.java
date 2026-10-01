@@ -212,6 +212,20 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
     }
 
     @Override
+    public int revokeAllSessions(UUID memberId, Instant now) {
+        return withConnection(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    UPDATE onmaru.identity_sessions SET revoked_at = ?
+                    WHERE member_id = ? AND revoked_at IS NULL
+                    """)) {
+                statement.setObject(1, utc(now));
+                statement.setObject(2, memberId);
+                return statement.executeUpdate();
+            }
+        });
+    }
+
+    @Override
     public Optional<MemberLifecycleStatus> requestDeletion(String sessionTokenHash, Instant now) {
         return inTransaction(connection -> {
             UUID memberId;

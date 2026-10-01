@@ -8,6 +8,14 @@
 2. 여정 탐색, 저장, 공통 오류, 기존 VisitReview 상세는 [FE REST 계약](rest-api.md)을 따른다.
 3. 회원·소유권·보존 정책은 [인증·영속 모델·보존](../spring/identity-and-journey.md)을 따른다.
 
+## 관리자 목록 페이지네이션 (#509)
+
+`GET /api/v1/admin/reviews`, `/reports`, `/users`, `/curations`, `/moderation/queue`와 `GET /api/v1/operations/moderation/queue`는 `limit` 기본 20, 최대 100을 사용한다. 첫 요청에서 `cursor`를 생략하고, 다음 요청에는 응답의 `nextCursor`를 그대로 전달한다. `hasNext`가 `false`이면 마지막 페이지이며 `nextCursor`가 없다. 후기·신고 응답의 기존 `hasMore`도 같은 값을 유지한다.
+
+후기 목록은 `status`와 `query`(본문·장소명 부분 검색), 회원 목록은 `status=ACTIVE|DELETING`, 큐레이션 목록은 `category`와 `included` 필터를 지원한다. 신고 목록은 미처리(`OPEN`) 신고만 반환하며 `reason`으로 좁힐 수 있다. cursor는 목록 종류·limit·필터·검색어에 묶여 있고 15분 뒤 만료된다. 필터·검색어·limit을 바꿀 때는 첫 페이지부터 다시 요청한다. 빈 값·변조·만료 cursor는 `400 VALIDATION_ERROR`이므로 FE는 기존 cursor를 버리고 첫 페이지를 다시 읽는다.
+
+후기·신고·회원·큐레이션은 최신 시각과 UUID 내림차순이다. moderation queue는 `HIGH_RISK` 우선, 오래된 신호 시각과 후기 UUID 오름차순이다. 회원·큐레이션 검색어는 현재 저장 모델에 검색 대상 필드가 정의되지 않아 지원하지 않는다. 이 계약은 [Admin OpenAPI](openapi/admin.openapi.yaml)와 함께 유지한다.
+
 ## FE가 새로 알아야 하는 큰 변화
 
 | 구분 | 기존 FE에 없거나 달라진 점 | FE 영향 |

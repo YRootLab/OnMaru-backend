@@ -17,6 +17,7 @@ RUN --mount=type=cache,target=/root/.gradle \
 FROM eclipse-temurin:21-jre-alpine AS runner
 WORKDIR /app
 ENV SPRING_PROFILES_ACTIVE=production
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 
 RUN apk upgrade --no-cache \
     && apk add --no-cache curl \
@@ -30,4 +31,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null || exit 1
 
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -1,5 +1,7 @@
 package com.yrootlab.onmaru.web.moderation.queue;
 
+import com.yrootlab.onmaru.admin.pagination.AdminCursorCodec;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
 import com.yrootlab.onmaru.community.moderation.ModerationQueueItem;
 import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
@@ -31,10 +33,15 @@ final class ModerationQueueController {
 
     private final OperatorAuthenticator authenticator;
     private final ModerationQueueService queueService;
+    private final AdminCursorCodec cursorCodec;
 
-    ModerationQueueController(OperatorAuthenticator authenticator, ModerationQueueService queueService) {
+    ModerationQueueController(
+            OperatorAuthenticator authenticator,
+            ModerationQueueService queueService,
+            AdminCursorCodec cursorCodec) {
         this.authenticator = authenticator;
         this.queueService = queueService;
+        this.cursorCodec = cursorCodec;
     }
 
     @Operation(
@@ -52,19 +59,33 @@ final class ModerationQueueController {
             @RequestHeader(name = "Authorization", required = false) String authorization,
             @Parameter(description = "운영자 식별자", example = "operator-admin")
             @RequestHeader(name = "X-OnMaru-Operator", required = false) String actorRef,
-            @Parameter(description = "조회 건수 (기본값 100)", example = "100")
-            @RequestParam(defaultValue = "100") int limit,
+            @Parameter(description = "조회 건수 (기본값 20, 최대 100)", example = "20")
+            @RequestParam(defaultValue = "20") int limit,
+            @Parameter(description = "이전 페이지 응답의 서명된 nextCursor")
+            @RequestParam(required = false) String cursor,
             HttpServletRequest request) {
         authenticator.authenticate(authorization, actorRef);
         try {
-            var snapshot = queueService.snapshot(limit);
+            if (cursor != null && cursor.length() > 512) throw new IllegalArgumentException();
+            AdminCursor decoded = cursorCodec.decodeOptional(cursor, "moderation-queue", limit, "priority=all");
+            var page = queueService.page(limit, decoded);
+            Instant generatedAt = queueService.generatedAt();
+            long oldestAge = queueService.oldestQueueAgeSeconds();
+            String nextCursor = null;
+            if (page.hasNext() && !page.items().isEmpty()) {
+                var last = page.items().getLast();
+                nextCursor = cursorCodec.encode(new AdminCursor("moderation-queue", limit, "priority=all",
+                        last.oldestOpenReportAt(), last.reviewId(), last.priority().name()));
+            }
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.noStore())
                     .body(new ModerationQueueResponse(
                             "1.2",
-                            snapshot.generatedAt(),
-                            snapshot.oldestOpenReportAgeSeconds(),
-                            snapshot.items()));
+                            generatedAt,
+                            oldestAge,
+                            page.items(),
+                            page.hasNext(),
+                            nextCursor));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest()
                     .cacheControl(CacheControl.noStore())
@@ -88,7 +109,9 @@ final class ModerationQueueController {
             String schemaVersion,
             Instant generatedAt,
             long oldestOpenReportAgeSeconds,
-            List<ModerationQueueItem> items) {
+            List<ModerationQueueItem> items,
+            boolean hasNext,
+            String nextCursor) {
 
         private ModerationQueueResponse {
             items = List.copyOf(items);

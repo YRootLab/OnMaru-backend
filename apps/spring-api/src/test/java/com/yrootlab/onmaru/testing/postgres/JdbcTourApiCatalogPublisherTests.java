@@ -15,11 +15,19 @@ import com.yrootlab.onmaru.persistence.catalog.CatalogSnapshotPersistenceConfigu
 import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPlaceSnapshotStore;
 import com.yrootlab.onmaru.persistence.catalog.JdbcPlaceDetailStore;
 import com.yrootlab.onmaru.persistence.catalog.JdbcTourApiCatalogPublisher;
+import com.yrootlab.onmaru.persistence.catalog.JdbcMapInfoQueryRepository;
+import com.yrootlab.onmaru.persistence.catalog.JdbcMapViewportQueryRepository;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoBounds;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoCategory;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSqlQuery;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportQuery;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoPlaceItem;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.testcontainers.containers.GenericContainer;
@@ -33,6 +41,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,6 +91,18 @@ class JdbcTourApiCatalogPublisherTests {
         assertThat(result.publishedCount()).isEqualTo(2);
         assertThat(result.quarantinedCount()).isEqualTo(1);
         assertThat(result.skippedCount()).isEqualTo(1);
+        var mapList = new JdbcMapInfoQueryRepository(dataSource).find(new MapInfoSqlQuery(
+                null, List.of(), null, new MapInfoBounds(126.9, 37.5, 127.1, 37.7),
+                "NAME", null, null, 30, null, null));
+        assertThat(mapList.totalCount()).isEqualTo(2);
+        assertThat(mapList.items()).extracting(item -> item.name())
+                .containsExactlyInAnyOrder("북촌 한옥", "전주 남부시장");
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 5, MapInfoCategory.ALL,
+                null, null, "ko-KR", 500));
+        assertThat(viewport.totalCountInViewport()).isEqualTo(2);
+        assertThat(viewport.renderMode().name()).isEqualTo("PLACE");
+        assertThat(queryCount("onmaru.map_projection_publications")).isEqualTo(1);
         assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isEqualTo(4);
         assertThat(queryCount("onmaru.operations_sync_quarantine")).isZero();
         assertThat(queryCount("onmaru.catalog_kto_korean_content_versions WHERE ldong_regn_cd = '11' AND ldong_signgu_cd = '110'"))
@@ -103,6 +124,75 @@ class JdbcTourApiCatalogPublisherTests {
         assertThat(detail.address()).isEqualTo("서울 종로구");
         assertThat(source.contentId()).isEqualTo("2001");
         assertThat(source.contentTypeId()).isEqualTo("12");
+    }
+
+    @Test
+    void nameKeysetCursorFollowsNameOrderAcrossRegionsWithoutOmission() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var session = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("3001", "가 이름", "HANOK", "11", "110", "126.98", "37.58"),
+                rowWithRegion("3002", "나 이름", "HANOK", "26", "260", "129.07", "35.18"),
+                rowWithRegion("3003", "다 이름", "HANOK", "11", "110", "126.99", "37.59")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), Instant.parse("2026-09-27T03:01:00Z"));
+
+        var repository = new JdbcMapInfoQueryRepository(dataSource);
+        var first = repository.find(new MapInfoSqlQuery(
+                null, List.of(), null, null, "NAME", null, null, 2, null, null));
+        var second = repository.find(new MapInfoSqlQuery(
+                first.snapshot().id(), List.of(), null, null, "NAME", null, null, 2,
+                first.lastCursor(), null));
+
+        assertThat(first.items()).extracting(MapInfoPlaceItem::name)
+                .containsExactly("가 이름", "나 이름");
+        assertThat(second.items()).extracting(MapInfoPlaceItem::name)
+                .containsExactly("다 이름");
+    }
+
+    @Test
+    @Tag("performance")
+    void thirtyThousandPublishedPlacesStayWithinMapInfoLatencyBudgets() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var session = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
+        var records = new ArrayList<SourceRecord>(30_000);
+        for (int i = 0; i < 30_000; i++) {
+            records.add(rowWithRegion("400000" + i, "성능 장소 " + String.format("%05d", i), "HANOK",
+                    "11", "110", "126.90" + (i % 10), "37.50" + (i % 10)));
+        }
+        var page = publisher.stagePage(session, records);
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), Instant.parse("2026-09-27T03:01:00Z"));
+
+        var listRepository = new JdbcMapInfoQueryRepository(dataSource);
+        var viewportRepository = new JdbcMapViewportQueryRepository(dataSource);
+        int[] zoomProfiles = {4, 7, 9, 12};
+        for (int i = 0; i < 3; i++) {
+            listRepository.find(new MapInfoSqlQuery(null, List.of(), null, null, "NAME", null, null, 30, null, null));
+            for (int zoom : zoomProfiles) {
+                viewportRepository.find(new MapInfoViewportQuery(
+                        new MapInfoBounds(126.8, 37.4, 127.1, 37.8), zoom, MapInfoCategory.ALL,
+                        null, null, "ko-KR", 500));
+            }
+        }
+
+        var listSamples = new long[20];
+        var viewportSamples = new long[zoomProfiles.length][20];
+        for (int i = 0; i < 20; i++) {
+            listSamples[i] = elapsedNanos(() -> listRepository.find(
+                    new MapInfoSqlQuery(null, List.of(), null, null, "NAME", null, null, 30, null, null)));
+            for (int profile = 0; profile < zoomProfiles.length; profile++) {
+                int zoom = zoomProfiles[profile];
+                viewportSamples[profile][i] = elapsedNanos(() -> viewportRepository.find(new MapInfoViewportQuery(
+                        new MapInfoBounds(126.8, 37.4, 127.1, 37.8), zoom, MapInfoCategory.ALL,
+                        null, null, "ko-KR", 500)));
+            }
+        }
+
+        assertThat(percentile95Millis(listSamples)).isLessThanOrEqualTo(200.0);
+        for (long[] samples : viewportSamples) {
+            assertThat(percentile95Millis(samples)).isLessThanOrEqualTo(500.0);
+        }
     }
 
     @Test
@@ -217,17 +307,22 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     private SourceRecord row(String id, String title, String canonicalCategory) {
+        return rowWithRegion(id, title, canonicalCategory, "11", "110", "126.98", "37.58");
+    }
+
+    private SourceRecord rowWithRegion(String id, String title, String canonicalCategory,
+                                       String region, String district, String longitude, String latitude) {
         var fields = new java.util.LinkedHashMap<String, String>();
         fields.put("contentid", id);
         fields.put("contenttypeid", "12");
         fields.put("title", title);
-        fields.put("lDongRegnCd", "11");
-        fields.put("lDongSignguCd", "110");
+        fields.put("lDongRegnCd", region);
+        fields.put("lDongSignguCd", district);
         fields.put("lclsSystm1", "VE");
         fields.put("lclsSystm2", "VE01");
         fields.put("lclsSystm3", "VE010100");
-        fields.put("mapx", "126.98");
-        fields.put("mapy", "37.58");
+        fields.put("mapx", longitude);
+        fields.put("mapy", latitude);
         fields.put("addr1", "서울 종로구");
         fields.put("firstimage", "https://images.example/" + id + ".jpg");
         if (canonicalCategory != null) fields.put("canonicalcategory", canonicalCategory);
@@ -247,6 +342,18 @@ class JdbcTourApiCatalogPublisherTests {
             rows.next();
             return rows.getInt(1);
         }
+    }
+
+    private long elapsedNanos(Runnable action) {
+        long started = System.nanoTime();
+        action.run();
+        return System.nanoTime() - started;
+    }
+
+    private double percentile95Millis(long[] samples) {
+        var sorted = java.util.Arrays.stream(samples).sorted().toArray();
+        int index = Math.min(sorted.length - 1, (int) Math.ceil(sorted.length * 0.95) - 1);
+        return sorted[index] / 1_000_000.0;
     }
 
     private static String url() {

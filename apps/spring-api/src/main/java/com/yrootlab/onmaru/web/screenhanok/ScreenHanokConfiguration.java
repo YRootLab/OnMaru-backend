@@ -17,7 +17,6 @@ import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenSigner;
 import com.yrootlab.onmaru.persistence.screenhanok.JdbcScreenHanokPlacementStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -47,7 +46,6 @@ class ScreenHanokConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     ScreenHanokPlacementStore jdbcScreenHanokPlacementStore(DataSource dataSource) {
         return new JdbcScreenHanokPlacementStore(dataSource);
     }

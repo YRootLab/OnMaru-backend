@@ -10,6 +10,8 @@
 - [`openapi/r1.openapi.yaml`](openapi/r1.openapi.yaml): R1 한옥·장소·찜·월간 타임라인 OpenAPI 3.1 초안
 - [`openapi/identity-saved.openapi.yaml`](openapi/identity-saved.openapi.yaml): 인증·회원·SavedResource·월간 타임라인 OpenAPI 3.1 초안
 - [`openapi/r2-map-audio-insights.openapi.yaml`](openapi/r2-map-audio-insights.openapi.yaml): R2 지도·행정구역·Odii·관광 관측 OpenAPI 3.1 초안
+- [`openapi/map-info.openapi.yaml`](openapi/map-info.openapi.yaml): 정보모드 목록·viewport PLACE/CLUSTER/DISTRICT/REGION 계약
+- [`fixtures/map-info`](fixtures/map-info): 정보모드 목록·빈 결과·4개 render mode·부분 응답·오류 fixture
 - [`schemas/journey-sse-event.schema.json`](schemas/journey-sse-event.schema.json): 여정 진행 알림 event data JSON Schema
 - [`fixtures/journey-sse-fixtures.json`](fixtures/journey-sse-fixtures.json): reconnect/reset/cancel contract fixture 목록
 - [`fixtures/r1`](fixtures/r1): R1 한옥·장소·찜 정상·빈·404·cursor·auth·unavailable 예제
