@@ -1,10 +1,24 @@
 name: Module Benchmark
 
 on:
-  pull_request:
   push:
     branches:
       - develop
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/module-benchmark.yml'
+      - '.github/benchmark-modules.yml'
+      - 'scripts/ci/**'
+      - 'scripts/benchmark/**'
+      - 'scripts/test/**'
+      - 'scripts/verify-contracts'
+      - '**/src/test/**'
+      - 'ai/tests/**'
+      - 'ai/pyproject.toml'
+      - '**/build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'build-logic/**'
+      - 'gradle/**'
   workflow_dispatch:
 
 permissions:
@@ -16,7 +30,7 @@ jobs:
     with:
       catalog_path: .github/benchmark-modules.yml
       toolkit_ref: 8f68026215ebb8f32bc14e17740f2c87dbdc773d
-      mode: ${{ github.event_name == 'pull_request' && 'pr' || 'develop' }}
+      mode: develop
       max_parallel: 4
       baseline_ref: develop
       comment_mode: none

@@ -1,5 +1,6 @@
 package com.yrootlab.onmaru.security.web;
 
+import com.yrootlab.onmaru.config.CorsOriginPolicy;
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import com.yrootlab.onmaru.web.stamp.StampApiContract;
@@ -23,9 +24,11 @@ public final class CsrfProtectionFilter extends OncePerRequestFilter {
     private static final Set<String> UNSAFE_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
 
     private final CsrfTokenService tokenService;
+    private final CorsOriginPolicy corsOriginPolicy;
 
-    CsrfProtectionFilter(CsrfTokenService tokenService) {
+    CsrfProtectionFilter(CsrfTokenService tokenService, CorsOriginPolicy corsOriginPolicy) {
         this.tokenService = tokenService;
+        this.corsOriginPolicy = corsOriginPolicy;
     }
 
     @Override
@@ -46,24 +49,16 @@ public final class CsrfProtectionFilter extends OncePerRequestFilter {
     }
 
     private boolean isValid(HttpServletRequest request) {
-        return isSameOrigin(request)
+        return isAllowedOrigin(request)
                 && tokenService.matches(cookieToken(request), request.getHeader(CsrfTokenService.HEADER_NAME));
     }
 
-    private boolean isSameOrigin(HttpServletRequest request) {
+    private boolean isAllowedOrigin(HttpServletRequest request) {
         var origin = request.getHeader("Origin");
         if (origin == null || origin.isBlank()) {
             return true;
         }
-        return origin.equals(requestOrigin(request));
-    }
-
-    private String requestOrigin(HttpServletRequest request) {
-        var scheme = request.getScheme();
-        var host = request.getServerName();
-        var port = request.getServerPort();
-        var defaultPort = ("https".equals(scheme) && port == 443) || ("http".equals(scheme) && port == 80);
-        return defaultPort ? "%s://%s".formatted(scheme, host) : "%s://%s:%d".formatted(scheme, host, port);
+        return corsOriginPolicy.allows(origin);
     }
 
     private String cookieToken(HttpServletRequest request) {
