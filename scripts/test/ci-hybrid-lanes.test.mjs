@@ -75,6 +75,7 @@ test('CI runs a shared-workspace Java lane in parallel with independent lanes', 
   for (const job of ['plan', 'hygiene', 'java', 'contract', 'ai', 'verify']) {
     assert.match(workflow, new RegExp(`^  ${job}:$`, 'm'));
   }
+  assert.match(workflow, /^  java:\n    name: Java 모듈 및 Spring API 전체 테스트$/m);
   assert.match(workflow, /^    needs: plan$/m);
   assert.match(workflow, /^    needs: \[plan, hygiene, java, contract, ai\]$/m);
   assert.match(workflow, /node scripts\/ci\/select-ci-lanes\.mjs/);

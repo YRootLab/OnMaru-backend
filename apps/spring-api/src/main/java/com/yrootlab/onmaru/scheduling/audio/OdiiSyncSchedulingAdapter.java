@@ -66,40 +66,45 @@ public class OdiiSyncSchedulingAdapter {
     }
 
     public synchronized void runSync(String triggerSource) {
+        UUID runId = UUID.randomUUID();
+        String phase = "DEPENDENCY_CHECK";
         var syncService = syncServiceProvider.getIfAvailable();
         var revisionStore = revisionStoreProvider.getIfAvailable();
         var dataSource = dataSourceProvider.getIfAvailable();
 
         if (syncService == null || revisionStore == null || dataSource == null) {
-            LOGGER.warn("ODII_SYNC_TERMINAL status=SKIPPED phase=DEPENDENCY_CHECK trigger={} "
+            LOGGER.warn("ODII_SYNC_TERMINAL runId={} status=SKIPPED reason=MISSING_COMPONENT phase={} trigger={} "
                             + "syncService={} revisionStore={} dataSource={}",
-                    triggerSource, syncService != null, revisionStore != null, dataSource != null);
+                    runId, phase, triggerSource, syncService != null, revisionStore != null, dataSource != null);
             return;
         }
 
         try {
-            LOGGER.info("ODII_SYNC_STARTED trigger={} dataset={}", triggerSource, dataset);
+            phase = "INITIALIZE";
+            LOGGER.info("ODII_SYNC_STARTED runId={} trigger={} dataset={}", runId, triggerSource, dataset);
             UUID activeRevision = revisionStore.activeRevision(dataset);
             if (activeRevision == null) {
-                LOGGER.info("ODII_SYNC_PHASE phase=INITIALIZE dataset={}", dataset);
+                LOGGER.info("ODII_SYNC_PHASE runId={} phase=INITIALIZE dataset={}", runId, dataset);
                 activeRevision = revisionStore.initializeDataset(dataset, Instant.now());
             }
             if (activeRevision == null) {
-                LOGGER.error("ODII_SYNC_TERMINAL status=FAILED phase=INITIALIZE trigger={} dataset={}",
-                        triggerSource, dataset);
+                LOGGER.error("ODII_SYNC_TERMINAL runId={} status=FAILED phase={} trigger={} dataset={}",
+                        runId, phase, triggerSource, dataset);
                 return;
             }
 
-            LOGGER.info("ODII_SYNC_PHASE phase=LEASE trigger={} dataset={}", triggerSource, dataset);
+            phase = "LEASE";
+            LOGGER.info("ODII_SYNC_PHASE runId={} phase={} trigger={} dataset={}", runId, phase, triggerSource, dataset);
             SyncRunLease lease = acquireOrRenewLease(dataSource, dataset, OWNER_TOKEN);
             if (lease == null) {
-                LOGGER.warn("ODII_SYNC_TERMINAL status=SKIPPED phase=LEASE trigger={} dataset={}",
-                        triggerSource, dataset);
+                LOGGER.warn("ODII_SYNC_TERMINAL runId={} status=SKIPPED reason=LEASE_NOT_ACQUIRED phase={} trigger={} dataset={}",
+                        runId, phase, triggerSource, dataset);
                 return;
             }
 
-            LOGGER.info("ODII_SYNC_PHASE phase=FETCH_MAP_STAGE_PUBLISH trigger={} dataset={} activeRevision={}",
-                    triggerSource, dataset, activeRevision);
+            phase = "SYNC";
+            LOGGER.info("ODII_SYNC_PHASE runId={} phase={} trigger={} dataset={} activeRevision={}",
+                    runId, phase, triggerSource, dataset, activeRevision);
 
             var command = new OdiiSyncCommand(
                     dataset,
@@ -110,14 +115,17 @@ public class OdiiSyncSchedulingAdapter {
             );
 
             var result = syncService.sync(command);
-            LOGGER.info("ODII_SYNC_TERMINAL status={} phase=COMPLETE trigger={} dataset={} "
-                            + "items={} tombstones={}",
-                    result.status(), triggerSource, dataset, result.itemCount(), result.tombstoneCount());
+            boolean published = result.status() == com.yrootlab.onmaru.audio.sync.OdiiSyncStatus.PUBLISHED;
+            LOGGER.info("ODII_SYNC_TERMINAL runId={} status={} phase={} trigger={} dataset={} "
+                            + "revisionId={} staged={} tombstones={}",
+                    runId, published ? "COMPLETED" : "FAILED",
+                    published ? "PUBLISH" : result.status(), triggerSource, dataset,
+                    result.stagedRevisionId(), result.itemCount(), result.tombstoneCount());
 
         } catch (Exception exception) {
             // Do not log exception messages: upstream URLs and provider errors may contain secrets.
-            LOGGER.error("ODII_SYNC_TERMINAL status=FAILED phase=UNKNOWN trigger={} dataset={} exceptionType={}",
-                    triggerSource, dataset, exception.getClass().getName());
+            LOGGER.error("ODII_SYNC_TERMINAL runId={} status=FAILED phase={} trigger={} dataset={} exceptionType={}",
+                    runId, phase, triggerSource, dataset, exception.getClass().getName());
         }
     }
 
