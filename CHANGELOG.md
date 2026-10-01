@@ -4,6 +4,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #545의 검증된 `develop` 이미지 digest를 잠든 Lightsail 스테이징에 수동 반영하는 CI job과 제한 SSH 배포 경로를 추가했다.
 - Issue #545의 기존 Lightsail 온디맨드 스테이징 Spring·PostGIS와 FE 전용 시작·중지 명령, 합성 데이터, 자동 중지 및 수동 smoke 경로를 준비했다.
 - Issue #509의 관리자 후기·신고·회원·큐레이션 목록과 운영 검수 대기열을 서명 cursor 기반 SQL 페이지 조회로 전환하고, 대시보드 집계 read model과 FE 계약을 보강했다.
 - Issue #519의 Lightsail 수동 Compose 배포 scaffold와 Render→Lightsail 전환·DB 복원·HTTPS·rollback runbook을 추가하고, Spring CORS/CSRF allowlist를 환경변수로 구성할 수 있게 했다.

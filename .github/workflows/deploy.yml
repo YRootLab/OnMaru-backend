@@ -1,10 +1,14 @@
-name: Build Images and Optional Staging Smoke
+name: Build Images and Optional Staging Deploy
 
 on:
   workflow_dispatch:
     inputs:
       run_staging_smoke:
         description: Run public smoke only while on-demand staging is awake
+        type: boolean
+        default: false
+      deploy_staging:
+        description: Prepare the verified develop image on sleeping Lightsail staging
         type: boolean
         default: false
   push:
@@ -145,6 +149,47 @@ jobs:
           test -n "$ONMARU_DB_RUNTIME_USER"
           test "$ONMARU_DB_MIGRATION_USER" != "$ONMARU_DB_RUNTIME_USER"
           ./gradlew :apps:spring-api:test --tests '*Migration*' --no-daemon
+
+  staging-deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_staging && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-scan-images
+      - migration-gate
+    environment: staging
+    permissions:
+      contents: read
+      packages: read
+      checks: read
+    steps:
+      - name: Require successful CI verify for this develop commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.name == "verify" and .conclusion == "success" and .app.slug == "github-actions")] | length')
+          test "$count" -ge 1 || { echo 'CI verify has not passed for this develop commit.' >&2; exit 1; }
+
+      - name: Prepare image on sleeping Lightsail staging
+        env:
+          SSH_KEY: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.STAGING_SSH_KNOWN_HOSTS }}
+          SPRING_DIGEST: ${{ needs.build-and-scan-images.outputs.spring-digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS" && test -n "$SPRING_DIGEST" && test -n "$GH_TOKEN"
+          key_file=$(mktemp)
+          trap 'rm -f "$key_file"' EXIT
+          chmod 600 "$key_file"
+          printf '%s\n' "$SSH_KEY" > "$key_file"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          printf '%s\n' "$GH_TOKEN" | ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
+            onmaru-staging-deployer@13.125.191.16 \
+            "deploy $GITHUB_SHA $SPRING_DIGEST $GITHUB_ACTOR"
 
   staging-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.run_staging_smoke

@@ -2,10 +2,10 @@
 
 ## 2026-10-01 Issue #545 온디맨드 스테이징
 
-- 브랜치: `feature/545-on-demand-staging`. 사용자 결정: 기존 1GB/$7 Lightsail에 운영은 상시, 분리된 스테이징 Spring·PostGIS는 FE 개발자가 제한 SSH 명령으로 필요할 때만 실행하고 2시간 후 자동 중지한다.
-- 구현: 분리된 Compose/DB volume/secret, Flyway 선행 실행, 합성 fixture, staging API Nginx 설정, 제한 SSH operator, 자동 중지 timer, FE 안내 문서. 빌드 workflow의 staging smoke와 DataLab smoke는 온디맨드로 변경한다.
-- 로컬 검증: Compose·셸·Nginx 문법, `bootJar`, Node workflow 테스트 10개, 빈 PostGIS에 Flyway 35개 migration, 합성 장소 seed 재실행, Spring health·CSRF·지도 합성 장소 조회 200. 현재 운영 서버는 staging 코드 미적용이다.
-- 다음 단계: PR `verify` 확인 후 `develop` 반영. 별도 서버 staging checkout과 operator 등록, DNS/TLS, Vercel Preview, Kakao callback, live 메모리 및 운영 health 검증이 남아 있다. FE 개발자의 **공개키만** 받아야 하며 개인키는 받지 않는다. Issue #545는 열어 둔다.
+- 현재 브랜치: `feature/545-staging-deploy`. 사용자 결정: 기존 1GB/$7 Lightsail에 운영은 상시, 분리된 스테이징 Spring·PostGIS는 FE 개발자가 제한 SSH 명령으로 필요할 때만 실행하고 2시간 후 자동 중지한다.
+- 완료: PR #546·#549·#550을 `develop`에 반영했다. 실서버에서 분리된 DB와 Flyway 35개 migration, 합성 장소, Spring health·CSRF·지도 조회를 검증하고 스테이징을 중지했다. 운영 컨테이너는 healthy다. Vercel Preview API URL·FE Preview 배포와 `develop` 브랜치에 묶인 `staging.onmaru.site` 별칭을 준비했다. GitHub `STAGING_SPRING_URL`은 새 API 주소로 변경했다. 상세 증적은 Issue #545에 기록했다.
+- 이번 변경: CI `verify`·이미지 검사·migration gate 이후 검증된 `develop` 이미지 digest를 잠든 Lightsail 스테이징에 준비하는 수동 배포 job과 제한 SSH 배포 계정을 추가한다. FE의 `start`만 컨테이너를 실행한다.
+- 다음 단계: 이 PR의 `verify` 확인·병합, CI 전용 공개키/비밀키 설정, 실제 수동 배포 검증. 사용자가 DNS는 나중에 추가하기로 해 API/FE 공개 TLS는 대기 중이다. FE 개발자 **공개키**와 Kakao staging callback, 로그인·쓰기·SSE 검증도 남아 있다. Issue #545는 열어 둔다.
 
 ## 2026-10-01 Issue #542 Toolkit 3회 정책 커밋 적용
 
