@@ -1,0 +1,144 @@
+name: onmaru-staging
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  postgres:
+    image: postgis/postgis:17-3.5-alpine
+    restart: "no"
+    mem_limit: 192m
+    cpus: 0.25
+    environment:
+      POSTGRES_DB: ${ONMARU_POSTGRES_DB:?Set the staging DB name}
+      POSTGRES_USER: ${ONMARU_POSTGRES_ADMIN_USER:?Set the staging bootstrap user}
+      POSTGRES_PASSWORD: ${ONMARU_POSTGRES_ADMIN_PASSWORD:?Set the staging bootstrap password}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      ONMARU_DB_RUNTIME_USER: ${ONMARU_DB_RUNTIME_USER:?Set the staging runtime user}
+      ONMARU_DB_RUNTIME_PASSWORD: ${ONMARU_DB_RUNTIME_PASSWORD:?Set the staging runtime password}
+      ONMARU_DB_MIGRATION_USER: ${ONMARU_DB_MIGRATION_USER:?Set the staging migration user}
+      ONMARU_DB_MIGRATION_PASSWORD: ${ONMARU_DB_MIGRATION_PASSWORD:?Set the staging migration password}
+      ONMARU_DB_READONLY_USER: ${ONMARU_DB_READONLY_USER:?Set the staging readonly user}
+      ONMARU_DB_READONLY_PASSWORD: ${ONMARU_DB_READONLY_PASSWORD:?Set the staging readonly password}
+      ONMARU_DB_BACKUP_USER: ${ONMARU_DB_BACKUP_USER:?Set the staging backup user}
+      ONMARU_DB_BACKUP_PASSWORD: ${ONMARU_DB_BACKUP_PASSWORD:?Set the staging backup password}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - work_mem=1MB
+      - -c
+      - maintenance_work_mem=16MB
+      - -c
+      - max_connections=16
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../postgres/init/01-create-login-roles.sh:/docker-entrypoint-initdb.d/01-create-login-roles.sh:ro
+      - ./seed.sql:/opt/onmaru/seed.sql:ro
+    networks:
+      - database
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" && psql -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc "SELECT 1 FROM pg_extension WHERE extname = 'postgis'" | grep -q 1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    image: flyway/flyway:12.4.0
+    profiles: [migration]
+    restart: "no"
+    mem_limit: 192m
+    cpus: 0.4
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${ONMARU_POSTGRES_DB}
+      # V001 creates/alters database roles, so this one-shot staging migration needs the staging bootstrap login.
+      FLYWAY_USER: ${ONMARU_POSTGRES_ADMIN_USER}
+      FLYWAY_PASSWORD: ${ONMARU_POSTGRES_ADMIN_PASSWORD}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "0"
+      FLYWAY_CONNECT_RETRIES: "10"
+      JAVA_ARGS: -Xmx128m
+    volumes:
+      - ../../../apps/spring-api/src/main/resources/db/migration/baseline:/flyway/sql:ro
+    networks:
+      - database
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+
+  spring-api:
+    image: ${ONMARU_SPRING_IMAGE:?Set an immutable staging Spring image tag}
+    restart: "no"
+    mem_limit: 384m
+    cpus: 0.55
+    environment:
+      SPRING_PROFILES_ACTIVE: production,staging
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=55.0 -XX:InitialRAMPercentage=15.0
+      ONMARU_SECRETS_SOURCE: environment
+      ONMARU_DB_URL: jdbc:postgresql://postgres:5432/${ONMARU_POSTGRES_DB}
+      ONMARU_DB_RUNTIME_USER: ${ONMARU_DB_RUNTIME_USER}
+      ONMARU_DB_RUNTIME_PASSWORD: ${ONMARU_DB_RUNTIME_PASSWORD}
+      ONMARU_DB_MIGRATION_USER: ${ONMARU_DB_MIGRATION_USER}
+      ONMARU_DB_MIGRATION_PASSWORD: ${ONMARU_DB_MIGRATION_PASSWORD}
+      ONMARU_CORS_ALLOWED_ORIGINS: ${ONMARU_CORS_ALLOWED_ORIGINS:?Set only the fixed staging FE origin}
+      ONMARU_DATALAB_VISITOR_SERVICE_KEY: ${ONMARU_DATALAB_VISITOR_SERVICE_KEY:?Set the staging DataLab key}
+      ONMARU_OAUTH_KAKAO_CLIENTID: ${ONMARU_OAUTH_KAKAO_CLIENTID:?Set the staging Kakao REST API key}
+      ONMARU_OAUTH_KAKAO_REDIRECTURI: ${ONMARU_OAUTH_KAKAO_REDIRECTURI:?Set the staging callback}
+      ONMARU_OAUTH_KAKAO_FRONTENDBASEURL: ${ONMARU_OAUTH_KAKAO_FRONTENDBASEURL:?Set the staging FE origin}
+      ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT:?Set the staging TourAPI key}
+      ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT:?Set the staging Odii key}
+      ONMARU_SECRET_GEMINI_API_KEY_CURRENT: ${ONMARU_SECRET_GEMINI_API_KEY_CURRENT:?Set the staging Gemini key}
+      ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT: ${ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT:?Generate a staging OAuth signing key}
+      ONMARU_SECRET_ADMIN_JWT_SIGNING_KEY_CURRENT: ${ONMARU_SECRET_ADMIN_JWT_SIGNING_KEY_CURRENT:?Generate a staging admin JWT key}
+      ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT: ${ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT:?Generate a staging admin cursor key}
+      ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT: ${ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT:?Generate a staging OTLP placeholder}
+      ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT: ${ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT:?Generate a staging moderation key}
+      ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT: ${ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT:?Generate a staging DataLab token}
+      ONMARU_OTLP_METRICS_ENABLED: "false"
+      ONMARU_TOURAPI_SYNC_CRON: "-"
+      ONMARU_ODII_SYNC_CRON: "-"
+      ONMARU_DATALAB_VISITOR_SYNC_CRON: "-"
+      ONMARU_SCREEN_HANOK_SYNC_CRON: "-"
+      ONMARU_RETENTION_CLEANUP_CRON: "-"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      app:
+        aliases:
+          - staging-api
+      database: {}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  app:
+    external: true
+    name: onmaru-lightsail_app
+  database:
+    internal: true
+
+volumes:
+  postgres-data:

@@ -143,14 +143,15 @@ ORDER BY region.code;
 
 수집 응답에서 공식 code와 mapping이 맞지 않거나 검증 근거가 만료·변경된 경우 등록하지 않는다. DataLab snapshot publish를 실패시켜 이전 active revision을 유지하는 것이 잘못된 지역 관측값을 배포하는 것보다 안전하다.
 
-## Staging smoke 자동화
+## Staging smoke 수동 실행
 
-`.github/workflows/datalab-staging-smoke.yml`은 `Staging Deploy` 성공 직후 자동 실행되며
-필요하면 `workflow_dispatch`로 다시 실행할 수 있다. workflow는 다음을 한 번에 검증한다.
+스테이징이 평소 중지되는 구성에서는 `.github/workflows/datalab-staging-smoke.yml`을
+스테이징 기동과 DataLab 전용 계정·DB 접속 준비 후에만 `workflow_dispatch`로 실행한다.
+workflow는 다음을 한 번에 검증한다.
 
 1. 보호된 operations endpoint로 실제 DataLab 수집을 실행한다.
 2. read-only DB 연결로 `ACTIVE` registry의 provenance, active revision, `COMPLETE` 관측을 확인한다.
-3. 배포 image에 bake된 Git SHA가 `Staging Deploy`의 SHA와 같은지 확인한다.
+3. 배포 image에 bake된 Git SHA가 수동 실행에서 선택한 Git SHA와 같은지 확인한다.
 4. 공개 후기 표본이 존재하는 ACTIVE 관측을 선택해 DB 지역·기준일·방문자 수와 Insights 및 VisitReview projection 값이 정확히 같은지 확인한다.
 5. 같은 SHA의 PostgreSQL 통합 테스트로 실패 batch가 기존 active revision을 보존함을 확인한다.
 6. token, service key, DB URL, provider payload, 지역 코드를 제거한 JSON 증적을 30일 artifact로 보관한다.
@@ -159,6 +160,9 @@ ORDER BY region.code;
 `ONMARU_DATALAB_OPERATIONS_TOKEN`, `ONMARU_DATALAB_VISITOR_SERVICE_KEY`,
 `ONMARU_STAGING_READONLY_DB_URL` secrets다. 실행 전에 배포 runtime의
 `ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT`가 workflow token과 같은지 확인한다.
+스테이징 DB는 외부 5432 포트를 열지 않으므로 GitHub runner에서 직접 접근하는 기존
+`ONMARU_STAGING_READONLY_DB_URL`은 현재 구성에서 사용할 수 없다. 별도 안전한 접속 경로가
+구성되기 전까지 이 smoke는 보류한다.
 
 성공한 실행만 검증 링크와 함께 Issue #392를 닫는다. 배포 SHA 불일치, 공개 projection
 불일치, 빈 VisitReview 검증 표본도 실패로 처리한다. 실패하면 #392에 실행 링크를 남기고

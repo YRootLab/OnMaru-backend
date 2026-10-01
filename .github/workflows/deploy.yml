@@ -1,7 +1,12 @@
-name: Staging Deploy
+name: Build Images and Optional Staging Smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      run_staging_smoke:
+        description: Run public smoke only while on-demand staging is awake
+        type: boolean
+        default: false
   push:
     branches:
       - master
@@ -142,6 +147,7 @@ jobs:
           ./gradlew :apps:spring-api:test --tests '*Migration*' --no-daemon
 
   staging-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_staging_smoke
     runs-on: ubuntu-latest
     needs:
       - build-and-scan-images
@@ -165,7 +171,8 @@ jobs:
         run: |
           node --test scripts/test/deploy-pipeline.test.mjs
           test -f infra/staging/release-plan.json
-          curl --fail --silent --show-error "$STAGING_SPRING_URL/actuator/health"
+          test "$STAGING_SPRING_URL" = 'https://staging-api.onmaru.site'
+          curl --fail --silent --show-error --output /dev/null "$STAGING_SPRING_URL/auth/csrf"
           # AI staging service is not provisioned yet. Re-enable this check with Issue #490
           # after registering a real STAGING_AI_URL and connecting the AI image deployment.
 

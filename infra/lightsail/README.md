@@ -67,3 +67,5 @@ docker compose --env-file .env logs --tail=100 spring-api nginx postgres
 ```
 
 현재 구성은 수동 Compose 운영이다. `.github/workflows/deploy.yml`은 GHCR 이미지 생성과 staging smoke를 수행하지만 Lightsail에 자동 배포하지 않는다.
+
+같은 서버에서 필요할 때만 별도 Spring·PostGIS를 실행하는 스테이징 준비와 FE 개발자의 제한된 시작·중지 명령은 [staging/README.md](staging/README.md)를 참고한다.
