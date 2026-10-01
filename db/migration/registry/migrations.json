@@ -327,7 +327,7 @@
       "issueNumber": 553,
       "path": "apps/spring-api/src/main/resources/db/migration/baseline/V037__553_backfill_active_map_projection.sql",
       "checksum": "map-info-legacy-backfill-v037-20261001",
-      "sha256": "6c5937c11a98e2bf5c62b394c037fa1a96977379992bf6d5a11d52789f147532",
+      "sha256": "c66d6209b119b43e9ee860a6a03e91157fd2c6c818cfcb17b883513232fc2d5d",
       "description": "Backfill active map read projections published before V036"
     }
   ]

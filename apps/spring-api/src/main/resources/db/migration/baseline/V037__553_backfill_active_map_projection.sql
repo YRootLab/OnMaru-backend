@@ -130,6 +130,12 @@ BEGIN
 END
 $backfill$;
 
+-- The first filtered request can exceed the 1.5s statement timeout until the
+-- planner has statistics for a populated projection.
+ANALYZE onmaru.map_place_read_projection;
+ANALYZE onmaru.map_place_category_projection;
+ANALYZE onmaru.map_scope_count_projection;
+
 INSERT INTO onmaru_registry.migration_version_reservations
     (version, reserved_for, issue_number, description)
 VALUES ('037', 'MAP_INFO_LEGACY_BACKFILL', 553,
