@@ -1,5 +1,12 @@
 # handoff.md
 
+## 2026-10-01 Issue #545 온디맨드 스테이징
+
+- 브랜치: `feature/545-on-demand-staging`. 사용자 결정: 기존 1GB/$7 Lightsail에 운영은 상시, 분리된 스테이징 Spring·PostGIS는 FE 개발자가 제한 SSH 명령으로 필요할 때만 실행하고 2시간 후 자동 중지한다.
+- 구현: 분리된 Compose/DB volume/secret, Flyway 선행 실행, 합성 fixture, staging API Nginx 설정, 제한 SSH operator, 자동 중지 timer, FE 안내 문서. 빌드 workflow의 staging smoke와 DataLab smoke는 온디맨드로 변경한다.
+- 로컬 검증: Compose·셸·Nginx 문법, `bootJar`, Node workflow 테스트 10개, 빈 PostGIS에 Flyway 35개 migration, 합성 장소 seed 재실행, Spring health·CSRF·지도 합성 장소 조회 200. 현재 운영 서버는 staging 코드 미적용이다.
+- 다음 단계: PR `verify` 확인 후 `develop` 반영. 별도 서버 staging checkout과 operator 등록, DNS/TLS, Vercel Preview, Kakao callback, live 메모리 및 운영 health 검증이 남아 있다. FE 개발자의 **공개키만** 받아야 하며 개인키는 받지 않는다. Issue #545는 열어 둔다.
+
 ## 2026-10-01 Issue #542 Toolkit 3회 정책 커밋 적용
 
 - 브랜치: `fix/542-toolkit-three-run-pin`

@@ -2,9 +2,6 @@ name: DataLab Staging Smoke
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: [Staging Deploy]
-    types: [completed]
 
 permissions:
   contents: read
@@ -16,7 +13,6 @@ concurrency:
 
 jobs:
   smoke:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: staging
@@ -24,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -63,7 +59,7 @@ jobs:
           ONMARU_DATALAB_OPERATIONS_TOKEN: ${{ secrets.ONMARU_DATALAB_OPERATIONS_TOKEN }}
           ONMARU_DATALAB_VISITOR_SERVICE_KEY: ${{ secrets.ONMARU_DATALAB_VISITOR_SERVICE_KEY }}
           ONMARU_STAGING_READONLY_DB_URL: ${{ secrets.ONMARU_STAGING_READONLY_DB_URL }}
-          EXPECTED_DEPLOYED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          EXPECTED_DEPLOYED_SHA: ${{ github.sha }}
           DATALAB_FAILED_BATCH_TEST_VERIFIED: "true"
           DATALAB_SMOKE_EVIDENCE_PATH: ${{ runner.temp }}/datalab-staging-smoke.json
         run: node scripts/datalab-staging-smoke.mjs
