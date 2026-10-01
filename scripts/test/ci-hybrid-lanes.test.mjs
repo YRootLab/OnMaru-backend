@@ -82,5 +82,6 @@ test('CI runs a shared-workspace Java lane in parallel with independent lanes', 
   assert.match(workflow, /node scripts\/ci\/verify-ci-lanes\.mjs/);
   assert.match(workflow, /:adapters:tourism-api:test[\s\\]+:modules:insights:test[\s\\]+:modules:catalog:test/);
   assert.match(workflow, /:modules:operations:test[\s\\]+:apps:spring-api:test/);
+  assert.match(workflow, /:apps:spring-api:test[\s\\]+:apps:spring-api:bootJar/);
   assert.match(workflow, /-Ponmaru\.ci\.performance\.enabled=true/);
 });
