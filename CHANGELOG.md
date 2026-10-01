@@ -4,6 +4,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #561의 온기 히트맵 좌표를 지역 ID 또는 시도·시군구 주소로 정확히 매칭하고, 활성 장소 중심 좌표를 한 번씩 집계해 조회 지연을 줄였다.
 - Issue #553의 기존 활성 TourAPI 지도 projection을 이관 DB에서도 복구하고, 지역 코드 누락 장소가 publication을 막지 않도록 수정했다.
 - Issue #545의 검증된 `develop` 이미지 digest를 잠든 Lightsail 스테이징에 수동 반영하는 CI job과 제한 SSH 배포 경로를 추가했다.
 - Issue #545의 기존 Lightsail 온디맨드 스테이징 Spring·PostGIS와 FE 전용 시작·중지 명령, 합성 데이터, 자동 중지 및 수동 smoke 경로를 준비했다.
