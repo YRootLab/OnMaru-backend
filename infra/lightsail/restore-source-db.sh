@@ -6,7 +6,7 @@ COMPOSE_FILE="$LIGHTSAIL_DIR/compose.yaml"
 ENV_FILE="$LIGHTSAIL_DIR/.env"
 
 if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
-    echo "Usage: $0 /path/to/render.dump" >&2
+    echo "Usage: $0 /path/to/source.dump" >&2
     exit 2
 fi
 

@@ -80,7 +80,7 @@ jobs:
           java-version: '21'
           distribution: temurin
           cache: gradle
-      - name: Run Gradle module and Spring API tests
+      - name: Run Gradle module and Spring API tests, then build the executable JAR
         run: |
           ./gradlew \
             :adapters:tourism-api:test \
@@ -92,6 +92,7 @@ jobs:
             :modules:journey:test \
             :modules:operations:test \
             :apps:spring-api:test \
+            :apps:spring-api:bootJar \
             --no-daemon \
             -Ponmaru.ci.performance.enabled=true
 
