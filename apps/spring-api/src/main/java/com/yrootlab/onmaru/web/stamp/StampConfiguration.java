@@ -13,7 +13,6 @@ import com.yrootlab.onmaru.stamp.ranking.RandomStampRankingIdentityGenerator;
 import com.yrootlab.onmaru.stamp.ranking.StampRankingIdentityGenerator;
 import com.yrootlab.onmaru.stamp.ranking.StampRankingService;
 import com.yrootlab.onmaru.stamp.ranking.StampRankingStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -50,7 +49,6 @@ class StampConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     CheckInPlaceLookup jdbcStampPlaceLookup(
             DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
         return new JdbcCheckInPlaceLookup(dataSource, jdbcTransactionRunner);
@@ -58,7 +56,6 @@ class StampConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     StampStore jdbcStampStore(DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
         return new JdbcStampStore(dataSource, jdbcTransactionRunner);
     }
@@ -70,7 +67,6 @@ class StampConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     StampRankingStore jdbcStampRankingStore(DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
         return new JdbcStampRankingStore(dataSource, jdbcTransactionRunner);
     }
