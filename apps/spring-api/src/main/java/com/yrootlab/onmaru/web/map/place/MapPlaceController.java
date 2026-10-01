@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceInvalidRequ
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceQuery;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceQueryService;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceUnavailableException;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoLegacyQueryAdapter;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.Map;
 import java.util.Optional;
@@ -35,10 +37,15 @@ public final class MapPlaceController {
     private static final String SESSION_COOKIE = "__Host-onmaru-session";
 
     private final MapPlaceQueryService queryService;
+    private final ObjectProvider<MapInfoLegacyQueryAdapter> legacyAdapter;
     private final MemberLifecycleService memberLifecycleService;
 
-    MapPlaceController(MapPlaceQueryService queryService, MemberLifecycleService memberLifecycleService) {
+    MapPlaceController(
+            MapPlaceQueryService queryService,
+            ObjectProvider<MapInfoLegacyQueryAdapter> legacyAdapter,
+            MemberLifecycleService memberLifecycleService) {
         this.queryService = queryService;
+        this.legacyAdapter = legacyAdapter;
         this.memberLifecycleService = memberLifecycleService;
     }
 
@@ -83,9 +90,11 @@ public final class MapPlaceController {
                     normalize(category),
                     limit,
                     memberId(sessionToken));
+            var adapter = legacyAdapter.getIfAvailable();
+            var response = adapter == null ? queryService.list(query) : adapter.list(query);
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.noStore())
-                    .body(queryService.list(query));
+                    .body(response);
         } catch (MapPlaceInvalidRequestException exception) {
             return invalidRequest(request, exception.field());
         } catch (MapPlaceUnavailableException exception) {

@@ -739,6 +739,7 @@ public final class JdbcTourApiCatalogPublisher {
             int quarantined,
             int skipped
     ) throws SQLException {
+        publishMapInfoProjection(connection, revisionId, publishedAt);
         try (var revision = connection.prepareStatement("""
                 UPDATE onmaru.catalog_dataset_revisions
                 SET status = 'PUBLISHED', published_at = ?
@@ -774,6 +775,230 @@ public final class JdbcTourApiCatalogPublisher {
             run.executeUpdate();
         }
         deleteInactiveCatalogRevisions(connection, revisionId);
+    }
+
+    /**
+     * Builds the information-mode read model inside the same transaction as the
+     * catalog active-pointer update. The source tables remain the system of
+     * record; map requests never need to read the raw TourAPI rows.
+     */
+    private void publishMapInfoProjection(Connection connection, UUID revisionId, Instant publishedAt)
+            throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                INSERT INTO onmaru.map_place_read_projection (
+                    revision_id, place_id, public_id, name, normalized_name, status,
+                    location_geom, sido_code, sigungu_code, eupmyeondong_code,
+                    display_category, thumbnail_url, summary, sort_key
+                )
+                SELECT version.revision_id,
+                       version.place_id,
+                       public_id.public_id,
+                       version.name,
+                       lower(btrim(version.name)),
+                       version.status,
+                       version.location::geometry,
+                       COALESCE(parent.code, raw.ldong_regn_cd),
+                       CASE
+                           WHEN region.level = 'SIGUNGU' THEN region.code
+                           ELSE NULLIF(concat_ws(':', raw.ldong_regn_cd, raw.ldong_signgu_cd), ':')
+                       END,
+                       NULL,
+                       version.category,
+                       image.origin_img_url,
+                       version.overview,
+                       lower(btrim(version.name)) || '|' || public_id.public_id
+                FROM onmaru.catalog_place_versions version
+                JOIN onmaru.catalog_place_public_ids public_id
+                  ON public_id.place_id = version.place_id
+                LEFT JOIN onmaru.catalog_regions region
+                  ON region.id = version.region_id AND region.active
+                LEFT JOIN onmaru.catalog_regions parent
+                  ON parent.id = region.parent_id AND parent.active
+                LEFT JOIN onmaru.catalog_place_sources source
+                  ON source.id = version.source_ref_id
+                LEFT JOIN onmaru.catalog_kto_korean_content_versions raw
+                  ON raw.revision_id = version.revision_id
+                 AND raw.source_ref_id = version.source_ref_id
+                LEFT JOIN onmaru.catalog_place_image_versions image
+                  ON image.revision_id = version.revision_id
+                 AND image.place_id = version.place_id
+                 AND image.position = 0
+                WHERE version.revision_id = ?
+                  AND version.status = 'ACTIVE'
+                  AND version.location IS NOT NULL
+                  AND COALESCE(
+                        parent.code,
+                        raw.ldong_regn_cd,
+                        CASE WHEN region.level = 'SIDO' THEN region.code END
+                      ) IS NOT NULL
+                """)) {
+            statement.setObject(1, revisionId);
+            statement.executeUpdate();
+        }
+
+        validateMapPlaceProjection(connection, revisionId);
+
+        try (var statement = connection.prepareStatement("""
+                INSERT INTO onmaru.map_place_category_projection
+                    (revision_id, place_id, canonical_category)
+                SELECT revision_id, place_id,
+                       CASE upper(display_category)
+                           WHEN 'HANOK' THEN 'SPOT'
+                           WHEN 'HISTORIC_SITE' THEN 'SPOT'
+                           WHEN 'CULTURE_ART' THEN 'CULTURE'
+                           WHEN 'HANOK_VILLAGE' THEN 'SPOT'
+                           WHEN 'GOTAEK' THEN 'SPOT'
+                           WHEN 'HANOK_EXPERIENCE' THEN 'EXPERIENCE'
+                           WHEN 'LOCAL_SCENE' THEN 'EXPERIENCE'
+                           WHEN 'HANOK_STAY' THEN 'STAY'
+                           WHEN 'HANOK_HOTEL' THEN 'STAY'
+                           WHEN 'TRADITIONAL_FOOD' THEN 'FOOD'
+                           WHEN 'KOREAN_RESTAURANT' THEN 'FOOD'
+                           WHEN 'RESTAURANT' THEN 'FOOD'
+                           WHEN 'HANOK_CAFE' THEN 'CAFE'
+                           WHEN 'TEA_HOUSE' THEN 'CAFE'
+                           WHEN 'COFFEE_SHOP' THEN 'CAFE'
+                           WHEN 'TRADITIONAL_MARKET' THEN 'MARKET'
+                           WHEN 'LOCAL_MARKET' THEN 'MARKET'
+                           WHEN 'EVENT' THEN 'FESTIVAL'
+                           ELSE upper(display_category)
+                       END
+                FROM onmaru.map_place_read_projection
+                WHERE revision_id = ?
+                ON CONFLICT (revision_id, place_id, canonical_category) DO NOTHING
+                """)) {
+            statement.setObject(1, revisionId);
+            statement.executeUpdate();
+        }
+
+        try (var statement = connection.prepareStatement("""
+                WITH scoped_places AS (
+                    SELECT projection.revision_id,
+                           'DISTRICT'::varchar AS scope_type,
+                           projection.sigungu_code AS region_code,
+                           projection.place_id,
+                           category.canonical_category
+                    FROM onmaru.map_place_read_projection projection
+                    JOIN onmaru.map_place_category_projection category
+                      ON category.revision_id = projection.revision_id
+                     AND category.place_id = projection.place_id
+                    WHERE projection.revision_id = ?
+                      AND projection.sigungu_code IS NOT NULL
+                    UNION ALL
+                    SELECT projection.revision_id,
+                           'REGION'::varchar AS scope_type,
+                           projection.sido_code AS region_code,
+                           projection.place_id,
+                           category.canonical_category
+                    FROM onmaru.map_place_read_projection projection
+                    JOIN onmaru.map_place_category_projection category
+                      ON category.revision_id = projection.revision_id
+                     AND category.place_id = projection.place_id
+                    WHERE projection.revision_id = ?
+                      AND projection.sido_code IS NOT NULL
+                ), grouped AS (
+                    SELECT revision_id, scope_type, region_code,
+                           canonical_category, count(DISTINCT place_id)::integer AS place_count
+                    FROM scoped_places
+                    GROUP BY revision_id, scope_type, region_code, canonical_category
+                )
+                INSERT INTO onmaru.map_scope_count_projection
+                    (revision_id, scope_type, region_code, canonical_category, place_count)
+                SELECT revision_id, scope_type, region_code, canonical_category, place_count
+                FROM grouped
+                ON CONFLICT (revision_id, scope_type, region_code, canonical_category)
+                DO UPDATE SET place_count = EXCLUDED.place_count
+                """)) {
+            statement.setObject(1, revisionId);
+            statement.setObject(2, revisionId);
+            statement.executeUpdate();
+        }
+
+        String checksum;
+        int rowCount;
+        try (var statement = connection.prepareStatement("""
+                SELECT count(*)::integer,
+                       encode(
+                           digest(
+                               coalesce(
+                                   string_agg(
+                                       place_id::text || '|' || public_id || '|' || name || '|' ||
+                                       display_category || '|' || ST_AsEWKT(location_geom),
+                                       E'\\n' ORDER BY place_id
+                                   ),
+                                   ''
+                               ),
+                               'sha256'
+                           ),
+                           'hex'
+                       )
+                FROM onmaru.map_place_read_projection
+                WHERE revision_id = ?
+                """)) {
+            statement.setObject(1, revisionId);
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next()) throw new SQLException("map projection checksum query returned no row");
+                rowCount = rows.getInt(1);
+                checksum = rows.getString(2);
+            }
+        }
+
+        try (var statement = connection.prepareStatement("""
+                INSERT INTO onmaru.map_projection_publications
+                    (revision_id, projection_name, mapping_version, row_count, checksum, published_at, status)
+                VALUES (?, 'map_place_read_projection', 'map-category-v1', ?, ?, ?, 'PUBLISHED')
+                """)) {
+            statement.setObject(1, revisionId);
+            statement.setInt(2, rowCount);
+            statement.setString(3, checksum);
+            statement.setObject(4, atUtc(publishedAt));
+            statement.executeUpdate();
+        }
+    }
+
+    private void validateMapPlaceProjection(Connection connection, UUID revisionId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT
+                    (SELECT count(*)
+                     FROM onmaru.catalog_place_versions
+                     WHERE revision_id = ? AND status = 'ACTIVE') AS source_count,
+                    (SELECT count(*)
+                     FROM onmaru.map_place_read_projection
+                     WHERE revision_id = ?) AS projection_count,
+                    (SELECT count(*)
+                     FROM onmaru.catalog_place_versions version
+                     LEFT JOIN onmaru.catalog_place_public_ids public_id
+                       ON public_id.place_id = version.place_id
+                     LEFT JOIN onmaru.catalog_place_sources source
+                       ON source.id = version.source_ref_id
+                     LEFT JOIN onmaru.catalog_kto_korean_content_versions raw
+                       ON raw.revision_id = version.revision_id
+                      AND raw.source_ref_id = version.source_ref_id
+                     LEFT JOIN onmaru.catalog_regions region
+                       ON region.id = version.region_id AND region.active
+                     LEFT JOIN onmaru.catalog_regions parent
+                       ON parent.id = region.parent_id AND parent.active
+                     WHERE version.revision_id = ?
+                       AND version.status = 'ACTIVE'
+                       AND (version.location IS NULL OR public_id.public_id IS NULL OR
+                            COALESCE(parent.code, raw.ldong_regn_cd,
+                                     CASE WHEN region.level = 'SIDO' THEN region.code END) IS NULL)
+                    ) AS invalid_count
+                """)) {
+            statement.setObject(1, revisionId);
+            statement.setObject(2, revisionId);
+            statement.setObject(3, revisionId);
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next()) throw new SQLException("map projection validation returned no row");
+                int sourceCount = rows.getInt("source_count");
+                int projectionCount = rows.getInt("projection_count");
+                int invalidCount = rows.getInt("invalid_count");
+                if (invalidCount != 0 || sourceCount != projectionCount) {
+                    throw new SQLException("map projection validation failed: source=" + sourceCount
+                            + ", projection=" + projectionCount + ", invalid=" + invalidCount);
+                }
+            }
+        }
     }
 
     private void deleteInactiveCatalogRevisions(Connection connection, UUID activeRevisionId) throws SQLException {

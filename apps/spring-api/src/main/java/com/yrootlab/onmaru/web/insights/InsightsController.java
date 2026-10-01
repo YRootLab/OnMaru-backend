@@ -115,7 +115,7 @@ public final class InsightsController {
             double parsedRadius = parsePositiveDouble(radius, "radius");
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.noStore())
-                    .body(queryService.mapHeat(parsedLat, parsedLng, parsedRadius));
+                    .body(queryService.mapHeat(parsedLat, parsedLng, parseLevel(level), parsedRadius));
         } catch (InsightsInvalidRequestException exception) {
             return validationError(request, exception.field());
         }

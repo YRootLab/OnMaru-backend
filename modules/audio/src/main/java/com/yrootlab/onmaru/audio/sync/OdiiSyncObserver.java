@@ -15,4 +15,14 @@ public interface OdiiSyncObserver {
 
     default void failed(String dataset, UUID revisionId, String failureCode) {
     }
+
+    default void phaseFailed(String dataset, UUID revisionId, String phase, String failureCode) {
+        failed(dataset, revisionId, failureCode);
+    }
+
+    default void staged(String dataset, UUID revisionId, long itemCount) {
+    }
+
+    default void published(String dataset, UUID revisionId, OdiiSyncResult result) {
+    }
 }

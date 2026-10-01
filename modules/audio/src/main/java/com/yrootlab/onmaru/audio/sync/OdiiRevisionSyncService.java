@@ -74,8 +74,13 @@ public final class OdiiRevisionSyncService {
 
     public OdiiSyncResult sync(OdiiSyncCommand command) {
         observer.started(command.dataset(), command.expectedActiveRevisionId());
-        AudioRevisionStage stage = store.openStage(
-                command.dataset(), command.expectedActiveRevisionId(), clock.instant());
+        AudioRevisionStage stage;
+        try {
+            stage = store.openStage(command.dataset(), command.expectedActiveRevisionId(), clock.instant());
+        } catch (RuntimeException exception) {
+            observer.phaseFailed(command.dataset(), command.expectedActiveRevisionId(), "STAGE", "STAGE_OPEN_FAILED");
+            throw exception;
+        }
         Instant latestModifiedAt = null;
         String latestExternalId = null;
         var mappedStories = new java.util.ArrayList<OdiiStoryVersion>();
@@ -114,30 +119,50 @@ public final class OdiiRevisionSyncService {
                     }
                 }
             }
-        } catch (OdiiSourceException | OdiiMappingException exception) {
+        } catch (OdiiSourceException exception) {
             store.failStage(stage.revisionId(), "SOURCE_FAILED");
-            observer.failed(command.dataset(), stage.revisionId(), "SOURCE_FAILED");
+            observer.phaseFailed(command.dataset(), stage.revisionId(), "FETCH", "SOURCE_FAILED");
             var result = OdiiSyncResult.sourceFailed(stage.revisionId());
             observer.completed(command.dataset(), result);
             return result;
+        } catch (OdiiMappingException exception) {
+            store.failStage(stage.revisionId(), "MAPPING_FAILED");
+            observer.phaseFailed(command.dataset(), stage.revisionId(), "MAP", "MAPPING_FAILED");
+            var result = OdiiSyncResult.sourceFailed(stage.revisionId());
+            observer.completed(command.dataset(), result);
+            return result;
+        } catch (RuntimeException exception) {
+            store.failStage(stage.revisionId(), "STAGING_FAILED");
+            observer.phaseFailed(command.dataset(), stage.revisionId(), "STAGE", "STAGING_FAILED");
+            throw exception;
         }
 
-        AudioStageCompletion completion = store.completeStage(
-                stage.revisionId(), MISSING_OBSERVATION_THRESHOLD, command.emptyFullSyncReviewed());
-        long stagedItemCount = store.stagedItemCount(stage.revisionId());
+        AudioStageCompletion completion;
+        long stagedItemCount;
+        try {
+            completion = store.completeStage(
+                    stage.revisionId(), MISSING_OBSERVATION_THRESHOLD, command.emptyFullSyncReviewed());
+            stagedItemCount = store.stagedItemCount(stage.revisionId());
+            observer.staged(command.dataset(), stage.revisionId(), stagedItemCount);
+        } catch (RuntimeException exception) {
+            store.failStage(stage.revisionId(), "STAGE_COMPLETION_FAILED");
+            observer.phaseFailed(command.dataset(), stage.revisionId(), "STAGE", "STAGE_COMPLETION_FAILED");
+            throw exception;
+        }
         var watermark = new SourceWatermark(
                 latestModifiedAt == null ? null : latestModifiedAt.toString(),
                 latestExternalId,
                 clock.instant()
         );
-        var publication = publisher.publish(new PublicationCommand(
-                command.lease(),
-                stage.revisionId(),
-                command.expectedActiveRevisionId(),
-                PublicationMode.FULL,
-                watermark,
-                completion.tombstoneCount()
-        ));
+        com.yrootlab.onmaru.catalog.application.publication.PublicationResult publication;
+        try {
+            publication = publisher.publish(new PublicationCommand(
+                    command.lease(), stage.revisionId(), command.expectedActiveRevisionId(),
+                    PublicationMode.FULL, watermark, completion.tombstoneCount()));
+        } catch (RuntimeException exception) {
+            observer.phaseFailed(command.dataset(), stage.revisionId(), "PUBLISH", "PUBLISH_FAILED");
+            throw exception;
+        }
         var effectiveRevisionId = publication.status()
                 == com.yrootlab.onmaru.catalog.application.publication.PublicationStatus.PUBLISHED
                 ? store.activeRevision(command.dataset())
@@ -151,6 +176,7 @@ public final class OdiiRevisionSyncService {
                 tagQuality
         );
         observer.completed(command.dataset(), result);
+        observer.published(command.dataset(), effectiveRevisionId, result);
         return result;
     }
 

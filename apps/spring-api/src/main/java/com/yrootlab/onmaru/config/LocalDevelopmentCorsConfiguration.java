@@ -1,32 +1,27 @@
 package com.yrootlab.onmaru.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class LocalDevelopmentCorsConfiguration implements WebMvcConfigurer {
 
-    private static final String[] ALLOWED_ORIGINS = {
-            "https://onmaru-web.onrender.com",
-            "https://onmaru-frontend.vercel.app",
-            "https://www.onmaru.site",
-            "https://onmaru.site",
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://localhost:3002",
-            "http://localhost:3003",
-            "http://localhost:3004",
-            "http://localhost:3005",
-            "http://localhost:3006",
-            "http://localhost:3007",
-            "http://localhost:3008"
-    };
+    private final CorsOriginPolicy corsOriginPolicy;
+
+    public LocalDevelopmentCorsConfiguration(CorsOriginPolicy corsOriginPolicy) {
+        this.corsOriginPolicy = corsOriginPolicy;
+    }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")
-                .allowedOrigins(ALLOWED_ORIGINS)
+        configure(registry.addMapping("/api/**"));
+        configure(registry.addMapping("/auth/csrf"));
+    }
+
+    private void configure(CorsRegistration registration) {
+        registration.allowedOrigins(corsOriginPolicy.allowedOrigins())
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("Content-Type", "Idempotency-Key", "X-CSRF-TOKEN", "X-Request-Id")
                 .allowCredentials(true)

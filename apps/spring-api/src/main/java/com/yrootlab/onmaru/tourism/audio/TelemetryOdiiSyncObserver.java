@@ -35,6 +35,36 @@ final class TelemetryOdiiSyncObserver implements OdiiSyncObserver {
     }
 
     @Override
+    public void phaseFailed(String dataset, UUID revisionId, String phase, String failureCode) {
+        telemetrySink.record(new TelemetryEvent("odii.sync.failed", Map.of(
+                "dataset", dataset,
+                "revisionId", revisionId.toString(),
+                "phase", phase,
+                "failureCode", failureCode
+        )));
+    }
+
+    @Override
+    public void staged(String dataset, UUID revisionId, long itemCount) {
+        telemetrySink.record(new TelemetryEvent("odii.sync.staged", Map.of(
+                "dataset", dataset,
+                "revisionId", revisionId.toString(),
+                "itemCount", Long.toString(itemCount)
+        )));
+    }
+
+    @Override
+    public void published(String dataset, UUID revisionId, OdiiSyncResult result) {
+        telemetrySink.record(new TelemetryEvent("odii.sync.published", Map.of(
+                "dataset", dataset,
+                "revisionId", revisionId.toString(),
+                "status", result.status().name(),
+                "itemCount", Long.toString(result.itemCount()),
+                "tombstoneCount", Long.toString(result.tombstoneCount())
+        )));
+    }
+
+    @Override
     public void completed(String dataset, OdiiSyncResult result) {
         Map<String, String> attributes = new LinkedHashMap<>();
         attributes.put("dataset", dataset);

@@ -66,6 +66,7 @@ jobs:
           node scripts/validate-odii-fixtures.mjs
 
   java:
+    name: Java 모듈 및 Spring API 전체 테스트
     needs: plan
     if: ${{ needs.plan.outputs.java == 'true' }}
     runs-on: ubuntu-latest
@@ -79,7 +80,7 @@ jobs:
           java-version: '21'
           distribution: temurin
           cache: gradle
-      - name: Run shared-workspace Java test lane
+      - name: Run Gradle module and Spring API tests
         run: |
           ./gradlew \
             :adapters:tourism-api:test \
