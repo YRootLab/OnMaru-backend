@@ -51,7 +51,7 @@ SQL
 TEMP_CREATE_GRANTED=1
 
 if ! compose exec -T postgres sh -ec \
-    'pg_restore --username "$POSTGRES_USER" --role "$ONMARU_DB_MIGRATION_USER" --dbname "$POSTGRES_DB" --no-owner --no-acl --exit-on-error -' \
+    'pg_restore --username "$POSTGRES_USER" --role "$ONMARU_DB_MIGRATION_USER" --dbname "$POSTGRES_DB" --no-owner --no-acl --exit-on-error' \
     < "$DUMP_FILE"; then
     echo "Restore failed. Database schema may be partially restored; keep the volume and inspect before retrying." >&2
     exit 1
