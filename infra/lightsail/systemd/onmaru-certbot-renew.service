@@ -5,5 +5,5 @@ After=docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/onmaru/infra/lightsail
-ExecStart=/opt/onmaru/infra/lightsail/renew-certificates.sh
+WorkingDirectory=/opt/onmaru/repo/infra/lightsail
+ExecStart=/opt/onmaru/repo/infra/lightsail/renew-certificates.sh
