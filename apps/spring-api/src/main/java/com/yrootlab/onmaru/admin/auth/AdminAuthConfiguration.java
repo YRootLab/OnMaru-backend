@@ -50,7 +50,6 @@ public class AdminAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     AdminAccountStore jdbcAdminAccountStore(DataSource dataSource) {
         return new JdbcAdminAccountStore(dataSource);
     }
@@ -91,7 +90,6 @@ public class AdminAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     AdminAuditLogStore jdbcAdminAuditLogStore(DataSource dataSource, ObjectMapper mapper) {
         return new JdbcAdminAuditLogStore(dataSource, mapper);
     }
@@ -109,7 +107,6 @@ public class AdminAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     AdminSessionStore jdbcAdminSessionStore(DataSource dataSource) {
         return new com.yrootlab.onmaru.persistence.admin.JdbcAdminSessionStore(dataSource);
     }
@@ -131,7 +128,6 @@ public class AdminAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     AdminMemberStore jdbcAdminMemberStore(DataSource dataSource) {
         return new JdbcAdminMemberStore(dataSource);
     }
@@ -144,7 +140,6 @@ public class AdminAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     AdminSanctionStore jdbcAdminSanctionStore(DataSource dataSource) {
         return new JdbcAdminSanctionStore(dataSource);
     }
@@ -168,7 +163,6 @@ public class AdminAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     AdminCurationStore jdbcAdminCurationStore(DataSource dataSource, ObjectMapper mapper) {
         return new JdbcAdminCurationStore(dataSource, mapper);
     }
@@ -188,7 +182,6 @@ public class AdminAuthConfiguration {
 
     @Bean
     @Profile("production")
-    @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean(AdminPipelinePort.class)
     AdminPipelinePort jdbcOnlyAdminPipelinePort(DataSource dataSource) {
         return new JdbcAdminPipelinePort(dataSource);
