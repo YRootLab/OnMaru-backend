@@ -2,20 +2,13 @@
 
 ## 2026-10-01 Issue #509 관리자 목록 페이지네이션
 
-- 브랜치: `feature/509-admin-pagination`; 기존 미커밋 서버 cursor/JDBC read model 구현을 이어서 보강 중.
+- 브랜치: `feature/509-admin-pagination`; 구현 커밋 `e10057f`와 최신 `origin/develop` 병합 완료.
 - 이번 세션: 빈·비정규 Base64 cursor 거부, 운영 queue 기본 limit 20, 회원 상태 필터 `ACTIVE|DELETING` 정정, cursor secret 시작 시 강도 검증, 좌표 누락 후기의 SQL 페이지 경계 수정, runtime 의존성 lockfile 보정, FE 연동 문서와 OpenAPI 정합성 보강.
 - 추가 구현: 후기 `status + query`(본문·장소명) SQL 검색과 신고 `reason` SQL 필터를 cursor에 바인딩했다. 관리자 목록의 손상 cursor는 HTTP `400 VALIDATION_ERROR` 테스트로 확인하고, 후기·신고·dashboard·moderation queue의 전체 snapshot 미호출 경계 테스트를 추가했다.
-- 추가 검증: `:modules:community:test`, 관리자/대시보드/JDBC 후기·신고/운영 queue 대상 Spring 테스트, `bash scripts/verify-contracts`, migration policy, `git diff --check` 성공. 이전 전체 suite의 map-info 3만 건 성능 게이트는 단독 재실행에 성공했다.
-- 검증: cursor·PostgreSQL 후기/신고/회원/큐레이션/queue 페이지 테스트 성공. 101행/limit 100 경계 테스트 성공. `bash scripts/verify-contracts`, migration policy, `git diff --check`, `bootJar` 성공. 전체 `check`는 445개 중 기존 map-info 3만 건 latency 테스트 1개가 909ms/500ms로 실패했고, 해당 테스트 단독 재실행은 성공했다.
-- 다음 단계: 최종 변경 검토 후 commit/push 및 `develop` 대상 구현 PR 준비. 전체 suite의 성능 게이트는 운영 유사 성능 검증과 별도로 재확인한다.
+- 검증: 병합 후 community 테스트, 관리자 cursor/API/dashboard·JDBC 후기/신고 대상 Spring 테스트, `bootJar`, `bash scripts/verify-contracts`, migration policy, `git diff --check` 통과. 앞선 전체 `check`는 453개 중 기존 map-info 3만 건 latency 테스트 1개가 ARM64의 amd64 Docker 에뮬레이션 환경에서 1085ms/500ms로 실패했다. 해당 테스트의 앞선 단독 재실행은 통과했다.
+- 다음 단계: 병합 후 대상 테스트와 문서 검증을 마치고 `develop` 대상 PR을 연다. #509는 운영 유사 성능 및 배포 검증까지 열린 상태로 둔다.
 - 남은 운영 검증: staging 운영 유사 데이터의 `EXPLAIN (ANALYZE, BUFFERS)` 및 latency/heap 전후 비교, secret 설정과 배포 smoke.
 
-- 브랜치: `feature/493-map-info-be`
-- Issue: `#493` 지도 정보모드 BE API·SQL·PostGIS 조회 구조
-- 구현: API hard timeout, snapshot 변경 시 cache 무효화, 이름/지역 null-safe keyset cursor, active 공간 인덱스 및 PostGIS cluster 쿼리 최적화, DB query duration/coverage/timeout/pool/slow-query 관측성, stale-if-error fallback, snapshot expired 409, PLACE partial coverage, places 계약·장애 응답 검증
-- 검증: map-info 단위/웹 경계/cache stale 테스트, PostGIS publication·legacy·cursor 통합 테스트, 30,000건 성능 게이트(재실행 통과; 전체 suite 중 1회는 ARM64 Docker 에뮬레이션으로 p95 일시 초과), OpenAPI/fixture 검증, migration policy, `git diff --check` 통과
-- 미추적 파일: `tempGithubIssue/`는 기존 작업물로 보존하고 커밋하지 않음
-- 다음 단계: 전체 Gradle 검증, 리뷰, 커밋·원격 push 후 PR 생성 및 #493~#499 연결
 ## 현재 작업: Lightsail 배포 준비 (#519)
 
 - 기준일: 2026-10-01
