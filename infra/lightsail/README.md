@@ -12,7 +12,7 @@ Issue #519의 Lightsail 단일 인스턴스 배포를 위한 Compose 구성이�
 
 ## 데이터 이전 전 시작 순서
 
-초기 database volume에 Spring을 먼저 실행하면 empty schema에 Flyway baseline이 적용된다. Render 데이터를 복원할 계획이라면 **Spring을 올리기 전에** 빈 PostGIS만 시작하고 dump를 복원한다. 이미 Spring을 시작한 volume에는 `docker compose down -v`를 사용하지 않는다.
+초기 database volume에 Spring을 먼저 실행하면 empty schema에 Flyway baseline이 적용된다. Neon 데이터를 복원할 계획이라면 **Spring을 올리기 전에** 빈 PostGIS만 시작하고 dump를 복원한다. 이미 Spring을 시작한 volume에는 `docker compose down -v`를 사용하지 않는다.
 
 ```bash
 docker compose --env-file .env config --quiet
@@ -23,10 +23,10 @@ docker compose --env-file .env ps
 
 PostgreSQL 첫 초기화 시 `postgres/init/01-create-login-roles.sh`가 PostGIS extension, baseline migration에서 기대하는 `NOLOGIN` role groups, 각기 분리된 runtime/migration/readonly/backup login을 만든다. Flyway migration 로그인은 `onmaru_migration` 권한 그룹의 멤버이고 runtime login에는 DDL 권한을 주지 않는다. 초기화 SQL은 빈 named volume을 만들 때만 실행되므로 비밀번호 변경 후 기존 volume에 재실행되지 않는다.
 
-Render PostgreSQL에서 별도 보관 위치에 custom-format dump를 만든 뒤 SSH/SFTP로 서버의 `/opt/onmaru/render.dump`에 안전하게 전송한다. 아직 Spring을 시작하기 전에 아래 helper로 빈 database에 복원한다. 이 helper는 기존 application schema가 보이면 거부하고, migration login을 임시로 database CREATE 권한을 줘서 복원 object owner로 사용한다. 복원이 끝나면 runtime/readonly table grants와 migration default privileges를 적용하고 임시 database CREATE 권한을 회수한다. 원본 dump는 AWS 복구 확인 전 삭제하지 않는다.
+Render 앱이 실제 사용하는 Neon project/branch와 직접 연결 endpoint를 확인한 뒤, 해당 Neon 원본에서 호환되는 버전의 `pg_dump -Fc`로 custom-format dump를 만든다. 별도 보관 위치에 보존하고 SSH/SFTP로 서버의 `/opt/onmaru/source.dump`에 안전하게 전송한다. 아직 Spring을 시작하기 전에 아래 helper로 빈 database에 복원한다. 이 helper는 기존 application schema가 보이면 거부하고, migration login을 임시로 database CREATE 권한을 줘서 복원 object owner로 사용한다. 복원이 끝나면 runtime/readonly table grants와 migration default privileges를 적용하고 임시 database CREATE 권한을 회수한다. 원본 dump는 AWS 복구 확인 전 삭제하지 않는다.
 
 ```bash
-./restore-render-db.sh /opt/onmaru/render.dump
+./restore-source-db.sh /opt/onmaru/source.dump
 ```
 
 5432를 Lightsail 방화벽에 추가하지 않는다. 복원이 끝나면 Flyway history, schema/table과 핵심 row count, PostGIS extension/공간 조회를 확인한 뒤 앱을 시작한다.
