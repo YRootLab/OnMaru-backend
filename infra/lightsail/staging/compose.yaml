@@ -87,6 +87,8 @@ services:
     cpus: 0.55
     environment:
       SPRING_PROFILES_ACTIVE: production,staging
+      # The one-shot migrate service runs Flyway before Spring starts.
+      SPRING_FLYWAY_ENABLED: "false"
       SERVER_FORWARD_HEADERS_STRATEGY: native
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=55.0 -XX:InitialRAMPercentage=15.0
       ONMARU_SECRETS_SOURCE: environment
