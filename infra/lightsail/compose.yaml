@@ -62,7 +62,7 @@ services:
       - "8080"
     environment:
       SPRING_PROFILES_ACTIVE: production
-      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      SERVER_FORWARD_HEADERS_STRATEGY: native
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0
       ONMARU_SECRETS_SOURCE: environment
       ONMARU_DB_URL: jdbc:postgresql://postgres:5432/${ONMARU_POSTGRES_DB}
