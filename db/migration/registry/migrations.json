@@ -320,6 +320,15 @@
       "checksum": "map-info-read-projections-v036-20260929",
       "sha256": "e312651f9433a12aab967f0b8fb7d29c3af2ca7162c3a52bf86ce1ff5c937e3a",
       "description": "Information-mode map read projections, category mappings, scope counts, and publication metadata"
+    },
+    {
+      "version": "037",
+      "reservedFor": "MAP_INFO_LEGACY_BACKFILL",
+      "issueNumber": 553,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V037__553_backfill_active_map_projection.sql",
+      "checksum": "map-info-legacy-backfill-v037-20261001",
+      "sha256": "6c5937c11a98e2bf5c62b394c037fa1a96977379992bf6d5a11d52789f147532",
+      "description": "Backfill active map read projections published before V036"
     }
   ]
 }
