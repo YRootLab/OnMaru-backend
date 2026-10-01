@@ -17,6 +17,8 @@ springBoot {
 
 dependencyManagement {
     dependencies {
+        dependency("com.fasterxml.jackson.core:jackson-databind:2.21.6")
+        dependency("tools.jackson.core:jackson-databind:3.1.6")
         dependency("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")
         dependency("org.apache.tomcat.embed:tomcat-embed-el:11.0.26")
         dependency("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.26")
@@ -38,6 +40,8 @@ dependencies {
     implementation(project(":modules:stamp"))
 
     constraints {
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.21.6")
+        implementation("tools.jackson.core:jackson-databind:3.1.6")
         implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")
         implementation("org.apache.tomcat.embed:tomcat-embed-el:11.0.26")
         implementation("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.26")
