@@ -15,7 +15,19 @@
 - 기본 limit은 20, 최대 limit은 100이다. 잘못된 limit/cursor는 400 `VALIDATION_ERROR`다.
 - 정렬은 각 리소스의 최신 timestamp 내림차순, UUID 내림차순으로 고정한다. 다음 페이지 predicate는 `(created_at, id) < (:createdAt, :id)` 형태다.
 - cursor payload에는 version, resource, limit, filter fingerprint, 마지막 timestamp와 UUID를 넣고 HMAC-SHA256으로 서명한다. 다른 endpoint·limit·filter에서 재사용한 cursor 및 변조 cursor는 거부한다.
+- cursor는 15분 후 만료한다. production 배포 전에 `ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT`에 최소 32 UTF-8 byte의 별도 key를 등록하고, rotation 시 기존 키를 `_PREVIOUS`로 잠시 유지한다.
 - `limit + 1` row를 조회해 `hasNext`와 next cursor를 계산한다. offset은 사용하지 않는다.
+
+## 구현 현황
+
+- 후기·신고·회원·큐레이션 목록은 SQL keyset(`timestamp,id`)과 `limit + 1` 조회로 전환했다. 후기·신고의 기존 `hasMore`를 유지하고 `hasNext`/`nextCursor`를 제공한다.
+- 대시보드 합계는 별도 SQL `COUNT` 집계, 최근 항목은 각각 5건 제한 조회를 사용한다. production에서는 JDBC read port를 연결한다.
+- 빈 값·변조·만료 cursor와 잘못된 limit은 `400 VALIDATION_ERROR`이다. cursor secret은 bean 생성 시 현재·이전 키가 각각 32바이트 이상인지 확인한다.
+- 같은 timestamp의 후기·신고·회원 페이지 경계를 PostgreSQL 테스트로 확인한다. 운영 유사 데이터 성능 수치와 인덱스 결정은 아래 운영 검증으로 남는다.
+- 관리자/운영자 moderation queue는 production에서 JDBC read model을 사용한다. SQL은 열린 신고와 현재 최신 PII 위험 moderation action만 후보화하고, `HIGH_RISK → STANDARD`, 오래된 신호 시각 오름차순, review UUID 오름차순을 보장한 뒤 cursor predicate와 `limit + 1`을 적용한다. 상세 신고/action은 현재 페이지 review ID에 대해서만 읽는다.
+- moderation queue cursor에는 우선순위 그룹도 서명 payload로 포함한다. `oldestOpenReportAgeSeconds`는 페이지별 값으로 바꾸지 않고 기존 전역 대기열 의미를 유지하는 aggregate query로 계산한다.
+- production read model이 누락되면 전체 스냅샷 fallback을 허용하지 않고 startup을 실패시킨다. 비-production 프로파일만 기존 in-memory 스냅샷을 사용한다.
+- 로컬 DB credential과 운영 유사 데이터의 실행 계획 근거가 없어 `EXPLAIN (ANALYZE, BUFFERS)` baseline은 아직 확보하지 못했다. 따라서 쿼리 성능 개선은 코드 경로의 bounded result/detail reads로만 설명하며 측정된 latency 향상이나 인덱스 필요성은 주장하지 않는다.
 
 ## 구현 경계
 
@@ -35,7 +47,8 @@
 - Testcontainers에 같은 timestamp의 여러 UUID, status/filter 조합, 크기 101+ fixture를 두고 중복/누락 없이 다음 페이지를 검증한다.
 - snapshot 호출이 pagination 경로에서 호출되지 않는 것을 adapter test로 확인하고, 전체 admin API test 및 OpenAPI contract 검증을 실행한다.
 
-## 남은 사전 결정
+## 남은 운영 검증
 
-- production cursor HMAC key를 어느 secret property로 받을지 확인한다. 임시 고정 signing key를 코드에 넣지 않는다.
-- 회원 검색 field와 정렬 옵션은 현재 Issue의 요구 범위에 없으므로 status filter와 고정 최신순부터 구현한다.
+- staging/운영 유사 데이터에서 baseline 및 변경 후 `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)`를 확보하고 결과에 따라 추가 최적화를 결정한다.
+- `ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT`에 별도 32-byte 이상 secret 등록 후 production startup, key rotation, 양쪽 moderation queue endpoint cursor pagination smoke를 수행한다.
+- 후기 본문·장소명 검색과 신고 사유 필터는 SQL 및 cursor fingerprint에 연결했다. 회원·큐레이션 검색 대상 필드는 현재 저장 모델에 없으므로 status/category/included 필터와 고정 최신순으로 제공한다.

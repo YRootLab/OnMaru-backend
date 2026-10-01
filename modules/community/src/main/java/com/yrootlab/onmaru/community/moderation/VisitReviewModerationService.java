@@ -7,6 +7,8 @@ import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminPage;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class VisitReviewModerationService {
@@ -144,6 +146,14 @@ public final class VisitReviewModerationService {
 
     public List<ReviewReport> openReports() {
         return reportStore.openReports();
+    }
+
+    public AdminPage<ReviewReport> openReportsPage(int limit, AdminCursor cursor) {
+        return reportStore.openReportsPage(limit, cursor);
+    }
+
+    public AdminPage<ReviewReport> openReportsPage(ReviewReportReason reason, int limit, AdminCursor cursor) {
+        return reportStore.openReportsPage(reason, limit, cursor);
     }
 
     public List<ModerationAction> auditLog() {

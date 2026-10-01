@@ -3,6 +3,9 @@ package com.yrootlab.onmaru.community.moderation;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
+import com.yrootlab.onmaru.community.query.VisitReviewStore;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminPage;
+import com.yrootlab.onmaru.catalog.application.pagination.AdminCursor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -26,6 +29,29 @@ class ModerationQueueServiceTests {
     private static final UUID REPORTER_ID = UUID.fromString("8ce13b1d-01bb-42ea-8457-5e0df299a5de");
     private static final Instant NOW = Instant.parse("2026-09-15T03:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
+    @Test
+    void boundedReadStoreDoesNotLoadTheReviewSnapshot() {
+        VisitReviewStore reviews = new VisitReviewStore() {
+            @Override public List<VisitReviewProjection> findSnapshot() {
+                throw new AssertionError("moderation queue must not load all reviews");
+            }
+            @Override public AdminPage<VisitReviewProjection> findAdminPage(
+                    VisitReviewStatus status, String query, int limit, AdminCursor cursor) {
+                throw new AssertionError("moderation queue must use its read model");
+            }
+        };
+        ModerationQueueReadStore readStore = new ModerationQueueReadStore() {
+            @Override public AdminPage<ModerationQueueItem> page(int limit, AdminCursor cursor, Instant now) {
+                return new AdminPage<>(List.of(), false);
+            }
+            @Override public long oldestQueueAgeSeconds(Instant now) { return 0; }
+        };
+        var service = new ModerationQueueService(reviews, null, CLOCK, readStore);
+
+        assertThat(service.page(20, null).items()).isEmpty();
+        assertThat(service.oldestQueueAgeSeconds()).isZero();
+    }
 
     @Test
     void projectsHighRiskBeforeOlderStandardReportWithSlaAgeAndNoReporterIdentity() {

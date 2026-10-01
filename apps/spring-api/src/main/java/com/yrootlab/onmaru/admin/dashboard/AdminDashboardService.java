@@ -19,16 +19,26 @@ public final class AdminDashboardService {
     private final VisitReviewStore reviewStore;
     private final ReviewReportStore reportStore;
     private final AdminPipelinePort pipeline;
+    private final AdminDashboardReadPort readPort;
 
     public AdminDashboardService(VisitReviewStore reviewStore, ReviewReportStore reportStore) {
-        this(reviewStore, reportStore, null);
+        this(reviewStore, reportStore, null, null);
     }
 
     public AdminDashboardService(
             VisitReviewStore reviewStore, ReviewReportStore reportStore, AdminPipelinePort pipeline) {
+        this(reviewStore, reportStore, pipeline, null);
+    }
+
+    public AdminDashboardService(
+            VisitReviewStore reviewStore,
+            ReviewReportStore reportStore,
+            AdminPipelinePort pipeline,
+            AdminDashboardReadPort readPort) {
         this.reviewStore = reviewStore;
         this.reportStore = reportStore;
         this.pipeline = pipeline;
+        this.readPort = readPort;
     }
 
     public AdminDashboardSummary summarize(LocalDate from, LocalDate to) {
@@ -37,6 +47,17 @@ public final class AdminDashboardService {
         }
         Instant start = from.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant endExclusive = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        if (readPort != null) {
+            var metrics = readPort.metrics(start, endExclusive);
+            return new AdminDashboardSummary(from, to, List.of(
+                    new DashboardMetric("REVIEWS_TOTAL", metrics.total()),
+                    new DashboardMetric("REVIEWS_PUBLISHED", metrics.published()),
+                    new DashboardMetric("REVIEWS_HIDDEN", metrics.hidden()),
+                    new DashboardMetric("REVIEWS_REMOVED", metrics.removed()),
+                    new DashboardMetric("REPORTS_PENDING", metrics.pendingReports())),
+                    readPort.recentReviews(start, endExclusive, 5),
+                    readPort.recentOpenReports(start, endExclusive, 5), pipelineStatus());
+        }
         List<VisitReviewProjection> reviews = reviewStore.findSnapshot().stream()
                 .filter(review -> inRange(review.createdAt(), start, endExclusive))
                 .sorted(Comparator.comparing(VisitReviewProjection::createdAt).reversed())
