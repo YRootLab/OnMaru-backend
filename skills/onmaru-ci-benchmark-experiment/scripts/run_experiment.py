@@ -28,14 +28,14 @@ SECRET_TEXT = (
     (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{8,}\b"), "github_pat_[REDACTED]"),
     (
         re.compile(
-            r"(?i)\b(authorization|api[_-]?key|credential|password|secret|token)"
+            r"(?i)\b(authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|credential|password|secret|token)"
             r"(\s*[:=]\s*)(?P<quote>['\"])[^\r\n]{0,4096}?(?P=quote)"
         ),
         r"\1\2\g<quote>[REDACTED]\g<quote>",
     ),
     (
         re.compile(
-            r"(?i)\b(authorization|api[_-]?key|credential|password|secret|token)"
+            r"(?i)\b(authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|credential|password|secret|token)"
             r"(\s*[:=]\s*)(?!['\"])[^\s&,;]+"
         ),
         r"\1\2[REDACTED]",

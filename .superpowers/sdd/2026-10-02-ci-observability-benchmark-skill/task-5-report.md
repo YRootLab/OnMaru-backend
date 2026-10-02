@@ -9,7 +9,7 @@
 - Probe와 실제 CLI에서 `PYTHONPATH`/`PYTHONHOME`을 제거하고, import된 `pipeline_toolkit` 파일이 검증한 distribution의 `RECORD`에 속하는지 확인해 shadow module을 차단한다.
 - stdout은 실행 중 64 KiB를 넘는 즉시 process group을 bounded TERM/KILL하고, 작업별 timeout도 같은 경계로 중단한다. Dispatch 중단은 응답 유실 가능성을 한국어로 알리고 재-dispatch를 금지한다.
 - parent가 먼저 종료해도 process group 전체에 TERM 뒤 KILL을 보내 grandchild가 남지 않도록 하고 parent는 별도로 reap한다.
-- JSON key와 arbitrary string에서 GitHub PAT, `api_key`, `token=`, `secret=`, `password:` 등 credential 값을 마스킹하되 separator 없는 일반 prose는 보존한다.
+- JSON key와 arbitrary string에서 GitHub PAT, `api_key`, `token=`, `secret=`, `password:`, `access_token`, `refresh_token`, `client_secret` 등 credential 값을 quoted/unquoted 형식 모두 마스킹하되 separator 없는 일반 prose는 보존한다.
 - Toolkit pin은 `d5b7892875000afc2deba6e6873717974d558ee5`로 고정했다.
 - `AGENTS.md`에 repository-local Skill discovery를, `handoff.md`에 merge 전후 경계와 live 미검증 상태를 기록했다.
 

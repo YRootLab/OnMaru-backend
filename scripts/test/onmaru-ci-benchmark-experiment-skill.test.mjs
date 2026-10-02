@@ -262,17 +262,17 @@ test('redacts GitHub PATs, secret-like keys, and key-value secrets inside string
     FAKE_STDOUT: JSON.stringify({
       api_key: 'api-secret',
       credential_value: 'credential-secret',
-      note: 'github_pat_abcdefghijklmnop api_key=inline-secret password:hunter2 token=token-secret secret="quoted secret"',
+      note: 'github_pat_abcdefghijklmnop api_key=inline-secret password:hunter2 token=token-secret secret="quoted secret" access_token=access-value refresh-token:\'refresh value\' client_secret="client value"',
       prose: 'token count remains 3 and password policy is enabled',
     }),
   });
 
   assert.equal(result.status, 0);
-  assert.doesNotMatch(result.stdout, /api-secret|credential-secret|abcdefghijklmnop|inline-secret|hunter2|token-secret|quoted secret/);
+  assert.doesNotMatch(result.stdout, /api-secret|credential-secret|abcdefghijklmnop|inline-secret|hunter2|token-secret|quoted secret|access-value|refresh value|client value/);
   assert.deepEqual(JSON.parse(result.stdout), {
     api_key: '[REDACTED]',
     credential_value: '[REDACTED]',
-    note: 'github_pat_[REDACTED] api_key=[REDACTED] password:[REDACTED] token=[REDACTED] secret="[REDACTED]"',
+    note: 'github_pat_[REDACTED] api_key=[REDACTED] password:[REDACTED] token=[REDACTED] secret="[REDACTED]" access_token=[REDACTED] refresh-token:\'[REDACTED]\' client_secret="[REDACTED]"',
     prose: 'token count remains 3 and password policy is enabled',
   });
 });
