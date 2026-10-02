@@ -58,6 +58,7 @@ async function withApi(overrides, body) {
   const artifacts = overrides.artifacts ?? [{ id: 300, name: 'module-evidence-catalog', size_in_bytes: archive.length, expired: false }];
   const pages = overrides.pages ?? [jobs];
   const requests = [];
+  const signedAuthorization = [];
   let prior = null;
   const server = createServer((req, res) => {
     requests.push(req.url);
@@ -72,6 +73,16 @@ async function withApi(overrides, body) {
       return json(page === 1 ? { total_count: artifacts.length, artifacts } : { total_count: artifacts.length, artifacts: [] });
     }
     if (req.url === '/repos/YRootLab/OnMaru-backend/actions/artifacts/300/zip') {
+      if (overrides.archiveRedirect) {
+        res.statusCode = 302;
+        res.setHeader('Location', typeof overrides.archiveRedirect === 'string'
+          ? overrides.archiveRedirect : `http://127.0.0.1:${server.address().port}/signed/module.zip?sig=fixture`);
+        res.end(); return;
+      }
+      res.setHeader('Content-Type', 'application/zip'); res.end(archive); return;
+    }
+    if (req.url === '/signed/module.zip?sig=fixture') {
+      signedAuthorization.push(req.headers.authorization);
       res.setHeader('Content-Type', 'application/zip'); res.end(archive); return;
     }
     if (req.url?.startsWith('/repos/YRootLab/OnMaru-backend/actions/artifacts?')) {
@@ -85,6 +96,15 @@ async function withApi(overrides, body) {
       status: 'completed', repository: { full_name: repository },
     });
     if (req.url === '/repos/YRootLab/OnMaru-backend/actions/artifacts/900/zip' && prior) {
+      if (overrides.archiveRedirect) {
+        res.statusCode = 302;
+        res.setHeader('Location', `http://127.0.0.1:${server.address().port}/signed/replay.zip?sig=fixture`);
+        res.end(); return;
+      }
+      res.setHeader('Content-Type', 'application/zip'); res.end(prior); return;
+    }
+    if (req.url === '/signed/replay.zip?sig=fixture' && prior) {
+      signedAuthorization.push(req.headers.authorization);
       res.setHeader('Content-Type', 'application/zip'); res.end(prior); return;
     }
     res.statusCode = 404; json({ message: 'not found' });
@@ -93,7 +113,7 @@ async function withApi(overrides, body) {
   const directory = await mkdtemp(join(tmpdir(), 'onmaru-observability-'));
   try {
     return await body({
-      directory, requests, setPrior: (value) => { prior = value; },
+      directory, requests, signedAuthorization, setPrior: (value) => { prior = value; },
       apiBase: `http://127.0.0.1:${server.address().port}`,
       args: ['collect', '--repository', repository, '--run-id', '731', '--attempt', '2',
         '--workflow', 'Module Benchmark', '--api-base-url', `http://127.0.0.1:${server.address().port}`,
@@ -125,7 +145,7 @@ test('post-run workflow is completed-only, trusted, least privilege, and diagnos
 });
 
 test('a later post-run execution restores the checkpoint and observation time from its diagnostic artifact', async () => {
-  await withApi({}, async ({ directory, args, apiBase, setPrior }) => {
+  await withApi({ archiveRedirect: true }, async ({ directory, args, apiBase, setPrior, signedAuthorization }) => {
     assert.equal((await runPython(args)).code, 0);
     let delivered = 0;
     const receiver = createServer((req, res) => {
@@ -155,10 +175,36 @@ test('a later post-run execution restores the checkpoint and observation time fr
       assert.equal(JSON.parse(await readFile(join(next, 'export-result.json'), 'utf8')).status, 'duplicate');
       assert.equal(delivered, count);
       assert.equal(JSON.parse(await readFile(join(next, 'collection.json'), 'utf8')).observed_at_ns, original.observed_at_ns);
+      assert.deepEqual(signedAuthorization, [undefined, undefined]);
     } finally {
       receiver.close();
     }
   });
+});
+
+test('collect follows the signed archive location without forwarding the GitHub token', async () => {
+  await withApi({ archiveRedirect: true }, async ({ directory, args, requests, signedAuthorization }) => {
+    const result = await runPython(args);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(JSON.parse(await readFile(join(directory, 'evidence.json'), 'utf8')).artifact_quality.status, 'complete');
+    assert.ok(requests.includes('/signed/module.zip?sig=fixture'));
+    assert.deepEqual(signedAuthorization, [undefined]);
+  });
+});
+
+test('collect rejects an archive redirect outside the trusted storage boundary', async () => {
+  for (const location of [
+    'https://productionresults.blob.core.windows.net.evil.example/archive.zip?sig=fixture',
+    'https://user:password@productionresults.blob.core.windows.net/archive.zip',
+    'http://productionresults.blob.core.windows.net/archive.zip',
+    'https://productionresults.blob.core.windows.net/archive.zip#fragment',
+  ]) {
+    await withApi({ archiveRedirect: location }, async ({ directory, args }) => {
+      const result = await runPython(args);
+      assert.notEqual(result.code, 0);
+      await assert.rejects(access(join(directory, 'evidence.json')));
+    });
+  }
 });
 
 test('collect normalizes bounded module evidence and never retains or runs its command', async () => {
@@ -290,4 +336,49 @@ test('export keeps source conclusion on HTTP failure and suppresses duplicate di
       receiver.close();
     }
   });
+});
+
+test('CI and Module Benchmark exports use distinct trusted workflow labels and pipeline names', async () => {
+  for (const [source, label] of [['CI', 'ci'], ['Module Benchmark', 'module_benchmark']]) {
+    const run = source === 'CI' ? { name: 'CI', path: '.github/workflows/ci.yml', event: 'pull_request' } : {};
+    await withApi({ run }, async ({ directory, args }) => {
+      args[args.indexOf('--workflow') + 1] = source;
+      assert.equal((await runPython(args)).code, 0);
+      const payloads = [];
+      const receiver = createServer((req, res) => {
+        const chunks = [];
+        req.on('data', (chunk) => chunks.push(chunk));
+        req.on('end', () => {
+          payloads.push({ path: req.url, body: JSON.parse(Buffer.concat(chunks).toString()) });
+          res.setHeader('Content-Type', 'application/json');
+          res.end('{}');
+        });
+      });
+      await new Promise((ready) => receiver.listen(0, '127.0.0.1', ready));
+      try {
+        const endpoint = `http://127.0.0.1:${receiver.address().port}`;
+        const result = await runPython(['export', '--dir', directory, '--endpoint', endpoint]);
+        assert.equal(result.code, 0, result.stderr);
+        const metrics = payloads.find(({ path }) => path === '/v1/metrics')?.body;
+        const traces = payloads.find(({ path }) => path === '/v1/traces')?.body;
+        assert.ok(metrics, 'missing metric delivery');
+        assert.ok(traces, 'missing trace delivery');
+        const labels = metrics.resourceMetrics.flatMap((resource) => resource.scopeMetrics)
+          .flatMap((scope) => scope.metrics)
+          .flatMap((metric) => [...(metric.histogram?.dataPoints ?? []), ...(metric.gauge?.dataPoints ?? [])])
+          .flatMap((point) => point.attributes)
+          .filter((attribute) => attribute.key === 'workflow')
+          .map((attribute) => attribute.value.stringValue);
+        assert.deepEqual([...new Set(labels)], [label]);
+        const names = traces.resourceSpans.flatMap((resource) => resource.scopeSpans)
+          .flatMap((scope) => scope.spans)
+          .flatMap((span) => span.attributes)
+          .filter((attribute) => attribute.key === 'cicd.pipeline.name')
+          .map((attribute) => attribute.value.stringValue);
+        assert.deepEqual([...new Set(names)], [label]);
+      } finally {
+        receiver.close();
+      }
+    });
+  }
 });

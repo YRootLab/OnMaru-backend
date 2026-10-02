@@ -15,6 +15,7 @@ import stat
 import sys
 import time
 from urllib.parse import urlsplit
+from urllib.error import HTTPError
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 import zipfile
 
@@ -41,7 +42,7 @@ MODULE_ARTIFACT = re.compile(r"^module-evidence-([A-Za-z0-9][A-Za-z0-9_.-]{0,127
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
-        raise ValueError("API redirect refused")
+        return None
 
 
 def unique_object(pairs):
@@ -66,6 +67,24 @@ def api_base(value):
     if not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in {"", "/"}:
         raise ValueError("unsafe API origin")
     return value.rstrip("/")
+
+
+def archive_location(value, api_origin):
+    """Accept one short-lived GitHub artifact storage URL, never credentials."""
+    if not isinstance(value, str) or len(value) > 8192 or any(ord(char) <= 32 or ord(char) == 127 for char in value) or "\\" in value:
+        raise ValueError("unsafe archive location")
+    parsed = urlsplit(value)
+    origin = urlsplit(api_origin)
+    fixture = (origin.scheme == "http" and origin.hostname in {"127.0.0.1", "localhost", "::1"}
+               and parsed.scheme == "http" and parsed.netloc == origin.netloc)
+    storage = (parsed.scheme == "https" and parsed.port in {None, 443}
+               and (parsed.hostname == "results-receiver.actions.githubusercontent.com"
+                    or (parsed.hostname or "").endswith(".blob.core.windows.net")))
+    if (not (fixture or storage) or not parsed.hostname or parsed.username or parsed.password
+            or parsed.fragment or not parsed.path.startswith("/") or len(parsed.query) > 4096
+            or any(part in {".", ".."} for part in parsed.path.split("/"))):
+        raise ValueError("unsafe archive location")
+    return value
 
 
 class GitHubAPI:
@@ -94,6 +113,32 @@ class GitHubAPI:
 
     def json(self, path):
         return bounded_json(self.get(path))
+
+    def archive(self, path):
+        if not re.fullmatch(r"/repos/YRootLab/OnMaru-backend/actions/artifacts/[1-9][0-9]*/zip", path):
+            raise ValueError("unsafe archive path")
+        request = Request(self.origin + path, headers={
+            "Authorization": "Bearer " + self.token,
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        })
+        try:
+            with self.opener.open(request, timeout=10) as response:
+                if response.geturl() != self.origin + path:
+                    raise ValueError("API origin changed")
+                raw = response.read(MAX_ARCHIVE_BYTES + 1)
+        except HTTPError as error:
+            if error.code != 302:
+                raise
+            location = archive_location(error.headers.get("Location"), self.origin)
+            # The signed storage URL carries its own authority. Never forward the API token.
+            with self.opener.open(Request(location), timeout=10) as response:
+                if response.geturl() != location:
+                    raise ValueError("archive origin changed")
+                raw = response.read(MAX_ARCHIVE_BYTES + 1)
+        if len(raw) > MAX_ARCHIVE_BYTES:
+            raise ValueError("archive exceeds bound")
+        return raw
 
 
 def validate_run(run, repository, run_id, attempt, workflow):
@@ -186,7 +231,7 @@ def module_evidence(api, run_id, jobs):
         size = artifact.get("size_in_bytes")
         if type(size) is not int or not 0 < size <= MAX_ARCHIVE_BYTES or artifact.get("expired") is not False:
             raise ValueError("invalid module archive metadata")
-        archive = api.get(f"/repos/{REPOSITORY}/actions/artifacts/{artifact['id']}/zip", MAX_ARCHIVE_BYTES)
+        archive = api.archive(f"/repos/{REPOSITORY}/actions/artifacts/{artifact['id']}/zip")
         content = archive_member(archive)
         member_bytes += len(content)
         if member_bytes > MAX_ARCHIVE_BYTES:
@@ -240,7 +285,7 @@ def restore_replay_state(api, directory, collection):
                 or run.get("path") != ".github/workflows/ci-observability.yml"
                 or run.get("repository", {}).get("full_name") != REPOSITORY or run.get("status") != "completed"):
             continue
-        archive = api.get(f"/repos/{REPOSITORY}/actions/artifacts/{artifact_id}/zip", MAX_ARCHIVE_BYTES)
+        archive = api.archive(f"/repos/{REPOSITORY}/actions/artifacts/{artifact_id}/zip")
         with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
             members = zipped.infolist()
             if len(members) > 16 or sum(item.file_size for item in members) > MAX_ARCHIVE_BYTES:
@@ -307,7 +352,11 @@ def export(args):
             raise ValueError("collection identity mismatch")
         if args.restore_from_api and not (directory / "replay.sqlite").exists():
             restore_replay_state(GitHubAPI(args.restore_from_api, os.environ.get("GITHUB_TOKEN")), directory, collection)
-        policy = MetricPolicy(workflow="ci", environment="test", jobs={}, modules=("catalog", "insights", "identity", "journey", "community", "audio", "operations"))
+        workflow_label = {"CI": "ci", "Module Benchmark": "module_benchmark"}.get(collection.get("workflow"))
+        if (workflow_label is None or collection.get("repository") != REPOSITORY
+                or collection.get("toolkit_ref") != TOOLKIT_REF):
+            raise ValueError("collection workflow identity mismatch")
+        policy = MetricPolicy(workflow=workflow_label, environment="test", jobs={}, modules=("catalog", "insights", "identity", "journey", "community", "audio", "operations"))
         bundle = transform_actions_evidence(evidence, policy, observed_at_ns=collection["observed_at_ns"])
         headers = json.loads(args.headers_json or "{}", object_pairs_hook=unique_object)
         if not isinstance(headers, dict):

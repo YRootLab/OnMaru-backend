@@ -114,12 +114,14 @@ class _Bundle:
     ci_conclusion: str
     digest: str
     observed_at_ns: int
+    workflow: str
 
 
 def transform_actions_evidence(evidence, policy, *, observed_at_ns):
     raw = f"{evidence['identity']['repository']}:{evidence['run']['id']}:{evidence['run']['attempt']}:{evidence['evidence_digest']}"
     return _Bundle(_Identity(hashlib.sha256(raw.encode()).hexdigest()),
-                   evidence["run"]["conclusion"], evidence["evidence_digest"], observed_at_ns)
+                   evidence["run"]["conclusion"], evidence["evidence_digest"], observed_at_ns,
+                   policy.workflow)
 
 
 @dataclass
@@ -149,17 +151,23 @@ def export_otlp(bundle, config, store):
     key = hashlib.sha256(f"{bundle.identity.key}:{bundle.observed_at_ns}:{config.endpoint}".encode()).hexdigest()
     with sqlite3.connect(store.path) as db:
         if db.execute("SELECT 1 FROM exports WHERE key=?", (key,)).fetchone():
-            return ExportResult("duplicate", None, 0, 1, 1, bundle.ci_conclusion)
-    request = Request(config.endpoint + "/v1/metrics", data=b"{}", headers={"Content-Type": "application/json", **config.headers})
-    try:
-        with urlopen(request, timeout=5) as response:
-            if response.status != 200:
-                return ExportResult("failed", f"http_{response.status}", 1, 0, 1, bundle.ci_conclusion)
-    except Exception:
-        return ExportResult("failed", "transport_error", 1, 0, 1, bundle.ci_conclusion)
+            return ExportResult("duplicate", None, 0, 2, 2, bundle.ci_conclusion)
+    attribute = {"key": "workflow", "value": {"stringValue": bundle.workflow}}
+    metric = {"resourceMetrics": [{"scopeMetrics": [{"metrics": [{"gauge": {"dataPoints": [{"attributes": [attribute]}]}}]}]}]}
+    pipeline = {"key": "cicd.pipeline.name", "value": {"stringValue": bundle.workflow}}
+    trace = {"resourceSpans": [{"scopeSpans": [{"spans": [{"attributes": [pipeline]}]}]}]}
+    for signal, body in (("metrics", metric), ("traces", trace)):
+        request = Request(config.endpoint + "/v1/" + signal, data=json.dumps(body).encode(),
+                          headers={"Content-Type": "application/json", **config.headers})
+        try:
+            with urlopen(request, timeout=5) as response:
+                if response.status != 200:
+                    return ExportResult("failed", f"http_{response.status}", 1, 0, 2, bundle.ci_conclusion)
+        except Exception:
+            return ExportResult("failed", "transport_error", 1, 0, 2, bundle.ci_conclusion)
     with sqlite3.connect(store.path) as db:
         db.execute("INSERT INTO exports VALUES (?)", (key,))
-    return ExportResult("exported", None, 1, 1, 1, bundle.ci_conclusion)
+    return ExportResult("exported", None, 2, 2, 2, bundle.ci_conclusion)
 
 
 _namespace("pipeline_toolkit.github")
