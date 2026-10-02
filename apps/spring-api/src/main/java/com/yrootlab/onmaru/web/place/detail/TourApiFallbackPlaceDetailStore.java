@@ -38,7 +38,14 @@ final class TourApiFallbackPlaceDetailStore implements PlaceDetailStore {
     }
 
     @Override public Optional<PlaceProjection> findByPlaceId(String placeId) {
-        Optional<PlaceProjection> found = database.findByPlaceId(placeId);
+        return enrich(placeId, database.findByPlaceId(placeId));
+    }
+
+    @Override public Optional<PlaceProjection> findHanokByPlaceId(String placeId) {
+        return enrich(placeId, database.findHanokByPlaceId(placeId));
+    }
+
+    private Optional<PlaceProjection> enrich(String placeId, Optional<PlaceProjection> found) {
         if (found.isEmpty()) return found;
         if (storedHanokDetail.test(placeId)) return found;
         try {
