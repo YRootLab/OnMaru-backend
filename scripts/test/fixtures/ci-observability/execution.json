@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "run_id": 731,
+  "run_attempt": 2,
+  "toolkit_ref": "59b3344ecdd4460451e4e67db973d6dfd4afa8b5",
+  "module_id": "catalog",
+  "complete": true,
+  "exit_code": 0,
+  "wall_clock_seconds": 8,
+  "command": "$(touch /tmp/onmaru-ci-observability-command-must-not-run)"
+}

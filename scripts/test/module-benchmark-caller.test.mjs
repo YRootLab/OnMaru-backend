@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const workflowPath = '.github/workflows/module-benchmark.yml';
-const toolkitSha = 'f3d5f4c244b42260a6b9ae9c1f7c76e6550f525a';
+const toolkitSha = '59b3344ecdd4460451e4e67db973d6dfd4afa8b5';
 
 test('shadow benchmark caller uses the pinned read-only Toolkit contract', async () => {
   const workflow = await readFile(workflowPath, 'utf8');
@@ -36,7 +36,8 @@ test('shadow benchmark caller uses the pinned read-only Toolkit contract', async
   assert.match(workflow, /^      comment_mode: none$/m);
   assert.match(workflow, /^      mode: develop$/m);
   assert.match(workflow, /^  summary:\n    needs: benchmark\n    if: always\(\)\n    runs-on: ubuntu-latest\n    permissions:\n      contents: read$/m);
-  for (const output of ['result', 'comparison_id', 'manifest_uri', 'report_artifact', 'critical_path_seconds']) {
+  for (const output of ['result', 'comparison_id', 'manifest_uri', 'report_artifact', 'longest_module_duration_seconds', 'dag_critical_path_quality']) {
     assert.match(workflow, new RegExp(`needs\\.benchmark\\.outputs\\.${output}\\b`));
   }
+  assert.doesNotMatch(workflow, /needs\.benchmark\.outputs\.critical_path_seconds/);
 });

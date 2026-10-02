@@ -1,0 +1,124 @@
+name: CI Observability
+
+on:
+  workflow_run:
+    workflows: [CI, Module Benchmark]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Completed CI or Module Benchmark run ID
+        required: true
+        type: string
+      attempt:
+        description: Completed run attempt
+        required: true
+        type: string
+      workflow:
+        description: Source workflow
+        required: true
+        type: choice
+        options: [CI, Module Benchmark]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ci-observability-${{ github.event.workflow_run.id || inputs.run_id }}-${{ github.event.workflow_run.run_attempt || inputs.attempt }}
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: YRootLab/OnMaru-backend-ci-toolkit
+          ref: 59b3344ecdd4460451e4e67db973d6dfd4afa8b5
+          path: _toolkit
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Collect completed source evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ github.workspace }}/_toolkit/src
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+          SOURCE_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.attempt }}
+          SOURCE_WORKFLOW: ${{ github.event.workflow_run.name || inputs.workflow }}
+        run: |
+          python3 scripts/benchmark/ci-observability.py collect \
+            --repository "$GITHUB_REPOSITORY" \
+            --run-id "$SOURCE_RUN_ID" \
+            --attempt "$SOURCE_ATTEMPT" \
+            --workflow "$SOURCE_WORKFLOW" \
+            --out-dir "$RUNNER_TEMP/ci-observability"
+      - name: Preserve collection diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-observability-collection-${{ github.event.workflow_run.id || inputs.run_id }}-${{ github.event.workflow_run.run_attempt || inputs.attempt }}
+          path: ${{ runner.temp }}/ci-observability
+          if-no-files-found: warn
+          retention-days: 14
+
+  export:
+    needs: collect
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ci-observability
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: YRootLab/OnMaru-backend-ci-toolkit
+          ref: 59b3344ecdd4460451e4e67db973d6dfd4afa8b5
+          path: _toolkit
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download collection diagnostics
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ci-observability-collection-${{ github.event.workflow_run.id || inputs.run_id }}-${{ github.event.workflow_run.run_attempt || inputs.attempt }}
+          path: ${{ runner.temp }}/ci-observability
+      - name: Export optional telemetry
+        if: needs.collect.result == 'success'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PYTHONPATH: ${{ github.workspace }}/_toolkit/src
+          OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}
+          OTLP_HEADERS: ${{ secrets.OTLP_HEADERS }}
+        run: |
+          python3 scripts/benchmark/ci-observability.py export \
+            --dir "$RUNNER_TEMP/ci-observability" \
+            --endpoint "$OTLP_ENDPOINT" \
+            --headers-json "$OTLP_HEADERS" \
+            --restore-from-api https://api.github.com
+      - name: Preserve bounded diagnostic and replay state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-observability-diagnostic-${{ github.event.workflow_run.id || inputs.run_id }}-${{ github.event.workflow_run.run_attempt || inputs.attempt }}
+          path: ${{ runner.temp }}/ci-observability
+          if-no-files-found: warn
+          retention-days: 14
