@@ -4,8 +4,8 @@
 release SHA를 넣어 baseline/candidate 입력을 만든다. 실측 증적이 아니다.
 
 `upstream/pipeline_toolkit`의 두 파일은
-[Toolkit PR #130 병합 원본](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/tree/08501bf55a373e27782c89cca348040fa1affa93/src/pipeline_toolkit)
-commit `08501bf55a373e27782c89cca348040fa1affa93`에서 변경 없이 복사한 offline 테스트 원본이다.
+[Toolkit PR #132 병합 원본](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/tree/9c6f0033a5ec2429085b29d56ebdb3caca94bbcd/src/pipeline_toolkit)
+commit `9c6f0033a5ec2429085b29d56ebdb3caca94bbcd`에서 변경 없이 복사한 offline 테스트 원본이다.
 정책 stub을 재구현하지 않으며 production workflow는 이 디렉터리를 import하지 않는다.
 Toolkit 갱신 시 원본 및 checksum을 함께 갱신한다.
 

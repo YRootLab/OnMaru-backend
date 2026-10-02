@@ -19,7 +19,7 @@ Release의 검토된 `release-module-evidence.json` asset이다. W4의 5% 비교
 바꾸지 않는다. 수동 재처리는 `workflow_dispatch`에 원본 run ID, attempt, workflow 이름을
 지정한다. 수집기는 해당 attempt의 Actions API job 페이지와 (모듈 실행에 한해) 제한된
 `execution.json`을 검증하고, 고정된 Toolkit commit
-`08501bf55a373e27782c89cca348040fa1affa93`로 evidence를 정규화한다. artifact의
+`9c6f0033a5ec2429085b29d56ebdb3caca94bbcd`로 evidence를 정규화한다. artifact의
 명령·로그는 실행하거나 telemetry에 넣지 않는다.
 
 후처리 산출물 `ci-observability-diagnostic-<run>-<attempt>`에는 `evidence.json`,
@@ -49,6 +49,87 @@ node --test scripts/test/ci-observability-workflow.test.mjs scripts/test/module-
 기존 release 테스트는 fake toolkit과 loopback readiness fixture를 사용한다. CI 관측
 테스트는 로컬에 고정 Toolkit 소스가 있으면 이를 사용하고, 일반 CI hygiene에서는 저장소의
 오프라인 API fixture를 사용한다. 실제 staging 배포나 Cloud export를 수행하지 않는다.
+
+## 수동 Pipeline Benchmark Experiment (#556)
+
+`pipeline-benchmark-experiment.yml`은 `workflow_dispatch`로만 실행하며 `baseline_ref`,
+`candidate_ref`, `scope`, `reason`을 받는다. 검토된 `develop` workflow SHA가 baseline과
+같을 때만 controller와 attestor를 실행한다. 실험 단위 concurrency는 기존 실험을 취소하지
+않으며 일반 PR·push·CD, 필수 `verify` check와 연결하지 않는다.
+
+Controller는 baseline/candidate workflow/config SHA를 한 번 선택한 뒤 각각 ordinal 1–3을
+별도 `pipeline-benchmark-sample.yml` run으로 dispatch한다. API에는 문서상 지원되는 branch
+이름을 보내고, 매 POST 직전·직후 두 branch SHA와 수집한 run의 실제 `head_sha`를 고정 SHA에
+대조한다. Candidate SHA를 가리키는 `feature/*` branch가 정확히 하나여야 한다. Ref가 이동하면
+`refs_moved`로 중단한다. API 응답의 정확한 run ID만 사용하며 응답 유실·실패·취소·누락 때
+자동 재dispatch 또는 최신 run 검색은 하지 않는다. 이미 발행한 receipt는 즉시 보존한다.
+
+두 ref의 sample workflow 원본 바이트가 같아야 한다. 실행 application source는 baseline의
+전체 Git tree로 통일하며 `.github/pipeline-benchmark-test-plan.json`의 원본 바이트 SHA-256을
+기록한다. `version: 1, scopes: {ci: {...}, test: {...}}` plan에서 `ci`는 9개 Java test task와
+`bootJar`, `test`는 같은 9개 test task를 실행한다. 두 scope 모두 test filter를 축소하지 않는다.
+이 suite는 Java lane 실험이며 repository 전체 CI의 Python·contract lane을 측정했다고
+표현하지 않는다. 모듈·명령 argv·fixture·seed·dependency mode는 committed plan에 있다.
+
+Candidate에서 사용하는 설정은 `gradle.properties`의
+`onmaru.ci.performance.max-workers`(1–4)와 `onmaru.ci.performance.build-cache`(boolean)
+두 개뿐이다. 다른 candidate 코드·명령·workflow 변경은 실행 입력이 되지 않는다. Worker는
+공통 source를 checkout한 뒤 실제 HEAD/tree, committed plan과 dirty/untracked 상태를 실행
+전후에 확인한다. Shell 없이 committed argv를 실행하며 subprocess에는 GitHub token,
+Actions token, OTLP 관련 환경변수를 전달하지 않는다. 새로운 설정 종류나 runner topology를
+비교하려면 별도 검토를 통해 trusted worker와 config catalog를 확장해야 한다.
+
+현재 cache 조건은 GitHub-hosted `ubuntu-24.04` 새 runner의 cold cache다. Cache restore는
+사용하지 않으며 Java/Python 버전, runner image version, CPU/메모리, fixture, dependency
+mode 및 config catalog hash를 증적에 남긴다. 이 8개 환경 필드가 여섯 표본에서 다르면
+`inconclusive`다. 여섯 run은 dispatch 후 독립적으로 실행되므로 queue·공유 runner 잡음은
+남으며 3회 표본으로 통계적 유의성을 주장하지 않는다.
+
+Worker에는 `contents: read`만 있고 signing·OTLP secret은 없다. 별도 attestor는 candidate
+코드를 실행하지 않고 API의 run/attempt/SHA/run-name/artifact 신원, baseline Git tree와 plan
+원본, trusted worker의 실제 checkout 증적을 다시 검증한다. 최종 `experiment-manifest.json`
+원본 바이트에 provenance를 발행한 뒤 동일 파일 하나를
+`pipeline-experiment-manifest-<attempt>` artifact로 올린다. Sample artifact는 각 run의
+`pipeline-experiment-sample-<attempt>`이며 run-name은 정확히
+`pipeline-experiment/<experiment_run_id>/<side>/<ordinal>`이다. 현재 producer는 rerun을
+혼합하지 않도록 experiment/sample attempt 1만 지원한다.
+
+Whole-workflow 시간은 GitHub run usage API의 `run_duration_ms`만 초로 변환한다. 해당 API는
+[종료 예정으로 공지되어 있으므로](https://docs.github.com/en/rest/actions/workflow-runs#get-workflow-run-usage)
+필드 누락·API 종료·시간선 불확실성은 `wall_clock_unavailable`과 `inconclusive`로 남긴다.
+`updated_at`, job window, 최장 module 시간으로 대체하지 않는다. 표본 6개를 검증하지 못하면
+성공 manifest와 attestation을 만들지 않으며 `pipeline-experiment-control-<attempt>`의
+`receipts.json`, `diagnostic-control.json` 및 attestor의
+`pipeline-experiment-diagnostic-<attempt>`를 확인한다. 원본 run이 강제 취소되어 artifact
+업로드 단계도 실행되지 않으면 GitHub run 자체와 이미 업로드한 receipt가 복구 기준이다.
+
+실행 진입점은 Toolkit의 dry-run → 명시적 dispatch → wait → compare다. Receipt/result는
+working tree 밖에 저장한다. 실제 비교는 Toolkit의 `pipeline-experiment/2` 검증과 comparator가
+소유하며 3회 중앙값의 15% 초과 회귀는 `approval_review`, 결측은 `inconclusive`다. 이 producer는
+성능 verdict를 재구현하지 않는다. Grafana URL은 현재 생성하지 않으며 관측 없이도 증적을
+보존한다.
+
+```bash
+pipeline-toolkit experiment dry-run --repo-root "$PWD" --scope ci --reason 'Gradle worker 비교'
+# 아래 명령은 외부 gate 해결 후 사용자가 명시적으로 승인한 실험에서만 실행한다.
+pipeline-toolkit experiment dispatch --repo-root "$PWD" --scope ci --reason 'Gradle worker 비교' > /tmp/onmaru-experiment-receipt.json
+pipeline-toolkit experiment wait --receipt /tmp/onmaru-experiment-receipt.json > /tmp/onmaru-experiment-result.json
+# result의 collection 객체를 별도 collection.json으로 저장한 뒤 offline 재계산한다.
+pipeline-toolkit experiment compare --input /tmp/onmaru-experiment-collection.json --format markdown
+node --test scripts/test/pipeline-benchmark-experiment.test.mjs
+```
+
+실 통합은 **pending external gate**다. Toolkit은 POST 전에 OnMaruBE #555/#556의 `closed`를
+요구하지만 #556 acceptance 자체에 실 dispatch가 포함되어 순환한다. Gate/acceptance 순서의
+승인된 정리가 필요하며 이 helper나 skill로 우회하지 않는다. 또한 두 workflow 모두
+[default branch에 존재해야 수동 실행이 가능하므로](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)
+`develop` 병합만으로 live availability를 주장하지 않는다. Multi-scope plan 검증은
+[Toolkit #131](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/issues/131) /
+[PR #132](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/pull/132)의 merge commit
+`9c6f0033a5ec2429085b29d56ebdb3caca94bbcd`로 고정한다. 기존 단일-scope Toolkit 버전은 이
+plan을 수집할 수 없으므로 동일 commit으로 설치해야 한다. Module/release/관측 후처리의
+활성 pin도 같은 commit으로 맞췄다. Fake API/로컬 테스트 통과는 실제 dispatch, 기본 브랜치 가용성,
+시간 API 가용성, provenance 업로드 검증을 대신하지 않는다.
 
 ## Java required lane 유지 결정 (#525)
 

@@ -9,8 +9,8 @@ import { createHash } from 'node:crypto';
 
 const fixtures = resolve('scripts/test/fixtures/release-module-comparison');
 const template = JSON.parse(await readFile(join(fixtures, 'record.json'), 'utf8'));
-const toolkit = process.env.ONMARU_TOOLKIT_SRC ?? (existsSync('/tmp/onmaru-ci-toolkit-08501bf/src')
-  ? '/tmp/onmaru-ci-toolkit-08501bf/src' : join(fixtures, 'upstream'));
+const toolkit = process.env.ONMARU_TOOLKIT_SRC ?? (existsSync('/tmp/onmaru-ci-toolkit-9c6f003/src')
+  ? '/tmp/onmaru-ci-toolkit-9c6f003/src' : join(fixtures, 'upstream'));
 
 test('offline comparison authority is byte-identical to the pinned upstream source', async () => {
   for (const [file, checksum] of [

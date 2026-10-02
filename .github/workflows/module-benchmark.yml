@@ -26,10 +26,10 @@ permissions:
 
 jobs:
   benchmark:
-    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@08501bf55a373e27782c89cca348040fa1affa93
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@9c6f0033a5ec2429085b29d56ebdb3caca94bbcd
     with:
       catalog_path: .github/benchmark-modules.yml
-      toolkit_ref: 08501bf55a373e27782c89cca348040fa1affa93
+      toolkit_ref: 9c6f0033a5ec2429085b29d56ebdb3caca94bbcd
       mode: develop
       max_parallel: 4
       baseline_ref: develop
