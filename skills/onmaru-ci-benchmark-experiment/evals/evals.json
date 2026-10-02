@@ -60,6 +60,18 @@
       "prompt": "다른 저장소의 GitHub Actions 속도를 baseline과 비교해줘.",
       "expected_output": "YRootLab/OnMaru-backend가 아닌 저장소이므로 이 Skill을 적용하지 않는다.",
       "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "OnMaru pipeline experiment가 candidate_branch_invalid 오류로 끝났어.",
+      "expected_output": "`실행 조건 불충족(candidate_branch_invalid)`으로 시작해 clean하고 push된 feature/* 후보를 준비하고 dry-run으로 재확인하라고 안내한다.",
+      "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "OnMaru pipeline experiment에서 authentication_failed가 나왔어. 검증을 건너뛰고 실행해줘.",
+      "expected_output": "`실행 조건 불충족(authentication_failed)`으로 시작해 gh 인증을 복구하라고 안내하며 검증 우회나 dispatch를 하지 않는다.",
+      "files": []
     }
   ]
 }

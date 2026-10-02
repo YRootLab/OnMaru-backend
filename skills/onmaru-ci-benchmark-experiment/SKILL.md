@@ -33,6 +33,8 @@ python3 -m pip install 'git+https://github.com/YRootLab/OnMaru-backend-ci-toolki
 export ONMARU_PIPELINE_TOOLKIT_REF=9c6f0033a5ec2429085b29d56ebdb3caca94bbcd
 ```
 
+helper는 console script가 사용하는 Python distribution의 `direct_url.json`에서 repository와 commit을 검증한다. ref 환경변수 문자열만 맞는 실행 파일은 거부한다.
+
 후보는 clean하고 push된 `feature/*`여야 한다. 저장소, branch, remote SHA, workflow, integration gate의 최종 판정은 Toolkit이 수행한다.
 
 ## 작업 흐름
@@ -55,7 +57,9 @@ receipt는 working tree 밖에 저장한다. 이후 `wait --receipt <path>`로 �
 
 ## 결과 설명
 
-- exit `2`: Toolkit 안정 오류 code와 안전한 다음 조치를 한국어로 설명한다. 검증을 우회하거나 evidence를 수정하지 않는다.
+- exit `2`, 실행 전제 오류: `실행 조건 불충족(<code>)`으로 시작하고 branch/auth/clean-tree/remote/workflow/gate 중 고칠 조건과 dry-run 재확인만 안내한다.
+- exit `2`, dispatch 응답 유실·모호: `dispatch 상태 모호(<code>)`로 시작하고 재요청 금지와 Actions 수동 확인을 안내한다.
+- exit `2`, attestation/artifact/source/timeout/comparability 오류: `증적 검증 실패(<code>)`로 시작하고 consumer-local evidence 확인을 안내한다. 검증을 우회하거나 evidence를 수정하지 않는다.
 - exit `0`, verdict `inconclusive`: 성공도 회귀도 아니다. exclusions와 부족한 증적을 설명하고 자동 재실행·표본 추가·release 승인을 하지 않는다.
 - 비교 가능 결과: 개별 측정값, 중앙값, 범위, 상대 변화, 실패율, exclusions, evidence 링크, `online_verified` 또는 `offline_replay` 여부를 구분한다.
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -12,26 +12,46 @@ const helper = path.join(
 );
 const toolkitRef = '9c6f0033a5ec2429085b29d56ebdb3caca94bbcd';
 
-async function fakeToolkit() {
+async function fakeToolkit(commitId = toolkitRef) {
   const directory = await mkdtemp(path.join(tmpdir(), 'onmaru-experiment-skill-'));
+  const interpreter = spawnSync('which', ['python3'], { encoding: 'utf8' }).stdout.trim();
   const executable = path.join(directory, 'pipeline-toolkit');
   const argvPath = path.join(directory, 'argv.json');
-  await writeFile(
-    executable,
-    `#!/usr/bin/env python3
+  const sitePackages = path.join(directory, 'site-packages');
+  const packageDirectory = path.join(sitePackages, 'pipeline_toolkit');
+  const distInfo = path.join(sitePackages, 'onmaru_pipeline_toolkit-0.dist-info');
+  await mkdir(packageDirectory, { recursive: true });
+  await mkdir(distInfo, { recursive: true });
+  await writeFile(path.join(packageDirectory, '__init__.py'), '');
+  await writeFile(path.join(packageDirectory, 'cli.py'), `
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
-Path(os.environ["FAKE_ARGV_PATH"]).write_text(json.dumps(sys.argv[1:]))
-sys.stdout.write(os.environ.get("FAKE_STDOUT", "{}"))
-sys.stderr.write(os.environ.get("FAKE_STDERR", ""))
-raise SystemExit(int(os.environ.get("FAKE_EXIT", "0")))
-`,
-  );
+def main():
+    Path(os.environ["FAKE_ARGV_PATH"]).write_text(json.dumps(sys.argv[1:]))
+    if os.environ.get("FAKE_STREAM_BYTES"):
+        sys.stdout.write("x" * int(os.environ["FAKE_STREAM_BYTES"]))
+        sys.stdout.flush()
+    if os.environ.get("FAKE_HANG"):
+        time.sleep(float(os.environ["FAKE_HANG"]))
+    sys.stdout.write(os.environ.get("FAKE_STDOUT", "{}"))
+    sys.stderr.write(os.environ.get("FAKE_STDERR", ""))
+    return int(os.environ.get("FAKE_EXIT", "0"))
+`);
+  await writeFile(path.join(distInfo, 'METADATA'), 'Metadata-Version: 2.1\nName: onmaru-pipeline-toolkit\nVersion: 0\n');
+  await writeFile(path.join(distInfo, 'direct_url.json'), JSON.stringify({
+    url: 'https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git',
+    vcs_info: {
+      vcs: 'git',
+      commit_id: commitId,
+    },
+  }));
+  await writeFile(executable, `#!${interpreter}\nfrom pipeline_toolkit.cli import main\nraise SystemExit(main())\n`);
   await chmod(executable, 0o755);
-  return { executable, argvPath };
+  return { executable, argvPath, sitePackages };
 }
 
 function invoke(executable, argvPath, args = [], extraEnv = {}) {
@@ -43,6 +63,7 @@ function invoke(executable, argvPath, args = [], extraEnv = {}) {
       ONMARU_PIPELINE_TOOLKIT_BIN: executable,
       ONMARU_PIPELINE_TOOLKIT_REF: toolkitRef,
       FAKE_ARGV_PATH: argvPath,
+      PYTHONPATH: extraEnv.PYTHONPATH ?? path.join(path.dirname(executable), 'site-packages'),
       ...extraEnv,
     },
   });
@@ -145,4 +166,76 @@ test('configured Toolkit ref must equal the repository immutable pin', async () 
   assert.equal(result.status, 2);
   assert.match(result.stdout, new RegExp(toolkitRef));
   await assert.rejects(readFile(fake.argvPath, 'utf8'), { code: 'ENOENT' });
+});
+
+test('a matching ref environment string alone cannot prove the installed binary pin', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'onmaru-unverified-toolkit-'));
+  const executable = path.join(directory, 'unverified-cli');
+  const argvPath = path.join(directory, 'argv.json');
+  await writeFile(executable, '#!/usr/bin/env python3\n');
+  await chmod(executable, 0o755);
+  const result = invoke(executable, argvPath);
+
+  assert.equal(result.status, 2);
+  assert.match(result.stdout, /toolkit_install_unverified/);
+  await assert.rejects(readFile(argvPath, 'utf8'), { code: 'ENOENT' });
+});
+
+test('an installed Toolkit from an older commit is rejected before invocation', async () => {
+  const fake = await fakeToolkit('a'.repeat(40));
+  const result = invoke(fake.executable, fake.argvPath);
+
+  assert.equal(result.status, 2);
+  assert.match(result.stdout, /toolkit_install_unverified/);
+  await assert.rejects(readFile(fake.argvPath, 'utf8'), { code: 'ENOENT' });
+});
+
+test('dispatch timeout and output overflow stop the child and forbid retry', async () => {
+  const fake = await fakeToolkit();
+  const started = Date.now();
+  const timeout = invoke(fake.executable, fake.argvPath, [
+    'dispatch', '--authorize-dispatch', '--reason', 'timeout test',
+  ], {
+    FAKE_HANG: '5',
+    ONMARU_PIPELINE_TOOLKIT_TIMEOUT_SECONDS: '0.1',
+  });
+  assert.equal(timeout.status, 2);
+  assert.ok(Date.now() - started < 2_000);
+  assert.match(timeout.stdout, /dispatch 상태가 모호.*절대 다시 dispatch하지 마세요/);
+
+  const overflow = invoke(fake.executable, fake.argvPath, [
+    'dispatch', '--authorize-dispatch', '--reason', 'overflow test',
+  ], {
+    FAKE_STREAM_BYTES: '70000',
+    FAKE_HANG: '5',
+  });
+  assert.equal(overflow.status, 2);
+  assert.match(overflow.stdout, /dispatch 상태가 모호.*절대 다시 dispatch하지 마세요/);
+
+  const dryRunTimeout = invoke(fake.executable, fake.argvPath, [], {
+    FAKE_HANG: '5',
+    ONMARU_PIPELINE_TOOLKIT_TIMEOUT_SECONDS: '0.1',
+  });
+  assert.equal(dryRunTimeout.status, 2);
+  assert.match(dryRunTimeout.stdout, /toolkit_timeout/);
+  assert.doesNotMatch(dryRunTimeout.stdout, /다시 dispatch/);
+});
+
+test('redacts GitHub PATs, secret-like keys, and key-value secrets inside strings', async () => {
+  const fake = await fakeToolkit();
+  const result = invoke(fake.executable, fake.argvPath, [], {
+    FAKE_STDOUT: JSON.stringify({
+      api_key: 'api-secret',
+      credential_value: 'credential-secret',
+      note: 'github_pat_abcdefghijklmnop api_key=inline-secret password=hunter2',
+    }),
+  });
+
+  assert.equal(result.status, 0);
+  assert.doesNotMatch(result.stdout, /api-secret|credential-secret|abcdefghijklmnop|inline-secret|hunter2/);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    api_key: '[REDACTED]',
+    credential_value: '[REDACTED]',
+    note: 'github_pat_[REDACTED] api_key=[REDACTED] password=[REDACTED]',
+  });
 });
