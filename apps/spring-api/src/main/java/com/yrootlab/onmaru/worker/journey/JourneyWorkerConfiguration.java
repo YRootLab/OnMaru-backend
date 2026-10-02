@@ -8,6 +8,7 @@ import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFacto
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenProperties;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenSigner;
 import com.yrootlab.onmaru.journey.run.JourneyRunStore;
+import com.yrootlab.onmaru.journey.events.JourneyRunEventSink;
 import com.yrootlab.onmaru.journey.cancellation.JourneyRunCancellationService;
 import com.yrootlab.onmaru.scheduling.run.JourneyRunSweeper;
 import com.yrootlab.onmaru.journey.worker.AiProposalClient;
@@ -25,6 +26,7 @@ import com.yrootlab.onmaru.persistence.journey.run.JdbcJourneyRunStore;
 import com.yrootlab.onmaru.persistence.journey.worker.JdbcJourneyResultStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -96,7 +98,9 @@ class JourneyWorkerConfiguration {
             ObjectProvider<ObjectMapper> objectMapperProvider,
             AiIntegrationProperties properties,
             @Qualifier("internalAiRequestHeadersFactory") InternalAiRequestHeadersFactory headersFactory,
-            JourneyWorkerTelemetry telemetry) {
+            JourneyWorkerTelemetry telemetry,
+            @Value("${onmaru.ai.streaming-enabled:${ONMARU_AI_STREAMING_ENABLED:true}}") boolean streamingEnabled,
+            @Value("${onmaru.ai.stream-unary-fallback-enabled:${ONMARU_AI_STREAM_UNARY_FALLBACK_ENABLED:true}}") boolean unaryFallbackEnabled) {
         ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new HttpAiProposalClient(
                 HttpClient.newBuilder().connectTimeout(properties.timeout()).build(),
@@ -104,7 +108,9 @@ class JourneyWorkerConfiguration {
                 properties.baseUrl(),
                 headersFactory,
                 properties.timeout(),
-                telemetry);
+                telemetry,
+                streamingEnabled,
+                unaryFallbackEnabled);
     }
 
     @Bean
@@ -115,14 +121,18 @@ class JourneyWorkerConfiguration {
             AiProposalClient aiProposalClient,
             BaselinePlanner baselinePlanner,
             JourneyResultStore resultStore,
-            JourneyWorkerTelemetry telemetry) {
+            JourneyWorkerTelemetry telemetry,
+            ObjectProvider<JourneyRunEventSink> eventSinkProvider,
+            Clock clock) {
         return new JourneyWorkerService(
                 runStore,
                 candidateProvider,
                 aiProposalClient,
                 baselinePlanner,
                 resultStore,
-                telemetry);
+                telemetry,
+                eventSinkProvider.getIfAvailable(JourneyRunEventSink::noop),
+                clock);
     }
 
     @Bean
