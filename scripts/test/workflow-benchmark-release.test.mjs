@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createReleaseEvidence, lookupBaseline, promotionDecision, resolveReleaseTag, selectPreviousSuccessfulRelease, validateDigestPair } from '../benchmark/workflow-support.mjs';
 
 const sha = 'a'.repeat(40);
@@ -10,6 +13,46 @@ test('resolves tag input from tag push or dispatch and rejects non-release refs'
   assert.equal(resolveReleaseTag({ refName: 'refs/tags/v1.2.3', eventName: 'push' }), 'v1.2.3');
   assert.equal(resolveReleaseTag({ tag: 'v1.2.3', eventName: 'workflow_dispatch' }), 'v1.2.3');
   assert.throws(() => resolveReleaseTag({ refName: 'refs/heads/develop', eventName: 'workflow_dispatch' }), /release tag/);
+});
+
+test('dispatch checkout resolves the release tag namespace rather than an ambiguous branch name', async () => {
+  const yaml = await readFile('.github/workflows/benchmark-release.yml', 'utf8');
+  const build = yaml.split('\n  build-and-scan:')[1].split('\n  migration-gate:')[0];
+  assert.match(build, /ref: \$\{\{ inputs\.release_tag && format\('refs\/tags\/\{0\}', inputs\.release_tag\) \|\| github\.ref \}\}/);
+});
+
+test('release input shell rejects a same-name branch HEAD and accepts the annotated tag commit', async () => {
+  const yaml = await readFile('.github/workflows/benchmark-release.yml', 'utf8');
+  const step = yaml.split('      - id: release-input\n')[1].split('      - uses:')[0];
+  const shell = step.split('        run: |\n')[1].split('\n').map((line) => line.replace(/^          /, '')).join('\n');
+  const directory = await mkdtemp(join(tmpdir(), 'release-ref-'));
+  const outputPath = join(directory, 'github-output');
+  const git = (...args) => {
+    const result = spawnSync('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', ...args], {
+      cwd: directory, encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const run = () => spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', shell], {
+    cwd: directory, encoding: 'utf8', env: { ...process.env, TAG: 'v1.2.4', GITHUB_OUTPUT: outputPath },
+  });
+  try {
+    git('init', '-q');
+    git('commit', '--allow-empty', '-qm', 'release commit');
+    const releaseSha = git('rev-parse', 'HEAD');
+    git('tag', '-a', 'v1.2.4', '-m', 'release tag');
+    git('checkout', '-qb', 'v1.2.4');
+    git('commit', '--allow-empty', '-qm', 'different branch commit');
+    await writeFile(outputPath, '');
+    assert.notEqual(run().status, 0, 'same-name branch must not become release evidence');
+    assert.equal(await readFile(outputPath, 'utf8'), '', 'invalid identity must publish no outputs');
+    git('checkout', '-q', '--detach', 'refs/tags/v1.2.4');
+    assert.equal(run().status, 0);
+    assert.equal(await readFile(outputPath, 'utf8'), `release-tag=v1.2.4\ncommit-sha=${releaseSha}\n`);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('validates expected and deployed digests before evidence creation', () => {
