@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createReleaseEvidence, lookupBaseline, promotionDecision, resolveReleaseTag, selectPreviousSuccessfulRelease, validateDigestPair } from '../benchmark/workflow-support.mjs';
 
 const sha = 'a'.repeat(40);
@@ -56,12 +57,14 @@ test('workflow YAML structure preserves ordering, least privilege and fork guard
   assert.ok(yaml.indexOf('baseline-lookup:') < yaml.indexOf('comparison:'));
   assert.ok(yaml.indexOf('expected-deployed-digest') < yaml.indexOf('comparison:'));
   assert.doesNotMatch(yaml, /pull_request:/);
+  const migration = yaml.split('\n  migration-gate:')[1].split('\n  staging-readiness:')[0];
+  assert.match(migration, /ref: \$\{\{ needs\.build-and-scan\.outputs\.commit-sha \}\}/);
 });
 
 test('workflow preserves reusable trend evidence through a pinned toolkit contract', async () => {
   const fs = await import('node:fs/promises');
   const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
-  const pinnedRef = '56862ed48797a13e4739b2fdfc2310a773a3a957';
+  const pinnedRef = '59b3344ecdd4460451e4e67db973d6dfd4afa8b5';
   assert.match(yaml, /trend-manifest\.json/);
   assert.match(yaml, /trend-manifest-\$\{\{ needs\.build-and-scan\.outputs\.release-tag \}\}/);
   assert.match(yaml, new RegExp(`YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@${pinnedRef}`));
@@ -71,4 +74,49 @@ test('workflow preserves reusable trend evidence through a pinned toolkit contra
   assert.match(yaml, /config-hash: \$\{\{ steps\.gate\.outputs\.config-hash \}\}/);
   assert.match(yaml, /gh release view "\$RELEASE_TAG"/);
   assert.match(yaml, /gh release upload "\$RELEASE_TAG" .*trend-manifest\.json/);
+});
+
+test('only the canonical module result owns release approval and W4 remains diagnostic', async () => {
+  const fs = await import('node:fs/promises');
+  const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
+  const comparison = yaml.split('\n  comparison:')[1].split('\n  trend-comparison:')[0];
+  const promotion = yaml.split('\n  promotion-gate:')[1].split('\n  regression-approval:')[0];
+  const approval = yaml.split('\n  regression-approval:')[1];
+  assert.match(comparison, /release-module-comparison\.py/);
+  assert.match(comparison, /release-module-evidence\.json/);
+  assert.match(comparison, /ref: 59b3344ecdd4460451e4e67db973d6dfd4afa8b5/);
+  assert.match(comparison, /gate: \$\{\{ steps\.module-comparison\.outputs\.gate \}\}/);
+  assert.match(approval, /needs\.comparison\.outputs\.gate == 'approval_hold'/);
+  assert.match(approval, /environment: benchmark-promotion/);
+  assert.doesNotMatch(approval + promotion, /outputs\.status|regressed|workflow-support\.mjs gate|gate\.json/);
+  assert.match(promotion, /needs\.comparison\.outputs\.gate/);
+  assert.match(promotion, /needs\.regression-approval\.result/);
+  assert.match(promotion, /blocked/);
+  const diagnosticPublish = comparison.split('- name: Attach diagnostic trend')[1];
+  assert.ok(diagnosticPublish, 'diagnostic trend publication must have its own failure boundary');
+  assert.match(diagnosticPublish, /continue-on-error: true/);
+});
+
+test('promotion shell blocks unsuccessful prerequisites even with an approved regression', async () => {
+  const fs = await import('node:fs/promises');
+  const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
+  const job = yaml.split('\n  promotion-gate:')[1].split('\n  regression-approval:')[0];
+  const shell = job.split('        run: |\n')[1].split('\n').map((line) => line.replace(/^          /, '')).join('\n');
+  for (const [build, comparison, gate, approval, expected] of [
+    ['success', 'success', 'pass', 'skipped', 0],
+    ['success', 'success', 'approval_hold', 'success', 0],
+    ['success', 'success', 'approval_hold', 'failure', 1],
+    ['success', 'success', 'blocked', 'success', 1],
+    ['success', 'success', '', 'success', 1],
+    ['failure', 'success', 'pass', 'success', 1],
+    ['failure', 'success', 'approval_hold', 'success', 1],
+    ['success', 'failure', 'approval_hold', 'success', 1],
+    ['success', 'skipped', 'pass', 'success', 1],
+  ]) {
+    const result = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', shell], {
+      encoding: 'utf8', env: { ...process.env, BUILD_RESULT: build, COMPARISON_RESULT: comparison,
+        GATE: gate, APPROVAL_RESULT: approval },
+    });
+    assert.equal(result.status, expected, `${build}/${comparison}/${gate}/${approval}: ${result.stderr}`);
+  }
 });

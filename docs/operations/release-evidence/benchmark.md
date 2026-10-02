@@ -1,9 +1,34 @@
-# Benchmark release evidence (W4)
+# Benchmark release evidence
+
+## Release 3회 비교의 운영 경계 (#543)
+
+Release Benchmark Gate의 정본은 `benchmark/reports/release-module-comparison.json`이며,
+수치 판정은 Toolkit v0.1.3 commit `59b3344ecdd4460451e4e67db973d6dfd4afa8b5`가 소유한다.
+baseline/candidate Release asset `release-module-evidence.json`의 사전 선택된 서로 다른
+성공 run 각 3개를 비교한다. [입력 필드와 실패 모델](../../benchmark/contracts.md)을 따른다.
+asset이 없으면 `inconclusive`로 기록한다. 일반 tag push 직후에는 아직 candidate asset이
+없을 수 있으므로 검토된 asset을 준비한 뒤 해당 tag로 수동 workflow를 실행한다.
+
+`classification=comparable`이고 `policy_outcome=approval_hold`인 **15% 초과** 회귀만
+`benchmark-promotion` GitHub environment 승인을 요구한다. 정확히 15%는 통과한다.
+`failed`/`inconclusive`는 승인 job을 만들지 않고 promotion-gate를 실패시킨다. 원본
+scan·migration·staging readiness가 실패하거나 comparison이 실행되지 않아도 gate는 닫힌다.
+환경의 required reviewers 설정은 저장소 운영자가 관리해야 하며 YAML만으로 보장되지 않는다.
+
+Job Summary와 30일 artifact에 정본 JSON, 개별 값·중앙값·범위·delta, source Actions 실행과
+manifest artifact link, 제외 사유가 남는다. 기존 GitHub Release가 있으면 정본 JSON을
+Release asset에도 보관한다. 원시 입력의 추가 필드나 오류 원문은 게시하지 않는다.
+Release asset의 작성 권한을 신뢰하는 입력 계약이며 source URL의 진위나 artifact checksum을
+Actions API로 재검증하는 collector는 아직 없다. 원본 manifest가 만료되기 전에 선택 근거를
+보존해야 한다. 이 작업에서는 실제 Actions 실행이나 release 변경을 수행하지 않았다.
+
+W4의 5% latency 비교와 `trend-comparison`은 진단 전용이다. 아래 W4 문단과 fixture는
+이전 evidence 형식을 설명하며 새 release approval의 판정 근거가 아니다.
 
 ## 목적과 DAG
 
-W4는 다음 release-to-release 흐름이 동일한 release identity와 artifact link를 유지하는지
-검증한다.
+현재 정본 흐름은 다음과 같다. 기존 W4는 동일 release identity와 artifact link를
+유지하는 진단 경로로 병행한다.
 
 ```mermaid
 flowchart LR
@@ -11,13 +36,13 @@ flowchart LR
   B --> C[Expected/deployed digest]
   C --> D[Staging readiness]
   D --> E[Baseline lookup]
-  E --> F[Toolkit compare]
-  F --> G[Raw/normalized/report artifacts]
-  G --> H[Manifest + Job Summary]
+  E --> F[Selected module evidence 3 + 3]
+  F --> G[Pinned Toolkit release comparison]
+  G --> H[Canonical result + Job Summary]
   H --> I{Promotion gate}
-  I -->|improved / unchanged| J[Automatic pass]
-  I -->|regressed| K[Explicit approval]
-  I -->|inconclusive| L[Blocked]
+  I -->|pass| J[Automatic pass]
+  I -->|approval_hold| K[Protected environment approval]
+  I -->|failed / inconclusive| L[Blocked]
 ```
 
 각 단계의 실패는 성능 regression과 동일하지 않다. deployment/readiness 실패, expected와
@@ -40,7 +65,7 @@ invalid data는 모두 비교 불가인 `inconclusive`다.
 
 ## Toolkit input과 metadata manifest
 
-실제 `pipeline-toolkit` provenance는 아직 `unverified`다. 따라서 W4는 명령을 발명하거나
+기존 W4 가상 CLI provenance는 아직 `unverified`다. 따라서 W4는 명령을 발명하거나
 실제 binary를 설치하지 않는다. adapter에 전달되는 논리 input은 다음 의미를 보존해야 한다.
 
 ```json
@@ -61,7 +86,7 @@ metadata는 `artifacts/release/<tag>/release.json`, benchmark manifest는
 `benchmarkRunId`, release IDs, commit SHA, service image digests, `configSha256`, status와
 `rawUri`, `normalizedUri`, `reportUri`를 보존한다.
 
-## Gate와 GitHub evidence
+## 기존 W4 진단 Gate와 GitHub evidence
 
 | status | gate | 의미 |
 | --- | --- | --- |
@@ -85,8 +110,8 @@ redacted stderr만 남긴다.
 
 ## Known limitations
 
-- `pipeline-toolkit`의 공식 repository, pinned version/checksum, 실제 `--help/schema`,
-  exit code와 publish contract가 아직 확인되지 않았다.
+- module API는 고정 commit으로 확인했으나 안정된 release module CLI는 없다. adapter는
+  v0.1.3 Python dataclass/API에 결합된다. 기존 W4 가상 CLI/publish contract는 미확인이다.
 - 현재 W4는 fake toolkit/loopback readiness fixture 기반의 contract/evidence 검증이며,
   실제 staging 배포 성공이나 benchmark 수치의 운영 유효성을 증명하지 않는다.
 - staging release plan의 deploy job과 실제 deploy workflow 정합성은 별도 운영 이슈다.
@@ -97,6 +122,7 @@ redacted stderr만 남긴다.
 
 ```bash
 node --test scripts/test/benchmark-contract.test.mjs
+node --test scripts/test/release-module-comparison.test.mjs scripts/test/workflow-benchmark-release.test.mjs
 node --test scripts/test/benchmark-release-pipeline.test.mjs
 node --test scripts/test/benchmark-release-metadata.test.mjs scripts/test/benchmark-compare.test.mjs scripts/test/workflow-benchmark-release.test.mjs
 node --test scripts/test/staging-release-gate.test.mjs
@@ -105,4 +131,3 @@ git diff --check
 
 실제 toolkit이 검증되기 전에는 `.pipeline/benchmark.yml`의 `provenance: unverified`를
 `verified`로 바꾸지 않는다.
-
