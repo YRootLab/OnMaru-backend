@@ -29,8 +29,8 @@ OnMaruBE의 pipeline 설정 변경을 고정된 `develop`과 비교할 때만 �
 Python 3.9+, `git`, 인증된 `gh`, 고정 Toolkit CLI가 필요하다. Toolkit은 다음 커밋으로 설치하고 실행 환경에도 같은 ref를 지정한다.
 
 ```sh
-python3 -m pip install 'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@9c6f0033a5ec2429085b29d56ebdb3caca94bbcd'
-export ONMARU_PIPELINE_TOOLKIT_REF=9c6f0033a5ec2429085b29d56ebdb3caca94bbcd
+python3 -m pip install 'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@d5b7892875000afc2deba6e6873717974d558ee5'
+export ONMARU_PIPELINE_TOOLKIT_REF=d5b7892875000afc2deba6e6873717974d558ee5
 ```
 
 helper는 console script가 사용하는 Python distribution의 `direct_url.json`에서 repository와 commit을 검증한다. ref 환경변수 문자열만 맞는 실행 파일은 거부한다.

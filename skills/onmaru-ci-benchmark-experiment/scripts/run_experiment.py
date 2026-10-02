@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 
-TOOLKIT_REF = "9c6f0033a5ec2429085b29d56ebdb3caca94bbcd"
+TOOLKIT_REF = "d5b7892875000afc2deba6e6873717974d558ee5"
 TOOLKIT_REPOSITORY = "https://github.com/YRootLab/OnMaru-backend-ci-toolkit"
 MAX_STDOUT_BYTES = 64 * 1024
 SECRET_KEY = re.compile(r"(?:api[_-]?key|authorization|credential|password|secret|token)", re.IGNORECASE)
@@ -28,8 +28,15 @@ SECRET_TEXT = (
     (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{8,}\b"), "github_pat_[REDACTED]"),
     (
         re.compile(
-            r"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|credential)"
-            r"(\s*=\s*)[^\s&,;]+"
+            r"(?i)\b(authorization|api[_-]?key|credential|password|secret|token)"
+            r"(\s*[:=]\s*)(?P<quote>['\"])[^\r\n]{0,4096}?(?P=quote)"
+        ),
+        r"\1\2\g<quote>[REDACTED]\g<quote>",
+    ),
+    (
+        re.compile(
+            r"(?i)\b(authorization|api[_-]?key|credential|password|secret|token)"
+            r"(\s*[:=]\s*)(?!['\"])[^\s&,;]+"
         ),
         r"\1\2[REDACTED]",
     ),
@@ -151,6 +158,13 @@ def normalized_repository(value: object) -> str:
     return value.rstrip("/").removesuffix(".git")
 
 
+def sanitized_child_environment() -> dict[str, str]:
+    environment = dict(os.environ)
+    environment.pop("PYTHONPATH", None)
+    environment.pop("PYTHONHOME", None)
+    return environment
+
+
 def installed_direct_url(binary: Path) -> dict[str, Any]:
     with binary.open("rb") as stream:
         first_line = stream.readline(512).decode("utf-8", errors="strict").strip()
@@ -170,22 +184,45 @@ def installed_direct_url(binary: Path) -> dict[str, Any]:
             str(interpreter_path),
             "-c",
             (
-                "import importlib.metadata as m; "
-                "print(m.distribution('onmaru-pipeline-toolkit').read_text('direct_url.json') or '')"
+                "import importlib.metadata as m, json, pathlib, pipeline_toolkit as p; "
+                "d=m.distribution('onmaru-pipeline-toolkit'); "
+                "r=pathlib.Path(d.locate_file('')).resolve(); f=pathlib.Path(p.__file__).resolve(); "
+                "rel=f.relative_to(r); "
+                "print(json.dumps({'direct_url':json.loads(d.read_text('direct_url.json') or '{}'),"
+                "'distribution_root':str(r),'module_file':str(f),'relative_module':rel.as_posix(),"
+                "'module_owned':rel.as_posix() in {str(x) for x in (d.files or [])}}))"
             ),
         ],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
+        env=sanitized_child_environment(),
         timeout=10,
         check=False,
     )
     if probe.returncode != 0 or len(probe.stdout) > 4096:
         raise ValueError("direct_url_unavailable")
-    document = json.loads(probe.stdout)
-    if not isinstance(document, dict):
+    identity = json.loads(probe.stdout)
+    if not isinstance(identity, dict):
         raise ValueError("invalid_direct_url")
-    return document
+    distribution_root = Path(identity.get("distribution_root", ""))
+    module_file = Path(identity.get("module_file", ""))
+    relative_identity = identity.get("relative_module")
+    try:
+        relative_module = module_file.relative_to(distribution_root)
+    except ValueError as error:
+        raise ValueError("module_outside_distribution") from error
+    if (
+        not relative_module.parts
+        or relative_module.parts[0] != "pipeline_toolkit"
+        or relative_identity != relative_module.as_posix()
+        or identity.get("module_owned") is not True
+    ):
+        raise ValueError("module_distribution_mismatch")
+    direct_url = identity.get("direct_url")
+    if not isinstance(direct_url, dict):
+        raise ValueError("invalid_direct_url")
+    return direct_url
 
 
 def verify_installation(binary: Path) -> None:
@@ -201,13 +238,13 @@ def verify_installation(binary: Path) -> None:
 
 
 def stop_process(process: subprocess.Popen[bytes]) -> None:
-    if process.poll() is not None:
-        return
     try:
         os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
         process.wait(timeout=0.1)
-        return
-    except (ProcessLookupError, subprocess.TimeoutExpired):
+    except subprocess.TimeoutExpired:
         pass
     try:
         os.killpg(process.pid, signal.SIGKILL)
@@ -225,6 +262,7 @@ def invoke(binary: Path, argv: list[str], timeout: float) -> tuple[int, bytes]:
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
+        env=sanitized_child_environment(),
         shell=False,
         start_new_session=True,
     )
