@@ -59,6 +59,8 @@ Duration은 histogram `_sum / _count`의 관측 평균이고 workflow 값은 첫
 
 다음은 credential과 외부 tenant가 없어도 실행할 수 있다. Node fixture suite는 fake GitHub API와 로컬 HTTP receiver를 사용하며 완료된 source run의 성공·실패·취소, archive 검증, HTTP 실패 시 CI conclusion 보존, 같은 digest replay 억제를 검사한다.
 
+로컬 필수 도구는 Docker Engine과 Docker Compose v2, Python 3.9+, Node.js 22다. macOS에서는 Docker Desktop 하나로 Engine과 Compose를 준비할 수 있다. GitHub Actions를 CLI로 조회할 때만 인증된 `gh`가 추가로 필요하다. Grafana, Prometheus, Tempo, OpenTelemetry Collector는 Compose가 고정 image로 제공하므로 별도 설치가 필요하지 않다.
+
 ```bash
 node --test scripts/test/grafana-ci-observability.test.mjs scripts/test/ci-observability-workflow.test.mjs
 ```
@@ -73,6 +75,14 @@ PYTHONPATH=src python3 scripts/ci_dashboard_smoke.py --timeout 45
 PYTHONPATH=src python3 scripts/collector_outage_smoke.py --exercise-outage
 PYTHONPATH=src python3 scripts/ci_dashboard_smoke.py --timeout 45
 ```
+
+Stack이 healthy이면 로그인 없이 다음 주소에서 확인한다.
+
+- Grafana CI dashboard: <http://127.0.0.1:3000/d/toolkit-ci-benchmark>
+- Prometheus query UI: <http://127.0.0.1:9090>
+- Tempo: Grafana Explore에서 `local-tempo` datasource를 선택한다. 진단 API는 <http://127.0.0.1:3200>이며 일반 조회는 Grafana Explore를 사용한다.
+
+Grafana의 workflow/job/module/step duration 패널은 같은 measurement boundary의 값만 비교한다. 개선율은 `(baseline 중앙값 - candidate 중앙값) / baseline 중앙값 × 100`으로 계산하고, 양쪽의 개별 3회 값·범위·실패율·queue 조건을 함께 남긴다. 측정 경계가 다른 serial 470초와 critical-path 411.62초를 전체 CI 개선율로 합치지 않는다.
 
 중단 실험 뒤 Tempo가 복구되지 않으면 같은 Compose 파일의 `start tempo`를 실행하고 smoke를 다시 돌린다. 정리가 필요하면 해당 disposable 프로젝트에 한해 `docker compose -f observability/local/compose.yaml down --volumes --remove-orphans`를 실행한다. tmpfs fixture는 삭제되므로 실제 manifest/replay 저장소로 사용하지 않는다. Collector 뒤 실패 카운터와 queue pressure는 Toolkit의 pre-Collector HTTP 실패를 보여주지 않는다. 이 경계는 `export-result.json`, `diagnostics.md`, replay checkpoint에서 별도로 확인한다. Source 완료부터 ACK까지의 lag가 없으면 0이 아니라 unknown/pending으로 기록한다.
 

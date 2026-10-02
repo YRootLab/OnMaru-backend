@@ -111,3 +111,15 @@ test('CI credentials remain isolated from runtime secrets and required CI', asyn
   assert.doesNotMatch(ci, /OTLP_ENDPOINT|OTLP_HEADERS/);
   assert.match(await read('docs/operations/release-evidence/README.md'), /ci-observability\.md/);
 });
+
+test('local operator guide names prerequisites and direct monitoring URLs', async () => {
+  const source = await read(evidencePath);
+  assert.match(source, /Docker Desktop|Docker Engine/);
+  assert.match(source, /Docker Compose v2/);
+  assert.match(source, /Python 3\.9\+/);
+  assert.match(source, /Node\.js 22/);
+  assert.match(source, /Grafana.*http:\/\/127\.0\.0\.1:3000\/d\/toolkit-ci-benchmark/s);
+  assert.match(source, /Prometheus.*http:\/\/127\.0\.0\.1:9090/s);
+  assert.match(source, /Tempo.*Grafana Explore/s);
+  assert.match(source, /별도 설치.*필요하지 않/);
+});
