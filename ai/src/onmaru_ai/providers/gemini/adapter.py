@@ -464,19 +464,24 @@ class _NarrationGuard:
         self._forbidden = {value.casefold() for value in forbidden if value}
         self._hold = max(80, max((len(value) for value in self._forbidden), default=1) - 1)
         self._pending = ""
+        self._seen = ""
         self._emitted = 0
 
     def feed(self, text: str, *, finished: bool) -> str:
         self._pending += text
+        self._seen += text
+        if len(self._seen) > 65_536:
+            raise _invalid_stream()
         folded = self._pending.casefold()
         if (
             any(value in folded for value in self._forbidden)
-            or re.search(r"[{}\[\]<>°º]", self._pending)
-            or re.search(r"""["'][^"']{1,64}["']\s{0,8}:""", self._pending)
+            # A decoded ASCII JSON quote is always private/structured here. Reject
+            # at the opening quote, independent of field length or later whitespace.
+            or re.search(r'["{}\[\]<>°º]', self._pending)
             # Fail closed on coordinate-like precision and numeric coordinate pairs.
-            # Ordinary Korean prose, quotes, line breaks, times and emoji remain valid.
-            or re.search(r"\d{1,3}\.\d{2}|\d\s{0,8},\s{0,8}[+-]?\d", self._pending)
-            or re.search(r"\d{1,3}\.\d{1,10}\s{1,8}[+-]?\d{1,3}\.\d", self._pending)
+            # A lone first number is not sensitive; keep bounded full history so
+            # unlimited separating whitespace cannot conceal a later coordinate.
+            or self._contains_coordinates(finished=finished)
         ):
             raise _invalid_stream()
         count = len(self._pending) if finished else max(0, len(self._pending) - self._hold)
@@ -484,6 +489,18 @@ class _NarrationGuard:
         self._pending = self._pending[count:]
         self._emitted += len(public)
         return public
+
+    def _contains_coordinates(self, *, finished: bool) -> bool:
+        if re.search(r"\d{1,3}\.\d{2}|\d{1,3}\.\d{1,10}\s+[+-]?\d{1,3}\.\d", self._seen):
+            return True
+        for match in re.finditer(r"(?<!\d)[+-]?\d{1,3}\s*,\s*[+-]?\d{1,3}(?![\d,])", self._seen):
+            suffix = self._seen[match.end() :]
+            if not suffix and not finished:
+                continue  # Still receiving digits or a normal monetary suffix.
+            if suffix.startswith(("원", "만원", "달러", "유로", "KRW", "USD")):
+                continue
+            return True
+        return False
 
 
 class _NarrationParser:

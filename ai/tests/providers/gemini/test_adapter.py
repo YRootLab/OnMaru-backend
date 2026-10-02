@@ -394,7 +394,7 @@ class ChunkTransport(FakeTransport):
             self.closed = True
 
 
-def stream_proposal(narration: str = '전주 "골목"\n따라 걸어요 😀') -> dict[str, Any]:
+def stream_proposal(narration: str = "전주 “골목”\n따라 걸어요 😀") -> dict[str, Any]:
     return {
         "metadata": {"narration": "private-evidence"},
         "orderedRefs": ["place-secret"],
@@ -429,7 +429,7 @@ def test_stream_extracts_only_root_narration_across_json_escapes(chunk_size: int
     assert events[-1] == {"event": "proposal", "data": {"proposal": proposal}}
     assert events[0]["event"] == "text.delta"
     narration = "".join(event["data"]["text"] for event in events[:-1])
-    assert narration == '전주 "골목"\n따라 걸어요 😀'
+    assert narration == "전주 “골목”\n따라 걸어요 😀"
     assert all(event["event"] == "text.delta" for event in events[:-1])
     assert not any(
         value in narration
@@ -668,6 +668,12 @@ def test_stream_does_not_record_provider_supplied_secret_as_model_version() -> N
         ("internal policy: private instruction", "internal policy"),
         ('"unknownPrivateField": "provider raw fragment"', '"unknownPrivateField"'),
         ("지도 좌표 35.8 127.1", "35."),
+        ('"providerPayload"' + " " * 9 + ': "private"', '"'),
+        ('"providerPayload"' + " " * 100 + ': "private"', '"'),
+        ('"' + "privateField" * 20 + '"' + " " * 9 + ': "private"', '"'),
+        ('"' + "privateField" * 20 + '"' + " " * 100 + ': "private"', '"'),
+        ("35.8" + " " * 100 + "127.1", "127."),
+        ("35" + " " * 100 + "," + " " * 100 + "127", "127"),
     ],
 )
 def test_narration_rejects_structured_data_and_internal_markers_before_public_delta(
@@ -695,6 +701,46 @@ def test_narration_rejects_structured_data_and_internal_markers_before_public_de
 
     assert never_public not in asyncio.run(scenario())
     assert transport.closed
+
+
+@pytest.mark.parametrize("chunk_size", [1, 7, 512])
+def test_normal_korean_typographic_quotes_emoji_iso_date_and_won_amount_remain_public(
+    chunk_size: int,
+) -> None:
+    narration = "2026-10-02에 전주 ‘한옥 골목’을 2.5km 걸어요. 비용은 10,000원이에요 😀"
+    raw = json.dumps(stream_proposal(narration), ensure_ascii=True)
+    adapter = GeminiAdapter(
+        config(),
+        ChunkTransport([raw[i : i + chunk_size] for i in range(0, len(raw), chunk_size)]),
+        api_key="authorization-key-secret",
+        telemetry_sink=InMemoryTelemetrySink(),
+    )
+    events = asyncio.run(collect_stream(adapter))
+    assert "".join(event["data"]["text"] for event in events[:-1]) == narration
+    assert events[-1]["data"]["proposal"]["narration"] == narration
+
+
+def test_first_number_is_public_alone_but_second_coordinate_component_is_not() -> None:
+    raw = json.dumps(stream_proposal("한옥 골목을 걸어요. " * 10 + "35.8" + " " * 100 + "127.1"))
+    split = raw.index("127.1")
+    adapter = GeminiAdapter(
+        config(),
+        ChunkTransport([raw[:split], raw[split:]]),
+        api_key="authorization-key-secret",
+        telemetry_sink=InMemoryTelemetrySink(),
+    )
+
+    async def scenario() -> None:
+        stream = adapter.stream(prompt(), response_schema=RESPONSE_SCHEMA, timeout_seconds=3.0)
+        first = await anext(stream)
+        assert first["event"] == "text.delta"
+        assert "35.8" in first["data"]["text"]
+        with pytest.raises(GeminiProviderError) as captured:
+            async for event in stream:
+                assert "127" not in event["data"].get("text", "")
+        assert captured.value.code is GeminiFailureCode.AI_INVALID_RESPONSE
+
+    asyncio.run(scenario())
 
 
 class CountingByteStream(httpx.AsyncByteStream):
