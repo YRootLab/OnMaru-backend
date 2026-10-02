@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, Mapping
+from contextlib import aclosing
 from typing import Any, Protocol
 
 from onmaru_ai.providers.gemini.models import (
@@ -40,7 +41,7 @@ class JourneyGeminiAdapter(Protocol):
 
     def stream(
         self, prompt: GeminiPrompt, *, response_schema: Mapping[str, Any], timeout_seconds: float
-    ) -> AsyncIterator[dict[str, Any]]: ...
+    ) -> AsyncGenerator[dict[str, Any], None]: ...
 
 
 class JourneyLlmService:
@@ -62,19 +63,22 @@ class JourneyLlmService:
 
     async def stream(
         self, *, query: str, candidate_refs: list[str], request_id: str
-    ) -> AsyncIterator[dict[str, Any]]:
-        async for event in self._adapter.stream(
-            self._prompt(query, candidate_refs, request_id),
-            response_schema=RESPONSE_SCHEMA,
-            timeout_seconds=20.0,
-        ):
-            if event["event"] == "proposal":
-                proposal = self._filter_proposal(event["data"]["proposal"], candidate_refs)
-                if proposal is None:
-                    raise GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE)
-                yield {"event": "proposal", "data": {"proposal": proposal}}
-            else:
-                yield event
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        async with aclosing(
+            self._adapter.stream(
+                self._prompt(query, candidate_refs, request_id),
+                response_schema=RESPONSE_SCHEMA,
+                timeout_seconds=20.0,
+            )
+        ) as events:
+            async for event in events:
+                if event["event"] == "proposal":
+                    proposal = self._filter_proposal(event["data"]["proposal"], candidate_refs)
+                    if proposal is None:
+                        raise GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE)
+                    yield {"event": "proposal", "data": {"proposal": proposal}}
+                else:
+                    yield event
 
     def _prompt(self, query: str, candidate_refs: list[str], request_id: str) -> GeminiPrompt:
         return GeminiPrompt(

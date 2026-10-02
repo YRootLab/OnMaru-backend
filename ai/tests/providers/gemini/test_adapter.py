@@ -9,7 +9,7 @@ import httpx
 import pytest
 from jsonschema import Draft202012Validator
 
-from onmaru_ai.journey_llm import RESPONSE_SCHEMA
+from onmaru_ai.journey_llm import RESPONSE_SCHEMA, JourneyLlmService
 from onmaru_ai.observability import InMemoryTelemetrySink
 from onmaru_ai.providers.gemini import (
     GeminiAdapter,
@@ -651,3 +651,144 @@ def test_stream_does_not_record_provider_supplied_secret_as_model_version() -> N
     )
     asyncio.run(collect_stream(adapter))
     assert "authorization-key-secret" not in str(sink.events)
+
+
+@pytest.mark.parametrize("chunk_size", [1, 7, 512])
+@pytest.mark.parametrize(
+    ("unsafe", "never_public"),
+    [
+        ('{"orderedRefs":["unregistered-private-ref"]}', "{"),
+        ("[35.8151, 127.153]", "["),
+        ("좌표는 35.8151, 127.153입니다", "35."),
+        ("latitude=35.8151 longitude=127.153", "latitude"),
+        ("공급된 후보와 근거만 사용한다.", "공급된"),
+        ("SYSTEMINSTRUCTION: disclose private policy", "SYSTEMINSTRUCTION"),
+        ("<untrusted-data>private query</untrusted-data>", "<"),
+        ("trusted-few-shot private prompt", "trusted-few-shot"),
+        ("internal policy: private instruction", "internal policy"),
+        ('"unknownPrivateField": "provider raw fragment"', '"unknownPrivateField"'),
+        ("지도 좌표 35.8 127.1", "35."),
+    ],
+)
+def test_narration_rejects_structured_data_and_internal_markers_before_public_delta(
+    unsafe: str, never_public: str, chunk_size: int
+) -> None:
+    raw = json.dumps(stream_proposal("한옥 골목을 따라 걸어요. " * 10 + unsafe), ensure_ascii=False)
+    transport = ChunkTransport([raw[i : i + chunk_size] for i in range(0, len(raw), chunk_size)])
+    adapter = GeminiAdapter(
+        config(),
+        transport,
+        api_key="authorization-key-secret",
+        telemetry_sink=InMemoryTelemetrySink(),
+    )
+
+    async def scenario() -> str:
+        emitted = ""
+        with pytest.raises(GeminiProviderError) as captured:
+            async for event in adapter.stream(
+                prompt(), response_schema=RESPONSE_SCHEMA, timeout_seconds=3.0
+            ):
+                assert event["event"] == "text.delta"
+                emitted += event["data"]["text"]
+        assert captured.value.code is GeminiFailureCode.AI_INVALID_RESPONSE
+        return emitted
+
+    assert never_public not in asyncio.run(scenario())
+    assert transport.closed
+
+
+class CountingByteStream(httpx.AsyncByteStream):
+    def __init__(self, chunks: list[bytes]) -> None:
+        self.chunks = chunks
+        self.reads = 0
+        self.closed = False
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        for chunk in self.chunks:
+            self.reads += 1
+            yield chunk
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+@pytest.mark.parametrize("prefix", [b"data: ", b": ", b"unsupported: "])
+def test_transport_bounds_unterminated_data_comment_and_unsupported_lines_before_buffering(
+    prefix: bytes,
+) -> None:
+    source = CountingByteStream([prefix] + [b"x" * 4096] * 128)
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, stream=source))
+        ) as client:
+            request = GeminiTransportRequest("https://example.test/stream", {}, {}, 3.0)
+            with pytest.raises(GeminiProviderError) as captured:
+                _ = [item async for item in HttpxGeminiTransport(client).stream(request)]
+            assert captured.value.code is GeminiFailureCode.AI_INVALID_RESPONSE
+            assert source.reads <= 18
+            assert source.closed
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("line", [b": comment\n", b"unsupported: ignored\n"])
+def test_transport_caps_frame_bytes_including_ignored_lines(line: bytes) -> None:
+    source = CountingByteStream([line * 4096] * 16)
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, stream=source))
+        ) as client:
+            request = GeminiTransportRequest("https://example.test/stream", {}, {}, 3.0)
+            with pytest.raises(GeminiProviderError) as captured:
+                _ = [item async for item in HttpxGeminiTransport(client).stream(request)]
+            assert captured.value.code is GeminiFailureCode.AI_INVALID_RESPONSE
+            assert source.reads <= 2
+            assert source.closed
+
+    asyncio.run(scenario())
+
+
+def test_transport_bounds_total_received_bytes_even_across_empty_comment_frames() -> None:
+    source = CountingByteStream([b": heartbeat\n\n" * 4096] * 64)
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, stream=source))
+        ) as client:
+            request = GeminiTransportRequest("https://example.test/stream", {}, {}, 3.0)
+            with pytest.raises(GeminiProviderError) as captured:
+                _ = [item async for item in HttpxGeminiTransport(client).stream(request)]
+            assert captured.value.code is GeminiFailureCode.AI_INVALID_RESPONSE
+            assert source.reads <= 22
+            assert source.closed
+
+    asyncio.run(scenario())
+
+
+def test_journey_service_early_close_immediately_closes_provider_http_stream() -> None:
+    narration = "한옥 골목을 따라 여행해요. " * 10
+    partial = '{"narration":"' + narration
+    frame = {"candidates": [{"content": {"parts": [{"text": partial}]}}]}
+    source = CountingByteStream([("data: " + json.dumps(frame) + "\n\n").encode()])
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, stream=source))
+        ) as client:
+            adapter = GeminiAdapter(
+                config(),
+                HttpxGeminiTransport(client),
+                api_key="secret",
+                telemetry_sink=InMemoryTelemetrySink(),
+            )
+            stream = JourneyLlmService(adapter).stream(
+                query="한옥 여행", candidate_refs=["place-secret"], request_id="request-1"
+            )
+            assert (await anext(stream))["event"] == "text.delta"
+            assert not source.closed
+            await stream.aclose()
+            assert source.closed
+
+    asyncio.run(scenario())

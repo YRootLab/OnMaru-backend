@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import json
 import re
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, AsyncIterator, Mapping
 from dataclasses import replace
 from typing import Any
 
@@ -56,7 +56,7 @@ class GeminiAdapter:
         response_schema: Mapping[str, Any],
         timeout_seconds: float,
         cancellation_event: asyncio.Event | None = None,
-    ) -> AsyncIterator[dict[str, Any]]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         if timeout_seconds <= 0:
             raise ValueError("Gemini timeout must be positive")
         unary = self._request(prompt, response_schema, timeout_seconds)
@@ -64,7 +64,11 @@ class GeminiAdapter:
             unary, url=unary.url.removesuffix(":generateContent") + ":streamGenerateContent?alt=sse"
         )
         parser = _NarrationParser()
-        forbidden = {self._api_key, *_candidate_refs(prompt.data_block)}
+        forbidden = {
+            self._api_key,
+            *_candidate_refs(prompt.data_block),
+            *_internal_prompt_markers(prompt),
+        }
         guard = _NarrationGuard(forbidden)
         usage: GeminiUsage | None = None
         model_version = self._config.model_name
@@ -425,18 +429,55 @@ def _candidate_refs(data: Mapping[str, Any]) -> set[str]:
     return refs
 
 
+def _internal_prompt_markers(prompt: GeminiPrompt) -> set[str]:
+    markers = {
+        "orderedRefs",
+        "candidateRefs",
+        "narration",
+        "systemInstruction",
+        "system prompt",
+        "internal policy",
+        "internal instructions",
+        "developer instructions",
+        "policy_block",
+        "trusted-few-shot",
+        "untrusted-data",
+        "example-output",
+        "api_key",
+        "authorization",
+        "latitude",
+        "longitude",
+        "coordinates",
+    }
+    # Bounded prefixes detect copied policy sentences without delaying all narration
+    # behind an arbitrarily long internal prompt. No prompt content is logged.
+    for sentence in re.split(r"(?<=[.!?])\s+|\n", prompt.policy_block):
+        if len(sentence.strip()) >= 8:
+            markers.add(sentence.strip()[:64])
+    return markers
+
+
 class _NarrationGuard:
-    """Keep a lookbehind so a ref or secret split between deltas cannot escape."""
+    """Withhold bounded lookbehind before publishing prose, never structured/private text."""
 
     def __init__(self, forbidden: set[str]) -> None:
-        self._forbidden = forbidden
-        self._hold = max((len(value) for value in forbidden), default=1) - 1
+        self._forbidden = {value.casefold() for value in forbidden if value}
+        self._hold = max(80, max((len(value) for value in self._forbidden), default=1) - 1)
         self._pending = ""
         self._emitted = 0
 
     def feed(self, text: str, *, finished: bool) -> str:
         self._pending += text
-        if any(value in self._pending for value in self._forbidden):
+        folded = self._pending.casefold()
+        if (
+            any(value in folded for value in self._forbidden)
+            or re.search(r"[{}\[\]<>°º]", self._pending)
+            or re.search(r"""["'][^"']{1,64}["']\s{0,8}:""", self._pending)
+            # Fail closed on coordinate-like precision and numeric coordinate pairs.
+            # Ordinary Korean prose, quotes, line breaks, times and emoji remain valid.
+            or re.search(r"\d{1,3}\.\d{2}|\d\s{0,8},\s{0,8}[+-]?\d", self._pending)
+            or re.search(r"\d{1,3}\.\d{1,10}\s{1,8}[+-]?\d{1,3}\.\d", self._pending)
+        ):
             raise _invalid_stream()
         count = len(self._pending) if finished else max(0, len(self._pending) - self._hold)
         public = self._pending[:count][: max(0, 4000 - self._emitted)]
