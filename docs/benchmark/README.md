@@ -19,7 +19,7 @@ Release의 검토된 `release-module-evidence.json` asset이다. W4의 5% 비교
 바꾸지 않는다. 수동 재처리는 `workflow_dispatch`에 원본 run ID, attempt, workflow 이름을
 지정한다. 수집기는 해당 attempt의 Actions API job 페이지와 (모듈 실행에 한해) 제한된
 `execution.json`을 검증하고, 고정된 Toolkit commit
-`9c6f0033a5ec2429085b29d56ebdb3caca94bbcd`로 evidence를 정규화한다. artifact의
+`d5b7892875000afc2deba6e6873717974d558ee5`로 evidence를 정규화한다. artifact의
 명령·로그는 실행하거나 telemetry에 넣지 않는다.
 
 후처리 산출물 `ci-observability-diagnostic-<run>-<attempt>`에는 `evidence.json`,
@@ -126,7 +126,7 @@ node --test scripts/test/pipeline-benchmark-experiment.test.mjs
 `develop` 병합만으로 live availability를 주장하지 않는다. Multi-scope plan 검증은
 [Toolkit #131](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/issues/131) /
 [PR #132](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/pull/132)의 merge commit
-`9c6f0033a5ec2429085b29d56ebdb3caca94bbcd`로 고정한다. 기존 단일-scope Toolkit 버전은 이
+`d5b7892875000afc2deba6e6873717974d558ee5`로 고정한다. 기존 단일-scope Toolkit 버전은 이
 plan을 수집할 수 없으므로 동일 commit으로 설치해야 한다. Module/release/관측 후처리의
 활성 pin도 같은 commit으로 맞췄다. Fake API/로컬 테스트 통과는 실제 dispatch, 기본 브랜치 가용성,
 시간 API 가용성, provenance 업로드 검증을 대신하지 않는다.

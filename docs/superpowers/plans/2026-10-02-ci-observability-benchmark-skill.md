@@ -4,14 +4,14 @@
 
 **Goal:** OnMaruBE의 CI 관측 후처리, release 3회 판정, 수동 pipeline experiment, 저장소 전용 Skill을 안전한 dry-run 우선 계약으로 구현한다.
 
-**Architecture:** OnMaruBE workflow는 trusted controller와 consumer-local diagnostics를 소유하고, Toolkit v0.1.3 commit `9c6f0033a5ec2429085b29d56ebdb3caca94bbcd`를 실행·검증 권한으로 사용한다. 일반 CI와 release/experiment 경로를 분리하며, 실제 dispatch와 Grafana Cloud 검증은 코드·PR 병합·Issue gate·credential이 준비된 뒤에만 수행한다.
+**Architecture:** OnMaruBE workflow는 trusted controller와 consumer-local diagnostics를 소유하고, Toolkit v0.1.3 commit `d5b7892875000afc2deba6e6873717974d558ee5`를 실행·검증 권한으로 사용한다. 일반 CI와 release/experiment 경로를 분리하며, 실제 dispatch와 Grafana Cloud 검증은 코드·PR 병합·Issue gate·credential이 준비된 뒤에만 수행한다.
 
 **Tech Stack:** GitHub Actions YAML, Node.js 22 contract tests, Python 3.12 adapters, YRootLab/OnMaru-backend-ci-toolkit v0.1.3, OpenTelemetry OTLP/HTTP, Grafana Mimir/Tempo.
 
 ## Global Constraints
 
 - `CI / verify`의 기존 테스트 범위와 verdict를 줄이거나 후처리 실패에 연결하지 않는다.
-- Toolkit pin은 불변 commit `9c6f0033a5ec2429085b29d56ebdb3caca94bbcd` 하나를 workflow, helper, test, docs에서 일치시킨다.
+- Toolkit pin은 불변 commit `d5b7892875000afc2deba6e6873717974d558ee5` 하나를 workflow, helper, test, docs에서 일치시킨다.
 - 일반 PR, push, CD는 baseline/candidate 3회 실험을 자동 시작하지 않는다.
 - pipeline experiment의 기본 action은 `dry-run`; 실제 `dispatch`는 현재 대화의 명시적 실행 요청이 있을 때만 허용하고 응답 유실 후 자동 재시도하지 않는다.
 - `inconclusive`는 성공이나 회귀로 승격하지 않으며 failed/cancelled/missing/mismatch 증적을 성능 회귀로 위장하지 않는다.

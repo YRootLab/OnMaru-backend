@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: YRootLab/OnMaru-backend-ci-toolkit
-          ref: 9c6f0033a5ec2429085b29d56ebdb3caca94bbcd
+          ref: d5b7892875000afc2deba6e6873717974d558ee5
           path: _toolkit
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -89,7 +89,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: YRootLab/OnMaru-backend-ci-toolkit
-          ref: 9c6f0033a5ec2429085b29d56ebdb3caca94bbcd
+          ref: d5b7892875000afc2deba6e6873717974d558ee5
           path: _toolkit
           persist-credentials: false
       - uses: actions/setup-python@v5

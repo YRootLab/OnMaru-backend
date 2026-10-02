@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 
 const fixtureDir = resolve('scripts/test/fixtures/ci-observability');
 const adapter = resolve('scripts/benchmark/ci-observability.py');
-const toolkitSha = '9c6f0033a5ec2429085b29d56ebdb3caca94bbcd';
+const toolkitSha = 'd5b7892875000afc2deba6e6873717974d558ee5';
 const toolkitPath = process.env.ONMARU_TOOLKIT_SRC ?? (existsSync('/tmp/onmaru-ci-toolkit-9c6f003/src')
   ? '/tmp/onmaru-ci-toolkit-9c6f003/src' : resolve(fixtureDir, 'toolkit_stub'));
 const repository = 'YRootLab/OnMaru-backend';
