@@ -5,11 +5,22 @@ import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const fixtures = resolve('scripts/test/fixtures/release-module-comparison');
 const template = JSON.parse(await readFile(join(fixtures, 'record.json'), 'utf8'));
-const toolkit = process.env.ONMARU_TOOLKIT_SRC ?? (existsSync('/tmp/onmaru-ci-toolkit-v013/src')
-  ? '/tmp/onmaru-ci-toolkit-v013/src' : join(fixtures, 'upstream'));
+const toolkit = process.env.ONMARU_TOOLKIT_SRC ?? (existsSync('/tmp/onmaru-ci-toolkit-08501bf/src')
+  ? '/tmp/onmaru-ci-toolkit-08501bf/src' : join(fixtures, 'upstream'));
+
+test('offline comparison authority is byte-identical to the pinned upstream source', async () => {
+  for (const [file, checksum] of [
+    ['compare/module_benchmark.py', '19771fbe3fe7c0c737dd553bed62836a5f619e0e8af3e0e01a759929057d25ff'],
+    ['contracts/module_evidence.py', 'cdc421ab2e02a1960d84e76bba8f823ed214481a6ab7a6d3b599d5444e26f161'],
+  ]) {
+    const source = await readFile(join(fixtures, 'upstream/pipeline_toolkit', file));
+    assert.equal(createHash('sha256').update(source).digest('hex'), checksum, file);
+  }
+});
 
 function evidence(values, candidate = false) {
   const commit = (candidate ? 'b' : 'a').repeat(40);
@@ -31,7 +42,7 @@ async function compare(baseline, candidate) {
   const directory = await mkdtemp(join(tmpdir(), 'release-module-comparison-'));
   try {
     if (baseline !== null) await writeFile(join(directory, 'baseline.json'), JSON.stringify(baseline));
-    if (candidate !== null) await writeFile(join(directory, 'candidate.json'), JSON.stringify(candidate));
+    if (candidate !== null) await writeFile(join(directory, 'candidate.json'), typeof candidate === 'string' ? candidate : JSON.stringify(candidate));
     const result = spawnSync('python3', ['scripts/benchmark/release-module-comparison.py',
       '--baseline', join(directory, 'baseline.json'), '--candidate', join(directory, 'candidate.json'),
       '--baseline-tag', 'v1.2.3', '--baseline-sha', 'a'.repeat(40),
@@ -72,6 +83,27 @@ for (const [value, gate] of [[115, 'pass'], [115.01, 'approval_hold']]) {
     const result = await compare(evidence([100, 100, 100]), evidence([value, value, value], true));
     assert.equal(result.gate, gate);
     assert.equal(result.policy_outcome, gate === 'pass' ? 'none' : 'approval_hold');
+  });
+}
+
+for (const [value, gate] of [[1.61, 'pass'], [1.6100000000000003, 'approval_hold']]) {
+  test(`decimal baseline 1.4 and candidate ${value} maps to ${gate}`, async () => {
+    const result = await compare(evidence([1.4, 1.4, 1.4]), evidence([value, value, value], true));
+    assert.equal(result.classification, 'comparable');
+    assert.equal(result.gate, gate);
+    assert.equal(result.policy_outcome, gate === 'pass' ? 'none' : 'approval_hold');
+    if (gate === 'pass') assert.equal(result.relative_delta, 0.15);
+  });
+}
+
+for (const token of ['true', 'false', 'NaN', 'Infinity', '-Infinity']) {
+  test(`invalid numeric token ${token} fails closed without approval`, async () => {
+    const raw = JSON.stringify(evidence([120, 120, 120], true)).replace('"metric_value":120', `"metric_value":${token}`);
+    const result = await compare(evidence([100, 100, 100]), raw);
+    assert.equal(result.classification, 'inconclusive');
+    assert.equal(result.gate, 'blocked');
+    assert.equal(result.policy_outcome, 'none');
+    assert.equal(result.valid_sample_count.candidate, 2);
   });
 }
 

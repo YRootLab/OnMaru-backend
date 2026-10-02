@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release evidence boundary; numerical policy belongs to pinned Toolkit v0.1.3."""
+"""Release evidence boundary; numerical policy belongs to the pinned Toolkit."""
 from __future__ import annotations
 
 import argparse
@@ -14,7 +14,7 @@ from pipeline_toolkit.contracts.module_evidence import (
     validate_module_evidence,
 )
 
-TOOLKIT_REF = "59b3344ecdd4460451e4e67db973d6dfd4afa8b5"
+TOOLKIT_REF = "08501bf55a373e27782c89cca348040fa1affa93"
 IDENTITY_FIELDS = (
     "runner_image", "java_version", "python_version", "cache_state",
     "database_fixture", "cpu_memory_profile", "dependency_mode", "config_catalog_hash",

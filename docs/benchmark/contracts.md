@@ -2,12 +2,18 @@
 
 ## 계약 상태
 
-Release promotion의 정본은 `release-module-comparison.json`이다. Toolkit v0.1.3 commit
-`59b3344ecdd4460451e4e67db973d6dfd4afa8b5`의 Python API
+Release promotion의 정본은 `release-module-comparison.json`이다. Toolkit PR #130 병합 commit
+`08501bf55a373e27782c89cca348040fa1affa93`의 Python API
 `compare_module_benchmarks(target=EvaluationTarget.RELEASE)`가 수치 정책을 소유한다.
-v0.1.3에는 이 module 비교를 노출하는 CLI가 없으므로
+현재 pin에는 이 module 비교를 노출하는 CLI가 없으므로
 `scripts/benchmark/release-module-comparison.py`가 고정 checkout의 API를 직접 호출한다.
 중앙값·범위·15% 정책을 OnMaruBE에서 다시 계산하지 않는다.
+
+[Toolkit #129](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/issues/129)의
+[PR #130](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/pull/130) 수정으로 `1.4 → 1.61`은
+정확히 15%이며 승인 대상이 아니다. 이를 조금이라도 초과하면 `approval_hold`다. decimal
+경계 판정과 bool/NaN/±Infinity 거부는 upstream 계약을 사용하며 adapter에 epsilon을 추가하지
+않는다.
 
 기존 W4 `release metadata`와 evidence 필드는 진단용 v1 계약으로 유지한다.
 `.pipeline/benchmark.yml`의 가상 CLI provenance는 계속 `unverified`이며 W4 5% threshold,

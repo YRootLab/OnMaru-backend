@@ -3,7 +3,7 @@
 ## Release 3회 비교의 운영 경계 (#543)
 
 Release Benchmark Gate의 정본은 `benchmark/reports/release-module-comparison.json`이며,
-수치 판정은 Toolkit v0.1.3 commit `59b3344ecdd4460451e4e67db973d6dfd4afa8b5`가 소유한다.
+수치 판정은 Toolkit PR #130 병합 commit `08501bf55a373e27782c89cca348040fa1affa93`가 소유한다.
 baseline/candidate Release asset `release-module-evidence.json`의 사전 선택된 서로 다른
 성공 run 각 3개를 비교한다. [입력 필드와 실패 모델](../../benchmark/contracts.md)을 따른다.
 asset이 없으면 `inconclusive`로 기록한다. 일반 tag push 직후에는 아직 candidate asset이
@@ -111,7 +111,7 @@ redacted stderr만 남긴다.
 ## Known limitations
 
 - module API는 고정 commit으로 확인했으나 안정된 release module CLI는 없다. adapter는
-  v0.1.3 Python dataclass/API에 결합된다. 기존 W4 가상 CLI/publish contract는 미확인이다.
+  고정 commit의 Python dataclass/API에 결합된다. 기존 W4 가상 CLI/publish contract는 미확인이다.
 - 현재 W4는 fake toolkit/loopback readiness fixture 기반의 contract/evidence 검증이며,
   실제 staging 배포 성공이나 benchmark 수치의 운영 유효성을 증명하지 않는다.
 - staging release plan의 deploy job과 실제 deploy workflow 정합성은 별도 운영 이슈다.

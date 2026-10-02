@@ -4,7 +4,7 @@
 baseline 비교, evidence manifest와 promotion gate까지의 검증 계약을 설명한다.
 
 Release 판정은 `benchmark-release.yml`의 `release-module-comparison.json` 한 개가 소유한다.
-Toolkit v0.1.3의 module comparator로 baseline/candidate 각 3회 중앙값을 비교하며, 15% 초과만
+Toolkit PR #130의 module comparator로 baseline/candidate 각 3회 중앙값을 비교하며, 15% 초과만
 승인 검토로 연결한다. 실패·취소·누락은 자동 promotion을 차단한다. 입력은 각 GitHub
 Release의 검토된 `release-module-evidence.json` asset이다. W4의 5% 비교와 trend는
 진단 전용이며 [정본 계약](contracts.md)에 입력 schema와 신뢰 경계를 명시한다.
@@ -19,7 +19,7 @@ Release의 검토된 `release-module-evidence.json` asset이다. W4의 5% 비교
 바꾸지 않는다. 수동 재처리는 `workflow_dispatch`에 원본 run ID, attempt, workflow 이름을
 지정한다. 수집기는 해당 attempt의 Actions API job 페이지와 (모듈 실행에 한해) 제한된
 `execution.json`을 검증하고, 고정된 Toolkit commit
-`59b3344ecdd4460451e4e67db973d6dfd4afa8b5`로 evidence를 정규화한다. artifact의
+`08501bf55a373e27782c89cca348040fa1affa93`로 evidence를 정규화한다. artifact의
 명령·로그는 실행하거나 telemetry에 넣지 않는다.
 
 후처리 산출물 `ci-observability-diagnostic-<run>-<attempt>`에는 `evidence.json`,
