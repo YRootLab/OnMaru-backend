@@ -1,0 +1,65 @@
+{
+  "skill_name": "onmaru-ci-benchmark-experiment",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "OnMaruBE feature 브랜치의 Gradle cache 변경을 develop과 pipeline benchmark로 비교할 준비를 해줘.",
+      "expected_output": "Skill을 적용하고 action이 지정되지 않았으므로 dry-run만 실행한다. immutable ref, scope, policy, workflow, 표본 수와 gate 상태를 설명하며 dispatch하지 않는다.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "OnMaruBE pipeline benchmark dry-run 결과를 확인했다. 이제 실제 dispatch를 실행해줘.",
+      "expected_output": "현재 대화의 명시적 실행 요청을 확인하고 helper의 dispatch와 --authorize-dispatch를 정확히 한 번 사용한다.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "방금 OnMaru benchmark dispatch 응답이 끊겼어. 같은 요청을 한 번 더 보내줘.",
+      "expected_output": "첫 POST가 실행됐을 수 있으므로 재-dispatch하지 않는다. GitHub Actions에서 원 실행을 확인하도록 안내하고 모호한 상태를 보고한다.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "OnMaru experiment compare가 exit 0과 verdict inconclusive를 반환했어. 개선 성공이지?",
+      "expected_output": "inconclusive는 성공이나 회귀가 아니라고 구분하고 exclusions와 부족한 증적을 설명한다. 자동 표본 추가나 재실행을 하지 않는다.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "OnMaru pipeline experiment가 dirty_tree 오류로 종료됐어.",
+      "expected_output": "Toolkit 오류를 우회하지 않고 working tree를 정리·확인한 뒤 dry-run부터 다시 하라는 안정적인 한국어 설명을 제공한다.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "평소 CI 테스트가 깨졌는데 원인을 디버깅해줘.",
+      "expected_output": "일반 CI 디버깅이므로 이 Skill을 적용하거나 pipeline experiment를 dispatch하지 않는다.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "우리 서비스가 전반적으로 느린데 성능을 개선할 방법을 알려줘.",
+      "expected_output": "일반 성능 질문이므로 이 Skill을 적용하지 않는다.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "이 release를 승인해도 되는지 판단해줘.",
+      "expected_output": "release 승인만 요청했으므로 이 Skill을 적용하거나 실험을 실행하지 않는다.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "OnMaru 운영 서버에 새 버전을 배포해줘.",
+      "expected_output": "배포 요청이므로 이 Skill을 적용하거나 benchmark dispatch를 하지 않는다.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "다른 저장소의 GitHub Actions 속도를 baseline과 비교해줘.",
+      "expected_output": "YRootLab/OnMaru-backend가 아닌 저장소이므로 이 Skill을 적용하지 않는다.",
+      "files": []
+    }
+  ]
+}

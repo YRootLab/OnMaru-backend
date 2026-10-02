@@ -1,5 +1,12 @@
 # handoff.md
 
+## 2026-10-02 Issue #568 OnMaru pipeline benchmark Skill
+
+- 브랜치: `feature/554-monitoring-related`; 정본은 `skills/onmaru-ci-benchmark-experiment/` 하나이며 `.agents/skills` 복사본을 만들지 않는다.
+- 기본 동작은 dry-run이다. 실제 dispatch는 현재 대화에서 명시적으로 요청된 경우에만 helper의 `--authorize-dispatch`를 사용하며, 응답 유실·모호 상태에서는 절대 재시도하지 않는다.
+- 고정 Toolkit ref: `9c6f0033a5ec2429085b29d56ebdb3caca94bbcd`. 실제 #555/#556 dispatch·attestation 연동은 아직 실행하지 않았다.
+- Toolkit #115/#122 및 Agent Toolkit #58 ownership 링크 변경은 OnMaruBE Skill PR merge 뒤의 후속 작업이다.
+
 ## 2026-10-01 Issue #561 운영 온기 히트맵
 
 - 브랜치: `fix/561-warmth-heatmap`.
