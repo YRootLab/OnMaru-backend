@@ -329,6 +329,15 @@
       "checksum": "map-info-legacy-backfill-v037-20261001",
       "sha256": "c66d6209b119b43e9ee860a6a03e91157fd2c6c818cfcb17b883513232fc2d5d",
       "description": "Backfill active map read projections published before V036"
+    },
+    {
+      "version": "038",
+      "reservedFor": "ODII_SCHEDULER_RUN_HISTORY",
+      "issueNumber": 382,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V038__382_odii_scheduler_run_history.sql",
+      "checksum": "odii-scheduler-run-history-v038-20261002",
+      "sha256": "5794da3e9fd77be15d0f67116f9f01ada4bd31275df930e64fe81d0927169779",
+      "description": "Odii scheduler lifecycle history compatible with existing sync run states"
     }
   ]
 }
