@@ -4,7 +4,8 @@ import asyncio
 import contextlib
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
+from dataclasses import replace
 from typing import Any
 
 from onmaru_ai.observability import TelemetryEvent, TelemetrySink
@@ -47,6 +48,105 @@ class GeminiAdapter:
         self._transport = transport
         self._api_key = api_key
         self._telemetry_sink = telemetry_sink
+
+    async def stream(
+        self,
+        prompt: GeminiPrompt,
+        *,
+        response_schema: Mapping[str, Any],
+        timeout_seconds: float,
+        cancellation_event: asyncio.Event | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        if timeout_seconds <= 0:
+            raise ValueError("Gemini timeout must be positive")
+        unary = self._request(prompt, response_schema, timeout_seconds)
+        request = replace(
+            unary, url=unary.url.removesuffix(":generateContent") + ":streamGenerateContent?alt=sse"
+        )
+        parser = _NarrationParser()
+        forbidden = {self._api_key, *_candidate_refs(prompt.data_block)}
+        guard = _NarrationGuard(forbidden)
+        usage: GeminiUsage | None = None
+        model_version = self._config.model_name
+        iterator = self._transport.stream(request)
+        try:
+            async with asyncio.timeout(timeout_seconds):
+                while True:
+                    response = await self._next_chunk(iterator, cancellation_event)
+                    if response is None:
+                        break
+                    if response.status_code != 200:
+                        self._parse(response, usage)
+                    if not isinstance(response.body, dict):
+                        raise GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE)
+                    usage = self._usage_from_response(response) or usage
+                    version = response.body.get("modelVersion")
+                    if (
+                        isinstance(version, str)
+                        and MODEL_NAME_PATTERN.fullmatch(version)
+                        and not any(value in version for value in forbidden)
+                    ):
+                        model_version = version
+                    for text in _response_text_parts(response.body):
+                        decoded = parser.feed(text)
+                        public_text = guard.feed(decoded, finished=parser.narration_finished)
+                        for start in range(0, len(public_text), 512):
+                            yield {
+                                "event": "text.delta",
+                                "data": {"text": public_text[start : start + 512]},
+                            }
+                proposal = parser.finish()
+                _validate_stream_value(proposal, response_schema)
+                proposal["narration"] = proposal["narration"][:4000]
+                self._record(prompt, outcome="SUCCESS", usage=usage, model_version=model_version)
+                yield {"event": "proposal", "data": {"proposal": proposal}}
+        except GeminiProviderError as error:
+            self._record(prompt, outcome=error.code.value, usage=usage)
+            raise
+        except (TimeoutError, ConnectionError) as error:
+            code = (
+                GeminiFailureCode.AI_TIMEOUT
+                if isinstance(error, TimeoutError)
+                else GeminiFailureCode.AI_SERVICE_UNAVAILABLE
+            )
+            self._record(prompt, outcome=code.value, usage=usage)
+            raise GeminiProviderError(code) from None
+        finally:
+            close = getattr(iterator, "aclose", None)
+            if close is not None:
+                await close()
+
+    async def _next_chunk(
+        self,
+        iterator: AsyncIterator[GeminiTransportResponse],
+        cancellation_event: asyncio.Event | None,
+    ) -> GeminiTransportResponse | None:
+        if cancellation_event is not None and cancellation_event.is_set():
+            raise GeminiProviderError(GeminiFailureCode.CANCELLED)
+        next_task = asyncio.ensure_future(anext(iterator))
+        cancel_task = (
+            asyncio.create_task(cancellation_event.wait())
+            if cancellation_event is not None
+            else None
+        )
+        try:
+            if cancel_task is not None:
+                done, _ = await asyncio.wait(
+                    {next_task, cancel_task}, return_when=asyncio.FIRST_COMPLETED
+                )
+                if cancel_task in done:
+                    raise GeminiProviderError(GeminiFailureCode.CANCELLED)
+            return await next_task
+        except StopAsyncIteration:
+            return None
+        finally:
+            next_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+                await next_task
+            if cancel_task is not None:
+                cancel_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await cancel_task
 
     async def generate(
         self,
@@ -287,3 +387,225 @@ class GeminiAdapter:
 
 def non_negative_int(value: Any) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+
+
+def _invalid_stream() -> GeminiProviderError:
+    return GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE)
+
+
+def _response_text_parts(body: dict[str, Any]) -> list[str]:
+    feedback = body.get("promptFeedback", {})
+    if not isinstance(feedback, dict) or body.get("error") or feedback.get("blockReason"):
+        raise _invalid_stream()
+    candidates = body.get("candidates", [])
+    if not isinstance(candidates, list):
+        raise _invalid_stream()
+    if not candidates:
+        return []
+    try:
+        candidate = candidates[0]
+        if candidate.get("finishReason", "STOP") != "STOP":
+            raise _invalid_stream()
+        parts = candidate.get("content", {}).get("parts", [])
+        result = [part["text"] for part in parts if not part.get("thought") and "text" in part]
+        if any(not isinstance(text, str) for text in result):
+            raise _invalid_stream()
+        return result
+    except (AttributeError, TypeError, KeyError):
+        raise _invalid_stream() from None
+
+
+def _candidate_refs(data: Mapping[str, Any]) -> set[str]:
+    refs = {ref for ref in data.get("candidateRefs", []) if isinstance(ref, str) and ref}
+    for candidate in data.get("candidates", []):
+        if isinstance(candidate, dict):
+            ref = candidate.get("placeRef")
+            if isinstance(ref, str) and ref:
+                refs.add(ref)
+    return refs
+
+
+class _NarrationGuard:
+    """Keep a lookbehind so a ref or secret split between deltas cannot escape."""
+
+    def __init__(self, forbidden: set[str]) -> None:
+        self._forbidden = forbidden
+        self._hold = max((len(value) for value in forbidden), default=1) - 1
+        self._pending = ""
+        self._emitted = 0
+
+    def feed(self, text: str, *, finished: bool) -> str:
+        self._pending += text
+        if any(value in self._pending for value in self._forbidden):
+            raise _invalid_stream()
+        count = len(self._pending) if finished else max(0, len(self._pending) - self._hold)
+        public = self._pending[:count][: max(0, 4000 - self._emitted)]
+        self._pending = self._pending[count:]
+        self._emitted += len(public)
+        return public
+
+
+class _NarrationParser:
+    """Incrementally decode only a top-level JSON narration value, never JSON fragments."""
+
+    def __init__(self) -> None:
+        self._source = ""
+        self._position = 0
+        self._state = "start"
+        self._key = ""
+        self._keys: set[str] = set()
+        self.narration_finished = False
+        self._decoder = json.JSONDecoder()
+
+    def feed(self, text: str) -> str:
+        self._source += text
+        if len(self._source) > 65_536:
+            raise _invalid_stream()
+        emitted: list[str] = []
+        while self._position < len(self._source):
+            if self._state == "narration":
+                decoded = self._narration_character()
+                if decoded is None:
+                    break
+                emitted.append(decoded)
+                continue
+            if self._source[self._position].isspace():
+                self._position += 1
+                continue
+            char = self._source[self._position]
+            if self._state == "start":
+                if char != "{":
+                    raise _invalid_stream()
+                self._position += 1
+                self._state = "key"
+            elif self._state == "key":
+                if char == "}":
+                    self._position += 1
+                    self._state = "done"
+                    continue
+                if char != '"':
+                    raise _invalid_stream()
+                try:
+                    key, end = self._decoder.raw_decode(self._source, self._position)
+                except json.JSONDecodeError:
+                    break
+                if key in self._keys:
+                    raise _invalid_stream()
+                self._keys.add(key)
+                self._key = key
+                self._position = end
+                self._state = "colon"
+            elif self._state == "colon":
+                if char != ":":
+                    raise _invalid_stream()
+                self._position += 1
+                self._state = "value"
+            elif self._state == "value":
+                if self._key == "narration":
+                    if char != '"':
+                        raise _invalid_stream()
+                    self._position += 1
+                    self._state = "narration"
+                else:
+                    try:
+                        _, end = self._decoder.raw_decode(self._source, self._position)
+                    except json.JSONDecodeError:
+                        break
+                    self._position = end
+                    self._state = "comma"
+            elif self._state == "comma":
+                if char not in {",", "}"}:
+                    raise _invalid_stream()
+                self._position += 1
+                self._state = "key" if char == "," else "done"
+            else:
+                raise _invalid_stream()
+        return "".join(emitted)
+
+    def _narration_character(self) -> str | None:
+        index = self._position
+        source = self._source
+        char = source[index]
+        if char == '"':
+            self._position += 1
+            self._state = "comma"
+            self.narration_finished = True
+            return ""
+        if char != "\\":
+            if ord(char) < 32 or 0xD800 <= ord(char) <= 0xDFFF:
+                raise _invalid_stream()
+            self._position += 1
+            return char
+        if len(source) < index + 2:
+            return None
+        escape = source[index + 1]
+        simple = {
+            '"': '"',
+            "\\": "\\",
+            "/": "/",
+            "b": "\b",
+            "f": "\f",
+            "n": "\n",
+            "r": "\r",
+            "t": "\t",
+        }
+        if escape in simple:
+            self._position += 2
+            return simple[escape]
+        if escape != "u":
+            raise _invalid_stream()
+        if len(source) < index + 6:
+            return None
+        try:
+            code = int(source[index + 2 : index + 6], 16)
+        except ValueError:
+            raise _invalid_stream() from None
+        length = 6
+        if 0xD800 <= code <= 0xDBFF:
+            if len(source) < index + 12:
+                return None
+            if source[index + 6 : index + 8] != "\\u":
+                raise _invalid_stream()
+            try:
+                low = int(source[index + 8 : index + 12], 16)
+            except ValueError:
+                raise _invalid_stream() from None
+            if not 0xDC00 <= low <= 0xDFFF:
+                raise _invalid_stream()
+            code = 0x10000 + (code - 0xD800) * 1024 + low - 0xDC00
+            length = 12
+        elif 0xDC00 <= code <= 0xDFFF:
+            raise _invalid_stream()
+        self._position += length
+        return chr(code)
+
+    def finish(self) -> dict[str, Any]:
+        if self._state != "done" or not self.narration_finished:
+            raise _invalid_stream()
+        try:
+            proposal = json.loads(self._source)
+        except ValueError:
+            raise _invalid_stream() from None
+        if not isinstance(proposal, dict):
+            raise _invalid_stream()
+        return proposal
+
+
+def _validate_stream_value(value: Any, schema: Mapping[str, Any]) -> None:
+    kind = str(schema.get("type", "")).upper()
+    if kind == "OBJECT":
+        if not isinstance(value, dict) or any(
+            key not in value for key in schema.get("required", [])
+        ):
+            raise _invalid_stream()
+        properties = schema.get("properties", {})
+        for key, child in properties.items():
+            if key in value:
+                _validate_stream_value(value[key], child)
+    elif kind == "ARRAY":
+        if not isinstance(value, list):
+            raise _invalid_stream()
+        for item in value:
+            _validate_stream_value(item, schema.get("items", {}))
+    elif kind == "STRING" and not isinstance(value, str):
+        raise _invalid_stream()
