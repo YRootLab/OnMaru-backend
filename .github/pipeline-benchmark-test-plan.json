@@ -3,7 +3,7 @@
   "scopes": {
     "ci": {
       "suite": "full-java-build",
-      "commands": [{"argv": ["./gradlew", ":adapters:tourism-api:test", ":modules:insights:test", ":modules:catalog:test", ":modules:audio:test", ":modules:community:test", ":modules:identity:test", ":modules:journey:test", ":modules:operations:test", ":apps:spring-api:test", ":apps:spring-api:bootJar", "--no-daemon"], "config": "gradle"}],
+      "commands": [{"argv": ["./gradlew", "--init-script", "build-logic/ci-performance.gradle.kts", ":adapters:tourism-api:test", ":modules:insights:test", ":modules:catalog:test", ":modules:audio:test", ":modules:community:test", ":modules:identity:test", ":modules:journey:test", ":modules:operations:test", ":apps:spring-api:test", ":apps:spring-api:bootJar", "--no-daemon"], "config": "gradle"}],
       "modules": ["adapters:tourism-api", "modules:insights", "modules:catalog", "modules:audio", "modules:community", "modules:identity", "modules:journey", "modules:operations", "apps:spring-api"],
       "filters": [],
       "fixture": "repository-default",
@@ -12,7 +12,7 @@
     },
     "test": {
       "suite": "full-java-test",
-      "commands": [{"argv": ["./gradlew", ":adapters:tourism-api:test", ":modules:insights:test", ":modules:catalog:test", ":modules:audio:test", ":modules:community:test", ":modules:identity:test", ":modules:journey:test", ":modules:operations:test", ":apps:spring-api:test", "--no-daemon"], "config": "gradle"}],
+      "commands": [{"argv": ["./gradlew", "--init-script", "build-logic/ci-performance.gradle.kts", ":adapters:tourism-api:test", ":modules:insights:test", ":modules:catalog:test", ":modules:audio:test", ":modules:community:test", ":modules:identity:test", ":modules:journey:test", ":modules:operations:test", ":apps:spring-api:test", "--no-daemon"], "config": "gradle"}],
       "modules": ["adapters:tourism-api", "modules:insights", "modules:catalog", "modules:audio", "modules:community", "modules:identity", "modules:journey", "modules:operations", "apps:spring-api"],
       "filters": [],
       "fixture": "repository-default",

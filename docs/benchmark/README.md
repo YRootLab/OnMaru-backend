@@ -149,6 +149,13 @@ shared-runner Gradle 설정은 `-Ponmaru.ci.performance.enabled=true`로 활성�
 Java 설치·dependency 준비·artifact 병합을 반복하므로 전체 wall clock과 runner 사용량을
 함께 측정해야 한다.
 
+공통 Java CI lane과 두 수동 benchmark scope는 `--init-script build-logic/ci-performance.gradle.kts`를
+명시하여 위 property를 실제 Gradle 실행 설정에 적용한다. Property 전달만으로는 이 script가
+로드되지 않는다. `gradle-ci-performance.test.mjs`는 실제 wrapper로 격리된 임시 project의
+`ciPerformanceProfile`을 실행해 effective worker 수와 cache 설정을 확인한다. 전체 Node 테스트를
+실행할 때도 JDK와 Gradle wrapper distribution이 필요하며 이 회귀 테스트는 `--offline`으로
+application dependency를 resolve하지 않는다.
+
 self-hosted runner 풀은 선택하지 않았다. 채택하려면 상시 인스턴스·스토리지·패치·운영
 인력 비용, 작업별 정리와 격리, 외부 PR에서 secret에 접근하지 못하는 신뢰 경계, cache 오염
 방지와 장애 대응을 별도로 검증해야 한다. 재검토 조건은 동일 SHA·runner 사양·test plan·
