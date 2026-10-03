@@ -208,20 +208,27 @@ public final class SavedResourceController {
                 : odiiStore.records(memberId, type)).stream()
                 .filter(record -> !record.savedAt().isAfter(asOf))
                 .sorted(ORDER)
-                .filter(record -> cursor == null || after(record, cursor))
                 .toList();
         var hydrated = new ArrayList<Hydrated>();
         for (var record : records) {
             hydrate(memberId, record).ifPresent(hydrated::add);
         }
-        boolean hasMore = hydrated.size() > limit;
-        var selected = hasMore ? hydrated.subList(0, limit) : hydrated;
+        var remaining = hydrated.stream()
+                .filter(item -> cursor == null || after(item.record(), cursor))
+                .toList();
+        boolean hasMore = remaining.size() > limit;
+        var selected = hasMore ? remaining.subList(0, limit) : remaining;
         String nextCursor = hasMore
                 ? cursors.encode(new SavedResourceCursorCodec.Cursor(
                         memberId, type, limit, asOf,
                         selected.getLast().record().savedAt(), selected.getLast().record().id()))
                 : null;
-        return new SavedResourcePage("1.2", selected.stream().map(Hydrated::value).toList(), nextCursor, hasMore);
+        return new SavedResourcePage(
+                "1.2",
+                selected.stream().map(Hydrated::value).toList(),
+                hydrated.size(),
+                nextCursor,
+                hasMore);
     }
 
     private Optional<Hydrated> hydrate(UUID memberId, SavedResourceRecord record) {
@@ -290,7 +297,7 @@ public final class SavedResourceController {
     private record Hydrated(SavedResourceRecord record, Object value) {
     }
 
-    record SavedResourcePage(String schemaVersion, List<Object> items, String nextCursor, boolean hasMore) {
+    record SavedResourcePage(String schemaVersion, List<Object> items, long totalCount, String nextCursor, boolean hasMore) {
     }
 
     record SavedOdiiStorySummary(

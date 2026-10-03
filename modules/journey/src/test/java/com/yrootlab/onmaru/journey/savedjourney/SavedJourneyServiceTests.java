@@ -127,10 +127,12 @@ class SavedJourneyServiceTests {
 
         assertThat(firstPage.items()).extracting(SavedJourneySummary::savedJourneyId)
                 .containsExactly(second.savedJourneyId());
+        assertThat(firstPage.totalCount()).isEqualTo(2);
         assertThat(firstPage.hasMore()).isTrue();
         assertThat(firstPage.nextCursor()).isNotBlank();
         assertThat(secondPage.items()).extracting(SavedJourneySummary::savedJourneyId)
                 .containsExactly(first.savedJourneyId());
+        assertThat(secondPage.totalCount()).isEqualTo(2);
         assertThat(secondPage.hasMore()).isFalse();
     }
 

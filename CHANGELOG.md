@@ -4,6 +4,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #572의 공개 cursor/limit 목록 응답에 현재 필터 기준 `totalCount`를 추가하고 OpenAPI·fixture·FE 연동 문서를 일치시켰다.
 - Issue #382의 Odii scheduler 실행을 시작·skip·실패·완료 상태와 단계별 집계로 영속화하고, 안전한 lifecycle 로그와 운영 조회 runbook을 보강했다.
 - Issue #486의 한옥 목록 노출 조건과 상세 조회 조건을 통일해 목록의 `placeId`가 상세에서 404가 되지 않도록 수정했다.
 - Issues #518, #520의 2026년 10월 회원 quota와 테스트 계정 예외, Journey 전용 429 응답, Gemini narration SSE 중계를 추가했다.

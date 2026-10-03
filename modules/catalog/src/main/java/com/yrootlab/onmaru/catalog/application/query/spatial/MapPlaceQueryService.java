@@ -26,10 +26,10 @@ public final class MapPlaceQueryService {
                 .filter(projection -> query.radiusMeters() == null
                         || distanceMeters(query.lat(), query.lng(), projection.coordinates()) <= query.radiusMeters())
                 .sorted(order(query))
-                .limit(query.limit() + 1L)
                 .toList();
-        boolean hasMore = filtered.size() > query.limit();
-        var pageItems = hasMore ? filtered.subList(0, query.limit()) : filtered;
+        var limited = filtered.stream().limit(query.limit() + 1L).toList();
+        boolean hasMore = limited.size() > query.limit();
+        var pageItems = hasMore ? limited.subList(0, query.limit()) : limited;
         var cards = pageItems.stream()
                 .map(projection -> new MapPlaceCard(
                         projection.placeId(),
@@ -44,7 +44,7 @@ public final class MapPlaceQueryService {
                         projection.dataAvailability()))
                 .toList();
         var coverage = cards.isEmpty() ? MapCoverageStatus.MISSING : pageCoverage(cards, hasMore);
-        return new MapPlacePage(SCHEMA_VERSION, coverage, query.language(), cards, null, hasMore);
+        return new MapPlacePage(SCHEMA_VERSION, coverage, query.language(), cards, filtered.size(), null, hasMore);
     }
 
     private void validate(MapPlaceQuery query) {

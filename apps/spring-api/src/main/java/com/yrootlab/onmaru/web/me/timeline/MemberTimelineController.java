@@ -148,6 +148,7 @@ public final class MemberTimelineController {
                 page.schemaVersion(),
                 page.month(),
                 page.groups().stream().map(this::toGroupResponse).toList(),
+                page.totalCount(),
                 nextCursor,
                 page.hasMore(),
                 page.unavailableCount());
@@ -221,6 +222,7 @@ public final class MemberTimelineController {
             String schemaVersion,
             String month,
             List<TimelineGroupResponse> groups,
+            long totalCount,
             String nextCursor,
             boolean hasMore,
             int unavailableCount) {

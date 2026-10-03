@@ -25,7 +25,7 @@ public final class HanokListQueryService {
     public HanokListPage list(HanokListQuery query) {
         var cursor = decodeCursor(query.cursor());
         var normalizedKeyword = normalize(query.keyword());
-        var filtered = store.findPublishedSnapshot().stream()
+        var allFiltered = store.findPublishedSnapshot().stream()
                 .filter(projection -> projection.status() == HanokListStatus.PUBLIC)
                 .filter(projection -> query.includeHanokCafe() || projection.category() != HanokListCategory.HANOK_CAFE)
                 .filter(projection -> matchesKeyword(projection, normalizedKeyword))
@@ -33,6 +33,8 @@ public final class HanokListQueryService {
                 .filter(projection -> query.category() == null || query.category() == projection.category())
                 .filter(projection -> !query.hasImage() || projection.thumbnailUrl() != null)
                 .sorted(order())
+                .toList();
+        var filtered = allFiltered.stream()
                 .filter(projection -> cursor == null || isAfterCursor(projection, cursor))
                 .toList();
         var limited = filtered.stream().limit(Math.max(query.limit(), 0) + 1L).toList();
@@ -52,7 +54,7 @@ public final class HanokListQueryService {
                         savedStateLookup.savedBy(query.memberId(), projection.placeId())))
                 .toList();
         var nextCursor = hasMore ? encodeCursor(pageItems.getLast()) : null;
-        return new HanokListPage(SCHEMA_VERSION, cards, nextCursor, hasMore);
+        return new HanokListPage(SCHEMA_VERSION, cards, allFiltered.size(), nextCursor, hasMore);
     }
 
     private Comparator<HanokListProjection> order() {

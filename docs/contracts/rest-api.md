@@ -32,8 +32,8 @@ Journey AI 생성·대화 턴 요청의 HTTP 429는 위 공통 오류 필드를 
 |---|---|---|
 | `/visit-review-regions` | `parentRegionCode?` | 시·도 또는 선택 부모의 시·군·구 집계, `regionRevision`, `countsAsOf`, `unassignedCount` |
 | `/regions/resolve` | `lat,lng` | 위치 동의 후의 후보 행정구역. 응답은 `no-store` |
-| `/visit-reviews` | `scope=ALL|REGION`, `regionCode`는 REGION에서만 필수, `limit`, `cursor?` | `schemaVersion:"1.2"` ReviewPage |
-| `/places/{id}/visit-reviews` | `limit`, `cursor?` | 장소 필터가 고정된 동일 ReviewPage |
+| `/visit-reviews` | `scope=ALL|REGION`, `regionCode`는 REGION에서만 필수, `limit`, `cursor?` | `schemaVersion:"1.2"`, 필터 기준 `totalCount`를 포함하는 ReviewPage |
+| `/places/{id}/visit-reviews` | `limit`, `cursor?` | 장소 필터가 고정되고 `totalCount`를 포함하는 동일 ReviewPage |
 
 `NEARBY`, `VIEWPORT`, `radiusMeters`, bbox 파라미터는 1.2에서 지원하지 않으며 전달되면 400이다. ALL은 전체 공개 후기 최신순, REGION은 하나의 canonical 행정구역 최신순이다. 목록 정렬은 `createdAt DESC,id DESC`, limit은 1..50이다. cursor는 version/filterHash/limit/lastCreatedAt/lastId/asOf/regionRevision/expiresAt을 scope에 묶고 10분 뒤 만료한다. 새 filter/region/limit은 첫 페이지부터 시작한다.
 
@@ -62,7 +62,7 @@ FE는 집계 선택 전 기존 결과를 유지하고, `이 지역 후기 보기
 | POST /explorations/{id}/runs/{runId}/cancel | `{}` | 200 RunSnapshot; terminal이면 기존 terminal 응답 |
 | POST /explorations/{id}/actions | commandId UUID, baseVersion, action | 200 ExplorationSnapshot |
 | POST /saved-journeys | explorationId, baseVersion, title(1..80) | 201 SavedJourney; 동일 source version 기존 저장은 200 |
-| GET /saved-journeys | limit 1..50 default20,cursor? | 200 `{items:[SavedJourneySummary],nextCursor,hasMore}`; savedAt DESC,id DESC |
+| GET /saved-journeys | limit 1..50 default20,cursor? | 200 `{items:[SavedJourneySummary],totalCount,nextCursor,hasMore}`; savedAt DESC,id DESC |
 | GET /saved-journeys/{id} | 없음 | 200 SavedJourney; 읽기 전용 |
 | POST /saved-journeys/{id}/resume | `{}` | 201 `{exploration:ExplorationSnapshot,unavailableRefs:PlaceRef[]}` |
 | DELETE /saved-journeys/{id} | 없음 | 204 본인만 |
@@ -70,8 +70,8 @@ FE는 집계 선택 전 기존 결과를 유지하고, `이 지역 후기 보기
 | DELETE /saved-resources/places/{placeId} | body 없음 | 204; 회원, 없어도 성공 |
 | PUT /saved-resources/odii-stories/{storyId} | body 없음 | 200 `{resourceType:"ODII_STORY",resourceId,savedByMe:true,savedAt}`; 회원+공개 오디 |
 | DELETE /saved-resources/odii-stories/{storyId} | body 없음 | 204; 회원, 없어도 성공 |
-| GET /saved-resources | type=PLACE 또는 ODII_STORY, limit 1..50 default20,cursor? | 200 `{items:[SavedResourceSummary],nextCursor,hasMore}`; savedAt DESC,id DESC |
-| GET /me/timeline | month=YYYY-MM, limit 1..50 default20,cursor? | 200 `{month,groups,nextCursor,hasMore,unavailableCount}`; occurredAt DESC,id DESC |
+| GET /saved-resources | type=PLACE 또는 ODII_STORY, limit 1..50 default20,cursor? | 200 `{items:[SavedResourceSummary],totalCount,nextCursor,hasMore}`; savedAt DESC,id DESC |
+| GET /me/timeline | month=YYYY-MM, limit 1..50 default20,cursor? | 200 `{month,groups,totalCount,nextCursor,hasMore,unavailableCount}`; occurredAt DESC,id DESC |
 | GET /members/me | 없음 | 200 `{id,displayName:null}`; 401 비회원 |
 | GET /auth/csrf | 없음 | 200 `{token,headerName:"X-CSRF-TOKEN"}` + guest cookie 필요 시 |
 | GET /auth/kakao/login | returnTo=/discover, explorationId? | 302 Kakao; 소유권 확인 후 state 발급 |

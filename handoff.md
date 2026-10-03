@@ -1,5 +1,16 @@
 # handoff.md
 
+## 2026-10-03 Issue #572 페이지네이션 totalCount
+
+- 브랜치: `fix/572-paginated-total-count` (branch parser #572).
+- 현상: 운영 `GET /api/v1/odii/stories?language=ko-KR&limit=20`은 20개와 `hasMore:true`를 반환하지만 필터 적용 후 전체 건수 필드가 없어 FE가 전체 조회·지역별 조회 규모를 표시할 수 없다.
+- 변경: Odii, 한옥/장소, 방문 후기, 저장 리소스·여정, Journey thread·timeline의 cursor/limit 응답에 `totalCount`를 추가한다. 값은 cursor 적용 전, 현재 필터와 공개/가용성 조건을 적용한 전체 건수다. OpenAPI·fixture·FE 문서를 함께 갱신한다.
+- DB 경로: Odii JDBC adapter는 동일한 repeatable-read transaction에서 실제 선택 언어의 활성·공개·재생 가능 story count를 조회한다.
+- 관리자 `AdminPage` 계열은 별도 count query와 운영 성능 검증이 필요해 Issue #573으로 분리했다.
+- 검증: 서비스 단위 테스트와 Spring API 대상 경계/JDBC 테스트, 전체 contract/R1/R2/Journey E2E fixture 검사, `git diff --check`, branch parser가 통과했다. 전체 `./gradlew test`는 다른 작업공간의 PostgreSQL 테스트와 경합해 기존 `JdbcTourApiCatalogPublisherTests.thirtyThousandPublishedPlacesStayWithinMapInfoLatencyBudgets`에서 DB 예외가 발생했다. 경합 종료 후 해당 테스트를 단독 재실행하자 DB 예외는 사라졌지만 ARM64 호스트의 amd64 PostGIS 에뮬레이션 환경에서 viewport p95가 `822.919333ms`로 `500ms` 기준을 초과했다. 변경 범위 대상 테스트는 모두 통과했다.
+- 사용자 승인: ARM64 로컬의 amd64 PostGIS 에뮬레이션 성능 실패를 PR에 명시하고, amd64 GitHub Actions의 `verify` 통과를 병합 조건으로 PR을 생성한다.
+- 다음 단계: PR `verify` 확인과 배포 후 운영 API smoke를 수행한다.
+
 ## 2026-10-02 Backend 병렬 정리 (#256 외 12건)
 
 - 브랜치: `feature/256-backend-batch` (`origin/develop` 최신 기준, branch parser #256).
