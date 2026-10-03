@@ -10,6 +10,7 @@
 - [journey/README.md](journey/README.md): R3 Journey AI 탐색, SSE 실시간 스트리밍, OpenAPI 및 Fallback 증적
 - [grafana-o02-checklist.md](grafana-o02-checklist.md): O02 Grafana Cloud 대시보드 및 Alert 라우팅 검증 체크리스트
 - [benchmark.md](benchmark.md): Release tag부터 benchmark manifest, artifact link, promotion gate까지의 W4 증적
+- [ci-observability.md](ci-observability.md): #555 CI evidence→OTLP→Grafana 왕복 검증, 로컬 재현 및 Cloud pending 체크리스트
 
 ## 🚀 게이트 자동화 검증
 

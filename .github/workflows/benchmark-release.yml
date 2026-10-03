@@ -37,13 +37,23 @@ jobs:
       spring-digest: ${{ steps.spring-build.outputs.digest }}
       ai-digest: ${{ steps.ai-build.outputs.digest }}
       release-tag: ${{ steps.release-input.outputs.release-tag }}
+      commit-sha: ${{ steps.release-input.outputs.commit-sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
       - id: release-input
         shell: bash
+        env:
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
-          TAG='${{ inputs.release_tag || github.ref_name }}'
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          TAG_COMMIT=$(git rev-parse --verify "refs/tags/$TAG^{commit}")
+          test "$(git rev-parse HEAD)" = "$TAG_COMMIT"
           echo "release-tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "commit-sha=$TAG_COMMIT" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -56,10 +66,10 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ${{ env.SPRING_IMAGE }}:${{ github.sha }}
+          tags: ${{ env.SPRING_IMAGE }}:${{ steps.release-input.outputs.commit-sha }}
       - uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.SPRING_IMAGE }}:${{ github.sha }}
+          image-ref: ${{ env.SPRING_IMAGE }}:${{ steps.release-input.outputs.commit-sha }}
           format: sarif
           output: trivy-spring-api.sarif
           scanners: vuln
@@ -71,10 +81,10 @@ jobs:
           context: .
           file: ai/Dockerfile
           push: true
-          tags: ${{ env.AI_IMAGE }}:${{ github.sha }}
+          tags: ${{ env.AI_IMAGE }}:${{ steps.release-input.outputs.commit-sha }}
       - uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.AI_IMAGE }}:${{ github.sha }}
+          image-ref: ${{ env.AI_IMAGE }}:${{ steps.release-input.outputs.commit-sha }}
           format: sarif
           output: trivy-ai-service.sarif
           scanners: vuln
@@ -88,7 +98,7 @@ jobs:
         run: |
           mkdir -p artifacts/release/${{ steps.release-input.outputs.release-tag }}
           node scripts/benchmark/workflow-support.mjs metadata \
-            --tag '${{ steps.release-input.outputs.release-tag }}' --sha '${{ github.sha }}' --workflow-run-id '${{ github.run_id }}' \
+            --tag '${{ steps.release-input.outputs.release-tag }}' --sha '${{ steps.release-input.outputs.commit-sha }}' --workflow-run-id '${{ github.run_id }}' \
             --spring-expected "$SPRING_DIGEST" --spring-deployed "$SPRING_DIGEST" \
             --ai-expected "$AI_DIGEST" --ai-deployed "$AI_DIGEST" \
             --output artifacts/release/${{ steps.release-input.outputs.release-tag }}/release.json
@@ -106,6 +116,9 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-and-scan.outputs.commit-sha }}
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -146,7 +159,7 @@ jobs:
           test -n "$STAGING_SPRING_URL" && test -n "$STAGING_AI_URL"
           test -n "$SPRING_DEPLOYED" && test -n "$AI_DEPLOYED"
           node scripts/benchmark/workflow-support.mjs metadata \
-            --tag '${{ needs.build-and-scan.outputs.release-tag }}' --sha '${{ github.sha }}' --workflow-run-id '${{ github.run_id }}' \
+            --tag '${{ needs.build-and-scan.outputs.release-tag }}' --sha '${{ needs.build-and-scan.outputs.commit-sha }}' --workflow-run-id '${{ github.run_id }}' \
             --spring-expected "$SPRING_EXPECTED" --spring-deployed "$SPRING_DEPLOYED" \
             --ai-expected "$AI_EXPECTED" --ai-deployed "$AI_DEPLOYED" --output /tmp/validated-release.json
           echo "spring-deployed=$SPRING_DEPLOYED" >> "$GITHUB_OUTPUT"
@@ -192,10 +205,61 @@ jobs:
     permissions:
       contents: write
     outputs:
-      status: ${{ steps.gate.outputs.status }}
+      gate: ${{ steps.module-comparison.outputs.gate }}
       config-hash: ${{ steps.gate.outputs.config-hash }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Checkout module comparison authority
+        uses: actions/checkout@v4
+        with:
+          repository: YRootLab/OnMaru-backend-ci-toolkit
+          ref: d5b7892875000afc2deba6e6873717974d558ee5
+          path: .toolkit-release
+          persist-credentials: false
+      - name: Collect selected release module evidence
+        id: selected-evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BASELINE_TAG: ${{ needs.baseline-lookup.outputs.baseline-tag }}
+          CANDIDATE_TAG: ${{ needs.build-and-scan.outputs.release-tag }}
+        run: |
+          mkdir -p benchmark/module-input/baseline benchmark/module-input/candidate
+          BASELINE_SHA=''
+          if [[ "$BASELINE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            BASELINE_SHA=$(git rev-parse --verify "refs/tags/$BASELINE_TAG^{commit}" 2>/dev/null || true)
+            gh release download "$BASELINE_TAG" --repo "$REPOSITORY" --pattern release-module-evidence.json \
+              --dir benchmark/module-input/baseline || echo 'Baseline module evidence unavailable.'
+          fi
+          gh release download "$CANDIDATE_TAG" --repo "$REPOSITORY" --pattern release-module-evidence.json \
+            --dir benchmark/module-input/candidate || echo 'Candidate module evidence unavailable.'
+          echo "baseline-sha=$BASELINE_SHA" >> "$GITHUB_OUTPUT"
+      - name: Compare three selected module runs with pinned Toolkit
+        id: module-comparison
+        env:
+          PYTHONPATH: .toolkit-release/src
+          BASELINE_TAG: ${{ needs.baseline-lookup.outputs.baseline-tag }}
+          BASELINE_SHA: ${{ steps.selected-evidence.outputs.baseline-sha }}
+          CANDIDATE_TAG: ${{ needs.build-and-scan.outputs.release-tag }}
+          CANDIDATE_SHA: ${{ needs.build-and-scan.outputs.commit-sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          test "$(git -C .toolkit-release rev-parse HEAD)" = d5b7892875000afc2deba6e6873717974d558ee5
+          python3 scripts/benchmark/release-module-comparison.py \
+            --baseline benchmark/module-input/baseline/release-module-evidence.json \
+            --candidate benchmark/module-input/candidate/release-module-evidence.json \
+            --baseline-tag "$BASELINE_TAG" --baseline-sha "$BASELINE_SHA" \
+            --candidate-tag "$CANDIDATE_TAG" --candidate-sha "$CANDIDATE_SHA" \
+            --repository "$REPOSITORY" --output benchmark/reports/release-module-comparison.json \
+            --github-output "$GITHUB_OUTPUT"
+          echo '## Canonical release module comparison' >> "$GITHUB_STEP_SUMMARY"
+          cat benchmark/reports/release-module-comparison.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@v4
         with:
           name: release-metadata-${{ needs.build-and-scan.outputs.release-tag }}
@@ -204,7 +268,7 @@ jobs:
         with:
           name: benchmark-baseline-${{ needs.build-and-scan.outputs.release-tag }}
           path: benchmark/baseline
-      - name: Run W2 adapter comparison
+      - name: Run legacy W4 comparison (diagnostic only)
         id: compare
         continue-on-error: true
         run: |
@@ -216,8 +280,9 @@ jobs:
             --baseline benchmark/baseline/baseline.json \
             --output benchmark/reports/comparison.json
           echo "wall-clock-seconds=$((SECONDS - STARTED_AT))" >> "$GITHUB_OUTPUT"
-      - name: Create evidence manifest and summary
+      - name: Create legacy W4 diagnostic manifest and trend
         id: gate
+        continue-on-error: true
         env:
           RELEASE_TAG: ${{ needs.build-and-scan.outputs.release-tag }}
         run: |
@@ -235,27 +300,46 @@ jobs:
             --repository '${{ github.repository }}' \
             --artifact-uri 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
             --runner-profile 'ubuntu-latest-linux-amd64' \
-            --toolkit-version '56862ed48797a13e4739b2fdfc2310a773a3a957' \
+            --toolkit-version 'd5b7892875000afc2deba6e6873717974d558ee5' \
             --wall-clock-seconds '${{ steps.compare.outputs.wall-clock-seconds }}' \
             --output benchmark/onmaru-backend/$RELEASE_TAG/trend-manifest.json
           node scripts/benchmark/workflow-support.mjs gate --comparison benchmark/reports/comparison.json --output benchmark/onmaru-backend/$RELEASE_TAG/gate.json
-          echo "## Benchmark comparison" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Legacy W4 diagnostics (not a promotion decision)" >> "$GITHUB_STEP_SUMMARY"
           cat benchmark/reports/comparison.json >> "$GITHUB_STEP_SUMMARY"
           cat benchmark/onmaru-backend/$RELEASE_TAG/gate.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: benchmark-evidence-${{ needs.build-and-scan.outputs.release-tag }}
-          path: benchmark/
+          # Raw release assets may contain unallowlisted fields; publish only normalized outputs.
+          path: |
+            benchmark/reports/
+            benchmark/raw/
+            benchmark/normalized/
+            benchmark/onmaru-backend/
           retention-days: 30
       - uses: actions/upload-artifact@v4
         if: success()
+        continue-on-error: true
         with:
           name: trend-manifest-${{ needs.build-and-scan.outputs.release-tag }}
           path: benchmark/onmaru-backend/${{ needs.build-and-scan.outputs.release-tag }}/trend-manifest.json
           retention-days: 30
-      - name: Attach trend manifest to an existing GitHub Release
+      - name: Attach canonical result to an existing GitHub Release
         if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build-and-scan.outputs.release-tag }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" benchmark/reports/release-module-comparison.json --repo "$REPOSITORY" --clobber
+          else
+            echo 'Canonical module result remains in the workflow artifact.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Attach diagnostic trend to an existing GitHub Release
+        if: success()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.build-and-scan.outputs.release-tag }}
@@ -271,42 +355,42 @@ jobs:
   trend-comparison:
     if: github.event.repository.fork != true && needs.comparison.result == 'success'
     needs: [build-and-scan, baseline-lookup, comparison]
-    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@56862ed48797a13e4739b2fdfc2310a773a3a957
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@d5b7892875000afc2deba6e6873717974d558ee5
     with:
       release-tag: ${{ needs.build-and-scan.outputs.release-tag }}
-      commit-sha: ${{ github.sha }}
+      commit-sha: ${{ needs.build-and-scan.outputs.commit-sha }}
       image-digest: ${{ needs.build-and-scan.outputs.spring-digest }}
       environment: staging
       suite: onmaru-release-smoke
       config-hash: ${{ needs.comparison.outputs.config-hash }}
-      toolkit-ref: 56862ed48797a13e4739b2fdfc2310a773a3a957
+      toolkit-ref: d5b7892875000afc2deba6e6873717974d558ee5
       candidate-artifact-name: trend-manifest-${{ needs.build-and-scan.outputs.release-tag }}
       history-release-tags: ${{ needs.baseline-lookup.outputs.baseline-tag }}
 
   promotion-gate:
     if: >-
-      always() && github.event.repository.fork != true && needs.comparison.result == 'success' &&
-      (needs.comparison.outputs.status == 'improved' ||
-      needs.comparison.outputs.status == 'unchanged' ||
-      needs.comparison.outputs.status == 'inconclusive' ||
-      needs.comparison.outputs.status == 'regressed')
+      always() && github.event.repository.fork != true
     needs: [build-and-scan, comparison, regression-approval]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: benchmark-evidence-${{ needs.build-and-scan.outputs.release-tag }}
-          path: benchmark
-      - name: Block inconclusive or require regression approval
+      - name: Enforce the canonical module decision and prerequisite success
+        env:
+          BUILD_RESULT: ${{ needs.build-and-scan.result }}
+          COMPARISON_RESULT: ${{ needs.comparison.result }}
+          GATE: ${{ needs.comparison.outputs.gate }}
+          APPROVAL_RESULT: ${{ needs.regression-approval.result }}
         run: |
-          STATUS=$(node -e "const x=require('./benchmark/onmaru-backend/${{ needs.build-and-scan.outputs.release-tag }}/gate.json'); process.stdout.write(x.status)")
-          if [ "$STATUS" = inconclusive ]; then echo 'Inconclusive benchmark blocks automatic promotion.'; exit 1; fi
-          if [ "$STATUS" = regressed ]; then test '${{ needs.regression-approval.result }}' = success; exit 0; fi
-          test "$STATUS" = improved || test "$STATUS" = unchanged
+          test "$BUILD_RESULT" = success
+          test "$COMPARISON_RESULT" = success
+          case "$GATE" in
+            pass) exit 0 ;;
+            approval_hold) test "$APPROVAL_RESULT" = success ;;
+            *) echo 'Benchmark blocked: failed, inconclusive, or missing evidence.'; exit 1 ;;
+          esac
 
   regression-approval:
-    if: github.event.repository.fork != true && needs.comparison.result == 'success' && needs.comparison.outputs.status == 'regressed'
+    if: github.event.repository.fork != true && needs.comparison.result == 'success' && needs.comparison.outputs.gate == 'approval_hold'
     needs: [build-and-scan, comparison]
     runs-on: ubuntu-latest
     timeout-minutes: 15

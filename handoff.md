@@ -15,6 +15,28 @@
 - 남은 위험: 실제 운영 DB에서 V039 migration/backfill과 잠금 시간을 staging에서 확인하고, FE의 10개 캐릭터·10개 색상 및 100개 조합 대비/unknown-ID fallback을 통합 smoke해야 한다.
 - 다음 단계: work-log cleanup 후 `develop` 대상 PR을 만들고 CI `verify`를 확인한다. 배포 뒤 기존 후기의 최신 프로필 반영과 프로필 PATCH를 staging에서 smoke한다.
 
+## 2026-10-03 Issue #592 운영 관리자 로그인 세션 저장 수정
+
+- 브랜치: `fix/592-admin-session-timestamp` (최신 `origin/develop` 기준, branch parser #592).
+- 운영 증거: 올바른 관리자 로그인 요청에서 `last_login_at`은 갱신되지만 `identity_admin_sessions`는 0건이고 HTTP 401이 반환됐다. FE는 실제 `/auth/csrf`와 `/api/v1/auth/admin/login`을 호출하고 있었다.
+- 원인: PostgreSQL JDBC 42.7.13은 `PreparedStatement.setObject(java.time.Instant)`의 SQL 타입을 추론하지 못한다. `JdbcAdminSessionStore`의 생성·회전·폐기 시간 파라미터를 UTC `OffsetDateTime`으로 변환한다.
+- TDD: 실제 PostgreSQL 회귀 테스트에서 기존 구현의 `Can't infer the SQL type ... java.time.Instant` 실패를 확인한 뒤, 세션 생성·회전·폐기 3개 테스트가 통과하도록 수정했다.
+- 전체 Java 검증: 522개 중 521개 통과, 2개 skip. 유일한 실패는 ARM64 호스트에서 amd64 PostGIS 이미지를 에뮬레이션한 기존 3만 건 map-info p95 테스트(381.03ms > 200ms)이며 단독 재실행도 같은 환경 경고와 함께 실패했다. 관리자 세션 대상 테스트와 `bootJar`는 통과했다. amd64 GitHub Actions `verify`를 병합 gate로 사용한다.
+- 다음 단계: PR을 `develop`에 병합하고 Issue 상태를 정리한 뒤 다음 patch release branch로 `master`에 승격한다. 새 이미지 배포 후 운영 관리자 로그인 200, refresh session 생성, 컨테이너 health를 확인한다.
+
+## 2026-10-02 Issue #568 OnMaru pipeline benchmark Skill
+
+- 브랜치: `feature/554-monitoring-related`; 정본은 `skills/onmaru-ci-benchmark-experiment/` 하나이며 `.agents/skills` 복사본을 만들지 않는다.
+- 기본 동작은 dry-run이다. 실제 dispatch는 현재 대화에서 명시적으로 요청된 경우에만 helper의 `--authorize-dispatch`를 사용하며, 응답 유실·모호 상태에서는 절대 재시도하지 않는다.
+- 고정 Toolkit ref: `d5b7892875000afc2deba6e6873717974d558ee5`. 실제 #555/#556 dispatch·attestation 연동은 아직 실행하지 않았다.
+- 2026-10-03 CI hygiene 보완([#554](https://github.com/YRootLab/OnMaru-backend/issues/554), [#555](https://github.com/YRootLab/OnMaru-backend/issues/555), 브랜치 `feature/554-monitoring-related`): 암묵적 `/tmp` Toolkit 선택을 제거하자 저장소 offline 스텁에서 16개 중 5개가 실패했다. 스텁의 replay schema·endpoint 검증·시각과 무관한 중복 identity·`ci_job=other`를 pin의 소비 계약과 맞췄다. 기본 경로 contract를 추가하고 기존 replay 테스트를 시각 변경으로 강화했다. 기본 clean-env 집중 17/17, 명시적 pinned-source 집중 17/17, 기본 전체 Node 213/213, contracts·Python compile·diff check가 통과했다. 보고서: `.superpowers/sdd/2026-10-02-ci-observability-benchmark-skill/ci-hygiene-fix-report.md`.
+- 이전 세션에서 로컬 Toolkit의 성공/실패 synthetic round-trip과 dashboard query를 확인했고, outage range race는 Toolkit #133 / PR #134로 수정·병합됐다. 이번 최종 수정에서는 실제 stack·Cloud를 다시 검증하지 않았다.
+- 2026-10-03 최종 수정(#554/#555/#568): replay checkpoint는 동일 저장소의 default branch에서 실행된 `workflow_run`/수동 replay와 검증된 default-branch SHA 이력만 신뢰한다. checkpoint가 없거나 손상된 최근 diagnostic은 건너뛰어 이전 유효 상태를 복원하거나 새 상태로 export한다. Skill 설치 확인은 consumer cwd package를 실행하지 않으며 Basic/Bearer payload를 전체 마스킹한다. 문서의 job query는 실제 `ci_job="other"` label과 맞췄다.
+- 최신 검증: 고정 Toolkit `d5b7892875000afc2deba6e6873717974d558ee5` checkout을 `ONMARU_TOOLKIT_SRC`로 지정해 집중 Node 36/36, 전체 Node 212/212가 통과했다. `bash scripts/verify-contracts`, Skill quick validation, 두 Python helper syntax, `git diff --check`, branch parser(`#554`)도 통과했다. 동시에 수행한 초기 실행의 타이밍 민감 테스트 실패와 단독 재실행 결과는 `.superpowers/sdd/2026-10-02-ci-observability-benchmark-skill/final-fix-report.md`에 기록했다. Java 전체 module test/`bootJar`와 workflow lint는 이번 최종 수정에서 별도 재실행하지 않았다.
+- 외부 gate: 실제 Grafana Cloud round trip·outage/replay·series/span/retention/cost, release baseline/candidate 3+3 Actions 검증, 실제 pipeline dispatch·signed attestation, default-branch workflow 가용성 및 #555/#556 gate 순환 정리는 아직 `pending`이다. Fixture 통과로 이를 완료 처리하지 않으며 실제 dispatch는 명시적인 현재 대화 요청 전까지 실행하지 않는다.
+- 새 개선율은 아직 확정하지 않았다. 기존 470초 serial과 411.62초 critical-path는 경계가 달라 12.42% 전체 CI 개선으로 주장하지 않는다. workflow가 기본 브랜치에 존재하고 #555/#556 gate 순환을 정리한 뒤 동일 조건 baseline/candidate 3회씩의 whole-workflow 중앙값·범위·실패율을 기록한다.
+- Toolkit #115/#122 및 Agent Toolkit #58 ownership 링크 변경은 OnMaruBE Skill PR merge 뒤의 후속 작업이다.
+- 메인 `README.md`에 일상 CI 관측과 수동 3+3 benchmark 흐름, Docker의 역할과 설치 경계, 로컬 dashboard 실행·정리, Skill dry-run/dispatch/wait/compare, 개선율 해석을 추가했다.
 ## 2026-10-03 Issue #572 페이지네이션 totalCount
 
 - 브랜치: `fix/572-paginated-total-count` (branch parser #572).
