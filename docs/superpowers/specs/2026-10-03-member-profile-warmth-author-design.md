@@ -215,4 +215,4 @@ FE 후속 Issue에는 다음 acceptance criteria를 기록한다.
 - 알 수 없는 ID는 안전한 기본 자산으로 fallback하고 오류 관측을 남긴다.
 - 카카오 닉네임·프로필 이미지와 `profileImageUrl`에 의존하지 않는다.
 
-BE 명세가 승인되면 FE 저장소에 이 계약을 요약한 Issue를 생성하고 두 Issue를 상호 링크한다.
+FE 구현과 자산 제작은 [OnMaru-Frontend #292](https://github.com/YRootLab/OnMaru-Frontend/issues/292)에서 추적한다. BE #552에도 변경된 범위와 FE Issue 링크를 기록해 두 저장소의 계약을 상호 연결했다.

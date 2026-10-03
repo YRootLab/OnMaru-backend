@@ -7,7 +7,8 @@
 - FE는 캐릭터 정적 자산 10개와 배경 HEX 10개를 소유한다. BE는 고정 ID와 회원 선택만 저장한다.
 - 온기모드 방문 후기는 작성자의 최신 프로필을 반환한다. 프로필을 바꾸면 기존 게시글에도 즉시 반영하며 내부 회원 ID는 공개하지 않는다.
 - 설계: `docs/superpowers/specs/2026-10-03-member-profile-warmth-author-design.md`.
-- 다음 단계: 사용자 spec 검토 승인 후 implementation plan 작성, FE 후속 Issue 생성, TDD 구현.
+- FE 전달: [OnMaru-Frontend #292](https://github.com/YRootLab/OnMaru-Frontend/issues/292)에 캐릭터 자산 10종, 배경 HEX 10종, 마이페이지 수정 UI, 온기 후기 작성자 표시 계약을 기록했다. BE #552에도 최종 방향과 FE Issue 링크를 댓글로 남겼다.
+- 다음 단계: 사용자 spec 검토 승인 후 implementation plan 작성과 TDD 구현.
 
 ## 2026-10-03 Issue #572 페이지네이션 totalCount
 
