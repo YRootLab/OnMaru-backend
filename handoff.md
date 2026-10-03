@@ -1,16 +1,5 @@
 # handoff.md
 
-## 2026-10-03 Issue #571 스테이징 로컬 CORS 포트 확장
-
-- 브랜치: `fix/571-staging-cors-3000-3008`.
-- 요청: 스테이징 API에서 로컬 프런트엔드 `http://localhost:3000`부터 `http://localhost:3008`까지 CORS를 허용한다.
-- 확인: Spring 기본 allowlist와 기존 MockMvc 테스트는 이미 3000~3008을 포함하지만, 스테이징 Compose의 `ONMARU_CORS_ALLOWED_ORIGINS`가 기본값을 덮어쓴다. 스테이징 환경 구성과 실제 preflight 동작을 함께 검증한다.
-- 변경: 스테이징 `.env.example` allowlist에 고정 스테이징 도메인과 localhost 3000~3008을 명시하고 Compose 오류 안내 및 운영자 문서를 맞췄다.
-- 검증: 예시 환경파일 기반 `docker compose config`, `LocalDevelopmentCorsConfigurationTests`, `bash scripts/verify-contracts`, `git diff --check`가 통과했다.
-- 실행 환경 반영: Lightsail 실제 `staging/.env`를 서버 내 `.env.before-cors-571`로 백업한 뒤 같은 allowlist로 갱신하고 스테이징을 기동했다. PostgreSQL과 Spring이 healthy이며 자동 종료 timer는 2시간으로 갱신했다.
-- 실환경 검증: `https://staging-api.onmaru.site` preflight에서 localhost 3000~3008은 각각 `200`과 해당 `Access-Control-Allow-Origin`을 반환하고, 3009는 `403`으로 거부됐다.
-- 다음 단계: 저장소 변경을 PR로 `develop`에 반영해 다음 스테이징 재구성 때도 allowlist가 유지되게 한다.
-- 관련 Issue: #571.
 ## 2026-10-02 Backend 병렬 정리 (#256 외 12건)
 
 - 브랜치: `feature/256-backend-batch` (`origin/develop` 최신 기준, branch parser #256).
