@@ -160,3 +160,12 @@
 - SSH 22 인바운드가 넓게 열려 있다. 접속 경로를 보존하며 source IP를 제한해야 한다.
 - $7 번들은 1 GB RAM이라 Spring, PostgreSQL/PostGIS, Nginx 메모리 사용량을 관찰하고 OOM이 반복되면 상향을 검토한다.
 - Render 데이터의 실제 DB 버전/용량과 dump/restore 결과, GHCR package visibility, 필요한 운영 secret은 아직 확인하지 않았다.
+# 2026-10-04 Issue #603 검색 중심 스크린 속 한옥 리서치 하네스 설계
+
+- 브랜치: `feature/603-screen-hanok-research-harness`.
+- 운영 `스크린 속 한옥` 약 7개 항목을 재검증하고 고유 장소 100개·작품-장소 연결 150개 이상을 확보하는 검색 우선 내부 리서치 하네스를 설계했다.
+- 기존 장소 category는 유지하고 작품-장소-복수 출처 관계만 별도로 누적한다. 검색 API가 evidence를 수집하며 LLM은 evidence 구조화·요약·애매한 매칭 판정에만 사용한다.
+- TourAPI 변경 감지는 원천 수정 시각에 의존하지 않고 기존 revision의 `contentId + normalized SHA-256` set diff를 확장한다.
+- 초기 backfill은 일일 예산으로 처리하고, 정상 운영은 TourAPI 3일 동기화·작품 리서치 14일·evidence URL 확인 30일 주기로 분리한다.
+- 설계 문서: `docs/superpowers/specs/2026-10-04-screen-hanok-research-harness-design.md`.
+- 다음 단계: 사용자 문서 검토 후 구현 계획을 작성한다.
