@@ -7,6 +7,7 @@ public record ReviewPage(
         String schemaVersion,
         String queryKey,
         List<VisitReview> items,
+        long totalCount,
         String nextCursor,
         boolean hasMore,
         Instant asOf,

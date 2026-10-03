@@ -104,15 +104,18 @@ class JourneyThreadServiceTests {
 
         var page1 = service.list(memberId, 2, null);
         assertThat(page1.items()).hasSize(2);
+        assertThat(page1.totalCount()).isEqualTo(5);
         assertThat(page1.hasMore()).isTrue();
         assertThat(page1.nextCursor()).isNotNull();
 
         var page2 = service.list(memberId, 2, page1.nextCursor());
         assertThat(page2.items()).hasSize(2);
+        assertThat(page2.totalCount()).isEqualTo(5);
         assertThat(page2.hasMore()).isTrue();
 
         var page3 = service.list(memberId, 2, page2.nextCursor());
         assertThat(page3.items()).hasSize(1);
+        assertThat(page3.totalCount()).isEqualTo(5);
         assertThat(page3.hasMore()).isFalse();
         assertThat(page3.nextCursor()).isNull();
     }

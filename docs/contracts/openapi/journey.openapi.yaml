@@ -639,10 +639,11 @@ components:
     SavedJourneyPage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion: { type: string, const: '1.2' }
         items: { type: array, items: { $ref: '#/components/schemas/SavedJourneySummary' } }
+        totalCount: { type: integer, format: int64, minimum: 0 }
         nextCursor: { type: [string, 'null'] }
         hasMore: { type: boolean }
     ResumeSavedJourneyResponse:
@@ -656,10 +657,11 @@ components:
     JourneyThreadPage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion: { type: string, const: '1.2' }
         items: { type: array, items: { $ref: '#/components/schemas/JourneyThreadSummary' } }
+        totalCount: { type: integer, format: int64, minimum: 0 }
         nextCursor: { type: [string, 'null'] }
         hasMore: { type: boolean }
     JourneyThreadSummary:

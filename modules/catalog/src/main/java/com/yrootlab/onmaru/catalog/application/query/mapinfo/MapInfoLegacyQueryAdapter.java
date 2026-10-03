@@ -45,6 +45,7 @@ public final class MapInfoLegacyQueryAdapter {
                 result.coverage().equals("COMPLETE") ? MapCoverageStatus.COMPLETE : MapCoverageStatus.PARTIAL,
                 result.query().language(),
                 cards,
+                result.totalCount(),
                 result.nextCursor(),
                 result.nextCursor() != null);
     }

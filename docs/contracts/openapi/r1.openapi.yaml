@@ -392,7 +392,7 @@ components:
     HanokListResponse:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -400,6 +400,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HanokCard'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: [string, 'null']
         hasMore:
@@ -644,7 +648,7 @@ components:
     SavedResourcePage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -652,6 +656,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SavedPlaceSummary'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: [string, 'null']
         hasMore:
@@ -659,7 +667,7 @@ components:
     MemberTimeline:
       type: object
       additionalProperties: false
-      required: [schemaVersion, month, groups, nextCursor, hasMore, unavailableCount]
+      required: [schemaVersion, month, groups, totalCount, nextCursor, hasMore, unavailableCount]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -670,6 +678,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TimelineDayGroup'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: [string, 'null']
         hasMore:

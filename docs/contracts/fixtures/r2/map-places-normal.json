@@ -43,6 +43,7 @@
           }
         }
       ],
+      "totalCount": 1,
       "nextCursor": null,
       "hasMore": false
     }

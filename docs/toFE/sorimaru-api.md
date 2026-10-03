@@ -1,6 +1,6 @@
 # 소리마루 Single Source of Truth API
 
-세 API는 프론트가 Odii 제공기관을 직접 호출하지 않고 OnMaru backend만 호출하기 위한 호환 API다. 응답은 기존 Odii 목록의 `schemaVersion`, `coverageStatus`, `language`, `languageStatus`, `items`, `nextCursor`, `hasMore` 구조를 사용한다. 현재는 Redis 캐시를 사용하지 않으며 `Cache-Control: no-store`를 반환한다.
+세 API는 프론트가 Odii 제공기관을 직접 호출하지 않고 OnMaru backend만 호출하기 위한 호환 API다. 응답은 기존 Odii 목록의 `schemaVersion`, `coverageStatus`, `language`, `languageStatus`, `items`, `totalCount`, `nextCursor`, `hasMore` 구조를 사용한다. `totalCount`는 현재 필터를 적용한 전체 결과 건수이며 `items.length`와 다를 수 있다. 현재는 Redis 캐시를 사용하지 않으며 `Cache-Control: no-store`를 반환한다.
 
 ## 스토리 검색
 

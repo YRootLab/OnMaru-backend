@@ -194,6 +194,7 @@ class SavedOdiiResourceWebBoundaryTests {
                 .andExpect(jsonPath("$.items[0].id").doesNotExist())
                 .andExpect(jsonPath("$.items[0].stid").doesNotExist())
                 .andExpect(jsonPath("$.items[0].stlid").doesNotExist())
+                .andExpect(jsonPath("$.totalCount").value(2))
                 .andExpect(jsonPath("$.nextCursor", not(emptyOrNullString())))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andReturn().getResponse().getContentAsString();
@@ -201,6 +202,7 @@ class SavedOdiiResourceWebBoundaryTests {
 
         list("member-session", "ODII_STORY", 1, cursor)
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(2))
                 .andExpect(jsonPath("$.items[0].storyId").value(expectedStoryIds.get(1)));
         list("other-session", "ODII_STORY", 1, cursor)
                 .andExpect(status().isNotFound());

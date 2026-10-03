@@ -179,6 +179,7 @@ public final class MemberTimelineService {
                 SCHEMA_VERSION,
                 month.toString(),
                 dayGroups,
+                validItems.size(),
                 nextCursor,
                 hasMore,
                 unavailableCount);

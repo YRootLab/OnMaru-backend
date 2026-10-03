@@ -7,7 +7,8 @@ public record OdiiStoryReadSelection(
         UUID revisionId,
         String language,
         OdiiLanguageStatus languageStatus,
-        List<OdiiStoryProjection> stories) {
+        List<OdiiStoryProjection> stories,
+        long totalCount) {
 
     public OdiiStoryReadSelection {
         stories = stories == null ? List.of() : List.copyOf(stories);

@@ -105,9 +105,15 @@ public final class MapInfoQueryService {
     private DecodedCursor decode(String token, MapInfoListQuery query, List<String> categories) {
         if (token == null || token.isBlank()) return null;
         try {
-            var parts = new String(Base64.getUrlDecoder().decode(token), StandardCharsets.UTF_8).split("\\.", -1);
-            if (parts.length != 2 || !constantTime(parts[1], sign(parts[0]))) throw new IllegalArgumentException();
-            var payload = parts[0].split("\\|", -1);
+            var decodedToken = new String(Base64.getUrlDecoder().decode(token), StandardCharsets.UTF_8);
+            var signatureSeparator = decodedToken.lastIndexOf('.');
+            if (signatureSeparator <= 0 || signatureSeparator == decodedToken.length() - 1) {
+                throw new IllegalArgumentException();
+            }
+            var signedPayload = decodedToken.substring(0, signatureSeparator);
+            var suppliedSignature = decodedToken.substring(signatureSeparator + 1);
+            if (!constantTime(suppliedSignature, sign(signedPayload))) throw new IllegalArgumentException();
+            var payload = signedPayload.split("\\|", -1);
             if (payload.length != 8 || !Objects.equals(payload[1], query.category().name())
                     || !Objects.equals(payload[2], query.sort())
                     || !Objects.equals(payload[3], String.join(",", categories))
