@@ -6,6 +6,7 @@ import com.yrootlab.onmaru.community.command.review.VisitReviewNotFoundException
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlaceNotEligibleException;
 import com.yrootlab.onmaru.community.command.review.VisitReviewTextInvalidException;
 import com.yrootlab.onmaru.community.command.review.VisitReviewWarmthInvalidException;
+import com.yrootlab.onmaru.community.query.VisitReview;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.web.common.error.ApiErrorCode;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
@@ -36,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -137,7 +139,7 @@ public final class VisitReviewCommandController {
                 var created = commandService.create(memberId, placeId, command);
                 return IdempotentResponse.created("/api/v1/visit-reviews/" + created.id(), created);
             });
-            return toResponse(response);
+            return toResponse(withCurrentAuthor(response, memberId));
         } catch (VisitReviewTextInvalidException exception) {
             return validationError(request, "text");
         } catch (VisitReviewWarmthInvalidException exception) {
@@ -152,6 +154,23 @@ public final class VisitReviewCommandController {
                 .cacheControl(CacheControl.noStore());
         response.headers().forEach(builder::header);
         return builder.body(response.body());
+    }
+
+    private IdempotentResponse withCurrentAuthor(IdempotentResponse response, UUID memberId) {
+        var author = commandService.currentAuthor(memberId);
+        Object body = response.body();
+        if (body instanceof VisitReview review) {
+            body = new VisitReview(
+                    review.id(), review.placeId(), review.placeName(), review.lat(), review.lng(), review.text(),
+                    review.mood(), review.score(), review.tags(), author, review.visitorCount(), review.createdAt(),
+                    review.mine(), review.likeCount(), review.likedByMe());
+        } else if (body instanceof Map<?, ?> storedBody) {
+            var refreshed = new LinkedHashMap<String, Object>();
+            storedBody.forEach((key, value) -> refreshed.put(String.valueOf(key), value));
+            refreshed.put("author", author);
+            body = refreshed;
+        }
+        return new IdempotentResponse(response.status(), response.headers(), body);
     }
 
     private ResponseEntity<ApiErrorResponse> authRequired(HttpServletRequest request) {

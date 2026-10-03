@@ -97,10 +97,12 @@ public final class AdminReviewController {
             List<ReviewResponse> items = page.items().stream().map(ReviewResponse::from).toList();
             Map<String, Object> response = new java.util.LinkedHashMap<>();
             response.put("schemaVersion", "1.0"); response.put("items", items);
+            response.put("totalCount", page.totalCount());
             response.put("hasMore", page.hasNext()); response.put("hasNext", page.hasNext());
             if (page.hasNext() && !page.items().isEmpty()) {
                 var last = page.items().getLast();
-                response.put("nextCursor", cursorCodec.encode(new AdminCursor("reviews", limit, filter, last.createdAt(), last.id())));
+                response.put("nextCursor", cursorCodec.encode(new AdminCursor(
+                        "reviews", limit, filter, last.createdAt(), last.id(), null, page.totalCount())));
             }
             return ok(response);
         } catch (IdempotencyKeyMissingException | IdempotencyKeyInvalidException exception) {
@@ -134,10 +136,12 @@ public final class AdminReviewController {
             List<ReportResponse> items = page.items().stream().map(ReportResponse::from).toList();
             Map<String, Object> response = new java.util.LinkedHashMap<>();
             response.put("schemaVersion", "1.0"); response.put("items", items);
+            response.put("totalCount", page.totalCount());
             response.put("hasMore", page.hasNext()); response.put("hasNext", page.hasNext());
             if (page.hasNext() && !page.items().isEmpty()) {
                 var last = page.items().getLast();
-                response.put("nextCursor", cursorCodec.encode(new AdminCursor("reports", limit, filter, last.createdAt(), last.reportId())));
+                response.put("nextCursor", cursorCodec.encode(new AdminCursor(
+                        "reports", limit, filter, last.createdAt(), last.reportId(), null, page.totalCount())));
             }
             return ok(response);
         } catch (IllegalArgumentException exception) {
@@ -216,12 +220,13 @@ public final class AdminReviewController {
             response.put("generatedAt", queueService.generatedAt());
             response.put("oldestOpenReportAgeSeconds", queueService.oldestQueueAgeSeconds());
             response.put("items", page.items());
+            response.put("totalCount", page.totalCount());
             response.put("hasNext", page.hasNext());
             if (page.hasNext() && !page.items().isEmpty()) {
                 var last = page.items().getLast();
                 response.put("nextCursor", cursorCodec.encode(new AdminCursor(
                         "moderation-queue", limit, "priority=all", last.oldestOpenReportAt(),
-                        last.reviewId(), last.priority().name())));
+                        last.reviewId(), last.priority().name(), page.totalCount())));
             }
             return ok(response);
         } catch (IllegalArgumentException exception) {

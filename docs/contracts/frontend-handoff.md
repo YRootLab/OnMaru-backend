@@ -28,7 +28,7 @@ FE는 HTTP status와 `classification`으로 제한 안내를 표시할 수 있�
 
 ## 관리자 목록 페이지네이션 (#509)
 
-`GET /api/v1/admin/reviews`, `/reports`, `/users`, `/curations`, `/moderation/queue`와 `GET /api/v1/operations/moderation/queue`는 `limit` 기본 20, 최대 100을 사용한다. 첫 요청에서 `cursor`를 생략하고, 다음 요청에는 응답의 `nextCursor`를 그대로 전달한다. `hasNext`가 `false`이면 마지막 페이지이며 `nextCursor`가 없다. 후기·신고 응답의 기존 `hasMore`도 같은 값을 유지한다.
+`GET /api/v1/admin/reviews`, `/reports`, `/users`, `/curations`, `/moderation/queue`와 `GET /api/v1/operations/moderation/queue`는 `limit` 기본 20, 최대 100을 사용한다. 첫 요청에서 `cursor`를 생략하고, 다음 요청에는 응답의 `nextCursor`를 그대로 전달한다. 각 페이지의 `totalCount`는 cursor 이후 남은 건수가 아니라 현재 필터에 일치하는 전체 건수다. `hasNext`가 `false`이면 마지막 페이지이며 `nextCursor`가 없다. 후기·신고 응답의 기존 `hasMore`도 같은 값을 유지한다.
 
 후기 목록은 `status`와 `query`(본문·장소명 부분 검색), 회원 목록은 `status=ACTIVE|DELETING`, 큐레이션 목록은 `category`와 `included` 필터를 지원한다. 신고 목록은 미처리(`OPEN`) 신고만 반환하며 `reason`으로 좁힐 수 있다. cursor는 목록 종류·limit·필터·검색어에 묶여 있고 15분 뒤 만료된다. 필터·검색어·limit을 바꿀 때는 첫 페이지부터 다시 요청한다. 빈 값·변조·만료 cursor는 `400 VALIDATION_ERROR`이므로 FE는 기존 cursor를 버리고 첫 페이지를 다시 읽는다.
 
@@ -44,6 +44,7 @@ FE는 HTTP status와 `classification`으로 제한 안내를 표시할 수 있�
 | 지도 조회 방식 1.2 | 자동 viewport 본문 조회보다 행정구역 집계→지역 선택→명시적 목록 조회를 우선한다. | 지도 이동만으로 리스트를 갈아끼우지 않는다. 사용자가 지역을 선택하고 후기 보기를 눌러 목록을 읽는다. |
 | 커서 페이징 | page/pageIndex/offset/totalPages를 쓰지 않는다. | `items`, `hasMore`, `nextCursor`만 본다. 배열 인덱스는 0부터이며 화면 순번은 FE 전용이다. |
 | 인증 확장 | MVP는 Kakao지만 내부 회원 ID는 provider 독립 UUID다. | FE는 provider subject/email을 사용자 ID로 저장하거나 비교하지 않는다. |
+| 익명 프로필 (#552) | 카카오 이름·이미지를 사용하지 않고 OnMaru 이름과 고정 character/background ID를 사용한다. | FE가 10개 캐릭터 자산과 10개 배경 HEX 매핑을 소유하며, 내 프로필 수정과 후기 작성자 표시를 구현한다. |
 | 여정 run 상태 | REST command + SSE 진행 알림 + snapshot 복구가 현재 MVP 통신이다. | `run.stage`/`run.terminal`을 표시하고, reconnect·`reset`·탭 복귀에는 GET run/snapshot으로 재동기화한다. |
 | AI 이용 한도와 장애 | 비회원 2회, 로그인 회원 5회/KST 일의 임시 Gemini 여정 한도를 둔다. | quota 소진·Gemini/FastAPI 실패 뒤에도 이미 해석한 후보가 있으면 같은 run을 `engine=BASELINE`으로 완료한다. FE는 raw 오류 대신 기본 탐색 결과를 표시한다. |
 
@@ -219,7 +220,7 @@ FE 동작은 다음 정책을 따른다.
 | `PUT /api/v1/visit-reviews/{id}/likes/me` | 회원+CSRF | body 없음 | `{likedByMe:true,likeCount}` |
 | `DELETE /api/v1/visit-reviews/{id}/likes/me` | 회원+CSRF | body 없음 | `{likedByMe:false,likeCount}` |
 
-후기 text는 NFC/trim 후 1..300 code points, 개행 최대 4개다. `mood`는 `북적` 또는 `한적`, `score`는 1..5, `tags`는 최대 5개·각 20 code points이며 모두 선택값이다. HTML 실행과 URL 미리보기는 없다. `visitorCount`는 활성 DataLab revision의 최신 지역 일 관측값이며 결측이면 `null`이다. `mine`과 `likedByMe`는 서버 principal로 계산한다.
+후기 text는 NFC/trim 후 1..300 code points, 개행 최대 4개다. `mood`는 `북적` 또는 `한적`, `score`는 1..5, `tags`는 최대 5개·각 20 code points이며 모두 선택값이다. HTML 실행과 URL 미리보기는 없다. `visitorCount`는 활성 DataLab revision의 최신 지역 일 관측값이며 결측이면 `null`이다. `mine`과 `likedByMe`는 서버 principal로 계산한다. `author`는 `{displayName,characterId,backgroundId}`이며 회원 UUID는 없다. 게시글에 프로필 snapshot을 저장하지 않으므로 사용자가 프로필을 바꾸면 기존 후기에도 다음 조회부터 최신 값이 보인다.
 
 좋아요는 toggle API가 아니라 원하는 상태를 보내는 PUT/DELETE다. FE는 후기별 좋아요 요청을 직렬화하고 실패하면 optimistic UI를 이전 값으로 되돌린다. 본인 후기 좋아요는 403이다.
 
@@ -247,6 +248,8 @@ FE는 active run 중 action/save를 보내면 `409 ACTIVE_RUN`을 받을 수 있
 MVP 버튼은 Kakao login만 노출해도 된다. 다만 FE 상태와 저장소에서 Kakao ID, 이메일, provider subject를 OnMaru 사용자 ID처럼 쓰지 않는다. 서버의 `GET /api/v1/members/me`가 반환하는 opaque `id`도 public 비교용으로 쓰지 않고, 내 것 여부는 각 DTO의 `mine`, `likedByMe`, `savedByMe`를 사용한다.
 
 OAuth token, Kakao access token, refresh token, client secret은 FE localStorage에 저장하지 않는다. cookie 인증 POST/DELETE에는 `GET /auth/csrf`로 받은 `X-CSRF-TOKEN`을 붙인다.
+
+익명 프로필의 전체 ID 목록, `GET/PATCH /members/me`, FE 자산 소유권과 fallback 규칙은 [회원 프로필 API 전달서](../toFE/member-profile-api-handoff-2026-10-03.md)를 따른다.
 
 ## 공통 페이징 규칙
 

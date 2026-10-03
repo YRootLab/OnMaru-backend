@@ -62,7 +62,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("038");
+                    """)).isEqualTo("040");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM information_schema.tables
@@ -70,6 +70,7 @@ class DatabaseMigrationContractTests {
                       AND table_name IN (
                         'catalog_dataset_revisions',
                         'identity_members',
+                        'identity_member_profiles',
                         'operations_sync_runs',
                         'discovery_runs',
                         'community_visit_reviews',
@@ -77,7 +78,7 @@ class DatabaseMigrationContractTests {
                         'operations_retention_deletion_ledger',
                         'stamp_ranking_profiles'
                       )
-                    """)).isEqualTo(8);
+                    """)).isEqualTo(9);
         }
     }
 
@@ -105,12 +106,17 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("038");
+                    """)).isEqualTo("040");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM onmaru.community_visit_reviews
                     WHERE id = '%s'
                     """.formatted(reviewId))).isEqualTo(1);
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*)
+                    FROM onmaru.identity_member_profiles
+                    WHERE member_id = '%s'
+                    """.formatted(memberId))).isEqualTo(1);
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM information_schema.tables

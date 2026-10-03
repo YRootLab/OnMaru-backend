@@ -75,7 +75,7 @@ final class ModerationQueueController {
             if (page.hasNext() && !page.items().isEmpty()) {
                 var last = page.items().getLast();
                 nextCursor = cursorCodec.encode(new AdminCursor("moderation-queue", limit, "priority=all",
-                        last.oldestOpenReportAt(), last.reviewId(), last.priority().name()));
+                        last.oldestOpenReportAt(), last.reviewId(), last.priority().name(), page.totalCount()));
             }
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.noStore())
@@ -84,6 +84,7 @@ final class ModerationQueueController {
                             generatedAt,
                             oldestAge,
                             page.items(),
+                            page.totalCount(),
                             page.hasNext(),
                             nextCursor));
         } catch (IllegalArgumentException exception) {
@@ -110,6 +111,7 @@ final class ModerationQueueController {
             Instant generatedAt,
             long oldestOpenReportAgeSeconds,
             List<ModerationQueueItem> items,
+            long totalCount,
             boolean hasNext,
             String nextCursor) {
 

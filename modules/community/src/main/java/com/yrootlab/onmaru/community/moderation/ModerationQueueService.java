@@ -54,13 +54,14 @@ public final class ModerationQueueService {
         if (readStore != null) return readStore.page(limit, cursor, clock.instant());
 
         // Local/test profile only: production uses the bounded JDBC read model.
-        List<ModerationQueueItem> items = reportStore.executeAtomically(() ->
-                allQueueItems(clock.instant()).stream()
-                        .filter(item -> after(item, cursor))
-                        .limit(limit + 1L)
-                        .toList());
+        List<ModerationQueueItem> matching = reportStore.executeAtomically(() -> allQueueItems(clock.instant()));
+        List<ModerationQueueItem> items = matching.stream()
+                .filter(item -> after(item, cursor))
+                .limit(limit + 1L)
+                .toList();
         boolean hasNext = items.size() > limit;
-        return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+        long totalCount = cursor != null && cursor.totalCount() != null ? cursor.totalCount() : matching.size();
+        return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext, totalCount);
     }
 
     public long oldestQueueAgeSeconds() {

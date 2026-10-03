@@ -64,6 +64,8 @@ public final class JdbcVisitReviewStore implements MutableVisitReviewStore {
     @Override
     public AdminPage<VisitReviewProjection> findAdminPage(VisitReviewStatus status, String query, int limit, AdminCursor cursor) {
         return transactions.execute(connection -> {
+            long totalCount = cursor != null && cursor.totalCount() != null
+                    ? cursor.totalCount() : countAdminReviews(connection, status, query);
             StringBuilder sql = new StringBuilder("""
                     SELECT review.id, review.member_id, review.public_place_id, review.place_name,
                            review.region_code, review.latitude, review.longitude, review.text,
@@ -106,12 +108,40 @@ public final class JdbcVisitReviewStore implements MutableVisitReviewStore {
                                 VisitReviewStatus.valueOf(result.getString("status"))));
                     }
                     boolean hasNext = items.size() > limit;
-                    return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+                    return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext, totalCount);
                 }
             } catch (Exception exception) {
                 throw databaseFailure(exception);
             }
         });
+    }
+
+    private long countAdminReviews(java.sql.Connection connection, VisitReviewStatus status, String query) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT count(*)
+                FROM onmaru.community_visit_reviews review
+                WHERE review.public_place_id IS NOT NULL
+                  AND review.latitude IS NOT NULL
+                  AND review.longitude IS NOT NULL
+                """);
+        if (status != null) sql.append(" AND review.status = ?::onmaru.community_review_status");
+        if (query != null) {
+            sql.append(" AND (strpos(lower(review.text), lower(?)) > 0 OR strpos(lower(coalesce(review.place_name, '')), lower(?)) > 0)");
+        }
+        try (var statement = connection.prepareStatement(sql.toString())) {
+            int index = 1;
+            if (status != null) statement.setString(index++, status.name());
+            if (query != null) {
+                statement.setString(index++, query);
+                statement.setString(index, query);
+            }
+            try (var result = statement.executeQuery()) {
+                result.next();
+                return result.getLong(1);
+            }
+        } catch (SQLException exception) {
+            throw databaseFailure(exception);
+        }
     }
 
     private List<VisitReviewProjection> findSnapshot(java.sql.Connection connection) {

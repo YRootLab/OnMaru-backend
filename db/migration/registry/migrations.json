@@ -338,6 +338,24 @@
       "checksum": "odii-scheduler-run-history-v038-20261002",
       "sha256": "5794da3e9fd77be15d0f67116f9f01ada4bd31275df930e64fe81d0927169779",
       "description": "Odii scheduler lifecycle history compatible with existing sync run states"
+    },
+    {
+      "version": "039",
+      "reservedFor": "ADMIN_TOTAL_COUNT_INDEXES",
+      "issueNumber": 573,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V039__573_admin_total_count_indexes.sql",
+      "checksum": "admin-total-count-indexes-v039-20261003",
+      "sha256": "c2df2386994a3da89a31bc199eb46ad0a0d5055e84f4a5a6fd2f26363e351705",
+      "description": "Filter indexes for admin cursor page totalCount queries"
+    },
+    {
+      "version": "040",
+      "reservedFor": "MEMBER_PROFILES",
+      "issueNumber": 552,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V040__552_member_profiles.sql",
+      "checksum": "member-profiles-v040-20261004",
+      "sha256": "05fb2860d47177f1556f08c5f69daf72416d5a2727e4246b48e19ab37b333ae2",
+      "description": "Privacy-first member display names and FE-owned character/background selections"
     }
   ]
 }

@@ -59,11 +59,12 @@ public final class AdminUserController {
             List<UserResponse> items = page.items().stream().map(UserResponse::from).toList();
             String nextCursor = page.hasNext() && !page.items().isEmpty()
                     ? cursorCodec.encode(new AdminCursor("users", limit, "status=" + normalizedStatus,
-                            page.items().getLast().createdAt(), page.items().getLast().id()))
+                            page.items().getLast().createdAt(), page.items().getLast().id(), null, page.totalCount()))
                     : null;
             Map<String, Object> response = new java.util.LinkedHashMap<>();
             response.put("schemaVersion", "1.0");
             response.put("items", items);
+            response.put("totalCount", page.totalCount());
             response.put("hasNext", page.hasNext());
             if (nextCursor != null) response.put("nextCursor", nextCursor);
             return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);

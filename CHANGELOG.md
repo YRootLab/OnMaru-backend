@@ -4,6 +4,8 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #552의 카카오 비의존 익명 회원 프로필, 마이페이지 부분 수정 API, 온기 후기 최신 작성자 프로필과 FE 자산 ID 계약을 추가했다.
+- Issue #573의 관리자 cursor 목록 응답에 필터 기준 `totalCount`를 추가하고, 서명 cursor에서 최초 전체 건수를 유지하며 PostgreSQL count query index를 보강했다.
 - Issue #592의 운영 관리자 로그인 세션이 PostgreSQL JDBC의 `Instant` 타입 추론 오류로 저장되지 않던 문제를 수정하고, 생성·회전·폐기 통합 회귀 테스트를 추가했다.
 - Issues #543, #554, #555, #556, #568의 신뢰된 CI 관측 후처리, 로컬 Grafana 왕복 검증, release 3회 비교, 수동 3+3 pipeline 실험과 dry-run 기본 Skill을 추가했다.
 - Issue #572의 공개 cursor/limit 목록 응답에 현재 필터 기준 `totalCount`를 추가하고 OpenAPI·fixture·FE 연동 문서를 일치시켰다.

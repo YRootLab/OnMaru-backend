@@ -3,18 +3,26 @@ package com.yrootlab.onmaru.identity.oauth;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleStatus;
 import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleStore;
 import com.yrootlab.onmaru.identity.lifecycle.MemberSummary;
+import com.yrootlab.onmaru.identity.profile.MemberProfile;
+import com.yrootlab.onmaru.identity.profile.MemberProfileBackground;
+import com.yrootlab.onmaru.identity.profile.MemberProfileCharacter;
+import com.yrootlab.onmaru.identity.profile.MemberProfileGenerator;
+import com.yrootlab.onmaru.identity.profile.MemberProfileStore;
+import com.yrootlab.onmaru.identity.profile.NewMemberProfile;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
-public final class InMemoryIdentityStore implements IdentityStore, MemberLifecycleStore {
+public final class InMemoryIdentityStore implements IdentityStore, MemberLifecycleStore, MemberProfileStore {
 
     private final Map<String, OAuthStateRecord> states = new HashMap<>();
     private final Map<ExternalIdentity, UUID> externalAccounts = new HashMap<>();
     private final Map<UUID, MemberRecord> members = new HashMap<>();
+    private final Map<UUID, MemberProfile> profiles = new HashMap<>();
     private final Map<String, StoredSession> sessions = new HashMap<>();
     private final Map<UUID, DeletionRecord> deletionLedger = new HashMap<>();
 
@@ -45,9 +53,9 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
     }
 
     @Override
-    public synchronized UUID linkExternalIdentity(ExternalIdentity identity, Instant now) {
+    public synchronized UUID linkExternalIdentity(ExternalIdentity identity, NewMemberProfile profile, Instant now) {
         return externalAccounts.computeIfAbsent(identity, ignored -> {
-            return createMember(now);
+            return createMember(now, profile);
         });
     }
 
@@ -68,7 +76,15 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
         if (member == null || member.status() != MemberLifecycleStatus.ACTIVE) {
             return Optional.empty();
         }
-        return Optional.of(new MemberSummary(member.id(), null));
+        var profile = profiles.get(member.id());
+        if (profile == null) {
+            throw new IllegalStateException("Active member profile is missing");
+        }
+        return Optional.of(new MemberSummary(
+                member.id(),
+                profile.displayName(),
+                profile.characterId().name(),
+                profile.backgroundId().name()));
     }
 
     @Override
@@ -116,15 +132,67 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
     }
 
     public synchronized UUID createMember(Instant now) {
+        return createMember(now, new MemberProfileGenerator().generate());
+    }
+
+    public synchronized UUID createMember(Instant now, NewMemberProfile profile) {
         var memberId = UUID.randomUUID();
         members.put(memberId, new MemberRecord(memberId, MemberLifecycleStatus.ACTIVE, now));
+        profiles.put(memberId, new MemberProfile(
+                memberId,
+                profile.displayName(),
+                profile.characterId(),
+                profile.backgroundId(),
+                now,
+                now));
         return memberId;
+    }
+
+    @Override
+    public synchronized Optional<MemberProfile> findByMemberId(UUID memberId) {
+        return Optional.ofNullable(profiles.get(memberId));
+    }
+
+    @Override
+    public synchronized Map<UUID, MemberProfile> findByMemberIds(Set<UUID> memberIds) {
+        var found = new HashMap<UUID, MemberProfile>();
+        for (var memberId : memberIds) {
+            var profile = profiles.get(memberId);
+            if (profile != null) {
+                found.put(memberId, profile);
+            }
+        }
+        return Map.copyOf(found);
+    }
+
+    @Override
+    public synchronized Optional<MemberProfile> updateActiveProfile(
+            UUID memberId,
+            String displayName,
+            MemberProfileCharacter characterId,
+            MemberProfileBackground backgroundId,
+            Instant updatedAt) {
+        var member = members.get(memberId);
+        var current = profiles.get(memberId);
+        if (member == null || member.status() != MemberLifecycleStatus.ACTIVE || current == null) {
+            return Optional.empty();
+        }
+        var updated = new MemberProfile(
+                memberId,
+                displayName == null ? current.displayName() : displayName,
+                characterId == null ? current.characterId() : characterId,
+                backgroundId == null ? current.backgroundId() : backgroundId,
+                current.createdAt(),
+                updatedAt);
+        profiles.put(memberId, updated);
+        return Optional.of(updated);
     }
 
     public synchronized void clear() {
         states.clear();
         externalAccounts.clear();
         members.clear();
+        profiles.clear();
         sessions.clear();
         deletionLedger.clear();
     }
@@ -135,6 +203,10 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
 
     int externalAccountCount() {
         return externalAccounts.size();
+    }
+
+    int profileCount() {
+        return profiles.size();
     }
 
     int sessionCount() {

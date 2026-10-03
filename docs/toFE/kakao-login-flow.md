@@ -6,7 +6,7 @@
 
 ## 0. 전제 — FE는 카카오와 직접 통신하지 않는다
 
-FE는 카카오 SDK, JS 키, redirect URI를 **아무것도 다루지 않는다**. 카카오 authorize URL 조립, callback 수신, 토큰 교환, 세션 발급은 전부 백엔드가 한다. FE가 하는 일은 **"로그인 시작 URL로 브라우저를 옮기는 것" 하나**뿐이다.
+FE는 카카오 SDK, JS 키, redirect URI를 **아무것도 다루지 않는다**. 카카오 authorize URL 조립, callback 수신, 토큰 교환, 세션 발급은 전부 백엔드가 한다. FE가 하는 일은 **"로그인 시작 URL로 브라우저를 옮기는 것" 하나**뿐이다. 카카오 이름과 프로필 이미지는 수집하거나 공개 프로필로 사용하지 않으며, 로그인 시 OnMaru 익명 프로필을 별도로 만든다.
 
 기존 `NEXT_PUBLIC_KAKAO_*` 변수(JS 키, REDIRECT_URI, CLIENT_ID)는 모두 폐기 대상이다. FE `.env.local`에는 아래 하나만 있으면 된다:
 
@@ -55,7 +55,7 @@ fetch(`${API}/api/v1/members/me`, { credentials: "include" });
 - 식별자로 카카오 ID·이메일·provider subject를 사용하지 않는다. `mine`, `likedByMe`, `savedByMe` 등 서버 계산 플래그를 사용한다.
 - 401 응답 본문: `{schemaVersion:"1.2", code:"AUTH_REQUIRED", message, requestId, details}` — FE는 `code`로 문구를 결정한다.
 
-### 1-4. unsafe 요청(POST/PUT/DELETE) — CSRF 토큰
+### 1-4. unsafe 요청(POST/PUT/PATCH/DELETE) — CSRF 토큰
 
 cookie 인증 요청에는 CSRF 토큰이 필요하다. 미리 발급받아 헤더로 실는다:
 
@@ -104,7 +104,7 @@ sequenceDiagram
 
     U->>FE: /discover 표시 (auth=success 파싱)
     FE->>BE: GET /api/v1/members/me (credentials: include)
-    BE-->>FE: 200 {schemaVersion, id, displayName}
+    BE-->>FE: 200 {schemaVersion, id, displayName, characterId, backgroundId}
     Note over FE: 로그인 상태 확정 → 개인화 UI 렌더
 ```
 
@@ -150,4 +150,7 @@ sequenceDiagram
 | GET | `/auth/csrf` | CSRF 토큰 + 게스트 세션 발급 | unsafe 호출 전 발급 |
 | POST | `/api/v1/auth/logout` | 로그아웃 (세션 revoke + 쿠키 파기) | CSRF 토큰 필요 |
 | GET | `/api/v1/members/me` | 로그인 상태·프로필 조회 | 401 = 비로그인 |
+| PATCH | `/api/v1/members/me` | 이름·캐릭터·배경 부분 수정 | CSRF 토큰 필요 |
 | DELETE | `/api/v1/members/me` | 회원 탈퇴 접수 | 202 + 쿠키 파기 |
+
+프로필 ID와 FE 자산 매핑 규칙은 [회원 프로필 API 전달서](member-profile-api-handoff-2026-10-03.md)를 따른다.

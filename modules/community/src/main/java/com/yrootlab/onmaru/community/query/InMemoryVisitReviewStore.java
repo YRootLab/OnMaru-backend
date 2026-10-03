@@ -26,18 +26,21 @@ public final class InMemoryVisitReviewStore implements MutableVisitReviewStore {
     public AdminPage<VisitReviewProjection> findAdminPage(VisitReviewStatus status, String query, int limit, AdminCursor cursor) {
         if (unavailable) throw new VisitReviewUnavailableException();
         String search = query == null ? null : query.toLowerCase(java.util.Locale.ROOT);
-        var items = reviews.stream()
+        var filtered = reviews.stream()
                 .filter(review -> status == null || review.status() == status)
                 .filter(review -> search == null || review.text().toLowerCase(java.util.Locale.ROOT).contains(search)
                         || review.placeName() != null && review.placeName().toLowerCase(java.util.Locale.ROOT).contains(search))
                 .sorted(Comparator.comparing(VisitReviewProjection::createdAt).reversed()
                         .thenComparing(VisitReviewProjection::id, Comparator.reverseOrder()))
+                .toList();
+        var items = filtered.stream()
                 .filter(review -> cursor == null || review.createdAt().isBefore(cursor.timestamp())
                         || review.createdAt().equals(cursor.timestamp()) && review.id().compareTo(cursor.id()) < 0)
                 .limit(limit + 1L)
                 .toList();
         boolean hasNext = items.size() > limit;
-        return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+        long totalCount = cursor != null && cursor.totalCount() != null ? cursor.totalCount() : filtered.size();
+        return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext, totalCount);
     }
 
     public void add(VisitReviewProjection review) {
