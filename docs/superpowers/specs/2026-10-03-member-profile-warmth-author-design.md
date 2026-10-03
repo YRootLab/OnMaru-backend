@@ -134,6 +134,8 @@ DB CHECK는 캐릭터·배경 ID 범위와 공백 이름을 방어한다. code p
 
 후기 목록은 페이지에 포함된 작성자 UUID 집합으로 프로필을 한 번에 조회해 N+1 query를 방지한다. Community query 계층은 `VisitReviewAuthorProfileLookup` port와 공개에 필요한 최소 값만 알고, Identity 구현 세부사항에는 의존하지 않는다. JDBC adapter는 한 번의 batch query로 프로필을 제공한다.
 
+탈퇴 cleanup 또는 손상된 legacy data로 작성자 프로필을 찾을 수 없는 후기는 피드 전체를 실패시키지 않는다. 이 경우 `탈퇴한 여행자`, `CHARACTER_01`, `BACKGROUND_01`의 중립 fallback 작성자를 반환한다. 이는 FE의 알 수 없는 ID fallback과 별개인 BE 데이터 무결성 완충 장치다.
+
 ## 6. 컴포넌트와 데이터 흐름
 
 ### 최초 로그인
