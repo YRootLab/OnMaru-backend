@@ -6,13 +6,13 @@
 - 사용자 결정: 카카오 닉네임·프로필 이미지는 사용하지 않는다. 가입 시 익명 이름과 `CHARACTER_01~10`, `BACKGROUND_01~10` 조합을 자동 배정하고, 마이페이지에서 세 값을 수정한다.
 - FE는 캐릭터 정적 자산 10개와 배경 HEX 10개를 소유한다. BE는 고정 ID와 회원 선택만 저장한다.
 - 온기모드 방문 후기는 작성자의 최신 프로필을 반환한다. 프로필을 바꾸면 기존 게시글에도 즉시 반영하며 내부 회원 ID는 공개하지 않는다.
-- DB: V039 `identity_member_profiles`를 추가하고 기존 회원을 안정적인 익명 이름·캐릭터·배경으로 backfill한다. 회원 삭제 시 cascade하고, 이름과 정확한 `01..10` ID 범위를 CHECK로 제한한다.
+- DB: V040 `identity_member_profiles`를 추가하고 기존 회원을 안정적인 익명 이름·캐릭터·배경으로 backfill한다. 회원 삭제 시 cascade하고, 이름과 정확한 `01..10` ID 범위를 CHECK로 제한한다.
 - API: `GET /api/v1/members/me`가 non-null 프로필 세 값을 반환하고, `PATCH /api/v1/members/me`가 CSRF를 요구하는 부분 수정을 제공한다. 명시적 null, 빈 요청, 알 수 없는 필드와 범위 밖 ID는 `400 VALIDATION_ERROR`다.
 - 후기: 생성·목록 `VisitReview.author`는 `{displayName,characterId,backgroundId}`만 제공한다. 페이지 작성자 ID를 deduplicate해 한 번에 조회하고 프로필 누락 시 `탈퇴한 여행자`/01/01로 대체한다.
 - 계약: Identity·VisitReview OpenAPI, fixture, Kakao 가이드와 [FE 전달서](docs/toFE/member-profile-api-handoff-2026-10-03.md)를 갱신했다. [OnMaru-Frontend #292 최종 명세 댓글](https://github.com/YRootLab/OnMaru-Frontend/issues/292#issuecomment-5969189832)과 [Backend #552](https://github.com/YRootLab/OnMaru-backend/issues/552)에 최종 방향과 상호 링크를 기록했다.
 - 검증: 관련 identity/community/JDBC/Spring 집중 회귀 `BUILD SUCCESSFUL`(2m 13s), `DatabaseMigrationContractTests` 수정 후 단독 `BUILD SUCCESSFUL`, contract/R1/R2/Journey gate 통과, Node 127개 통과, AI 304개 통과·1개 skip, `git diff --check`와 branch parser #552 통과.
-- 전체 `./gradlew test --no-daemon`: 523개 중 최초 3개 실패·2개 skip. V039 최신 버전 기대값 누락 2건(`DatabaseMigrationContractTests.migratesEmptyDatabaseToLatestBaseline`, `upgradesPreviousBaselineToLatestWithoutLosingRows`)은 수정 후 통과했다. 남은 1건은 작업 전 baseline에서도 재현된 ARM64 호스트의 amd64 PostGIS 에뮬레이션 성능 예산 실패 `JdbcTourApiCatalogPublisherTests.thirtyThousandPublishedPlacesStayWithinMapInfoLatencyBudgets`다. 기능 정확성 검증과 CI `verify`는 별도로 확인한다.
-- 남은 위험: 실제 운영 DB에서 V039 migration/backfill과 잠금 시간을 staging에서 확인하고, FE의 10개 캐릭터·10개 색상 및 100개 조합 대비/unknown-ID fallback을 통합 smoke해야 한다.
+- 전체 `./gradlew test --no-daemon`: 523개 중 최초 3개 실패·2개 skip. 프로필 migration 최신 버전 기대값 누락 2건(`DatabaseMigrationContractTests.migratesEmptyDatabaseToLatestBaseline`, `upgradesPreviousBaselineToLatestWithoutLosingRows`)은 수정 후 통과했다. 남은 1건은 작업 전 baseline에서도 재현된 ARM64 호스트의 amd64 PostGIS 에뮬레이션 성능 예산 실패 `JdbcTourApiCatalogPublisherTests.thirtyThousandPublishedPlacesStayWithinMapInfoLatencyBudgets`다. 기능 정확성 검증과 CI `verify`는 별도로 확인한다.
+- 남은 위험: 실제 운영 DB에서 V040 migration/backfill과 잠금 시간을 staging에서 확인하고, FE의 10개 캐릭터·10개 색상 및 100개 조합 대비/unknown-ID fallback을 통합 smoke해야 한다.
 - 다음 단계: work-log cleanup 후 `develop` 대상 PR을 만들고 CI `verify`를 확인한다. 배포 뒤 기존 후기의 최신 프로필 반영과 프로필 PATCH를 staging에서 smoke한다.
 
 ## 2026-10-03 Issue #592 운영 관리자 로그인 세션 저장 수정

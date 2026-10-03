@@ -34,16 +34,19 @@ public final class InMemoryReviewReportStore implements ReviewReportStore {
     }
 
     public AdminPage<ReviewReport> openReportsPage(ReviewReportReason reason, int limit, AdminCursor cursor) {
-        var items = reports.stream()
+        var filtered = reports.stream()
                 .filter(report -> report.status() == ReviewReportStatus.OPEN)
                 .filter(report -> reason == null || report.reason() == reason)
                 .sorted(Comparator.comparing(ReviewReport::createdAt).reversed()
                         .thenComparing(ReviewReport::reportId, Comparator.reverseOrder()))
+                .toList();
+        var items = filtered.stream()
                 .filter(report -> cursor == null || report.createdAt().isBefore(cursor.timestamp())
                         || report.createdAt().equals(cursor.timestamp()) && report.reportId().compareTo(cursor.id()) < 0)
                 .limit(limit + 1L).toList();
         boolean hasNext = items.size() > limit;
-        return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+        long totalCount = cursor != null && cursor.totalCount() != null ? cursor.totalCount() : filtered.size();
+        return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext, totalCount);
     }
 
     public List<ReviewReport> reports() {

@@ -31,10 +31,10 @@
 
 ---
 
-### Task 1: V039 회원 프로필 schema와 기존 회원 backfill
+### Task 1: V040 회원 프로필 schema와 기존 회원 backfill
 
 **Files:**
-- Create: `apps/spring-api/src/main/resources/db/migration/baseline/V039__552_member_profiles.sql`
+- Create: `apps/spring-api/src/main/resources/db/migration/baseline/V040__552_member_profiles.sql`
 - Modify: `apps/spring-api/src/test/java/com/yrootlab/onmaru/testing/postgres/IdentityMigrationTests.java`
 - Modify: `docs/database/schema.md`
 
@@ -42,34 +42,34 @@
 - Consumes: `onmaru.identity_members(id, status, created_at)` from V003.
 - Produces: `onmaru.identity_member_profiles(member_id, display_name, character_id, background_id, created_at, updated_at)` with one profile per existing member.
 
-- [ ] **Step 1: Write the failing V038→V039 migration test**
+- [ ] **Step 1: Write the failing V039→V040 migration test**
 
-Add `memberProfilesBackfillExistingMembersAndEnforceCatalog()` to `IdentityMigrationTests`: migrate through V038, insert a fixed ACTIVE member, migrate through V039, then assert exactly one profile exists; `display_name` is 2~20 characters; character/background match `CHARACTER_(0[1-9]|10)` and `BACKGROUND_(0[1-9]|10)`; invalid IDs, blank name, and `updated_at < created_at` fail; deleting the member cascades the profile.
+Add `memberProfilesBackfillExistingMembersAndEnforceCatalog()` to `IdentityMigrationTests`: migrate through V039, insert a fixed ACTIVE member, migrate through V040, then assert exactly one profile exists; `display_name` is 2~20 characters; character/background match `CHARACTER_(0[1-9]|10)` and `BACKGROUND_(0[1-9]|10)`; invalid IDs, blank name, and `updated_at < created_at` fail; deleting the member cascades the profile.
 
 - [ ] **Step 2: Run the migration test to verify RED**
 
 Run: `./gradlew :apps:spring-api:test --tests '*IdentityMigrationTests.memberProfilesBackfillExistingMembersAndEnforceCatalog' --no-daemon`
 
-Expected: FAIL because V039/table `identity_member_profiles` does not exist.
+Expected: FAIL because V040/table `identity_member_profiles` does not exist.
 
-- [ ] **Step 3: Implement V039**
+- [ ] **Step 3: Implement V040**
 
-Create the table and CHECK constraints from the spec, backfill every existing member using stable UUID hash buckets for the exact 10 adjective values, 10 noun values, 4-digit suffix, 10 character IDs, and 10 background IDs. Register version `039`, `reserved_for='MEMBER_PROFILES'`, Issue `552`; add checksum/comment metadata. Do not add image URL or HEX columns.
+Create the table and CHECK constraints from the spec, backfill every existing member using stable UUID hash buckets for the exact 10 adjective values, 10 noun values, 4-digit suffix, 10 character IDs, and 10 background IDs. Register version `040`, `reserved_for='MEMBER_PROFILES'`, Issue `552`; add checksum/comment metadata. Do not add image URL or HEX columns.
 
 - [ ] **Step 4: Document the executable schema**
 
-Append the V039 ownership, ID catalog, backfill behavior, latest-profile join behavior, and FK cascade to `docs/database/schema.md`.
+Append the V040 ownership, ID catalog, backfill behavior, latest-profile join behavior, and FK cascade to `docs/database/schema.md`.
 
 - [ ] **Step 5: Run migration and policy tests to verify GREEN**
 
 Run: `./gradlew :apps:spring-api:test --tests '*IdentityMigrationTests' --tests '*FlywayMigrationBaselineTests' --no-daemon && node --test scripts/test/migration-policy.test.mjs`
 
-Expected: Gradle `BUILD SUCCESSFUL`; migration policy test passes with V039 reserved for #552.
+Expected: Gradle `BUILD SUCCESSFUL`; migration policy test passes with V040 reserved for #552.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/spring-api/src/main/resources/db/migration/baseline/V039__552_member_profiles.sql apps/spring-api/src/test/java/com/yrootlab/onmaru/testing/postgres/IdentityMigrationTests.java docs/database/schema.md
+git add apps/spring-api/src/main/resources/db/migration/baseline/V040__552_member_profiles.sql apps/spring-api/src/test/java/com/yrootlab/onmaru/testing/postgres/IdentityMigrationTests.java docs/database/schema.md
 git commit -m "feat(profile): 회원 익명 프로필 스키마 추가"
 ```
 

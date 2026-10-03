@@ -1,4 +1,4 @@
--- onmaru-checksum: member-profiles-v039-20261003
+-- onmaru-checksum: member-profiles-v040-20261004
 -- Issue: #552 Privacy-first member profiles rendered by FE-owned assets.
 
 CREATE TABLE onmaru.identity_member_profiles (
@@ -65,7 +65,7 @@ COMMENT ON COLUMN onmaru.identity_member_profiles.background_id IS
 INSERT INTO onmaru_registry.migration_version_reservations (
     version, reserved_for, issue_number, description
 ) VALUES (
-    '039', 'MEMBER_PROFILES', 552,
+    '040', 'MEMBER_PROFILES', 552,
     'Privacy-first member display names and FE-owned character/background selections'
 ) ON CONFLICT (version) DO UPDATE
 SET reserved_for = EXCLUDED.reserved_for,

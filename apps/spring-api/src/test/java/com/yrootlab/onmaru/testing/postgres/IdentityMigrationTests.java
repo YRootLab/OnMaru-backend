@@ -198,7 +198,7 @@ class IdentityMigrationTests {
 
     @Test
     void memberProfilesBackfillExistingMembersAndEnforceCatalog() throws Exception {
-        resetAndMigrateThrough("038");
+        resetAndMigrateThrough("039");
         var member = UUID.fromString("55200000-0000-0000-0000-000000000001");
 
         try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
@@ -206,7 +206,7 @@ class IdentityMigrationTests {
             insertMember(statement, member);
         }
 
-        migrateThrough("039");
+        migrateThrough("040");
 
         try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
              var statement = connection.createStatement()) {

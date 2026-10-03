@@ -12,6 +12,11 @@
 // ./overview.dbml
 // V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
 // failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
+// V039는 관리자 cursor 목록의 필터 전체 건수와 keyset page 조회를 위해
+// identity_members(status, created_at, id), 좌표 snapshot이 완전한
+// community_visit_reviews(status, created_at, id), OPEN community_review_reports
+// (reason, created_at, id)에 전용 index를 추가한다. totalCount count query에는
+// cursor 조건을 적용하지 않아 첫 페이지와 다음 페이지가 같은 필터 전체 건수를 반환한다.
 // 기존 status enum은 유지하며 STARTED→RUNNING, COMPLETED→SUCCEEDED,
 // FAILED→FAILED, SKIPPED→ABANDONED로 대응한다. 다른 sync job은 새 컬럼을 null로 유지한다.
 // 시작과 terminal은 같은 id로 독립 commit하며 terminal 재기록은 기존 terminal을 덮어쓰지 않는다.
@@ -114,7 +119,7 @@
 // V037은 V036보다 먼저 게시된 활성 TourAPI revision의 지도 장소·카테고리·지역 집계
 // projection 및 publication을 원천 장소 변경 없이 채운다. 지역 코드가 없는 장소도
 // 위치와 공개 ID가 있으면 지도 목록에 포함하고 지역 집계에서는 제외한다.
-// V039부터 identity_member_profiles가 OnMaru 회원의 현재 공개 프로필을 소유한다.
+// V040부터 identity_member_profiles가 OnMaru 회원의 현재 공개 프로필을 소유한다.
 // display_name은 trim된 2~20자 익명 이름이며 중복을 허용한다. character_id는
 // CHARACTER_01..10, background_id는 BACKGROUND_01..10의 고정 FE 자산 슬롯만 저장한다.
 // 실제 캐릭터 이미지와 배경 HEX는 FE가 관리하며 DB에는 URL이나 HEX를 저장하지 않는다.
