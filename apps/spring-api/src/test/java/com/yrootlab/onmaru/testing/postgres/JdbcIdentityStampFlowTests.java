@@ -6,6 +6,9 @@ import com.yrootlab.onmaru.identity.oauth.OAuthLoginService;
 import com.yrootlab.onmaru.identity.oauth.OAuthProvider;
 import com.yrootlab.onmaru.identity.oauth.StartOAuthLoginCommand;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.identity.profile.MemberProfileGenerator;
+import com.yrootlab.onmaru.identity.profile.MemberProfilePatch;
+import com.yrootlab.onmaru.identity.profile.MemberProfileService;
 import com.yrootlab.onmaru.persistence.identity.JdbcIdentityStore;
 import com.yrootlab.onmaru.persistence.stamp.JdbcStampRankingStore;
 import com.yrootlab.onmaru.persistence.stamp.JdbcStampStore;
@@ -56,7 +59,11 @@ class JdbcIdentityStampFlowTests {
         var dataSource = new DriverManagerDataSource(jdbcUrl(), "onmaru_test", "onmaru_test");
         var identityStore = new JdbcIdentityStore(dataSource);
         var hasher = new TokenHasher("integration-pepper");
-        var login = new OAuthLoginService(identityStore, hasher, Clock.fixed(NOW, ZoneOffset.UTC));
+        var login = new OAuthLoginService(
+                identityStore,
+                hasher,
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                new MemberProfileGenerator(bound -> bound == 10_000 ? 552 : 0));
         var provider = new OAuthProvider("KAKAO", "https://kauth.kakao.com");
         var started = login.startLogin(new StartOAuthLoginCommand(
                 provider, "browser-nonce", "pkce-verifier", null, "/stamps"));
@@ -75,7 +82,28 @@ class JdbcIdentityStampFlowTests {
                 "익명 유람객 0262", "익명 유람객 0262", StampRankingNicknameType.GENERATED), NOW);
 
         assertThat(identityStore.findActiveMemberBySessionHash(hasher.hash(result.sessionToken()), NOW))
-                .get().extracting("id").isEqualTo(result.memberId());
+                .get().extracting("id", "displayName", "characterId", "backgroundId")
+                .containsExactly(result.memberId(), "고요한 마루 0552", "CHARACTER_01", "BACKGROUND_01");
+        assertThat(profileCount()).isEqualTo(1);
+
+        new MemberProfileService(identityStore).updateActiveProfile(
+                result.memberId(),
+                new MemberProfilePatch("바꾼 이름", "CHARACTER_10", "BACKGROUND_10"),
+                NOW.plusSeconds(60)).orElseThrow();
+        var secondStarted = login.startLogin(new StartOAuthLoginCommand(
+                provider, "browser-nonce-2", "pkce-verifier-2", null, "/stamps"));
+        var second = login.completeLogin(new CompleteOAuthLoginCommand(
+                provider, secondStarted.state(), "browser-nonce-2", "pkce-verifier-2",
+                new ExternalIdentity("KAKAO", "https://kauth.kakao.com", "kakao-user-262")));
+
+        assertThat(second.memberId()).isEqualTo(result.memberId());
+        assertThat(identityStore.findByMemberId(result.memberId()).orElseThrow())
+                .extracting("displayName", "characterId", "backgroundId")
+                .containsExactly(
+                        "바꾼 이름",
+                        com.yrootlab.onmaru.identity.profile.MemberProfileCharacter.CHARACTER_10,
+                        com.yrootlab.onmaru.identity.profile.MemberProfileBackground.BACKGROUND_10);
+        assertThat(profileCount()).isEqualTo(1);
         assertThat(checkedIn.newAwards()).extracting("code").containsExactly("stamp_bukchon");
         assertThat(status.participating()).isTrue();
         assertThat(rankings.leaderboard(20)).extracting("publicNickname")
@@ -93,6 +121,15 @@ class JdbcIdentityStampFlowTests {
             statement.executeUpdate();
         }
         return placeId;
+    }
+
+    private static int profileCount() throws Exception {
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
+             var statement = connection.createStatement();
+             var result = statement.executeQuery("SELECT COUNT(*) FROM onmaru.identity_member_profiles")) {
+            result.next();
+            return result.getInt(1);
+        }
     }
 
     private static void resetAndMigrate() throws Exception {

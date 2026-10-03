@@ -7,6 +7,11 @@ import com.yrootlab.onmaru.identity.oauth.ExternalIdentity;
 import com.yrootlab.onmaru.identity.oauth.IdentityStore;
 import com.yrootlab.onmaru.identity.oauth.OAuthStateRecord;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
+import com.yrootlab.onmaru.identity.profile.MemberProfile;
+import com.yrootlab.onmaru.identity.profile.MemberProfileBackground;
+import com.yrootlab.onmaru.identity.profile.MemberProfileCharacter;
+import com.yrootlab.onmaru.identity.profile.MemberProfileStore;
+import com.yrootlab.onmaru.identity.profile.NewMemberProfile;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -14,10 +19,13 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
-public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleStore {
+public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleStore, MemberProfileStore {
 
     private final DataSource dataSource;
 
@@ -91,7 +99,7 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
     }
 
     @Override
-    public UUID linkExternalIdentity(ExternalIdentity identity, Instant now) {
+    public UUID linkExternalIdentity(ExternalIdentity identity, NewMemberProfile profile, Instant now) {
         return inTransaction(connection -> {
             try (var existing = connection.prepareStatement("""
                     SELECT member_id FROM onmaru.identity_external_accounts
@@ -113,6 +121,19 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
                 member.setObject(1, memberId);
                 member.setObject(2, utc(now));
                 member.executeUpdate();
+            }
+            try (var memberProfile = connection.prepareStatement("""
+                    INSERT INTO onmaru.identity_member_profiles (
+                        member_id, display_name, character_id, background_id, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """)) {
+                memberProfile.setObject(1, memberId);
+                memberProfile.setString(2, profile.displayName());
+                memberProfile.setString(3, profile.characterId().name());
+                memberProfile.setString(4, profile.backgroundId().name());
+                memberProfile.setObject(5, utc(now));
+                memberProfile.setObject(6, utc(now));
+                memberProfile.executeUpdate();
             }
             try (var account = connection.prepareStatement("""
                     INSERT INTO onmaru.identity_external_accounts (
@@ -180,9 +201,10 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
     public Optional<MemberSummary> findActiveMemberBySessionHash(String sessionTokenHash, Instant now) {
         return withConnection(connection -> {
             try (var statement = connection.prepareStatement("""
-                    SELECT member.id
+                    SELECT member.id, profile.display_name, profile.character_id, profile.background_id
                     FROM onmaru.identity_sessions session
                     JOIN onmaru.identity_members member ON member.id = session.member_id
+                    JOIN onmaru.identity_member_profiles profile ON profile.member_id = member.id
                     WHERE session.token_hash = ? AND session.revoked_at IS NULL
                       AND session.absolute_expires_at > ? AND member.status = 'ACTIVE'
                     """)) {
@@ -190,7 +212,11 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
                 statement.setObject(2, utc(now));
                 try (var result = statement.executeQuery()) {
                     return result.next()
-                            ? Optional.of(new MemberSummary(result.getObject(1, UUID.class), null))
+                            ? Optional.of(new MemberSummary(
+                                    result.getObject("id", UUID.class),
+                                    result.getString("display_name"),
+                                    result.getString("character_id"),
+                                    result.getString("background_id")))
                             : Optional.empty();
                 }
             }
@@ -292,6 +318,85 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
                 }
             }
         });
+    }
+
+    @Override
+    public Optional<MemberProfile> findByMemberId(UUID memberId) {
+        return withConnection(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    SELECT member_id, display_name, character_id, background_id, created_at, updated_at
+                    FROM onmaru.identity_member_profiles
+                    WHERE member_id = ?
+                    """)) {
+                statement.setObject(1, memberId);
+                try (var result = statement.executeQuery()) {
+                    return result.next() ? Optional.of(mapProfile(result)) : Optional.empty();
+                }
+            }
+        });
+    }
+
+    @Override
+    public Map<UUID, MemberProfile> findByMemberIds(Set<UUID> memberIds) {
+        if (memberIds.isEmpty()) {
+            return Map.of();
+        }
+        return withConnection(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    SELECT member_id, display_name, character_id, background_id, created_at, updated_at
+                    FROM onmaru.identity_member_profiles
+                    WHERE member_id = ANY (?)
+                    """)) {
+                statement.setArray(1, connection.createArrayOf("uuid", memberIds.toArray()));
+                try (var result = statement.executeQuery()) {
+                    var profiles = new HashMap<UUID, MemberProfile>();
+                    while (result.next()) {
+                        var profile = mapProfile(result);
+                        profiles.put(profile.memberId(), profile);
+                    }
+                    return Map.copyOf(profiles);
+                }
+            }
+        });
+    }
+
+    @Override
+    public Optional<MemberProfile> updateActiveProfile(
+            UUID memberId,
+            String displayName,
+            MemberProfileCharacter characterId,
+            MemberProfileBackground backgroundId,
+            Instant updatedAt) {
+        return withConnection(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    UPDATE onmaru.identity_member_profiles profile
+                    SET display_name = ?, character_id = ?, background_id = ?, updated_at = ?
+                    FROM onmaru.identity_members member
+                    WHERE profile.member_id = ? AND member.id = profile.member_id
+                      AND member.status = 'ACTIVE'
+                    RETURNING profile.member_id, profile.display_name, profile.character_id,
+                              profile.background_id, profile.created_at, profile.updated_at
+                    """)) {
+                statement.setString(1, displayName);
+                statement.setString(2, characterId.name());
+                statement.setString(3, backgroundId.name());
+                statement.setObject(4, utc(updatedAt));
+                statement.setObject(5, memberId);
+                try (var result = statement.executeQuery()) {
+                    return result.next() ? Optional.of(mapProfile(result)) : Optional.empty();
+                }
+            }
+        });
+    }
+
+    private MemberProfile mapProfile(java.sql.ResultSet result) throws SQLException {
+        return new MemberProfile(
+                result.getObject("member_id", UUID.class),
+                result.getString("display_name"),
+                MemberProfileCharacter.valueOf(result.getString("character_id")),
+                MemberProfileBackground.valueOf(result.getString("background_id")),
+                result.getObject("created_at", OffsetDateTime.class).toInstant(),
+                result.getObject("updated_at", OffsetDateTime.class).toInstant());
     }
 
     private void bindIdentity(java.sql.PreparedStatement statement, ExternalIdentity identity) throws SQLException {

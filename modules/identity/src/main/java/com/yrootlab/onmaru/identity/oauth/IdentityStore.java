@@ -1,5 +1,7 @@
 package com.yrootlab.onmaru.identity.oauth;
 
+import com.yrootlab.onmaru.identity.profile.NewMemberProfile;
+
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,7 +17,7 @@ public interface IdentityStore {
             String pkceVerifierHash,
             Instant now);
 
-    UUID linkExternalIdentity(ExternalIdentity identity, Instant now);
+    UUID linkExternalIdentity(ExternalIdentity identity, NewMemberProfile profile, Instant now);
 
     void saveSession(SessionRecord session);
 }
