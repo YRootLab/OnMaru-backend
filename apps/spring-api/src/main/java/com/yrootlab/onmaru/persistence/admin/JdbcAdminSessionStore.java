@@ -6,6 +6,8 @@ import com.yrootlab.onmaru.admin.auth.AdminSessionStore;
 import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,8 +61,8 @@ public final class JdbcAdminSessionStore implements AdminSessionStore {
                     SET last_seen_at = ?, revoked_at = ?, rotated_to_hash = ?
                     WHERE token_hash = ? AND revoked_at IS NULL
                     """)) {
-                update.setObject(1, current.lastSeenAt());
-                update.setObject(2, current.revokedAt());
+                update.setObject(1, toOffsetDateTime(current.lastSeenAt()));
+                update.setObject(2, toOffsetDateTime(current.revokedAt()));
                 update.setString(3, current.rotatedToHash());
                 update.setString(4, current.tokenHash());
                 if (update.executeUpdate() != 1) {
@@ -89,8 +91,8 @@ public final class JdbcAdminSessionStore implements AdminSessionStore {
                 SET revoked_at = COALESCE(revoked_at, ?), last_seen_at = ?
                 WHERE token_hash = ?
                 """)) {
-            statement.setObject(1, revokedAt);
-            statement.setObject(2, revokedAt);
+            statement.setObject(1, toOffsetDateTime(revokedAt));
+            statement.setObject(2, toOffsetDateTime(revokedAt));
             statement.setString(3, tokenHash);
             statement.executeUpdate();
         } catch (SQLException exception) {
@@ -101,11 +103,15 @@ public final class JdbcAdminSessionStore implements AdminSessionStore {
     private static void bind(java.sql.PreparedStatement statement, AdminSession session) throws SQLException {
         statement.setString(1, session.tokenHash());
         statement.setObject(2, session.adminId());
-        statement.setObject(3, session.createdAt());
-        statement.setObject(4, session.lastSeenAt());
-        statement.setObject(5, session.expiresAt());
-        statement.setObject(6, session.revokedAt());
+        statement.setObject(3, toOffsetDateTime(session.createdAt()));
+        statement.setObject(4, toOffsetDateTime(session.lastSeenAt()));
+        statement.setObject(5, toOffsetDateTime(session.expiresAt()));
+        statement.setObject(6, toOffsetDateTime(session.revokedAt()));
         statement.setString(7, session.rotatedToHash());
+    }
+
+    private static OffsetDateTime toOffsetDateTime(Instant value) {
+        return value == null ? null : OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
     }
 
     private static AdminSession read(java.sql.ResultSet result) throws SQLException {

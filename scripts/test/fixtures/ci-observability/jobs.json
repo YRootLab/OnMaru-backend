@@ -1,0 +1,17 @@
+{
+  "total_count": 1,
+  "jobs": [
+    {
+      "id": 991,
+      "run_id": 731,
+      "run_attempt": 2,
+      "name": "benchmark / module-test (catalog)",
+      "conclusion": "success",
+      "started_at": "2026-10-02T00:00:00Z",
+      "completed_at": "2026-10-02T00:00:08Z",
+      "steps": [
+        {"number": 1, "name": "Run consumer-owned module command without secrets", "conclusion": "success", "started_at": "2026-10-02T00:00:00Z", "completed_at": "2026-10-02T00:00:08Z"}
+      ]
+    }
+  ]
+}

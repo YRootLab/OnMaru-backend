@@ -1,0 +1,111 @@
+name: Pipeline Benchmark Experiment
+run-name: pipeline-experiment/${{ github.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: Immutable develop workflow/config SHA
+        type: string
+        required: true
+      candidate_ref:
+        description: Immutable feature workflow/config SHA
+        type: string
+        required: true
+      scope:
+        description: Committed benchmark plan scope
+        type: choice
+        options: [ci, test]
+        required: true
+      reason:
+        description: Experiment reason (no commands)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-experiment-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  BASELINE_REF: ${{ inputs.baseline_ref }}
+  CANDIDATE_REF: ${{ inputs.candidate_ref }}
+  SCOPE: ${{ inputs.scope }}
+  REASON: ${{ inputs.reason }}
+
+jobs:
+  control:
+    if: github.repository == 'YRootLab/OnMaru-backend' && github.ref == 'refs/heads/develop' && github.sha == inputs.baseline_ref && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dispatch six distinct runs and verify their receipts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPERIMENT_OUT: ${{ runner.temp }}/pipeline-experiment
+        run: node scripts/benchmark/pipeline-experiment.mjs control
+      - name: Preserve receipts and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-experiment-control-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pipeline-experiment
+          if-no-files-found: warn
+          retention-days: 14
+
+  attest:
+    needs: control
+    if: github.repository == 'YRootLab/OnMaru-backend' && github.ref == 'refs/heads/develop' && github.sha == inputs.baseline_ref && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: pipeline-experiment-control-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pipeline-experiment
+      - name: Independently verify API, committed source, worker evidence and final bytes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPERIMENT_OUT: ${{ runner.temp }}/pipeline-experiment
+        run: node scripts/benchmark/pipeline-experiment.mjs attest
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ runner.temp }}/pipeline-experiment/experiment-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-experiment-manifest-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pipeline-experiment/experiment-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve attestor diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-experiment-diagnostic-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pipeline-experiment/diagnostic-*.json
+          if-no-files-found: warn
+          retention-days: 14
