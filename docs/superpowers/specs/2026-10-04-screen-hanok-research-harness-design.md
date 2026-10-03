@@ -79,6 +79,21 @@ TourAPI `contentId`를 원천 레코드의 안정 키로 사용하고 기존 can
 
 `MISSING`은 즉시 삭제하지 않고 연속 누락 횟수와 마지막 관측 revision을 기록한다. source record가 변경되더라도 기존 작품 연결은 보존하고 재조사 job만 추가한다. 전체 정렬된 identity/hash manifest의 dataset hash가 같으면 projection 재게시와 후속 job 생성을 생략할 수 있지만, ETag나 change feed가 없는 한 TourAPI pagination 자체는 수행한다.
 
+### 기존 장소의 기본·상세 정보 갱신
+
+목록 snapshot hash와 상세 정보 hash를 분리한다. 14일 통합 run은 전국 기본 목록을 받아 `list_hash`를 비교하고, 신규 장소와 `list_hash`가 바뀐 기존 장소만 상세 API 갱신 queue에 넣는다. 상세 응답은 `detail_hash`, `detail_checked_at`, `next_detail_refresh_at`을 저장한다. 이름, 주소, 좌표, category, 대표 이미지처럼 공개 read model에 영향을 주는 필드가 바뀌면 해당 장소 projection만 다시 게시한다.
+
+목록 응답에 나타나지 않는 상세 필드 변경도 놓치지 않도록 변경 없는 장소를 중요도별 TTL로 순환 재검증한다.
+
+- 운영 화면에 노출 중이거나 저장·조회가 많은 장소: 30일
+- 스크린 속 한옥·소리마루 등 연결 콘텐츠가 있는 장소: 60일
+- 그 밖의 활성 장소: 180일
+- `MISSING`, 비공개, 장기 미사용 장소: 자동 상세 갱신 제외 또는 연 1회
+
+TTL이 지나도 모든 상세를 한 번에 호출하지 않고 일일 quota 안에서 오래된 순서와 중요도 점수로 나눠 처리한다. 사용자가 오래된 장소 상세를 조회하면 현재 저장값을 즉시 반환하고, `next_detail_refresh_at`이 지났을 때 비동기 refresh job만 등록하는 stale-while-revalidate 방식을 사용한다. 동일 장소의 미완료 refresh job은 하나만 허용한다.
+
+이미지 URL은 매번 파일을 다시 내려받지 않는다. URL이 바뀌었을 때만 새 metadata를 처리하고, 기존 대표 이미지는 낮은 빈도의 URL health check로 확인한다. 상세 API 실패, 빈 응답, 일시적인 이미지 장애는 기존 정상 데이터를 지우지 않으며 재시도 후에도 실패하면 `STALE`로 표시한다. 운영자는 특정 장소, category 또는 revision을 수동 재검증할 수 있다.
+
 ## 후보 선정
 
 초기 backfill은 활성 canonical catalog 전체를 대상으로 단계적으로 수행한다. 기존 category를 변경하거나 새 category 체계를 도입하지 않는다.
