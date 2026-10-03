@@ -56,7 +56,7 @@ class MemberProfileServiceTests {
     void rejectsInvalidDisplayNamesWithTheDisplayNameField() {
         var service = new MemberProfileService(new FakeStore(profile(MEMBER_ID, "고요한 마루 0001")));
 
-        for (String invalid : new String[]{"   ", "가", "가".repeat(21), "두\n줄", "제어\u0000문자"}) {
+        for (String invalid : new String[]{"   ", "가", "가".repeat(21), "두\n줄", "제어\u0000문자", "두\u2028줄", "두\u2029줄"}) {
             assertThatThrownBy(() -> service.updateActiveProfile(
                     MEMBER_ID, new MemberProfilePatch(invalid, null, null), UPDATED_AT))
                     .isInstanceOf(MemberProfileInvalidException.class)
@@ -157,9 +157,9 @@ class MemberProfileServiceTests {
             }
             var updated = new MemberProfile(
                     memberId,
-                    displayName,
-                    characterId,
-                    backgroundId,
+                    displayName == null ? current.displayName() : displayName,
+                    characterId == null ? current.characterId() : characterId,
+                    backgroundId == null ? current.backgroundId() : backgroundId,
                     current.createdAt(),
                     updatedAt);
             profiles.put(memberId, updated);

@@ -204,20 +204,24 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
                     SELECT member.id, profile.display_name, profile.character_id, profile.background_id
                     FROM onmaru.identity_sessions session
                     JOIN onmaru.identity_members member ON member.id = session.member_id
-                    JOIN onmaru.identity_member_profiles profile ON profile.member_id = member.id
+                    LEFT JOIN onmaru.identity_member_profiles profile ON profile.member_id = member.id
                     WHERE session.token_hash = ? AND session.revoked_at IS NULL
                       AND session.absolute_expires_at > ? AND member.status = 'ACTIVE'
                     """)) {
                 statement.setString(1, sessionTokenHash);
                 statement.setObject(2, utc(now));
                 try (var result = statement.executeQuery()) {
-                    return result.next()
-                            ? Optional.of(new MemberSummary(
-                                    result.getObject("id", UUID.class),
-                                    result.getString("display_name"),
-                                    result.getString("character_id"),
-                                    result.getString("background_id")))
-                            : Optional.empty();
+                    if (!result.next()) {
+                        return Optional.empty();
+                    }
+                    if (result.getString("display_name") == null) {
+                        throw new IllegalStateException("Active member profile is missing");
+                    }
+                    return Optional.of(new MemberSummary(
+                            result.getObject("id", UUID.class),
+                            result.getString("display_name"),
+                            result.getString("character_id"),
+                            result.getString("background_id")));
                 }
             }
         });
@@ -370,7 +374,10 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
         return withConnection(connection -> {
             try (var statement = connection.prepareStatement("""
                     UPDATE onmaru.identity_member_profiles profile
-                    SET display_name = ?, character_id = ?, background_id = ?, updated_at = ?
+                    SET display_name = COALESCE(?, profile.display_name),
+                        character_id = COALESCE(?, profile.character_id),
+                        background_id = COALESCE(?, profile.background_id),
+                        updated_at = ?
                     FROM onmaru.identity_members member
                     WHERE profile.member_id = ? AND member.id = profile.member_id
                       AND member.status = 'ACTIVE'
@@ -378,8 +385,8 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
                               profile.background_id, profile.created_at, profile.updated_at
                     """)) {
                 statement.setString(1, displayName);
-                statement.setString(2, characterId.name());
-                statement.setString(3, backgroundId.name());
+                statement.setString(2, characterId == null ? null : characterId.name());
+                statement.setString(3, backgroundId == null ? null : backgroundId.name());
                 statement.setObject(4, utc(updatedAt));
                 statement.setObject(5, memberId);
                 try (var result = statement.executeQuery()) {

@@ -78,7 +78,7 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
         }
         var profile = profiles.get(member.id());
         if (profile == null) {
-            return Optional.empty();
+            throw new IllegalStateException("Active member profile is missing");
         }
         return Optional.of(new MemberSummary(
                 member.id(),
@@ -179,9 +179,9 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
         }
         var updated = new MemberProfile(
                 memberId,
-                displayName,
-                characterId,
-                backgroundId,
+                displayName == null ? current.displayName() : displayName,
+                characterId == null ? current.characterId() : characterId,
+                backgroundId == null ? current.backgroundId() : backgroundId,
                 current.createdAt(),
                 updatedAt);
         profiles.put(memberId, updated);

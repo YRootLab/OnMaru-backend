@@ -94,9 +94,13 @@ public final class VisitReviewCommandService {
                 VisitReviewStatus.REMOVED));
     }
 
+    public VisitReviewAuthor currentAuthor(UUID memberId) {
+        return authorProfileLookup.findByMemberIds(Set.of(memberId))
+                .getOrDefault(memberId, VisitReviewAuthor.fallback());
+    }
+
     private VisitReview toReview(VisitReviewProjection projection, UUID memberId) {
-        var author = authorProfileLookup.findByMemberIds(Set.of(projection.authorMemberId()))
-                .getOrDefault(projection.authorMemberId(), VisitReviewAuthor.fallback());
+        var author = currentAuthor(projection.authorMemberId());
         return new VisitReview(
                 projection.id().toString(),
                 projection.placeId(),

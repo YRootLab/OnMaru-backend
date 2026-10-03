@@ -23,19 +23,14 @@ public final class MemberProfileService {
                 || patch.displayName() == null && patch.characterId() == null && patch.backgroundId() == null) {
             throw new MemberProfileInvalidException("profile");
         }
-        var current = store.findByMemberId(memberId);
-        if (current.isEmpty()) {
-            return Optional.empty();
-        }
-        var previous = current.get();
         var displayName = patch.displayName() == null
-                ? previous.displayName()
+                ? null
                 : normalizeDisplayName(patch.displayName());
         var characterId = patch.characterId() == null
-                ? previous.characterId()
+                ? null
                 : parseCharacter(patch.characterId());
         var backgroundId = patch.backgroundId() == null
-                ? previous.backgroundId()
+                ? null
                 : parseBackground(patch.backgroundId());
         return store.updateActiveProfile(memberId, displayName, characterId, backgroundId, updatedAt);
     }
@@ -52,7 +47,9 @@ public final class MemberProfileService {
         int length = normalized.codePointCount(0, normalized.length());
         if (length < 2
                 || length > 20
-                || normalized.codePoints().anyMatch(Character::isISOControl)) {
+                || normalized.codePoints().anyMatch(codePoint -> Character.isISOControl(codePoint)
+                || Character.getType(codePoint) == Character.LINE_SEPARATOR
+                || Character.getType(codePoint) == Character.PARAGRAPH_SEPARATOR)) {
             throw new MemberProfileInvalidException("displayName");
         }
         return normalized;

@@ -23,14 +23,14 @@ Cookie: __Host-onmaru-session=...
 ```json
 {
   "schemaVersion": "1.2",
-  "id": "m-8f4b7a21c9",
+  "id": "55200000-0000-0000-0000-000000000001",
   "displayName": "고요한 마루 0552",
   "characterId": "CHARACTER_03",
   "backgroundId": "BACKGROUND_07"
 }
 ```
 
-`displayName`, `characterId`, `backgroundId`는 항상 non-null이다. `id`는 공개 프로필 비교나 게시글 작성자 식별에 사용하지 않는다.
+`displayName`, `characterId`, `backgroundId`는 항상 non-null이다. `id`는 UUID 문자열이지만 FE는 형식을 해석하지 않는 opaque 값으로 취급하고, 공개 프로필 비교나 게시글 작성자 식별에 사용하지 않는다.
 
 수정은 부분 수정이다. 바꾸지 않을 필드는 생략하고, `null`을 보내지 않는다. 최소 한 필드를 보내야 한다.
 
