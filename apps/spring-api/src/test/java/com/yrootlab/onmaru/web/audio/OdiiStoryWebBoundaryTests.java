@@ -98,6 +98,7 @@ class OdiiStoryWebBoundaryTests {
                 .andExpect(jsonPath("$.items[0].linkedPlaceId").value("p-jeonju-hanok-village"))
                 .andExpect(jsonPath("$.items[0].contentTags", hasItem("한옥 골목")))
                 .andExpect(jsonPath("$.items[0].savedByMe").value(false))
+                .andExpect(jsonPath("$.totalCount").value(1))
                 .andExpect(jsonPath("$.items[0].spotId").doesNotExist())
                 .andExpect(jsonPath("$.items[0].stid").doesNotExist())
                 .andExpect(jsonPath("$.nextCursor", nullValue()))

@@ -44,6 +44,7 @@ class VisitReviewQueryServiceTests {
         assertThat(page.items().getFirst().mine()).isTrue();
         assertThat(page.items().getFirst().likedByMe()).isTrue();
         assertThat(page.items().getFirst().likeCount()).isEqualTo(1);
+        assertThat(page.totalCount()).isEqualTo(3);
         assertThat(page.hasMore()).isTrue();
         assertThat(page.nextCursor()).isNotBlank();
         assertThat(page.coverage().status()).isEqualTo(ReviewCoverageStatus.SUPPORTED);
@@ -71,6 +72,7 @@ class VisitReviewQueryServiceTests {
                         "00000000-0000-0000-0000-000000000002");
         assertThat(second.items()).extracting(VisitReview::id)
                 .containsExactly("00000000-0000-0000-0000-000000000001");
+        assertThat(second.totalCount()).isEqualTo(2);
         assertThatThrownBy(() -> service.list(VisitReviewQuery.all(2, first.nextCursor(), java.util.Optional.empty())))
                 .isInstanceOf(VisitReviewCursorInvalidException.class);
         assertThatThrownBy(() -> service.list(VisitReviewQuery.region("kr-45-jeonju", 1, first.nextCursor(), java.util.Optional.empty())))

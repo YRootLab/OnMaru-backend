@@ -172,6 +172,7 @@ class MemberTimelineServiceTests {
         var page1 = timelineService.getTimeline(memberId, YearMonth.of(2026, 9), 2, null);
         assertThat(page1.groups()).hasSize(1);
         assertThat(page1.groups().getFirst().items()).hasSize(2);
+        assertThat(page1.totalCount()).isEqualTo(5);
         assertThat(page1.hasMore()).isTrue();
         assertThat(page1.nextCursor()).isNotNull();
         assertThat(page1.groups().getFirst().items().get(0).title()).isEqualTo("장소 5");
@@ -181,6 +182,7 @@ class MemberTimelineServiceTests {
         var page2 = timelineService.getTimeline(memberId, YearMonth.of(2026, 9), 2, page1.nextCursor());
         assertThat(page2.groups()).hasSize(1);
         assertThat(page2.groups().getFirst().items()).hasSize(2);
+        assertThat(page2.totalCount()).isEqualTo(5);
         assertThat(page2.hasMore()).isTrue();
         assertThat(page2.nextCursor()).isNotNull();
         assertThat(page2.groups().getFirst().items().get(0).title()).isEqualTo("장소 3");
@@ -190,6 +192,7 @@ class MemberTimelineServiceTests {
         var page3 = timelineService.getTimeline(memberId, YearMonth.of(2026, 9), 2, page2.nextCursor());
         assertThat(page3.groups()).hasSize(1);
         assertThat(page3.groups().getFirst().items()).hasSize(1);
+        assertThat(page3.totalCount()).isEqualTo(5);
         assertThat(page3.hasMore()).isFalse();
         assertThat(page3.nextCursor()).isNull();
         assertThat(page3.groups().getFirst().items().get(0).title()).isEqualTo("장소 1");

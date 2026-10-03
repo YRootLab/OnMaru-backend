@@ -98,7 +98,7 @@ components:
       in: query
       schema:
         type: string
-        enum: [ALL, SPOT, EXPERIENCE, CULTURE, FESTIVAL, STAY, FOOD, CAFE, MARKET]
+        enum: [ALL, HANOK, SPOT, EXPERIENCE, CULTURE, FESTIVAL, STAY, FOOD, CAFE, MARKET]
         default: ALL
     RegionCode:
       name: regionCode

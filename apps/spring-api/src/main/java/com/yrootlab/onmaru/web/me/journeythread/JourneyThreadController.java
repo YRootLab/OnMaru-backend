@@ -97,6 +97,7 @@ public final class JourneyThreadController {
                     .body(new PageResponse(
                             "1.2",
                             page.items().stream().map(this::toSummaryResponse).toList(),
+                            page.totalCount(),
                             page.nextCursor(),
                             page.hasMore()));
         } catch (JourneyThreadInputInvalidException exception) {
@@ -276,6 +277,7 @@ public final class JourneyThreadController {
     public record PageResponse(
             String schemaVersion,
             List<SummaryResponse> items,
+            long totalCount,
             String nextCursor,
             boolean hasMore) {
     }

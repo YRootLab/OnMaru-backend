@@ -112,7 +112,7 @@ public final class JourneyThreadService {
         var hasMore = toIndex < all.size();
         var nextCursor = hasMore ? encodeCursor(memberId, toIndex) : null;
 
-        return new JourneyThreadPage(summaries, nextCursor, hasMore);
+        return new JourneyThreadPage(summaries, all.size(), nextCursor, hasMore);
     }
 
     public JourneyThreadDetail get(UUID memberId, UUID threadId) {

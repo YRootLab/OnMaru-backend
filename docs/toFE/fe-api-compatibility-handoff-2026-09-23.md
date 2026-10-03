@@ -20,7 +20,8 @@ GET /api/map/places?regionCode=kr-45-jeonju&limit=20
 - 기존 canonical 경로 `GET /api/v1/map/places`와 동일합니다.
 - `language`, `regionCode`, `bbox`, `lat`, `lng`, `radius`, `category`, `limit`를 그대로 사용합니다.
 - 지도 이동은 `bbox=minLng,minLat,maxLng,maxLat` 또는 `lat`·`lng`·`radius` 중 하나로 범위를 전달합니다.
-- 응답은 `schemaVersion`, `coverageStatus`, `items`, `nextCursor`, `hasMore`를 포함합니다.
+- 응답은 `schemaVersion`, `coverageStatus`, `items`, `totalCount`, `nextCursor`, `hasMore`를 포함합니다.
+- `totalCount`는 cursor 적용 전 현재 필터를 만족하는 전체 결과 건수입니다.
 - `items[].savedByMe`를 사용하려면 기존처럼 `credentials: "include"`가 필요합니다.
 
 ### 장소 상세

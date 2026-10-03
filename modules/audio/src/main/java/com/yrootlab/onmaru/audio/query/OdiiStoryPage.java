@@ -8,6 +8,7 @@ public record OdiiStoryPage(
         String language,
         OdiiLanguageStatus languageStatus,
         List<OdiiStorySummary> items,
+        long totalCount,
         String nextCursor,
         boolean hasMore) {
 

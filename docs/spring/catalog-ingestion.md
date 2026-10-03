@@ -160,7 +160,7 @@ prefix `/api/v1`, HTTPS JSON. 아래 endpoint는 구현 전 1.2 계약이며 기
 
 집계 no-store를 초기 기본으로 하고 FE 탭 메모리 캐시 TTL60초, 최대20개 parent만 유지한다. 회원 탈퇴/숨김 직후 과거 캐시 count가 남을 수 있지만 본문 조회는 현재 공개 상태를 검사한다. 정확한 실시간 수치로 안내하지 않는다. 로그인 전후 공유 가능한 집계에 mine/회원정보를 포함하지 않는다. 게시/삭제 성공 시 관련 부모 캐시를 무효화한다. 응답 countsAsOf는 조회 transaction 기준시각이며 목록 asOf와 같다고 보장하지 않는다.
 
-목록 정렬은 `createdAt DESC,id DESC`, 서버가 limit+1개를 읽어 초과1개 존재로 hasMore를 계산한다. items는 앞 limit개만, nextCursor는 **실제로 반환한 마지막 item**으로 생성한다. 초과 조회한 행을 cursor로 쓰면 한 건을 건너뛰므로 금지한다.
+목록 정렬은 `createdAt DESC,id DESC`, 서버가 limit+1개를 읽어 초과1개 존재로 hasMore를 계산한다. `totalCount`는 cursor 적용 전 현재 필터를 만족하는 전체 공개 건수다. items는 앞 limit개만, nextCursor는 **실제로 반환한 마지막 item**으로 생성한다. 초과 조회한 행을 cursor로 쓰면 한 건을 건너뛰므로 금지한다.
 
 - page/pageIndex/offset/lastIndex/totalPages는 제공하지 않는다. 첫 요청은 cursor 생략이다.
 - JSON 배열 인덱스는0부터, 페이지 길이 n의 마지막 인덱스는 n-1; 빈 페이지에는 마지막 인덱스가 없다. FE 표시 순번1부터는 UI 전용이다.
@@ -169,7 +169,7 @@ prefix `/api/v1`, HTTPS JSON. 아래 endpoint는 구현 전 1.2 계약이며 기
 - 첫 요청 DB asOf 이후 신규 글은 현재 chain에 끼워 넣지 않는다. 삭제·공개 자격 변경은 매페이지 즉시 적용하며 완전한 snapshot을 보장하지 않는다. 다음 요청 시 남은 글이 사라져 빈 종료 페이지가 되는 경우는 정상이다.
 - FE는 같은 queryKey 안에서 id 중복 제거, 목록 최대200개; 이후 더 좁은 지역/새로고침 안내. 새 지역은 requestSequence 증가와 이전 요청 취소, 늦은 응답 폐기. 더 보기 중 동시 중복 요청 금지.
 
-원천 TourAPI의 pageNo=1 시작 규칙과 OnMaru public cursor는 별개다. 원천 adapter가 내부 변환하며 FE에 원천 pageNo/totalCount를 전달하지 않는다. 저장 여정 목록에도 cursor 종료 규칙은 동일하게 적용하되 기존 회원 소유·정렬·필터 scope를 유지한다.
+원천 TourAPI의 pageNo=1 시작 규칙과 OnMaru public cursor는 별개다. 원천 adapter가 내부 변환하며 FE에는 원천 `pageNo`가 아니라 OnMaru 필터 기준 `totalCount`를 전달한다. 저장 여정 목록에도 cursor 종료 규칙과 `totalCount` 기준을 동일하게 적용하되 기존 회원 소유·정렬·필터 scope를 유지한다.
 
 지역 필터는 Catalog의 published place/region 공개 projection을 통해 Community가 읽는다. B-tree place(region_id,id)와 published review(place_id,created_at DESC,id DESC), ALL 최신순 partial index를 비교 검증한다. 전국 count는 밀집/희소10만건 fixture에서 timeout2초와 p95 목표500ms를 확인한다. 초과하면 별도 비동기 집계 projection을 검토하며 지금 성능 보장을 하지 않는다. 지도는 SSE·주기 polling 없이 사용자 동작 REST이며, **AI 여정만** REST command + SSE notification + GET snapshot을 사용한다.
 

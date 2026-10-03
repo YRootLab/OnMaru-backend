@@ -8,6 +8,7 @@ public record OdiiStoryReadPage(
         String language,
         OdiiLanguageStatus languageStatus,
         List<OdiiStoryProjection> stories,
+        long totalCount,
         boolean hasMore) {
 
     public OdiiStoryReadPage {

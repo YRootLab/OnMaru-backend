@@ -496,7 +496,7 @@ components:
     SavedResourcePage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -507,6 +507,10 @@ components:
             oneOf:
               - $ref: '#/components/schemas/SavedPlaceSummary'
               - $ref: '#/components/schemas/SavedOdiiStorySummary'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: ['string', 'null']
           minLength: 1
@@ -589,7 +593,7 @@ components:
     MemberTimeline:
       type: object
       additionalProperties: false
-      required: [schemaVersion, month, groups, nextCursor, hasMore, unavailableCount]
+      required: [schemaVersion, month, groups, totalCount, nextCursor, hasMore, unavailableCount]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -600,6 +604,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TimelineGroup'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: ['string', 'null']
           minLength: 1
