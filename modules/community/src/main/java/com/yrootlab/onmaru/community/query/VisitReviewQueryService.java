@@ -38,10 +38,12 @@ public final class VisitReviewQueryService {
         validate(query);
         var queryKey = queryKey(query);
         var cursor = decodeCursor(query.cursor(), queryKey, query.limit());
-        var filtered = store.findSnapshot().stream()
+        var allFiltered = store.findSnapshot().stream()
                 .filter(review -> review.status() == VisitReviewStatus.PUBLISHED)
                 .filter(review -> matchesQuery(query, review))
                 .sorted(order())
+                .toList();
+        var filtered = allFiltered.stream()
                 .filter(review -> cursor == null || isAfterCursor(review, cursor))
                 .toList();
         var limited = filtered.stream().limit(query.limit() + 1L).toList();
@@ -72,6 +74,7 @@ public final class VisitReviewQueryService {
                 SCHEMA_VERSION,
                 queryKey,
                 items,
+                allFiltered.size(),
                 nextCursor,
                 hasMore,
                 clock.instant(),

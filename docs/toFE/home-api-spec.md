@@ -44,6 +44,7 @@
       "saved": false
     }
   ],
+  "totalCount": 1,
   "nextCursor": null,
   "hasMore": false
 }
@@ -86,7 +87,7 @@ Odii 활성 스토리를 조회한다. 데이터셋이 일시적으로 unavailab
 - `limit`: 기본 20
 - `cursor`
 
-기존 Odii stories 응답의 `items`, `nextCursor`, `hasMore`를 그대로 사용한다.
+기존 Odii stories 응답의 `items`, `totalCount`, `nextCursor`, `hasMore`를 그대로 사용한다. `totalCount`는 현재 언어·카테고리·지역 필터를 적용한 전체 결과 건수다.
 
 기존 `FALLBACK_SOUNDS`를 항상 성공 데이터처럼 표시하지 않는다. `503`이면 빈 목록과 재시도/준비 중 UI를 표시한다.
 

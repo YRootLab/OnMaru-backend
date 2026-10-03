@@ -479,7 +479,7 @@ components:
     MapPlacePage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, coverageStatus, language, items, nextCursor, hasMore]
+      required: [schemaVersion, coverageStatus, language, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -491,6 +491,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MapPlaceCard'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: [string, 'null']
         hasMore:
@@ -604,7 +608,7 @@ components:
     OdiiStoryPage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, coverageStatus, language, languageStatus, items, nextCursor, hasMore]
+      required: [schemaVersion, coverageStatus, language, languageStatus, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -618,6 +622,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OdiiStorySummary'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: [string, 'null']
         hasMore:

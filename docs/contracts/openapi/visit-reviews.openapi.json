@@ -1240,6 +1240,11 @@
               "$ref": "#/components/schemas/VisitReview"
             }
           },
+          "totalCount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
           "nextCursor": {
             "type": [
               "string",
@@ -1282,6 +1287,7 @@
           "schemaVersion",
           "queryKey",
           "items",
+          "totalCount",
           "nextCursor",
           "hasMore",
           "asOf",

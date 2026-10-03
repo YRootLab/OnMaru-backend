@@ -6,6 +6,7 @@ public record TimelinePage(
         String schemaVersion,
         String month,
         List<TimelineDayGroup> groups,
+        long totalCount,
         TimelineCursor nextCursor,
         boolean hasMore,
         int unavailableCount) {

@@ -129,6 +129,7 @@ GET /api/v1/me/journey-threads?limit=20&cursor=...
       "updatedAt": "2026-09-17T01:30:00Z"
     }
   ],
+  "totalCount": 1,
   "nextCursor": null,
   "hasMore": false
 }

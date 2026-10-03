@@ -84,13 +84,22 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
         var store = readStore();
 
         var page = store.list("ko-KR", 2, null, null);
+        var secondPage = store.list(
+                "ko-KR",
+                2,
+                page.stories().getLast().publishedAt(),
+                page.stories().getLast().storyId());
 
         assertThat(page.revisionId()).isEqualTo(REVISION_ID);
         assertThat(page.language()).isEqualTo("ko-KR");
+        assertThat(page.totalCount()).isEqualTo(3);
         assertThat(page.hasMore()).isTrue();
         assertThat(page.stories()).extracting(story -> story.audioTitle())
                 .containsExactly("이야기 3", "이야기 2");
         assertThat(page.stories()).allSatisfy(story -> assertThat(story.transcript()).isEmpty());
+        assertThat(secondPage.totalCount()).isEqualTo(3);
+        assertThat(secondPage.stories()).extracting(story -> story.audioTitle())
+                .containsExactly("이야기 1");
     }
 
     @Test
@@ -98,11 +107,14 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
         var store = readStore();
 
         var search = store.search("이야기 2", "ko-KR", 10, true);
+        var pagedSearch = store.search("이야기", "ko-KR", 2, false);
         var emptySearch = store.search("존재하지 않는 검색어", "ko-KR", 10, false);
         var nearby = store.nearby(37.0, 127.01, 1_500, "ko-KR", 10);
 
         assertThat(search.stories()).extracting(story -> story.audioTitle())
                 .containsExactly("이야기 2");
+        assertThat(pagedSearch.stories()).hasSize(2);
+        assertThat(pagedSearch.totalCount()).isEqualTo(3);
         assertThat(nearby.stories()).extracting(story -> story.audioTitle())
                 .containsExactly("이야기 1", "이야기 2");
         assertThat(emptySearch.languageStatus()).isEqualTo(com.yrootlab.onmaru.audio.query.OdiiLanguageStatus.EXACT);
@@ -161,7 +173,7 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
                     SELECT md5('read-spot-' || value)::uuid,
                            'KTO_ODII', 'spot-' || value, 'spot-local-' || value,
                            'ko', CURRENT_TIMESTAMP
-                    FROM generate_series(1, 3) AS value
+                    FROM generate_series(1, 6) AS value
                     """);
             statement.execute("""
                     INSERT INTO onmaru.audio_spot_versions (
@@ -171,7 +183,7 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
                            ST_SetSRID(ST_MakePoint(127.0 + value / 100.0, 37.0), 4326)::geography,
                            'ACTIVE', 'spot-hash-' || value,
                            '2026-09-27T00:00:00Z'::timestamptz + value * INTERVAL '1 minute'
-                    FROM generate_series(1, 3) AS value
+                    FROM generate_series(1, 6) AS value
                     """.formatted(REVISION_ID));
             statement.execute("""
                     INSERT INTO onmaru.audio_odii_stories (
@@ -181,7 +193,7 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
                            md5('read-spot-' || value)::uuid,
                            'KTO_ODII', 'story-' || value, 'story-local-' || value,
                            'ko', CURRENT_TIMESTAMP
-                    FROM generate_series(1, 3) AS value
+                    FROM generate_series(1, 6) AS value
                     """);
             statement.execute("""
                     INSERT INTO onmaru.audio_story_versions (
@@ -191,11 +203,18 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
                     SELECT '%s', md5('read-story-' || value)::uuid,
                            md5('read-spot-' || value)::uuid, '이야기 ' || value,
                            '본문 ' || value,
-                           'https://sfj608538-sfj608538.ktcdn.co.kr/audio-' || value || '.mp3',
+                           CASE WHEN value = 4
+                               THEN 'https://sfj608538-sfj608538.ktcdn.co.kr/audio-4.mp3?token=private'
+                               WHEN value = 5
+                               THEN 'https://sfj608538-sfj608538.ktcdn.co.kr/audio 5.mp3'
+                               WHEN value = 6
+                               THEN 'https://sfj608538-sfj608538.ktcdn.co.kr/audio-%%ZZ.mp3'
+                               ELSE 'https://sfj608538-sfj608538.ktcdn.co.kr/audio-' || value || '.mp3'
+                           END,
                            'https://sfj608538-sfj608538.ktcdn.co.kr/image-' || value || '.jpg',
                            60 + value, 'ACTIVE', 'story-hash-' || value, 'OFFICIAL',
                            '2026-09-27T00:00:00Z'::timestamptz + value * INTERVAL '1 minute'
-                    FROM generate_series(1, 3) AS value
+                    FROM generate_series(1, 6) AS value
                     """.formatted(REVISION_ID));
             statement.execute("""
                     INSERT INTO onmaru.audio_subtitle_lines (
