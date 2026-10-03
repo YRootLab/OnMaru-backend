@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -16,6 +17,8 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
     private final Duration heartbeatInterval;
     private final Map<UUID, ArrayDeque<JourneyRunEvent>> eventsByRun = new ConcurrentHashMap<>();
     private final Map<UUID, AtomicLong> sequencesByRun = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> narrationCharactersByRun = new ConcurrentHashMap<>();
+    private final Set<UUID> terminalRuns = ConcurrentHashMap.newKeySet();
     private final Map<UUID, List<Consumer<JourneyRunEvent>>> subscribersByRun = new ConcurrentHashMap<>();
 
     public JourneyRunEventBuffer(int capacity, Duration heartbeatInterval) {
@@ -30,7 +33,7 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
     }
 
     @Override
-    public JourneyRunEvent stage(UUID runId, String status, String stage) {
+    public synchronized JourneyRunEvent stage(UUID runId, String status, String stage) {
         var sequence = nextSequence(runId);
         return append(runId, new JourneyRunEvent(
                 sequence,
@@ -41,13 +44,35 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
     }
 
     @Override
-    public JourneyRunEvent terminal(UUID runId, String status, String outcome) {
+    public synchronized JourneyRunEvent textDelta(UUID runId, String text) {
+        if (runId == null) {
+            throw new IllegalArgumentException("run id is required");
+        }
+        if (text == null || text.isEmpty() || terminalRuns.contains(runId)) {
+            return null;
+        }
+        int used = narrationCharactersByRun.getOrDefault(runId, 0);
+        int accepted = Math.min(Math.min(512, 4000 - used), text.codePointCount(0, text.length()));
+        if (accepted < 1) {
+            return null;
+        }
+        String boundedText = text.substring(0, text.offsetByCodePoints(0, accepted));
+        narrationCharactersByRun.put(runId, used + accepted);
+        long sequence = nextSequence(runId);
+        return append(runId, new JourneyRunEvent(sequence, JourneyRunEventType.TEXT_DELTA,
+                "{\"schemaVersion\":\"1.2\",\"runId\":\"" + runId + "\",\"sequence\":" + sequence
+                        + ",\"text\":\"" + escape(boundedText) + "\"}", heartbeatInterval, false));
+    }
+
+    @Override
+    public synchronized JourneyRunEvent terminal(UUID runId, String status, String outcome) {
         var existing = latestTerminal(runId);
         if (existing != null && existing.data().contains("\"status\":\"" + escape(status) + "\"")
                 && existing.data().contains(outcome == null ? "\"outcome\":null" : "\"outcome\":\"" + escape(outcome) + "\"")) {
             return existing;
         }
         var sequence = nextSequence(runId);
+        terminalRuns.add(runId);
         return append(runId, new JourneyRunEvent(
                 sequence,
                 JourneyRunEventType.TERMINAL,
@@ -124,9 +149,11 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
         };
     }
 
-    public void clear() {
+    public synchronized void clear() {
         eventsByRun.clear();
         sequencesByRun.clear();
+        narrationCharactersByRun.clear();
+        terminalRuns.clear();
         subscribersByRun.clear();
     }
 
@@ -229,6 +256,25 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
         if (value == null) {
             return "";
         }
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+        var escaped = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char character = value.charAt(i);
+            switch (character) {
+                case '"', '\\' -> escaped.append('\\').append(character);
+                case '\n' -> escaped.append("\\n");
+                case '\r' -> escaped.append("\\r");
+                case '\t' -> escaped.append("\\t");
+                case '\b' -> escaped.append("\\b");
+                case '\f' -> escaped.append("\\f");
+                default -> {
+                    if (character < 0x20) {
+                        escaped.append(String.format("\\u%04x", (int) character));
+                    } else {
+                        escaped.append(character);
+                    }
+                }
+            }
+        }
+        return escaped.toString();
     }
 }

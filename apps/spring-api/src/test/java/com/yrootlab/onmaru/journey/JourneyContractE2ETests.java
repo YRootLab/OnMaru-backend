@@ -9,6 +9,8 @@ import com.yrootlab.onmaru.catalog.application.query.detail.InMemoryPlaceDetailS
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.RegionProjection;
 import com.yrootlab.onmaru.identity.guest.GuestCredentialService;
+import com.yrootlab.onmaru.identity.guest.GuestGrantClaimCommand;
+import com.yrootlab.onmaru.identity.guest.GuestGrantService;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
@@ -47,6 +49,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +88,9 @@ public class JourneyContractE2ETests {
 
     @Autowired
     private GuestCredentialService guestCredentialService;
+
+    @Autowired
+    private GuestGrantService guestGrantService;
 
     @Autowired
     private InMemoryExplorationStore explorationStore;
@@ -180,6 +186,9 @@ public class JourneyContractE2ETests {
                 .andReturn().getResponse().getContentAsString();
         assertThat(clarificationSnapshot).isNotEmpty();
 
+        // Guest clarification/read remains supported; a granted member starts the AI run.
+        guestGrantService.claim(new GuestGrantClaimCommand(
+                otherMemberId, UUID.fromString(explorationId), guestToken));
         // 2. Answer clarification with region -> AI run queued
         var turnResponse = mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -190,7 +199,7 @@ public class JourneyContractE2ETests {
                                 "clarificationAnswer", Map.of(
                                         "clarificationId", "region",
                                         "text", "전주"))))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie("other-session"), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isAccepted())
@@ -360,7 +369,7 @@ public class JourneyContractE2ETests {
                                 "query", "전주 한옥 투어",
                                 "locale", "ko-KR",
                                 "regionCode", JEONJU_REGION)))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie("member-session"), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isAccepted())
@@ -371,7 +380,7 @@ public class JourneyContractE2ETests {
         var eventsUrl = "/api/v1/explorations/" + explorationId + "/runs/" + runId + "/events";
 
         // 1. Live SSE stream starts and registers async request
-        mockMvc.perform(get(eventsUrl).cookie(guestCookie(guestToken)))
+        mockMvc.perform(get(eventsUrl).cookie(memberCookie("member-session")))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, startsWith("text/event-stream")))
@@ -381,7 +390,7 @@ public class JourneyContractE2ETests {
         explorationService.claimRun(explorationId, runId, "INTERPRETING");
         explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
 
-        var completedStream = mockMvc.perform(get(eventsUrl).cookie(guestCookie(guestToken)))
+        var completedStream = mockMvc.perform(get(eventsUrl).cookie(memberCookie("member-session")))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "text/event-stream;charset=UTF-8"))
                 .andReturn().getResponse().getContentAsString();
@@ -392,7 +401,7 @@ public class JourneyContractE2ETests {
 
         // 3. Reconnect with Last-Event-ID replay
         var replayStream = mockMvc.perform(get(eventsUrl)
-                        .cookie(guestCookie(guestToken))
+                        .cookie(memberCookie("member-session"))
                         .header("Last-Event-ID", "1"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -402,7 +411,7 @@ public class JourneyContractE2ETests {
 
         // 4. Stale Last-Event-ID beyond buffer returns reset event
         var resetResponse = mockMvc.perform(get(eventsUrl)
-                        .cookie(guestCookie(guestToken))
+                        .cookie(memberCookie("member-session"))
                         .header("Last-Event-ID", "0"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, startsWith("text/event-stream")))
@@ -429,7 +438,7 @@ public class JourneyContractE2ETests {
                                 "query", "전주 한옥 여행 계획",
                                 "locale", "ko-KR",
                                 "regionCode", JEONJU_REGION)))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie("member-session"), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isAccepted())
@@ -442,7 +451,7 @@ public class JourneyContractE2ETests {
         mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie("member-session"), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isOk())
@@ -451,7 +460,7 @@ public class JourneyContractE2ETests {
 
         // 2. Fetch run snapshot -> CANCELLED
         mockMvc.perform(get("/api/v1/explorations/{explorationId}/runs/{runId}", explorationId, runId)
-                        .cookie(guestCookie(guestToken)))
+                        .cookie(memberCookie("member-session")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
 
@@ -459,7 +468,7 @@ public class JourneyContractE2ETests {
         mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie("member-session"), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isOk())
@@ -470,31 +479,30 @@ public class JourneyContractE2ETests {
 
     @Test
     void aiOutageFallbackAndQuota() throws Exception {
-        // 1. Guest daily AI Quota enforcement (Limit 2 per day)
-        var first = OBJECT_MAPPER.readTree(createGuestExploration(guestToken, JEONJU_REGION));
-        cancelRun(guestToken, first.path("explorationId").asText(), first.path("runId").asText());
+        // 1. Member test-period AI quota enforcement (Limit 2 total)
+        var first = OBJECT_MAPPER.readTree(createMemberExploration("member-session", JEONJU_REGION));
+        cancelMemberRun("member-session", first.path("explorationId").asText(), first.path("runId").asText());
 
-        var second = OBJECT_MAPPER.readTree(createGuestExploration(guestToken, JEONJU_REGION));
-        cancelRun(guestToken, second.path("explorationId").asText(), second.path("runId").asText());
+        var second = OBJECT_MAPPER.readTree(createMemberExploration("member-session", JEONJU_REGION));
+        cancelMemberRun("member-session", second.path("explorationId").asText(), second.path("runId").asText());
 
-        // 3rd exploration attempt in the same day triggers 429 RATE_LIMITED
+        // 3rd exploration attempt in the same test period triggers 429 RATE_LIMITED
         mockMvc.perform(post("/api/v1/explorations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(OBJECT_MAPPER.writeValueAsBytes(Map.of(
                                 "query", "경주 한옥 여행",
                                 "locale", "ko-KR",
                                 "regionCode", "kr-47-gyeongju")))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie("member-session"), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("Retry-After"))
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"))
-                .andExpect(jsonPath("$.details.retryAfterMs", greaterThan(0)));
+                .andExpect(jsonPath("$.details.retryAfterMs", greaterThan(0L)));
 
         // 2. AI Fallback: completing run with degraded baseline reason produces stable board
-        var thirdGuestToken = guestCredentialService.issue().rawToken();
-        var fallbackExp = OBJECT_MAPPER.readTree(createGuestExploration(thirdGuestToken, JEONJU_REGION));
+        var fallbackExp = OBJECT_MAPPER.readTree(createMemberExploration("other-session", JEONJU_REGION));
         var expUuid = UUID.fromString(fallbackExp.path("explorationId").asText());
         var runUuid = UUID.fromString(fallbackExp.path("runId").asText());
 
@@ -502,7 +510,7 @@ public class JourneyContractE2ETests {
         explorationService.completeRun(expUuid, runUuid, ExplorationRunOutcome.INITIAL_BOARD);
 
         mockMvc.perform(get("/api/v1/explorations/{id}", expUuid)
-                        .cookie(guestCookie(thirdGuestToken)))
+                        .cookie(memberCookie("other-session")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.board.title").value("전주 한옥 산책"))
                 .andExpect(jsonPath("$.board.candidates[0].placeRef.id").value(JEONJU_PLACE_ID));
@@ -665,34 +673,55 @@ public class JourneyContractE2ETests {
         assertJourneyFixtureShape("saved-journey-delete-replay.json", deleteReplayResponse);
     }
 
-    private String createGuestExploration(String token, String regionCode) throws Exception {
+    private String createMemberExploration(String session, String regionCode) throws Exception {
         return mockMvc.perform(post("/api/v1/explorations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(OBJECT_MAPPER.writeValueAsBytes(Map.of(
                                 "query", "한옥 탐색 여행",
                                 "locale", "ko-KR",
                                 "regionCode", regionCode)))
-                        .cookie(guestCookie(token), CSRF_COOKIE)
+                        .cookie(memberCookie(session), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsString();
     }
 
-    private void cancelRun(String token, String explorationId, String runId) throws Exception {
+    private void cancelMemberRun(String session, String explorationId, String runId) throws Exception {
         mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
-                        .cookie(guestCookie(token), CSRF_COOKIE)
+                        .cookie(memberCookie(session), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isOk());
     }
 
     private UUID completedExplorationForGuest(String token) throws Exception {
-        var createResponse = createGuestExploration(token, JEONJU_REGION);
+        // Preserve guest action/ownership contracts without allowing a guest to dispatch AI.
+        var createResponse = mockMvc.perform(post("/api/v1/explorations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(OBJECT_MAPPER.writeValueAsBytes(Map.of(
+                                "query", "조용한 한옥 여행", "locale", "ko-KR")))
+                        .cookie(guestCookie(token), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
         var explorationId = UUID.fromString(OBJECT_MAPPER.readTree(createResponse).path("explorationId").asText());
-        var runId = UUID.fromString(OBJECT_MAPPER.readTree(createResponse).path("runId").asText());
+        guestGrantService.claim(new GuestGrantClaimCommand(otherMemberId, explorationId, token));
+        var turnResponse = mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(OBJECT_MAPPER.writeValueAsBytes(Map.of(
+                                "clientTurnId", UUID.randomUUID().toString(), "baseVersion", 0,
+                                "query", "전주 한옥 여행", "clarificationAnswer", Map.of(
+                                        "clarificationId", "region", "text", "전주"))))
+                        .cookie(memberCookie("other-session"), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        var runId = UUID.fromString(OBJECT_MAPPER.readTree(turnResponse).path("runId").asText());
         explorationService.claimRun(explorationId, runId, "INTERPRETING");
         explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
         return explorationId;
@@ -813,6 +842,12 @@ public class JourneyContractE2ETests {
 
     @TestConfiguration
     static class JourneyE2ETestConfig {
+
+        @Bean
+        @Primary
+        Clock fixedJourneyTestClock() {
+            return Clock.fixed(Instant.parse("2026-10-02T00:00:00Z"), ZoneOffset.UTC);
+        }
 
         @Bean
         @Primary

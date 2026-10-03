@@ -1,8 +1,14 @@
 package com.yrootlab.onmaru.operations.admission;
 
 import java.time.Duration;
+import java.time.Instant;
 
-public record OperationBudget(String operation, SubjectType subjectType, int limit, Duration window, int activeLimit) {
+public record OperationBudget(
+        String operation, SubjectType subjectType, int limit, Duration window, int activeLimit, Instant windowAnchor) {
+    public OperationBudget(String operation, SubjectType subjectType, int limit, Duration window, int activeLimit) {
+        this(operation, subjectType, limit, window, activeLimit, null);
+    }
+
     public OperationBudget(String operation, SubjectType subjectType, int limit) {
         this(operation, subjectType, limit, null, 0);
     }
