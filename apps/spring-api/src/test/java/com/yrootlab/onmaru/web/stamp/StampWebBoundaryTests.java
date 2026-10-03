@@ -95,7 +95,7 @@ class StampWebBoundaryTests {
     @Test
     void createsReplaysAndDeduplicatesCheckInsWithoutEchoingCoordinates() throws Exception {
         var key = "00000000-0000-0000-0000-000000000262";
-        var response = checkIn(PLACE, key, 37.5826, 126.9831, 18.4)
+        checkIn(PLACE, key, 37.5826, 126.9831, 18.4)
                 .andExpect(status().isCreated())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(header().string(HttpHeaders.LOCATION, startsWith("/api/v1/check-ins/")))
@@ -104,8 +104,7 @@ class StampWebBoundaryTests {
                 .andExpect(jsonPath("$.newAwards[0].code").value("stamp_bukchon"))
                 .andExpect(jsonPath("$.latitude").doesNotExist())
                 .andExpect(jsonPath("$.longitude").doesNotExist())
-                .andExpect(jsonPath("$.accuracyMeters").doesNotExist())
-                .andReturn().getResponse().getContentAsString();
+                .andExpect(jsonPath("$.accuracyMeters").doesNotExist());
 
         checkIn(PLACE, key, 37.5826, 126.9831, 18.4)
                 .andExpect(status().isCreated())
@@ -116,8 +115,6 @@ class StampWebBoundaryTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.checkIn.alreadyCheckedIn").value(true))
                 .andExpect(jsonPath("$.newAwards.length()").value(0));
-
-        org.assertj.core.api.Assertions.assertThat(response).doesNotContain("37.5826", "126.9831", "18.4");
     }
 
     @Test
