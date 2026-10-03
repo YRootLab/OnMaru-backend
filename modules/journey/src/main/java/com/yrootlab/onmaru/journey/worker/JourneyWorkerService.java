@@ -8,7 +8,9 @@ import com.yrootlab.onmaru.journey.run.JourneyRunStatus;
 import com.yrootlab.onmaru.journey.run.JourneyRunStore;
 import com.yrootlab.onmaru.journey.run.RunCommandReceipt;
 import com.yrootlab.onmaru.journey.run.RunTransitionConflictException;
+import com.yrootlab.onmaru.journey.events.JourneyRunEventSink;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,6 +24,8 @@ public final class JourneyWorkerService {
     private final BaselinePlanner baselinePlanner;
     private final JourneyResultStore resultStore;
     private final JourneyWorkerTelemetry telemetry;
+    private final JourneyRunEventSink eventSink;
+    private final Clock clock;
 
     public JourneyWorkerService(
             JourneyRunStore runStore,
@@ -30,12 +34,23 @@ public final class JourneyWorkerService {
             BaselinePlanner baselinePlanner,
             JourneyResultStore resultStore,
             JourneyWorkerTelemetry telemetry) {
+        this(runStore, candidateProvider, aiProposalClient, baselinePlanner, resultStore, telemetry,
+                JourneyRunEventSink.noop(), Clock.systemUTC());
+    }
+
+    public JourneyWorkerService(
+            JourneyRunStore runStore, JourneyCandidateProvider candidateProvider,
+            AiProposalClient aiProposalClient, BaselinePlanner baselinePlanner,
+            JourneyResultStore resultStore, JourneyWorkerTelemetry telemetry,
+            JourneyRunEventSink eventSink, Clock clock) {
         this.runStore = runStore;
         this.candidateProvider = candidateProvider;
         this.aiProposalClient = aiProposalClient;
         this.baselinePlanner = baselinePlanner;
         this.resultStore = resultStore;
         this.telemetry = telemetry;
+        this.eventSink = eventSink;
+        this.clock = clock;
     }
 
     public JourneyWorkerOutcome process(JourneyWorkerRequest request) {
@@ -57,8 +72,23 @@ public final class JourneyWorkerService {
             WorkerDegradedReason degradedReason = null;
             JourneyResultEngine engine = JourneyResultEngine.LLM;
             JourneyWorkerPlan plan;
+            int aiGeneration = receipt.generation();
             try {
-                plan = aiProposalClient.propose(request, candidates);
+                plan = aiProposalClient.propose(request, candidates, text -> {
+                    var current = runStore.find(request.runId(), request.actorKey());
+                    if (current.isPresent() && current.get().status() == JourneyRunStatus.RUNNING
+                            && current.get().generation() == aiGeneration
+                            && clock.instant().isBefore(request.deadlineAt())
+                            && clock.instant().isBefore(current.get().deadlineAt())) {
+                        eventSink.textDelta(request.runId(), text);
+                    }
+                });
+                var allowed = candidates.candidates().stream().map(JourneyCandidate::ref).collect(java.util.stream.Collectors.toSet());
+                if (plan == null || plan.outcome() == null || plan.outcome().isBlank()
+                        || plan.orderedRefs().size() > 12 || !allowed.containsAll(plan.orderedRefs())
+                        || new java.util.HashSet<>(plan.orderedRefs()).size() != plan.orderedRefs().size()) {
+                    throw new AiProposalException(WorkerDegradedReason.AI_INVALID_RESPONSE);
+                }
             } catch (AiProposalException exception) {
                 degradedReason = exception.degradedReason();
                 engine = JourneyResultEngine.BASELINE;
@@ -95,6 +125,7 @@ public final class JourneyWorkerService {
                     plan.outcome(),
                     null,
                     Instant.now()));
+            eventSink.terminal(request.runId(), "COMPLETED", plan.outcome());
             recordCompleted(request, engine, degradedReason);
             return engine == JourneyResultEngine.BASELINE
                     ? JourneyWorkerOutcome.COMPLETED_BASELINE
@@ -132,7 +163,7 @@ public final class JourneyWorkerService {
             RunCommandReceipt receipt,
             JourneyRunStage expectedStage,
             JourneyRunStage nextStage) {
-        return runStore.advance(new AdvanceRunStageCommand(
+        var advanced = runStore.advance(new AdvanceRunStageCommand(
                 request.runId(),
                 request.actorKey(),
                 UUID.randomUUID(),
@@ -140,6 +171,8 @@ public final class JourneyWorkerService {
                 receipt.generation(),
                 expectedStage,
                 nextStage)).receipt();
+        eventSink.stage(request.runId(), "RUNNING", nextStage.name());
+        return advanced;
     }
 
     private void recordCompleted(

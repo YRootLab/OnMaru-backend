@@ -1,5 +1,19 @@
 # handoff.md
 
+## 2026-10-02 Backend 병렬 정리 (#256 외 12건)
+
+- 브랜치: `feature/256-backend-batch` (`origin/develop` 최신 기준, branch parser #256).
+- 요청 범위: #256, #265, #375, #382, #392, #486, #500, #509, #518, #519, #520, #521, #545.
+- 구현 커밋: `9618d5d` quota anchor, `5191eff`/`698a5f1`/`1b72e26` FastAPI narration stream·보안 경계, `4058a3c` #382 Odii 이력, `aff90cf` #486 목록→상세 계약, `37aa390` #518/#520 quota·SSE 계약, `8c9e982` Spring stream relay.
+- #382: lifecycle/phase와 `fetched/mapped/staged/published/tombstones`를 DB·안전 로그에 남기고 production profile + JDBC + HTTP fixture와 AWS runbook을 추가했다. 로컬 AC와 교차 리뷰는 통과했으며 실제 Lightsail 로그·readonly SQL·공개 `trending-sounds` smoke는 배포 후 gate다.
+- #486: 목록에 노출되는 category/name/overview 기반 한옥은 `/api/v1/hanoks/{id}` 상세에서도 조회되며 원 category를 보존한다. production 경로 리뷰는 통과했다. 기존 demo seed의 목록/상세 불일치는 비차단 후속이다.
+- #518/#520: 2026-10 KST 회원 quota 2회, guest AI 401, exempt total bypass+active 1, Journey 전용 429 alias, FastAPI Gemini SSE → Spring → browser `run.text.delta`, candidate allowlist·timeout·fallback·cancel 경계를 구현했다. 실제 Gemini tier, first-delta latency, proxy buffering, 배포 설정과 snapshot smoke는 staging gate다.
+- 이미 구현되어 운영 검증 중심인 항목: #256, #265, #375, #509, #519, #521 일부, #545 일부. #392는 staging secret·실제 수집/ACTIVE revision/API 증거가 필요하다. #545는 로그인·쓰기·SSE와 workflow 실제 rollback이 남아 있다.
+- #500은 `develop`에는 이미 fail-closed지만 현재 `master`에만 Trivy `continue-on-error` 두 곳이 남아 있다. Git Flow상 이 브랜치에서 고치지 않고 `master` 대상 별도 hotfix/보호 PR로 처리해야 한다.
+- 최종 로컬 검증: Admission/Exploration/Journey Gradle 회귀 `BUILD SUCCESSFUL`(3m 5s), AI `304 passed, 1 skipped`, ruff/mypy PASS, 전체 contract와 R1/R2/Journey E2E fixture PASS, `git diff --check` PASS.
+- 다음 단계: PR 전 work-log cleanup, PR `verify`, staging 운영 gate를 수행한다. Issue는 실제 운영 AC를 충족하기 전 닫지 않는다.
+- 로컬 미추적 `.agents/`, `.claude/`, `skills-lock.json`은 기존 사용자 작업물이며 이번 변경에 포함하지 않는다.
+
 ## 2026-10-01 Issue #561 운영 온기 히트맵
 
 - 브랜치: `fix/561-warmth-heatmap`.

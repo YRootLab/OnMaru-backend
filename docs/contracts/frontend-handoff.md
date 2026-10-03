@@ -8,6 +8,24 @@
 2. 여정 탐색, 저장, 공통 오류, 기존 VisitReview 상세는 [FE REST 계약](rest-api.md)을 따른다.
 3. 회원·소유권·보존 정책은 [인증·영속 모델·보존](../spring/identity-and-journey.md)을 따른다.
 
+## Journey AI 429 응답 호환 필드 (#520)
+
+`POST /api/v1/explorations`, 호환 경로 `POST /api/journey-curator/explore`, `POST /api/v1/explorations/{explorationId}/turns`가 AI 사용량 또는 동시 실행 한도를 초과하면 HTTP 429를 반환한다. 기존 `code: "RATE_LIMITED"`를 유지하면서 FE 판별용 `classification: "RATE_LIMITED"`와 body `status: 429`를 함께 반환한다.
+
+```json
+{
+  "schemaVersion": "1.2",
+  "code": "RATE_LIMITED",
+  "message": "Too many requests",
+  "requestId": "req-journey-quota",
+  "details": { "retryAfterMs": 30000 },
+  "classification": "RATE_LIMITED",
+  "status": 429
+}
+```
+
+FE는 HTTP status와 `classification`으로 제한 안내를 표시할 수 있다. `Retry-After` 헤더는 초, `details.retryAfterMs`는 밀리초이며, 이 예시의 30초는 동시 실행 한도 대기 시간이다. 응답은 `Cache-Control: no-store`를 사용한다. 두 alias는 Journey AI 429에만 추가되며 로그인 admission 등 다른 API의 오류 응답과 Journey의 다른 오류에는 없다. 사용량 정책과 모델 텍스트 SSE 계약 변경은 별도 [Issue #518](https://github.com/YRootLab/OnMaru-backend/issues/518)에서 진행한다.
+
 ## 관리자 목록 페이지네이션 (#509)
 
 `GET /api/v1/admin/reviews`, `/reports`, `/users`, `/curations`, `/moderation/queue`와 `GET /api/v1/operations/moderation/queue`는 `limit` 기본 20, 최대 100을 사용한다. 첫 요청에서 `cursor`를 생략하고, 다음 요청에는 응답의 `nextCursor`를 그대로 전달한다. `hasNext`가 `false`이면 마지막 페이지이며 `nextCursor`가 없다. 후기·신고 응답의 기존 `hasMore`도 같은 값을 유지한다.
@@ -210,6 +228,8 @@ FE 동작은 다음 정책을 따른다.
 ## 기존 여정 탐색 계약에서 FE가 보강해야 할 부분
 
 여정 탐색은 REST command + SSE 진행 알림 + snapshot 복구다. FE는 `POST /explorations` 또는 `POST /explorations/{id}/turns` 뒤 `eventsUrl`을 구독하고, `run.terminal`, reconnect, `reset`, 탭 복귀에는 GET run/snapshot으로 상태를 재동기화한다. EventSource 미지원 환경만 polling fallback을 쓴다.
+
+`run.text.delta`는 `{schemaVersion:"1.2",runId,sequence,text}` 네 필드로 임시 narration을 전달한다. stage·terminal과 같은 replay sequence를 사용하며 delta당 최대 512자, run당 최대 4,000자다(Unicode code point 기준). FE는 text를 plain text로 표시하고 run 상태나 지도 후보를 갱신하지 않는다. 빈 delta, 한도 초과 부분과 terminal 이후 delta는 생략된다. 부분 narration 뒤 실패·reset이 와도 terminal과 GET snapshot이 최종 결과를 결정한다. provider raw JSON·refs·좌표·prompt·오류 원문을 narration으로 표시하지 않으며 FE도 text를 로그나 telemetry에 넣지 않는다.
 
 새로 명확해진 상태는 다음과 같다.
 

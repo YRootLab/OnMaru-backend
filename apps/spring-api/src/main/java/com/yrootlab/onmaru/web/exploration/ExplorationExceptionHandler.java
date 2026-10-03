@@ -138,17 +138,14 @@ final class ExplorationExceptionHandler {
     }
 
     @ExceptionHandler(ExplorationQuotaExceededException.class)
-    ResponseEntity<ApiErrorResponse> quotaExceeded(
+    ResponseEntity<JourneyRateLimitedResponse> quotaExceeded(
             ExplorationQuotaExceededException exception,
             HttpServletRequest request) {
         var retryAfter = exception.retryAfter();
         return ResponseEntity.status(ApiErrorCode.RATE_LIMITED.status())
                 .header(HttpHeaders.RETRY_AFTER, Long.toString(Math.max(1, retryAfter.toSeconds())))
                 .cacheControl(CacheControl.noStore())
-                .body(ApiErrorResponse.of(
-                        ApiErrorCode.RATE_LIMITED,
-                        requestId(request),
-                        Map.of("retryAfterMs", retryAfter.toMillis())));
+                .body(JourneyRateLimitedResponse.of(requestId(request), retryAfter));
     }
 
     private ResponseEntity<ApiErrorResponse> error(

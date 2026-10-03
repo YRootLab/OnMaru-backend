@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.testing.postgres;
 
 import com.yrootlab.onmaru.catalog.application.qualification.SourceRecord;
+import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailQueryService;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStore;
 import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceStore;
@@ -43,6 +44,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -181,6 +183,36 @@ class JdbcTourApiCatalogPublisherTests {
         assertThat(detail.address()).isEqualTo("서울 종로구");
         assertThat(source.contentId()).isEqualTo("2001");
         assertThat(source.contentTypeId()).isEqualTo("12");
+    }
+
+    @Test
+    void hanokSnapshotAndDetailShareEligibilityForHistoricPlaces() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var overviewFields = new java.util.LinkedHashMap<>(row("4862", "전통 문화 마을", "HISTORIC_SITE").fields());
+        overviewFields.put("overview", "전통 한옥을 둘러보는 마을");
+        var page = publisher.stagePage(session, List.of(
+                row("4861", "북촌한옥마을", "HISTORIC_SITE"),
+                new SourceRecord("kto-tourapi-korean", "areaBasedList2", Map.copyOf(overviewFields)),
+                row("4863", "문화 궁전", "HISTORIC_SITE"),
+                row("4864", "전통 숙소", "HANOK_STAY")));
+        publisher.complete(session, page.rawCount(), page.rawCount(),
+                page.publishedCount(), page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var snapshot = new JdbcCatalogPlaceSnapshotStore(dataSource).findPublishedHanokSnapshot();
+        assertThat(snapshot).extracting(place -> place.placeId())
+                .containsExactly("p-tourapi-4861", "p-tourapi-4862", "p-tourapi-4864");
+        var details = new PlaceDetailQueryService(new JdbcPlaceDetailStore(dataSource),
+                (memberId, placeId) -> false);
+        for (var place : snapshot) {
+            assertThat(details.findHanok(place.placeId(), Optional.empty()))
+                    .hasValueSatisfying(detail -> {
+                        assertThat(detail.placeId()).isEqualTo(place.placeId());
+                        assertThat(detail.category().name()).isEqualTo(place.category().name());
+                    });
+        }
+        assertThat(details.findHanok("p-tourapi-4863", Optional.empty())).isEmpty();
     }
 
     @Test

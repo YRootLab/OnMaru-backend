@@ -18,7 +18,7 @@ public final class InMemoryAdmissionStore implements AdmissionStore {
     ) {
         var counter = counters.get(scope);
         if (counter == null || !counter.windowStart().equals(windowStart)) {
-            counters.put(scope, new AdmissionCounter(windowStart, 1, 0));
+            counters.put(scope, new AdmissionCounter(windowStart, 1, counter == null ? 0 : counter.activeCount()));
             return AdmissionDecision.allow();
         }
         if (counter.consumed() >= limit) {
@@ -39,8 +39,8 @@ public final class InMemoryAdmissionStore implements AdmissionStore {
     ) {
         var counter = counters.get(scope);
         if (counter == null || !counter.windowStart().equals(windowStart)) {
-            counters.put(scope, new AdmissionCounter(windowStart, 1, 1));
-            return AdmissionDecision.allow();
+            counter = new AdmissionCounter(windowStart, 0, counter == null ? 0 : counter.activeCount());
+            counters.put(scope, counter);
         }
         if (counter.consumed() >= limit) {
             return AdmissionDecision.rejected(retryAfter);

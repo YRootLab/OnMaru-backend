@@ -73,6 +73,45 @@ public final class OdiiRevisionSyncService {
     }
 
     public OdiiSyncResult sync(OdiiSyncCommand command) {
+        return sync(command, OdiiSyncObserver.NOOP);
+    }
+
+    /** Per-invocation observer keeps concurrent run diagnostics isolated. */
+    public OdiiSyncResult sync(OdiiSyncCommand command, OdiiSyncObserver runObserver) {
+        OdiiSyncObserver observer = new OdiiSyncObserver() {
+            @Override public void started(String dataset, java.util.UUID revision) {
+                OdiiRevisionSyncService.this.observer.started(dataset, revision);
+                runObserver.started(dataset, revision);
+            }
+            @Override public void phaseFailed(String dataset, java.util.UUID revision, String phase, String code) {
+                runObserver.phaseFailed(dataset, revision, phase, code);
+                OdiiRevisionSyncService.this.observer.phaseFailed(dataset, revision, phase, code);
+            }
+            @Override public void staged(String dataset, java.util.UUID revision, long count) {
+                runObserver.staged(dataset, revision, count);
+                OdiiRevisionSyncService.this.observer.staged(dataset, revision, count);
+            }
+            @Override public void stageCompleted(String dataset, java.util.UUID revision, long tombstones) {
+                runObserver.stageCompleted(dataset, revision, tombstones);
+                OdiiRevisionSyncService.this.observer.stageCompleted(dataset, revision, tombstones);
+            }
+            @Override public void fetched(String dataset, java.util.UUID revision, long count) {
+                runObserver.fetched(dataset, revision, count);
+                OdiiRevisionSyncService.this.observer.fetched(dataset, revision, count);
+            }
+            @Override public void mapped(String dataset, java.util.UUID revision, long count) {
+                runObserver.mapped(dataset, revision, count);
+                OdiiRevisionSyncService.this.observer.mapped(dataset, revision, count);
+            }
+            @Override public void completed(String dataset, OdiiSyncResult result) {
+                runObserver.completed(dataset, result);
+                OdiiRevisionSyncService.this.observer.completed(dataset, result);
+            }
+            @Override public void published(String dataset, java.util.UUID revision, OdiiSyncResult result) {
+                runObserver.published(dataset, revision, result);
+                OdiiRevisionSyncService.this.observer.published(dataset, revision, result);
+            }
+        };
         observer.started(command.dataset(), command.expectedActiveRevisionId());
         AudioRevisionStage stage;
         try {
@@ -93,7 +132,7 @@ public final class OdiiRevisionSyncService {
                         OdiiSourcePage page = fullSource.fetchFull(language, pageNumber);
                         var processed = processPage(
                                 stage.revisionId(), page, null, seenStoryIds, mappedStories, latestModifiedAt,
-                                latestExternalId);
+                                latestExternalId, command.dataset(), observer);
                         latestModifiedAt = processed.latestModifiedAt();
                         latestExternalId = processed.latestExternalId();
                         if (page.lastPage()) {
@@ -108,7 +147,7 @@ public final class OdiiRevisionSyncService {
                             OdiiSourcePage page = source.fetch(language, keyword, pageNumber);
                             var processed = processPage(
                                     stage.revisionId(), page, keyword, seenStoryIds, mappedStories, latestModifiedAt,
-                                    latestExternalId);
+                                    latestExternalId, command.dataset(), observer);
                             latestModifiedAt = processed.latestModifiedAt();
                             latestExternalId = processed.latestExternalId();
                             if (page.lastPage()) {
@@ -120,20 +159,20 @@ public final class OdiiRevisionSyncService {
                 }
             }
         } catch (OdiiSourceException exception) {
-            store.failStage(stage.revisionId(), "SOURCE_FAILED");
             observer.phaseFailed(command.dataset(), stage.revisionId(), "FETCH", "SOURCE_FAILED");
+            store.failStage(stage.revisionId(), "SOURCE_FAILED");
             var result = OdiiSyncResult.sourceFailed(stage.revisionId());
             observer.completed(command.dataset(), result);
             return result;
         } catch (OdiiMappingException exception) {
-            store.failStage(stage.revisionId(), "MAPPING_FAILED");
             observer.phaseFailed(command.dataset(), stage.revisionId(), "MAP", "MAPPING_FAILED");
+            store.failStage(stage.revisionId(), "MAPPING_FAILED");
             var result = OdiiSyncResult.sourceFailed(stage.revisionId());
             observer.completed(command.dataset(), result);
             return result;
         } catch (RuntimeException exception) {
-            store.failStage(stage.revisionId(), "STAGING_FAILED");
             observer.phaseFailed(command.dataset(), stage.revisionId(), "STAGE", "STAGING_FAILED");
+            store.failStage(stage.revisionId(), "STAGING_FAILED");
             throw exception;
         }
 
@@ -142,11 +181,12 @@ public final class OdiiRevisionSyncService {
         try {
             completion = store.completeStage(
                     stage.revisionId(), MISSING_OBSERVATION_THRESHOLD, command.emptyFullSyncReviewed());
+            observer.stageCompleted(command.dataset(), stage.revisionId(), completion.tombstoneCount());
             stagedItemCount = store.stagedItemCount(stage.revisionId());
             observer.staged(command.dataset(), stage.revisionId(), stagedItemCount);
         } catch (RuntimeException exception) {
-            store.failStage(stage.revisionId(), "STAGE_COMPLETION_FAILED");
             observer.phaseFailed(command.dataset(), stage.revisionId(), "STAGE", "STAGE_COMPLETION_FAILED");
+            store.failStage(stage.revisionId(), "STAGE_COMPLETION_FAILED");
             throw exception;
         }
         var watermark = new SourceWatermark(
@@ -187,13 +227,17 @@ public final class OdiiRevisionSyncService {
             HashSet<String> seenStoryIds,
             java.util.List<OdiiStoryVersion> mappedStories,
             Instant latestModifiedAt,
-            String latestExternalId
+            String latestExternalId,
+            String dataset,
+            OdiiSyncObserver observer
     ) {
+        observer.fetched(dataset, revisionId, page.stories().size());
         var mapped = page.stories().stream()
                 .filter(story -> curationPolicy.decide(story, keyword).status()
                         == OdiiCurationDecision.Status.INCLUDED)
                 .filter(story -> seenStoryIds.add(story.stlid()))
                 .map(mapper::map)
+                .peek(ignored -> observer.mapped(dataset, revisionId, 1))
                 .toList();
         store.stage(revisionId, mapped);
         for (OdiiMappedStory story : mapped) {
