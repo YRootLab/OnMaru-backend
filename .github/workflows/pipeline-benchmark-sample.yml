@@ -1,0 +1,82 @@
+name: Pipeline Benchmark Sample
+run-name: pipeline-experiment/${{ inputs.experiment_run_id }}/${{ inputs.side }}/${{ inputs.ordinal }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      experiment_run_id:
+        description: Exact controller run ID
+        required: true
+        type: string
+      side:
+        description: Baseline or candidate
+        required: true
+        type: choice
+        options: [baseline, candidate]
+      ordinal:
+        description: Sample ordinal
+        required: true
+        type: choice
+        options: ['1', '2', '3']
+      application_source_commit:
+        description: Trusted common application and plan SHA
+        required: true
+        type: string
+      config_commit:
+        description: Expected workflow/config SHA
+        required: true
+        type: string
+      scope:
+        description: Committed plan scope
+        required: true
+        type: choice
+        options: [ci, test]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-experiment-sample-${{ inputs.experiment_run_id }}-${{ inputs.side }}-${{ inputs.ordinal }}
+  cancel-in-progress: false
+
+jobs:
+  sample:
+    if: github.repository == 'YRootLab/OnMaru-backend' && github.sha == inputs.config_commit && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.application_source_commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Execute only the trusted committed plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SOURCE_COMMIT: ${{ inputs.application_source_commit }}
+          CONFIG_COMMIT: ${{ inputs.config_commit }}
+          EXPERIMENT_RUN_ID: ${{ inputs.experiment_run_id }}
+          SIDE: ${{ inputs.side }}
+          ORDINAL: ${{ inputs.ordinal }}
+          SCOPE: ${{ inputs.scope }}
+          EXPERIMENT_OUT: ${{ runner.temp }}/pipeline-experiment-sample
+        run: node scripts/benchmark/pipeline-experiment.mjs sample
+      - name: Preserve sample evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-experiment-sample-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pipeline-experiment-sample/sample.json
+          if-no-files-found: warn
+          retention-days: 14

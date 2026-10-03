@@ -4,6 +4,8 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #592의 운영 관리자 로그인 세션이 PostgreSQL JDBC의 `Instant` 타입 추론 오류로 저장되지 않던 문제를 수정하고, 생성·회전·폐기 통합 회귀 테스트를 추가했다.
+- Issues #543, #554, #555, #556, #568의 신뢰된 CI 관측 후처리, 로컬 Grafana 왕복 검증, release 3회 비교, 수동 3+3 pipeline 실험과 dry-run 기본 Skill을 추가했다.
 - Issue #572의 공개 cursor/limit 목록 응답에 현재 필터 기준 `totalCount`를 추가하고 OpenAPI·fixture·FE 연동 문서를 일치시켰다.
 - Issue #576의 Jackson Core DoS 취약점 2건을 수정한 2.21.7·3.1.7 버전을 Spring 런타임에 고정했다.
 - Issue #571의 온디맨드 스테이징 CORS allowlist에 로컬 프런트엔드 `localhost:3000`~`3008`을 추가했다.

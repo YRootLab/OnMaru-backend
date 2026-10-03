@@ -92,6 +92,12 @@
 - Use `improvements.md` for vague or untriaged follow-up ideas. During cleanup, classify each item as local keep, existing Issue link, new Issue promotion, or verified completion removal.
 - Do not copy operating rules into `CODEX.md`, `CLAUDE.md`, `GEMINI.md`, or `CLINE.md`; those files should remain thin pointers to `AGENTS.md`.
 
+## Repository-local Skills
+
+- Discover project-owned skills under the repository root `skills/` directory when a request matches their description.
+- Read the complete matching `SKILL.md` before acting, and resolve its relative scripts and resources from that skill directory.
+- Treat `skills/<skill-name>/` as the single canonical source. Do not create or consume duplicate copies or symlinks under `.agents/skills`.
+
 ## Architecture Decisions
 
 - Use ADRs under `docs/decisions` for long-lived structural decisions.

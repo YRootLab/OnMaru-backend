@@ -1,0 +1,12 @@
+{
+  "id": 731,
+  "run_attempt": 2,
+  "name": "Module Benchmark",
+  "path": ".github/workflows/module-benchmark.yml",
+  "status": "completed",
+  "conclusion": "success",
+  "event": "workflow_dispatch",
+  "repository": {"full_name": "YRootLab/OnMaru-backend"},
+  "html_url": "https://github.com/YRootLab/OnMaru-backend/actions/runs/731",
+  "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}
