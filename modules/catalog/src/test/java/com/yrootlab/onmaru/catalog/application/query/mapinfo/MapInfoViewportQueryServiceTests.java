@@ -60,4 +60,16 @@ class MapInfoViewportQueryServiceTests {
         assertThat(response.appliedCategories())
                 .containsExactly("TRADITIONAL_FOOD", "KOREAN_RESTAURANT", "RESTAURANT", "FOOD");
     }
+
+    @Test
+    void exposesTheSameHanokUnionAsTheListEndpoint() {
+        var response = service.find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.8, 35.0, 127.2, 36.0), 5,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 100));
+
+        assertThat(response.appliedCategories())
+                .containsExactly("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE");
+        assertThat(MapInfoCategoryMapping.queryValues(MapInfoCategory.valueOf("HANOK")))
+                .containsExactly("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE");
+    }
 }
