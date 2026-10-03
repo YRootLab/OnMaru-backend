@@ -119,6 +119,13 @@
 // V037은 V036보다 먼저 게시된 활성 TourAPI revision의 지도 장소·카테고리·지역 집계
 // projection 및 publication을 원천 장소 변경 없이 채운다. 지역 코드가 없는 장소도
 // 위치와 공개 ID가 있으면 지도 목록에 포함하고 지역 집계에서는 제외한다.
+// V040부터 identity_member_profiles가 OnMaru 회원의 현재 공개 프로필을 소유한다.
+// display_name은 trim된 2~20자 익명 이름이며 중복을 허용한다. character_id는
+// CHARACTER_01..10, background_id는 BACKGROUND_01..10의 고정 FE 자산 슬롯만 저장한다.
+// 실제 캐릭터 이미지와 배경 HEX는 FE가 관리하며 DB에는 URL이나 HEX를 저장하지 않는다.
+// migration은 기존 회원 UUID hash로 프로필을 결정적으로 backfill한다. 신규 회원은 OAuth
+// 최초 연결 transaction에서 프로필을 함께 만들고, 후기 조회는 작성 당시 snapshot 대신
+// 이 현재 profile을 batch join한다. 회원 row 삭제 시 profile은 ON DELETE CASCADE로 삭제된다.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 
 // 에러 없이 시각화된 ERD(관계도)를 볼 수 있습니다.
 

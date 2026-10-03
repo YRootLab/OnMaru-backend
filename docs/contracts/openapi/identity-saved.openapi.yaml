@@ -158,6 +158,36 @@ paths:
                 $ref: '#/components/schemas/MemberMe'
         '401':
           $ref: '#/components/responses/Error'
+    patch:
+      tags: [Member]
+      operationId: updateCurrentMemberProfile
+      summary: Partially update the current OnMaru profile.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberProfilePatch'
+      responses:
+        '200':
+          description: Updated current member profile.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberMe'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
     delete:
       tags: [Member]
       operationId: deleteCurrentMember
@@ -408,6 +438,12 @@ components:
     SavedResourceType:
       type: string
       enum: [PLACE, ODII_STORY]
+    CharacterId:
+      type: string
+      pattern: '^CHARACTER_(0[1-9]|10)$'
+    BackgroundId:
+      type: string
+      pattern: '^BACKGROUND_(0[1-9]|10)$'
     CsrfTokenResponse:
       type: object
       additionalProperties: false
@@ -425,16 +461,34 @@ components:
     MemberMe:
       type: object
       additionalProperties: false
-      required: [schemaVersion, id, displayName]
+      required: [schemaVersion, id, displayName, characterId, backgroundId]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
         id:
           type: string
-          pattern: '^m-[a-z0-9-]{8,80}$'
+          format: uuid
         displayName:
-          type: ['string', 'null']
-          maxLength: 80
+          type: string
+          minLength: 2
+          maxLength: 20
+        characterId:
+          $ref: '#/components/schemas/CharacterId'
+        backgroundId:
+          $ref: '#/components/schemas/BackgroundId'
+    MemberProfilePatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 20
+        characterId:
+          $ref: '#/components/schemas/CharacterId'
+        backgroundId:
+          $ref: '#/components/schemas/BackgroundId'
     MemberDeletingStatus:
       type: object
       additionalProperties: false

@@ -11,6 +11,9 @@ import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.IdentityStore;
 import com.yrootlab.onmaru.identity.oauth.OAuthLoginService;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.identity.profile.MemberProfileGenerator;
+import com.yrootlab.onmaru.identity.profile.MemberProfileService;
+import com.yrootlab.onmaru.identity.profile.MemberProfileStore;
 import com.yrootlab.onmaru.persistence.identity.JdbcIdentityStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -46,12 +49,27 @@ public class KakaoOAuthConfiguration {
 
     @Bean
     OAuthLoginService oauthLoginService(
-            IdentityStore store, SecretProvider secretProvider, Clock clock, MemberAccessPolicy accessPolicy) {
+            IdentityStore store,
+            SecretProvider secretProvider,
+            Clock clock,
+            MemberAccessPolicy accessPolicy,
+            MemberProfileGenerator profileGenerator) {
         return new OAuthLoginService(
                 store,
                 new TokenHasher(secretProvider.get("oauth.client-secret").current()),
                 clock,
-                accessPolicy);
+                accessPolicy,
+                profileGenerator);
+    }
+
+    @Bean
+    MemberProfileGenerator memberProfileGenerator() {
+        return new MemberProfileGenerator();
+    }
+
+    @Bean
+    MemberProfileService memberProfileService(MemberProfileStore store) {
+        return new MemberProfileService(store);
     }
 
     @Bean

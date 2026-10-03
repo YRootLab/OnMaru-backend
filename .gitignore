@@ -93,6 +93,7 @@ __pycache__/
 .tmp/
 tmp/
 temp/
+.superpowers/
 
 # OS and archive artifacts
 Thumbs.db

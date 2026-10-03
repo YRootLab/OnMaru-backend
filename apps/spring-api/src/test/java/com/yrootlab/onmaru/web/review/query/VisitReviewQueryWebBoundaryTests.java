@@ -7,6 +7,9 @@ import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.identity.profile.MemberProfileBackground;
+import com.yrootlab.onmaru.identity.profile.MemberProfileCharacter;
+import com.yrootlab.onmaru.identity.profile.NewMemberProfile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,8 +52,10 @@ class VisitReviewQueryWebBoundaryTests {
     void setUp() {
         visitReviewStore.clear();
         identityStore.clear();
-        memberId = identityStore.createMember(clock.instant());
-        otherMemberId = identityStore.createMember(clock.instant());
+        memberId = identityStore.createMember(clock.instant(), new NewMemberProfile(
+                "고요한 마루 0552", MemberProfileCharacter.CHARACTER_03, MemberProfileBackground.BACKGROUND_07));
+        otherMemberId = identityStore.createMember(clock.instant(), new NewMemberProfile(
+                "따뜻한 온니 1004", MemberProfileCharacter.CHARACTER_10, MemberProfileBackground.BACKGROUND_01));
         identityStore.saveSession(new SessionRecord(
                 hasher.hash("member-session"),
                 memberId,
@@ -74,6 +79,11 @@ class VisitReviewQueryWebBoundaryTests {
                 .andExpect(jsonPath("$.items[0].mine").value(true))
                 .andExpect(jsonPath("$.items[0].likedByMe").value(true))
                 .andExpect(jsonPath("$.items[0].likeCount").value(1))
+                .andExpect(jsonPath("$.items[0].author.displayName").value("고요한 마루 0552"))
+                .andExpect(jsonPath("$.items[0].author.characterId").value("CHARACTER_03"))
+                .andExpect(jsonPath("$.items[0].author.backgroundId").value("BACKGROUND_07"))
+                .andExpect(jsonPath("$.items[0].author.memberId").doesNotExist())
+                .andExpect(jsonPath("$.items[0].authorMemberId").doesNotExist())
                 .andExpect(jsonPath("$.items[1].id").value("00000000-0000-0000-0000-000000000002"))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andExpect(jsonPath("$.nextCursor").isNotEmpty())

@@ -18,11 +18,14 @@ import com.yrootlab.onmaru.admin.pipeline.AdminPipelinePort;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.RegionVisitorCountLookup;
+import com.yrootlab.onmaru.community.query.VisitReviewAuthor;
+import com.yrootlab.onmaru.community.query.VisitReviewAuthorProfileLookup;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewQueryService;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
 import com.yrootlab.onmaru.web.common.idempotency.InMemoryIdempotencyStore;
+import com.yrootlab.onmaru.identity.profile.MemberProfileService;
 import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPublicPlaceIdStore;
 import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewPlaceLookup;
 import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewStore;
@@ -44,6 +47,7 @@ import javax.sql.DataSource;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -93,8 +97,23 @@ class VisitReviewQueryConfiguration {
     VisitReviewQueryService visitReviewQueryService(
             MutableVisitReviewStore store,
             RegionVisitorCountLookup visitorCountLookup,
+            VisitReviewAuthorProfileLookup authorProfileLookup,
             Clock clock) {
-        return new VisitReviewQueryService(store, visitorCountLookup, clock);
+        return new VisitReviewQueryService(store, visitorCountLookup, authorProfileLookup, clock);
+    }
+
+    @Bean
+    VisitReviewAuthorProfileLookup visitReviewAuthorProfileLookup(MemberProfileService profileService) {
+        return memberIds -> {
+            var authors = new HashMap<UUID, VisitReviewAuthor>();
+            profileService.findByMemberIds(memberIds).forEach((memberId, profile) -> authors.put(
+                    memberId,
+                    new VisitReviewAuthor(
+                            profile.displayName(),
+                            profile.characterId().name(),
+                            profile.backgroundId().name())));
+            return java.util.Map.copyOf(authors);
+        };
     }
 
     @Bean
@@ -185,8 +204,9 @@ class VisitReviewQueryConfiguration {
             MutableVisitReviewStore store,
             VisitReviewPlaceLookup placeLookup,
             ReviewIdGenerator reviewIdGenerator,
+            VisitReviewAuthorProfileLookup authorProfileLookup,
             Clock clock) {
-        return new VisitReviewCommandService(store, placeLookup, reviewIdGenerator, clock);
+        return new VisitReviewCommandService(store, placeLookup, reviewIdGenerator, authorProfileLookup, clock);
     }
 
     @Bean

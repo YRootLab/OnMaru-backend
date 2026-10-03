@@ -8,6 +8,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -19,18 +20,28 @@ public final class VisitReviewQueryService {
 
     private final VisitReviewStore store;
     private final RegionVisitorCountLookup visitorCountLookup;
+    private final VisitReviewAuthorProfileLookup authorProfileLookup;
     private final Clock clock;
 
     public VisitReviewQueryService(VisitReviewStore store, Clock clock) {
-        this(store, ignored -> Map.of(), clock);
+        this(store, ignored -> Map.of(), ignored -> Map.of(), clock);
     }
 
     public VisitReviewQueryService(
             VisitReviewStore store,
             RegionVisitorCountLookup visitorCountLookup,
             Clock clock) {
+        this(store, visitorCountLookup, ignored -> Map.of(), clock);
+    }
+
+    public VisitReviewQueryService(
+            VisitReviewStore store,
+            RegionVisitorCountLookup visitorCountLookup,
+            VisitReviewAuthorProfileLookup authorProfileLookup,
+            Clock clock) {
         this.store = store;
         this.visitorCountLookup = visitorCountLookup;
+        this.authorProfileLookup = authorProfileLookup;
         this.clock = clock;
     }
 
@@ -52,6 +63,12 @@ public final class VisitReviewQueryService {
         Map<String, Long> visitorCounts = visitorCountLookup.findLatestVisitorCounts(pageItems.stream()
                 .map(VisitReviewProjection::regionCode)
                 .collect(Collectors.toUnmodifiableSet()));
+        Set<UUID> authorMemberIds = pageItems.stream()
+                .map(VisitReviewProjection::authorMemberId)
+                .collect(Collectors.toUnmodifiableSet());
+        Map<UUID, VisitReviewAuthor> authors = authorMemberIds.isEmpty()
+                ? Map.of()
+                : authorProfileLookup.findByMemberIds(authorMemberIds);
         var items = pageItems.stream()
                 .map(review -> new VisitReview(
                         review.id().toString(),
@@ -63,6 +80,7 @@ public final class VisitReviewQueryService {
                         review.mood(),
                         review.score(),
                         review.tags(),
+                        authors.getOrDefault(review.authorMemberId(), VisitReviewAuthor.fallback()),
                         visitorCounts.get(review.regionCode()),
                         review.createdAt(),
                         query.memberId().map(review.authorMemberId()::equals).orElse(false),

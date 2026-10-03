@@ -72,7 +72,8 @@ FE는 집계 선택 전 기존 결과를 유지하고, `이 지역 후기 보기
 | DELETE /saved-resources/odii-stories/{storyId} | body 없음 | 204; 회원, 없어도 성공 |
 | GET /saved-resources | type=PLACE 또는 ODII_STORY, limit 1..50 default20,cursor? | 200 `{items:[SavedResourceSummary],totalCount,nextCursor,hasMore}`; savedAt DESC,id DESC |
 | GET /me/timeline | month=YYYY-MM, limit 1..50 default20,cursor? | 200 `{month,groups,totalCount,nextCursor,hasMore,unavailableCount}`; occurredAt DESC,id DESC |
-| GET /members/me | 없음 | 200 `{id,displayName:null}`; 401 비회원 |
+| GET /members/me | 없음 | 200 `{id,displayName,characterId,backgroundId}`; 401 비회원 |
+| PATCH /members/me | `X-CSRF-TOKEN`, 변경할 프로필 필드 1개 이상 | 200 전체 현재 프로필; 400 검증 오류; 401 비회원; 403 CSRF 오류 |
 | GET /auth/csrf | 없음 | 200 `{token,headerName:"X-CSRF-TOKEN"}` + guest cookie 필요 시 |
 | GET /auth/kakao/login | returnTo=/discover, explorationId? | 302 Kakao; 소유권 확인 후 state 발급 |
 | GET /auth/kakao/callback | code,state 또는 OAuth error | 303 /discover?auth=success\|failed; 실패 시 기존 guest board 유지 |
