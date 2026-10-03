@@ -8,7 +8,7 @@
 2. `staging-api.onmaru.site`의 A 레코드를 기존 Lightsail 고정 IP로 추가한다. 운영 `api.onmaru.site` 레코드는 변경하지 않는다. 운영 checkout에 이 PR의 Nginx 파일과 Compose 변경이 release 경로로 반영된 뒤, DNS가 확인되면 HTTP 전용 `staging-bootstrap.conf`로 ACME challenge를 제공한다. 기존 certbot webroot·이메일로 staging API 인증서를 발급하고, 발급 성공 후에만 운영 `.env`에 `NGINX_STAGING_SITE_CONFIG=./nginx/staging-site.conf`를 설정해 Nginx를 재생성한다. 운영 `NGINX_SITE_CONFIG` 값은 그대로 둔다. staging 앱이 중지되어 있으면 staging API는 503을 반환한다.
 3. `sudo install -m 0644 staging/systemd/* /etc/systemd/system/` 및 `sudo systemctl daemon-reload`로 자동 중지 timer를 설치한다. timer는 `start.sh`가 기동할 때 시작된다. 서버 재부팅 후 스테이징은 자동 실행되지 않는다.
 4. FE 개발자에게 **전용 SSH 공개키만** 받아 서버의 별도 임시 파일로 전달하고 `sudo staging/install-operator.sh /path/to/developer.pub`를 실행한다. 개인키나 운영 `.env`는 전달하지 않는다. 이 계정은 아래 세 명령만 실행할 수 있다.
-5. FE의 고정 스테이징 도메인 `https://staging.onmaru.site`를 Vercel Preview에 연결하고, 해당 배포의 `NEXT_PUBLIC_API_URL`을 `https://staging-api.onmaru.site`로 설정해 재배포한다. Kakao 개발자 설정에는 `https://staging-api.onmaru.site/auth/kakao/callback`을 추가한다. 운영 Vercel Production 설정은 유지한다.
+5. FE의 고정 스테이징 도메인 `https://staging.onmaru.site`를 Vercel Preview에 연결하고, 해당 배포의 `NEXT_PUBLIC_API_URL`을 `https://staging-api.onmaru.site`로 설정해 재배포한다. 로컬 FE는 `staging/.env`의 `ONMARU_CORS_ALLOWED_ORIGINS`에 명시된 `http://localhost:3000`~`http://localhost:3008`에서 스테이징 API를 호출할 수 있다. Kakao 개발자 설정에는 `https://staging-api.onmaru.site/auth/kakao/callback`을 추가한다. 운영 Vercel Production 설정은 유지한다.
 
 ## 검증된 develop 이미지 반영 (운영자)
 
