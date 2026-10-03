@@ -1,6 +1,6 @@
 {
   "name": "member-me-normal",
-  "description": "A signed-in user receives an opaque member id and nullable display name.",
+  "description": "A signed-in user receives an opaque member id and the current OnMaru profile identifiers.",
   "request": {
     "method": "GET",
     "path": "/api/v1/members/me"
@@ -14,7 +14,9 @@
     "body": {
       "schemaVersion": "1.2",
       "id": "m-8f4b7a21c9",
-      "displayName": null
+      "displayName": "고요한 마루 0552",
+      "characterId": "CHARACTER_03",
+      "backgroundId": "BACKGROUND_07"
     }
   }
 }

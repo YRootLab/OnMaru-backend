@@ -1,0 +1,29 @@
+{
+  "name": "member-profile-update-normal",
+  "description": "A signed-in user partially updates the OnMaru profile and receives the full current profile.",
+  "request": {
+    "method": "PATCH",
+    "path": "/api/v1/members/me",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture-123456"
+    },
+    "body": {
+      "displayName": "따뜻한 온니 1004",
+      "characterId": "CHARACTER_10"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "MemberMe",
+    "headers": {
+      "Cache-Control": "no-store"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "id": "m-8f4b7a21c9",
+      "displayName": "따뜻한 온니 1004",
+      "characterId": "CHARACTER_10",
+      "backgroundId": "BACKGROUND_07"
+    }
+  }
+}

@@ -30,6 +30,8 @@ REQUIRED_COVERAGE = {
     "moderation-hidden-text",
     "error-envelope",
 }
+CHARACTER_ID_PATTERN = r"^CHARACTER_(0[1-9]|10)$"
+BACKGROUND_ID_PATTERN = r"^BACKGROUND_(0[1-9]|10)$"
 
 
 def fail(message: str) -> None:
@@ -55,6 +57,22 @@ def main() -> None:
     for relative_path in contracts:
         if not (ROOT / relative_path).is_file():
             fail(f"R2 E2E gate references missing contract: {relative_path}")
+
+    visit_review_contract = json.loads(
+        (ROOT / "docs/contracts/openapi/visit-reviews.openapi.json").read_text(encoding="utf-8")
+    )
+    schemas = visit_review_contract.get("components", {}).get("schemas", {})
+    author = schemas.get("VisitReviewAuthor", {})
+    if author.get("required") != ["displayName", "characterId", "backgroundId"]:
+        fail("VisitReviewAuthor must expose exactly the three public profile values as required fields")
+    if author.get("additionalProperties") is not False:
+        fail("VisitReviewAuthor must reject internal member identifiers")
+    if schemas.get("CharacterId", {}).get("pattern") != CHARACTER_ID_PATTERN:
+        fail("VisitReview CharacterId must allow exactly CHARACTER_01..10")
+    if schemas.get("BackgroundId", {}).get("pattern") != BACKGROUND_ID_PATTERN:
+        fail("VisitReview BackgroundId must allow exactly BACKGROUND_01..10")
+    if "author" not in schemas.get("VisitReview", {}).get("required", []):
+        fail("VisitReview must require the current author profile")
 
     fixture_groups = manifest.get("fixtureGroups", [])
     for relative_path in fixture_groups:

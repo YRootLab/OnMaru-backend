@@ -28,8 +28,11 @@ REQUIRED_PATHS = {
     "/me/timeline",
 }
 REQUIRED_SCHEMAS = {
+    "BackgroundId",
+    "CharacterId",
     "CsrfTokenResponse",
     "MemberMe",
+    "MemberProfilePatch",
     "MemberDeletingStatus",
     "SavedResourceState",
     "SavedResourcePage",
@@ -42,6 +45,7 @@ REQUIRED_FIXTURES = {
     "kakao-callback-success",
     "logout-normal",
     "member-me-normal",
+    "member-profile-update-normal",
     "member-me-auth-required",
     "member-delete-accepted",
     "save-place-normal",
@@ -59,6 +63,8 @@ REQUIRED_FIXTURES = {
     "timeline-auth-required",
 }
 FORBIDDEN_PUBLIC_KEYS = {"contentId", "contentid", "pageNo", "page_no", "key", "serviceKey"}
+CHARACTER_ID_PATTERN = r"^CHARACTER_(0[1-9]|10)$"
+BACKGROUND_ID_PATTERN = r"^BACKGROUND_(0[1-9]|10)$"
 
 
 def fail(message: str) -> None:
@@ -209,6 +215,39 @@ def validate_request_parameters(
             )
 
 
+def validate_request_body(
+    fixture: dict[str, Any],
+    openapi: dict[str, Any],
+    operation: dict[str, Any],
+    source: str,
+) -> None:
+    request_body = operation.get("requestBody")
+    fixture_body_present = "body" in fixture["request"]
+    if not isinstance(request_body, dict):
+        if fixture_body_present:
+            fail(f"{source} provides a request body but the operation declares none")
+        return
+    if request_body.get("required") is True and not fixture_body_present and fixture["response"]["status"] < 400:
+        fail(f"{source} is missing the required request body")
+    if not fixture_body_present:
+        return
+    schema = request_body.get("content", {}).get("application/json", {}).get("schema")
+    if not isinstance(schema, dict):
+        fail(f"{source} request body has no application/json schema")
+    request_schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        **rewrite_openapi_refs(schema),
+        "$defs": {
+            name: rewrite_openapi_refs(component)
+            for name, component in openapi.get("components", {}).get("schemas", {}).items()
+        },
+    }
+    validator = Draft202012Validator(request_schema, format_checker=FormatChecker())
+    errors = sorted(validator.iter_errors(fixture["request"]["body"]), key=lambda error: list(error.path))
+    if errors:
+        fail(f"{source} request body does not match OpenAPI schema: {errors[0].message}")
+
+
 def dereference_response(openapi: dict[str, Any], response_spec: dict[str, Any], source: str) -> dict[str, Any]:
     response_ref = response_spec.get("$ref")
     if not isinstance(response_ref, str):
@@ -244,6 +283,7 @@ def operation_response_schema_name(
     if not isinstance(operation, dict):
         fail(f"{source} method {method} is not declared for {openapi_path}")
     validate_request_parameters(fixture, openapi, operation, openapi_path, source)
+    validate_request_body(fixture, openapi, operation, source)
 
     response_spec = operation.get("responses", {}).get(str(status))
     if not isinstance(response_spec, dict):
@@ -320,6 +360,12 @@ def validate_openapi_contract(openapi: dict[str, Any]) -> None:
     missing_schemas = REQUIRED_SCHEMAS.difference(schemas.keys())
     if missing_schemas:
         fail(f"missing required schemas: {sorted(missing_schemas)}")
+    if schemas["CharacterId"].get("pattern") != CHARACTER_ID_PATTERN:
+        fail("CharacterId must allow exactly CHARACTER_01..10")
+    if schemas["BackgroundId"].get("pattern") != BACKGROUND_ID_PATTERN:
+        fail("BackgroundId must allow exactly BACKGROUND_01..10")
+    if schemas["MemberProfilePatch"].get("minProperties") != 1:
+        fail("MemberProfilePatch must require at least one changed field")
 
     assert_no_forbidden_public_keys(openapi, str(OPENAPI_PATH.relative_to(ROOT)))
 
