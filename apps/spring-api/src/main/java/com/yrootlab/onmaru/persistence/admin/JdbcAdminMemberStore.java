@@ -61,7 +61,7 @@ public final class JdbcAdminMemberStore implements AdminMemberStore {
                     FROM onmaru.identity_members member
                     WHERE 1=1
                 """);
-        if (normalizedStatus != null) sql.append(" AND member.status::text = ?");
+        if (normalizedStatus != null) sql.append(" AND member.status = ?::onmaru.identity_member_status");
         if (cursor != null) sql.append(" AND (member.created_at, member.id) < (?, ?)");
         sql.append(" ORDER BY member.created_at DESC, member.id DESC LIMIT ?)");
         sql.append("""
@@ -71,26 +71,42 @@ public final class JdbcAdminMemberStore implements AdminMemberStore {
                  FROM page_members
                  ORDER BY page_members.created_at DESC, page_members.id DESC
                 """);
-        try (var connection = dataSource.getConnection(); var statement = connection.prepareStatement(sql.toString())) {
-            int index = 1;
-            if (normalizedStatus != null) statement.setString(index++, normalizedStatus);
-            if (cursor != null) {
-                statement.setObject(index++, java.time.OffsetDateTime.ofInstant(cursor.timestamp(), java.time.ZoneOffset.UTC));
-                statement.setObject(index++, cursor.id());
-            }
-            statement.setInt(index, limit + 1);
-            try (var result = statement.executeQuery()) {
-                List<AdminMember> members = new ArrayList<>();
-                while (result.next()) {
-                    members.add(new AdminMember(result.getObject("id", UUID.class), result.getString("status"),
-                            result.getObject("created_at", java.time.OffsetDateTime.class).toInstant(),
-                            result.getLong("review_count")));
+        try (var connection = dataSource.getConnection()) {
+            long totalCount = cursor != null && cursor.totalCount() != null
+                    ? cursor.totalCount() : countMembers(connection, normalizedStatus);
+            try (var statement = connection.prepareStatement(sql.toString())) {
+                int index = 1;
+                if (normalizedStatus != null) statement.setString(index++, normalizedStatus);
+                if (cursor != null) {
+                    statement.setObject(index++, java.time.OffsetDateTime.ofInstant(cursor.timestamp(), java.time.ZoneOffset.UTC));
+                    statement.setObject(index++, cursor.id());
                 }
-                boolean hasNext = members.size() > limit;
-                return new AdminPage<>(members.subList(0, Math.min(limit, members.size())), hasNext);
+                statement.setInt(index, limit + 1);
+                try (var result = statement.executeQuery()) {
+                    List<AdminMember> members = new ArrayList<>();
+                    while (result.next()) {
+                        members.add(new AdminMember(result.getObject("id", UUID.class), result.getString("status"),
+                                result.getObject("created_at", java.time.OffsetDateTime.class).toInstant(),
+                                result.getLong("review_count")));
+                    }
+                    boolean hasNext = members.size() > limit;
+                    return new AdminPage<>(members.subList(0, Math.min(limit, members.size())), hasNext, totalCount);
+                }
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Failed to load admin member page", exception);
+        }
+    }
+
+    private long countMembers(java.sql.Connection connection, String status) throws SQLException {
+        String sql = "SELECT count(*) FROM onmaru.identity_members member"
+                + (status == null ? "" : " WHERE member.status = ?::onmaru.identity_member_status");
+        try (var statement = connection.prepareStatement(sql)) {
+            if (status != null) statement.setString(1, status);
+            try (var result = statement.executeQuery()) {
+                result.next();
+                return result.getLong(1);
+            }
         }
     }
 }

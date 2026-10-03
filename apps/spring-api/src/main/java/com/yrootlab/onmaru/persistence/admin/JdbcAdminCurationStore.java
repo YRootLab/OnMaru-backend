@@ -72,23 +72,50 @@ public final class JdbcAdminCurationStore implements AdminCurationStore {
         if (included != null) sql.append(" AND included = ?");
         if (cursor != null) sql.append(" AND (updated_at, id) < (?, ?)");
         sql.append(" ORDER BY updated_at DESC, id DESC LIMIT ?");
-        try (var connection = dataSource.getConnection(); var statement = connection.prepareStatement(sql.toString())) {
-            int index = 1;
-            if (category != null) statement.setString(index++, category);
-            if (included != null) statement.setBoolean(index++, included);
-            if (cursor != null) {
-                statement.setObject(index++, java.time.OffsetDateTime.ofInstant(cursor.timestamp(), java.time.ZoneOffset.UTC));
-                statement.setObject(index++, cursor.id());
-            }
-            statement.setInt(index, limit + 1);
-            try (var result = statement.executeQuery()) {
-                List<AdminCuration> items = new ArrayList<>();
-                while (result.next()) items.add(read(result));
-                boolean hasNext = items.size() > limit;
-                return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+        try (var connection = dataSource.getConnection()) {
+            long totalCount = cursor != null && cursor.totalCount() != null
+                    ? cursor.totalCount() : countCurations(connection, category, included);
+            try (var statement = connection.prepareStatement(sql.toString())) {
+                int index = 1;
+                if (category != null) statement.setString(index++, category);
+                if (included != null) statement.setBoolean(index++, included);
+                if (cursor != null) {
+                    statement.setObject(index++, java.time.OffsetDateTime.ofInstant(cursor.timestamp(), java.time.ZoneOffset.UTC));
+                    statement.setObject(index++, cursor.id());
+                }
+                statement.setInt(index, limit + 1);
+                try (var result = statement.executeQuery()) {
+                    List<AdminCuration> items = new ArrayList<>();
+                    while (result.next()) items.add(read(result));
+                    boolean hasNext = items.size() > limit;
+                    return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext, totalCount);
+                }
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Failed to load admin curation page", exception);
+        }
+    }
+
+    private long countCurations(java.sql.Connection connection, String category, Boolean included) throws SQLException {
+        StringBuilder sql = new StringBuilder("""
+                WITH latest AS (
+                    SELECT DISTINCT ON (canonical_place_id, category)
+                           category, included
+                    FROM onmaru.catalog_admin_curation_overrides
+                    ORDER BY canonical_place_id, category, version DESC, updated_at DESC, id DESC
+                )
+                SELECT count(*) FROM latest WHERE 1=1
+                """);
+        if (category != null) sql.append(" AND category = ?");
+        if (included != null) sql.append(" AND included = ?");
+        try (var statement = connection.prepareStatement(sql.toString())) {
+            int index = 1;
+            if (category != null) statement.setString(index++, category);
+            if (included != null) statement.setBoolean(index, included);
+            try (var result = statement.executeQuery()) {
+                result.next();
+                return result.getLong(1);
+            }
         }
     }
 

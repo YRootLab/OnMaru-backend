@@ -77,11 +77,12 @@ public final class AdminCurationController {
             Map<String, Object> response = new java.util.LinkedHashMap<>();
             response.put("schemaVersion", "1.0");
             response.put("items", page.items());
+            response.put("totalCount", page.totalCount());
             response.put("hasNext", page.hasNext());
             if (page.hasNext() && !page.items().isEmpty()) {
                 AdminCuration last = page.items().getLast();
                 response.put("nextCursor", cursorCodec.encode(new AdminCursor(
-                        "curations", limit, filter, last.updatedAt(), last.id())));
+                        "curations", limit, filter, last.updatedAt(), last.id(), null, page.totalCount())));
             }
             return ok(response);
         } catch (IdempotencyKeyMissingException | IdempotencyKeyInvalidException exception) {

@@ -74,6 +74,7 @@ class ModerationQueueWebBoundaryTests {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
+                .andExpect(jsonPath("$.totalCount").value(1))
                 .andExpect(jsonPath("$.items[0].reviewId").value(REVIEW_ID.toString()))
                 .andExpect(jsonPath("$.items[0].reports[0].reason").value("SPAM"))
                 .andExpect(jsonPath("$.items[0]", not(hasKey("reporterMemberId"))))

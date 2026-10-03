@@ -28,7 +28,7 @@ FE는 HTTP status와 `classification`으로 제한 안내를 표시할 수 있�
 
 ## 관리자 목록 페이지네이션 (#509)
 
-`GET /api/v1/admin/reviews`, `/reports`, `/users`, `/curations`, `/moderation/queue`와 `GET /api/v1/operations/moderation/queue`는 `limit` 기본 20, 최대 100을 사용한다. 첫 요청에서 `cursor`를 생략하고, 다음 요청에는 응답의 `nextCursor`를 그대로 전달한다. `hasNext`가 `false`이면 마지막 페이지이며 `nextCursor`가 없다. 후기·신고 응답의 기존 `hasMore`도 같은 값을 유지한다.
+`GET /api/v1/admin/reviews`, `/reports`, `/users`, `/curations`, `/moderation/queue`와 `GET /api/v1/operations/moderation/queue`는 `limit` 기본 20, 최대 100을 사용한다. 첫 요청에서 `cursor`를 생략하고, 다음 요청에는 응답의 `nextCursor`를 그대로 전달한다. 각 페이지의 `totalCount`는 cursor 이후 남은 건수가 아니라 현재 필터에 일치하는 전체 건수다. `hasNext`가 `false`이면 마지막 페이지이며 `nextCursor`가 없다. 후기·신고 응답의 기존 `hasMore`도 같은 값을 유지한다.
 
 후기 목록은 `status`와 `query`(본문·장소명 부분 검색), 회원 목록은 `status=ACTIVE|DELETING`, 큐레이션 목록은 `category`와 `included` 필터를 지원한다. 신고 목록은 미처리(`OPEN`) 신고만 반환하며 `reason`으로 좁힐 수 있다. cursor는 목록 종류·limit·필터·검색어에 묶여 있고 15분 뒤 만료된다. 필터·검색어·limit을 바꿀 때는 첫 페이지부터 다시 요청한다. 빈 값·변조·만료 cursor는 `400 VALIDATION_ERROR`이므로 FE는 기존 cursor를 버리고 첫 페이지를 다시 읽는다.
 
