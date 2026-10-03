@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-03 Issue #576 릴리스 Jackson Core 취약점 차단
+
+- 브랜치: `fix/576-jackson-core-cves`.
+- 배경: v0.3.35 릴리스 staging 이미지 run `37088266864`에서 Spring Trivy scan이 `CVE-2026-89407`, `CVE-2026-89425`로 실패해 release/master 승격을 중단했다.
+- 원인: Spring API가 Jackson databind는 2.21.7·3.1.7로 관리했지만 lockfile은 jackson-core를 2.21.5·3.1.5로 strict 고정했다.
+- 변경: Jackson 2.x/3.x core를 각각 2.21.7·3.1.7로 제약하고 Spring API lockfile을 갱신했으며 실제 런타임 버전 회귀 테스트를 추가했다.
+- 검증: 새 테스트가 수정 전 실패·수정 후 통과했고, `bootJar`에는 jackson-core/databind 2.21.7·3.1.7만 포함된다.
+- 다음 단계: #576 PR을 develop에 병합한 뒤 release sync PR #575와 staging image scan을 최신 develop 기준으로 재실행한다.
+
 ## 2026-10-02 Backend 병렬 정리 (#256 외 12건)
 
 - 브랜치: `feature/256-backend-batch` (`origin/develop` 최신 기준, branch parser #256).

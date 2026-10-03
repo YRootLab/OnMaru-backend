@@ -4,6 +4,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #576의 Jackson Core DoS 취약점 2건을 수정한 2.21.7·3.1.7 버전을 Spring 런타임에 고정했다.
 - Issue #571의 온디맨드 스테이징 CORS allowlist에 로컬 프런트엔드 `localhost:3000`~`3008`을 추가했다.
 - Issue #382의 Odii scheduler 실행을 시작·skip·실패·완료 상태와 단계별 집계로 영속화하고, 안전한 lifecycle 로그와 운영 조회 runbook을 보강했다.
 - Issue #486의 한옥 목록 노출 조건과 상세 조회 조건을 통일해 목록의 `placeId`가 상세에서 404가 되지 않도록 수정했다.
