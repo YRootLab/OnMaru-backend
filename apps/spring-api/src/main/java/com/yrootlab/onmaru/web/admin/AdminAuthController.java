@@ -161,7 +161,7 @@ public final class AdminAuthController {
                 .httpOnly(true)
                 .secure(true)
                 .sameSite("Strict")
-                .path("/api/v1/auth/admin")
+                .path("/")
                 .maxAge(java.time.Duration.ofDays(14))
                 .build();
     }
@@ -171,7 +171,7 @@ public final class AdminAuthController {
                 .httpOnly(true)
                 .secure(true)
                 .sameSite("Strict")
-                .path("/api/v1/auth/admin")
+                .path("/")
                 .maxAge(java.time.Duration.ZERO)
                 .build();
     }
