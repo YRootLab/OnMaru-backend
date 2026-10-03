@@ -196,6 +196,69 @@ class IdentityMigrationTests {
         }
     }
 
+    @Test
+    void memberProfilesBackfillExistingMembersAndEnforceCatalog() throws Exception {
+        resetAndMigrateThrough("038");
+        var member = UUID.fromString("55200000-0000-0000-0000-000000000001");
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            insertMember(statement, member);
+        }
+
+        migrateThrough("039");
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            assertThat(countRows(statement, """
+                    SELECT COUNT(*) FROM onmaru.identity_member_profiles
+                    WHERE member_id = '%s'
+                    """.formatted(member))).isEqualTo(1);
+
+            var displayName = stringValue(statement, """
+                    SELECT display_name FROM onmaru.identity_member_profiles
+                    WHERE member_id = '%s'
+                    """.formatted(member));
+            assertThat(displayName.codePointCount(0, displayName.length())).isBetween(2, 20);
+            assertThat(stringValue(statement, """
+                    SELECT character_id FROM onmaru.identity_member_profiles
+                    WHERE member_id = '%s'
+                    """.formatted(member))).matches("CHARACTER_(0[1-9]|10)");
+            assertThat(stringValue(statement, """
+                    SELECT background_id FROM onmaru.identity_member_profiles
+                    WHERE member_id = '%s'
+                    """.formatted(member))).matches("BACKGROUND_(0[1-9]|10)");
+
+            assertThatThrownBy(() -> statement.execute("""
+                    UPDATE onmaru.identity_member_profiles
+                    SET character_id = 'CHARACTER_11' WHERE member_id = '%s'
+                    """.formatted(member)))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("identity_member_profiles_character_id_ck");
+            assertThatThrownBy(() -> statement.execute("""
+                    UPDATE onmaru.identity_member_profiles
+                    SET background_id = 'BACKGROUND_00' WHERE member_id = '%s'
+                    """.formatted(member)))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("identity_member_profiles_background_id_ck");
+            assertThatThrownBy(() -> statement.execute("""
+                    UPDATE onmaru.identity_member_profiles
+                    SET display_name = '   ' WHERE member_id = '%s'
+                    """.formatted(member)))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("identity_member_profiles_display_name_ck");
+            assertThatThrownBy(() -> statement.execute("""
+                    UPDATE onmaru.identity_member_profiles
+                    SET updated_at = created_at - interval '1 second' WHERE member_id = '%s'
+                    """.formatted(member)))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("identity_member_profiles_updated_at_ck");
+
+            statement.execute("DELETE FROM onmaru.identity_members WHERE id = '%s'".formatted(member));
+            assertThat(countRows(statement, "SELECT COUNT(*) FROM onmaru.identity_member_profiles")).isZero();
+        }
+    }
+
     private static void insertMember(java.sql.Statement statement, UUID memberId) throws Exception {
         statement.execute("""
                 INSERT INTO onmaru.identity_members (id, status, created_at)
@@ -234,13 +297,26 @@ class IdentityMigrationTests {
         try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD)) {
             PostgresTestDatabase.reset(connection);
         }
-        Flyway.configure()
+        migrateThrough(null);
+    }
+
+    private static void resetAndMigrateThrough(String target) throws Exception {
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD)) {
+            PostgresTestDatabase.reset(connection);
+        }
+        migrateThrough(target);
+    }
+
+    private static void migrateThrough(String target) {
+        var configuration = Flyway.configure()
                 .dataSource(jdbcUrl(), USERNAME, PASSWORD)
                 .locations("classpath:db/migration/baseline")
                 .baselineOnMigrate(true)
-                .baselineVersion("0")
-                .load()
-                .migrate();
+                .baselineVersion("0");
+        if (target != null) {
+            configuration.target(target);
+        }
+        configuration.load().migrate();
     }
 
     private static int countRows(java.sql.Statement statement, String sql) throws Exception {

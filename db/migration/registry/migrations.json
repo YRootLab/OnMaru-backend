@@ -338,6 +338,15 @@
       "checksum": "odii-scheduler-run-history-v038-20261002",
       "sha256": "5794da3e9fd77be15d0f67116f9f01ada4bd31275df930e64fe81d0927169779",
       "description": "Odii scheduler lifecycle history compatible with existing sync run states"
+    },
+    {
+      "version": "039",
+      "reservedFor": "MEMBER_PROFILES",
+      "issueNumber": 552,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V039__552_member_profiles.sql",
+      "checksum": "member-profiles-v039-20261003",
+      "sha256": "3346d8850e50f79dc6ae5c49f8f6f27957f5f659fea0615904986b002f9441eb",
+      "description": "Privacy-first member display names and FE-owned character/background selections"
     }
   ]
 }
