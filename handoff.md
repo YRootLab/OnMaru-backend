@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-03 Issue #592 운영 관리자 로그인 세션 저장 수정
+
+- 브랜치: `fix/592-admin-session-timestamp` (최신 `origin/develop` 기준, branch parser #592).
+- 운영 증거: 올바른 관리자 로그인 요청에서 `last_login_at`은 갱신되지만 `identity_admin_sessions`는 0건이고 HTTP 401이 반환됐다. FE는 실제 `/auth/csrf`와 `/api/v1/auth/admin/login`을 호출하고 있었다.
+- 원인: PostgreSQL JDBC 42.7.13은 `PreparedStatement.setObject(java.time.Instant)`의 SQL 타입을 추론하지 못한다. `JdbcAdminSessionStore`의 생성·회전·폐기 시간 파라미터를 UTC `OffsetDateTime`으로 변환한다.
+- TDD: 실제 PostgreSQL 회귀 테스트에서 기존 구현의 `Can't infer the SQL type ... java.time.Instant` 실패를 확인한 뒤, 세션 생성·회전·폐기 3개 테스트가 통과하도록 수정했다.
+- 전체 Java 검증: 522개 중 521개 통과, 2개 skip. 유일한 실패는 ARM64 호스트에서 amd64 PostGIS 이미지를 에뮬레이션한 기존 3만 건 map-info p95 테스트(381.03ms > 200ms)이며 단독 재실행도 같은 환경 경고와 함께 실패했다. 관리자 세션 대상 테스트와 `bootJar`는 통과했다. amd64 GitHub Actions `verify`를 병합 gate로 사용한다.
+- 다음 단계: PR을 `develop`에 병합하고 Issue 상태를 정리한 뒤 다음 patch release branch로 `master`에 승격한다. 새 이미지 배포 후 운영 관리자 로그인 200, refresh session 생성, 컨테이너 health를 확인한다.
+
 ## 2026-10-02 Issue #568 OnMaru pipeline benchmark Skill
 
 - 브랜치: `feature/554-monitoring-related`; 정본은 `skills/onmaru-ci-benchmark-experiment/` 하나이며 `.agents/skills` 복사본을 만들지 않는다.
