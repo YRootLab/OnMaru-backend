@@ -46,7 +46,7 @@
 ## 전체 흐름
 
 ```text
-TourAPI 3일 주기 snapshot
+TourAPI 14일 주기 snapshot
   -> source record 정규화와 SHA-256
   -> active revision과 set diff
   -> 신규/변경 장소 research job 등록
@@ -85,9 +85,9 @@ TourAPI `contentId`를 원천 레코드의 안정 키로 사용하고 기존 can
 
 우선순위 점수에는 기존 category, TourAPI 분류 코드, 이름과 소개의 전통문화 표현, 이미지 유무, 지역 다양성, 소리마루 연결, 기존 조사 상태를 사용한다. 고택, 한옥, 궁궐, 전통마을뿐 아니라 한옥 카페·숙소, 전통시장, 사찰, 서원, 향교, 공방, 전통 체험·음식·공연 장소를 포함한다. 1차 후보에서 목표 수량과 다양성을 확보하지 못하면 나머지 활성 장소로 조사 범위를 넓힌다.
 
-TourAPI 동기화는 3일 주기를 유지하되 스크린 속 한옥 조사를 즉시 실행하지 않고 durable queue에만 등록한다. 정상 운영의 리서치 worker는 14일에 한 번 queue를 처리한다. 축제·재난·실시간 혼잡처럼 짧은 freshness가 필요한 데이터가 아니므로 검색·LLM 비용과 provider quota를 우선 절감한다. `ADDED`, 작품 매칭에 영향을 줄 의미 있는 `CHANGED`, 재검증 기한이 지난 항목만 등록하고 `UNCHANGED`와 아직 재검증 시점이 아닌 `NO_MATCH`는 제외한다.
+정상 운영에서는 TourAPI 동기화와 스크린 속 한옥 증분 리서치를 14일 주기의 한 orchestration run으로 묶는다. 먼저 새 TourAPI snapshot을 수집·비교하고, `ADDED`, 작품 매칭에 영향을 줄 의미 있는 `CHANGED`, 재검증 기한이 지난 항목만 durable queue에 등록한 뒤 정해진 예산 안에서 처리한다. 축제·재난·실시간 혼잡처럼 짧은 freshness가 필요한 데이터가 아니므로 원천 수집, 검색, LLM 비용과 provider quota를 함께 절감한다. `UNCHANGED`와 아직 재검증 시점이 아닌 `NO_MATCH`는 제외한다.
 
-초기 backfill 기간에는 100개 장소·150개 claim 목표를 달성할 때까지 매일 정해진 예산만큼 queue를 처리한다. 목표 달성 뒤 14일 주기로 전환한다. evidence URL 생존 여부는 30일 주기로 가볍게 확인하고, 작품-장소 관계 전체 재조사는 180일 또는 source hash 변경 시 수행한다. 운영자가 긴급 재조사를 요청할 수 있는 수동 trigger는 제공하되 정상 주기를 우회하는 자동 trigger는 두지 않는다.
+초기 backfill은 이미 저장된 active catalog를 입력으로 사용하므로 새 TourAPI 수집을 기다리지 않는다. 100개 장소·150개 claim 목표를 달성할 때까지 매일 정해진 예산만큼 queue를 처리하고, 목표 달성 뒤 14일 통합 run으로 전환한다. evidence URL 생존 여부는 30일 주기로 가볍게 확인하고, 작품-장소 관계 전체 재조사는 180일 또는 source hash 변경 시 수행한다. 운영자가 긴급 원천 동기화나 재조사를 요청할 수 있는 수동 trigger는 제공하되 정상 주기를 우회하는 자동 trigger는 두지 않는다.
 
 ## durable research job
 
@@ -213,7 +213,7 @@ LLM은 새로운 장소, URL 또는 evidence에 없는 사실을 도입할 수 �
 3. 검색 우선 worker를 shadow mode로 실행해 기존 결과와 비교한다.
 4. 기존 catalog backfill을 일일 budget 안에서 수행하고 100개 장소·150개 claim 목표를 추적한다.
 5. 기존 7개를 재검증하고 새 read model로 API를 전환한다.
-6. 3일 주기 TourAPI 증분 수집, 14일 주기 작품 리서치, 30일 주기 evidence URL 확인을 활성화한다.
+6. 14일 주기 TourAPI 증분 수집과 작품 리서치 통합 run, 30일 주기 evidence URL 확인을 활성화한다.
 7. FE가 새 metadata로 여러 섹션을 구성하도록 계약 문서를 전달한다.
 
 ## 범위 밖

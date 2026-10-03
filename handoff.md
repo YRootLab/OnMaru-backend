@@ -166,6 +166,6 @@
 - 운영 `스크린 속 한옥` 약 7개 항목을 재검증하고 고유 장소 100개·작품-장소 연결 150개 이상을 확보하는 검색 우선 내부 리서치 하네스를 설계했다.
 - 기존 장소 category는 유지하고 작품-장소-복수 출처 관계만 별도로 누적한다. 검색 API가 evidence를 수집하며 LLM은 evidence 구조화·요약·애매한 매칭 판정에만 사용한다.
 - TourAPI 변경 감지는 원천 수정 시각에 의존하지 않고 기존 revision의 `contentId + normalized SHA-256` set diff를 확장한다.
-- 초기 backfill은 일일 예산으로 처리하고, 정상 운영은 TourAPI 3일 동기화·작품 리서치 14일·evidence URL 확인 30일 주기로 분리한다.
+- 초기 backfill은 기존 active catalog에서 일일 예산으로 처리하고, 정상 운영은 TourAPI 증분 동기화와 작품 리서치를 14일 통합 run으로 실행한다. evidence URL은 30일 주기로 확인한다.
 - 설계 문서: `docs/superpowers/specs/2026-10-04-screen-hanok-research-harness-design.md`.
 - 다음 단계: 사용자 문서 검토 후 구현 계획을 작성한다.
