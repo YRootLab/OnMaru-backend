@@ -38,6 +38,19 @@ class MapInfoViewportControllerTests {
     }
 
     @Test
+    void acceptsHanokAsAPublicViewportCategory() throws Exception {
+        mockMvc.perform(get("/api/v1/map/info/viewport")
+                        .param("bbox", "126.8,35.0,127.2,36.0")
+                        .param("zoomLevel", "8")
+                        .param("category", "HANOK"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appliedCategories[0]").value("HANOK"))
+                .andExpect(jsonPath("$.appliedCategories[1]").value("HANOK_STAY"))
+                .andExpect(jsonPath("$.appliedCategories[2]").value("HANOK_CAFE"))
+                .andExpect(jsonPath("$.appliedCategories[3]").value("HANOK_EXPERIENCE"));
+    }
+
+    @Test
     void keepsTheKakaoLevelRenderModeBoundaries() throws Exception {
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")

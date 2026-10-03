@@ -31,3 +31,18 @@ PostgreSQL migration 계약과 도메인 불변식은 전체 Gradle 검증의 `a
 - active run이 있는 상태에서 저장 시도 시 `409 ACTIVE_RUN`으로 차단되지 않으면 실패한다.
 - AI 다운 또는 timeout 시 `500 INTERNAL_SERVER_ERROR`가 발생하거나 fallback board 생성이 실패하면 실패한다.
 - SSE 연결 끊김/재연결 시 reset 이벤트 또는 replay가 계약대로 동작하지 않으면 실패한다.
+
+## 2026년 10월 AI streaming 테스트 gate (#518)
+
+로컬 회귀 통과만으로 #518을 완료 처리하지 않는다. `staging` 환경에서 다음 값을 secret 원문 없이 배포 SHA와 함께 기록한다.
+
+- 적용 Gemini model과 tier, streaming 호출 허용 여부 및 실제 quota 응답
+- `ONMARU_JOURNEY_TEST_QUOTA_START/END/LIMIT`와 exempt 계정 설정 여부. 계정 ID 자체는 증거에 남기지 않는다.
+- 일반 회원 2회 허용·3회차 provider 호출 전 429, exempt 회원의 총량 우회와 active 1회 제한, guest AI 요청의 zero-dispatch 401
+- 첫 `run.text.delta` latency, delta가 terminal보다 먼저 도착하는지, Nginx/Vercel proxy buffering이 없는지
+- 연결 종료·취소·timeout·provider 429/5xx에서 late delta가 없고 BASELINE 또는 기존 terminal 계약으로 수렴하는지
+- browser event에는 narration만 있고 provider raw JSON, candidate refs, 좌표, prompt, key와 내부 오류 원문이 없는지
+- 최종 proposal이 Spring allowlist·검증·snapshot 저장을 통과한 뒤 GET snapshot으로만 지도에 반영되는지
+- streaming endpoint 미지원/비활성 시 unary fallback, 둘 다 실패할 때 deterministic BASELINE이 동작하는지
+
+실패한 항목은 배포를 차단하고 workflow run URL, deployment SHA, image digest, sanitized timing/count만 남긴다. 테스트 기간 종료 후에는 설정을 운영 정책으로 되돌리거나 새 정책을 승인하고, exempt 목록 제거 여부를 재확인한다.

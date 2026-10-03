@@ -161,7 +161,12 @@ public final class SavedJourneyController {
         try {
             var page = savedJourneys.list(member.get().id(), limit, cursor);
             return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                    .body(new PageResponse("1.2", page.items().stream().map(this::toSummary).toList(), page.nextCursor(), page.hasMore()));
+                    .body(new PageResponse(
+                            "1.2",
+                            page.items().stream().map(this::toSummary).toList(),
+                            page.totalCount(),
+                            page.nextCursor(),
+                            page.hasMore()));
         } catch (SavedJourneyInputInvalidException exception) {
             return validation(request, exception.getMessage());
         }
@@ -497,7 +502,12 @@ public final class SavedJourneyController {
             Instant updatedAt) {
     }
 
-    private record PageResponse(String schemaVersion, List<SummaryResponse> items, String nextCursor, boolean hasMore) {
+    private record PageResponse(
+            String schemaVersion,
+            List<SummaryResponse> items,
+            long totalCount,
+            String nextCursor,
+            boolean hasMore) {
     }
 
     private record ResumeResponse(String schemaVersion, ExplorationResumeResponse exploration, List<Object> unavailableRefs) {

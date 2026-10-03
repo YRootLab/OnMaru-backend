@@ -8,6 +8,8 @@ POST/PUT body 최대 16KiB, query trim+NFC 후 1..1000 code points. 인증/소�
 
 오류 형식은 `{schemaVersion:"1.2",code,message,requestId,details:{...}}`; message는 진단용 plain text이며 FE는 code로 문구를 결정한다. 400 VALIDATION_ERROR/CURSOR_INVALID, 401 AUTH_REQUIRED, 403 CSRF_INVALID, 404 NOT_FOUND, 409 VERSION_CONFLICT/ACTIVE_RUN/PINNED_REF/IDEMPOTENCY_CONFLICT/PROPOSAL_EXPIRED/SAVE_LIMIT, 410 CURSOR_EXPIRED, 413 PAYLOAD_TOO_LARGE, 422 JOURNEY_SCOPE_UNSUPPORTED/PRIVACY_REDACT_REQUIRED/SAFETY_BLOCKED, 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE를 구분한다. 일일 AI quota가 없거나 provider가 실패해도 후보가 있으면 `AI_QUOTA_EXCEEDED`는 내부 degraded reason으로만 기록하고 같은 run을 BASELINE으로 완료한다. 422 입력 거절은 exploration run이나 원문 turn을 만들지 않는다. 429는 초 단위 Retry-After, details.retryAfterMs를 함께 준다. 알려진 비동기 run 실패는 SSE terminal event와 GET snapshot 모두에서 같은 error code를 보이며, SSE 연결 자체 실패는 GET 실패와 구분한다. 여정 AI의 intake와 provider 경계는 [AI guardrail·adapter harness](../ai/journey-guardrails.md)를 따른다.
 
+Journey AI 생성·대화 턴 요청의 HTTP 429는 위 공통 오류 필드를 유지하고 `classification: "RATE_LIMITED"`, `status: 429`를 추가한다. 이 두 필드는 `/api/v1/explorations`, `/api/v1/explorations/{explorationId}/turns`와 호환 생성 경로 `/api/journey-curator/explore`의 제한 응답에만 적용한다. 로그인 admission·수결 랭킹 등 다른 API의 429에는 적용하지 않는다. 응답 예시는 [FE 전달서](frontend-handoff.md#journey-ai-429-응답-호환-필드-520), 기계 판독 제약은 [Journey OpenAPI](openapi/journey.openapi.yaml)를 따른다.
+
 ## 한옥 수결첩: 로그인 회원의 위치 체크인
 
 수결 정의는 `GET /stamps`에서 공개 조회하고, 개인 획득 상태는 로그인 후 `GET /me/stamp-book`에서만 조회한다. `POST /places/{placeId}/check-ins`는 세션, CSRF, UUID `Idempotency-Key`, 브라우저 위치가 모두 필요하다. 새 체크인은 201, 같은 회원·장소·UTC 15분 구간의 반복 체크인은 200이며 기존 row를 반환한다.
@@ -30,8 +32,8 @@ POST/PUT body 최대 16KiB, query trim+NFC 후 1..1000 code points. 인증/소�
 |---|---|---|
 | `/visit-review-regions` | `parentRegionCode?` | 시·도 또는 선택 부모의 시·군·구 집계, `regionRevision`, `countsAsOf`, `unassignedCount` |
 | `/regions/resolve` | `lat,lng` | 위치 동의 후의 후보 행정구역. 응답은 `no-store` |
-| `/visit-reviews` | `scope=ALL|REGION`, `regionCode`는 REGION에서만 필수, `limit`, `cursor?` | `schemaVersion:"1.2"` ReviewPage |
-| `/places/{id}/visit-reviews` | `limit`, `cursor?` | 장소 필터가 고정된 동일 ReviewPage |
+| `/visit-reviews` | `scope=ALL|REGION`, `regionCode`는 REGION에서만 필수, `limit`, `cursor?` | `schemaVersion:"1.2"`, 필터 기준 `totalCount`를 포함하는 ReviewPage |
+| `/places/{id}/visit-reviews` | `limit`, `cursor?` | 장소 필터가 고정되고 `totalCount`를 포함하는 동일 ReviewPage |
 
 `NEARBY`, `VIEWPORT`, `radiusMeters`, bbox 파라미터는 1.2에서 지원하지 않으며 전달되면 400이다. ALL은 전체 공개 후기 최신순, REGION은 하나의 canonical 행정구역 최신순이다. 목록 정렬은 `createdAt DESC,id DESC`, limit은 1..50이다. cursor는 version/filterHash/limit/lastCreatedAt/lastId/asOf/regionRevision/expiresAt을 scope에 묶고 10분 뒤 만료한다. 새 filter/region/limit은 첫 페이지부터 시작한다.
 
@@ -60,7 +62,7 @@ FE는 집계 선택 전 기존 결과를 유지하고, `이 지역 후기 보기
 | POST /explorations/{id}/runs/{runId}/cancel | `{}` | 200 RunSnapshot; terminal이면 기존 terminal 응답 |
 | POST /explorations/{id}/actions | commandId UUID, baseVersion, action | 200 ExplorationSnapshot |
 | POST /saved-journeys | explorationId, baseVersion, title(1..80) | 201 SavedJourney; 동일 source version 기존 저장은 200 |
-| GET /saved-journeys | limit 1..50 default20,cursor? | 200 `{items:[SavedJourneySummary],nextCursor,hasMore}`; savedAt DESC,id DESC |
+| GET /saved-journeys | limit 1..50 default20,cursor? | 200 `{items:[SavedJourneySummary],totalCount,nextCursor,hasMore}`; savedAt DESC,id DESC |
 | GET /saved-journeys/{id} | 없음 | 200 SavedJourney; 읽기 전용 |
 | POST /saved-journeys/{id}/resume | `{}` | 201 `{exploration:ExplorationSnapshot,unavailableRefs:PlaceRef[]}` |
 | DELETE /saved-journeys/{id} | 없음 | 204 본인만 |
@@ -68,8 +70,8 @@ FE는 집계 선택 전 기존 결과를 유지하고, `이 지역 후기 보기
 | DELETE /saved-resources/places/{placeId} | body 없음 | 204; 회원, 없어도 성공 |
 | PUT /saved-resources/odii-stories/{storyId} | body 없음 | 200 `{resourceType:"ODII_STORY",resourceId,savedByMe:true,savedAt}`; 회원+공개 오디 |
 | DELETE /saved-resources/odii-stories/{storyId} | body 없음 | 204; 회원, 없어도 성공 |
-| GET /saved-resources | type=PLACE 또는 ODII_STORY, limit 1..50 default20,cursor? | 200 `{items:[SavedResourceSummary],nextCursor,hasMore}`; savedAt DESC,id DESC |
-| GET /me/timeline | month=YYYY-MM, limit 1..50 default20,cursor? | 200 `{month,groups,nextCursor,hasMore,unavailableCount}`; occurredAt DESC,id DESC |
+| GET /saved-resources | type=PLACE 또는 ODII_STORY, limit 1..50 default20,cursor? | 200 `{items:[SavedResourceSummary],totalCount,nextCursor,hasMore}`; savedAt DESC,id DESC |
+| GET /me/timeline | month=YYYY-MM, limit 1..50 default20,cursor? | 200 `{month,groups,totalCount,nextCursor,hasMore,unavailableCount}`; occurredAt DESC,id DESC |
 | GET /members/me | 없음 | 200 `{id,displayName:null}`; 401 비회원 |
 | GET /auth/csrf | 없음 | 200 `{token,headerName:"X-CSRF-TOKEN"}` + guest cookie 필요 시 |
 | GET /auth/kakao/login | returnTo=/discover, explorationId? | 302 Kakao; 소유권 확인 후 state 발급 |
@@ -135,11 +137,14 @@ SSE는 여정 run의 UX 채널이며 상태의 정답은 PostgreSQL run/snapshot
 | event | data | 의미 |
 |---|---|---|
 | `run.stage` | `runId,status,stage,sequence` | QUEUED/RUNNING 및 해석·후보·제안·검증 진행 |
+| `run.text.delta` | `schemaVersion,runId,sequence,text` | 임시 narration. 각 delta 최대 512자, run 합계 최대 4,000자. run 상태를 바꾸지 않음 |
 | `run.terminal` | `runId,status,outcome,errorCode?,sequence` | COMPLETED/FAILED/CANCELLED 알림. 결과 본문은 포함하지 않음 |
 | `heartbeat` | `runId,sequence` | 연결 유지. 업무 상태 변경이 아님 |
 | `reset` | `runId` | replay buffer에 없는 `Last-Event-ID` 또는 서버 재시작. 즉시 GET 재동기화 |
 
 event ID는 run별 단조 증가 sequence다. 서버는 연결 시 현재 상태를 `run.stage`로 한 번 보낸 뒤, 메모리 replay buffer에 있는 event만 `Last-Event-ID` 이후로 재전송한다. 버퍼 밖 공백, deploy/restart, 401/404/410, network close에서는 FE가 지수 backoff로 한 번 재연결하고 `GET /runs/{runId}`와 `GET /explorations/{id}`를 읽어 정답을 다시 맞춘다. terminal 수신 뒤에도 snapshot을 GET으로 읽어 board를 렌더한다.
+
+`run.text.delta`의 data는 `{schemaVersion:"1.2",runId,sequence,text}` 네 필드만 포함하고 stage·terminal과 같은 sequence를 사용한다. 문자 한도는 Unicode code point 기준이며 초과 부분, 빈 delta, terminal 이후 delta는 추가하지 않는다. text에는 표시용 narration만 담고 provider raw JSON·candidate refs·좌표·prompt·오류 원문은 전달하지 않는다. text를 로그나 telemetry attribute에 기록하지 않는다. narration 뒤 provider 실패나 reset이 발생해도 FE는 임시 문장으로 지도 결과를 확정하지 않고 terminal과 GET snapshot으로 복구한다.
 
 SSE 연결 종료는 cancel이 아니며, cancel은 명시 command만 상태를 바꾼다. 20초 deadline과 sweeper는 SSE 연결 유무와 무관하다. EventSource가 쓸 수 없는 환경에서는 1초 간격 GET polling을 **호환성 fallback**으로만 사용한다. POST 응답 유실은 같은 `Idempotency-Key`로 재송신한다.
 

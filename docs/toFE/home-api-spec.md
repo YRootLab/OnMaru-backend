@@ -44,6 +44,7 @@
       "saved": false
     }
   ],
+  "totalCount": 1,
   "nextCursor": null,
   "hasMore": false
 }
@@ -64,6 +65,14 @@ const courses = page.items ?? [];
 
 카드 렌더링은 `name`, `category`, `regionName`, `thumbnailUrl`, `summary`, `tags`, `saved`를 사용한다. 이미지가 없으면 FE의 공통 placeholder를 사용하고, 카드 개수는 25개로 고정하지 않는다.
 
+## 한옥 도감 첫 섹션
+
+`GET /api/v1/hanoks?hasImage=true&limit=13` 응답은 이미지가 있는 대표 카드 목록으로 사용할 수 있다. 정렬은 `publishedAt` 내림차순, 같은 게시 시각에서는 `placeId` 오름차순이며 추천 점수 순서가 아니다. 활성 revision과 필터가 같으면 순서가 안정적이지만 새 revision 게시 후에도 동일한 13건이 유지되는 것은 보장하지 않는다.
+
+목록에는 한옥 category뿐 아니라 이름 또는 개요에 한옥이 포함된 `HISTORIC_SITE` 등 관광 category도 포함될 수 있다. 목록의 `placeId`는 FE 호환 상세 경로 `GET /api/v1/hanoks/{placeId}`에서 조회할 수 있으며, 상세 응답은 원래 category를 보존한다. 지도·Odii 등에서도 사용하는 공통 canonical 상세 경로는 `GET /api/v1/places/{placeId}`다. 조회 사이에 활성 revision이 바뀌거나 장소가 비공개로 바뀌면 상세가 `404`일 수 있다.
+
+`limit`은 기본 20, 최대 500이다. `lat`/`lng` 필드는 원천 좌표가 없으면 `null`이며 FE가 임의 좌표를 만들어 보완하지 않는다.
+
 ## 인기 한옥 소리
 
 ### `GET /api/v1/home/trending-sounds`
@@ -78,7 +87,7 @@ Odii 활성 스토리를 조회한다. 데이터셋이 일시적으로 unavailab
 - `limit`: 기본 20
 - `cursor`
 
-기존 Odii stories 응답의 `items`, `nextCursor`, `hasMore`를 그대로 사용한다.
+기존 Odii stories 응답의 `items`, `totalCount`, `nextCursor`, `hasMore`를 그대로 사용한다. `totalCount`는 현재 언어·카테고리·지역 필터를 적용한 전체 결과 건수다.
 
 기존 `FALLBACK_SOUNDS`를 항상 성공 데이터처럼 표시하지 않는다. `503`이면 빈 목록과 재시도/준비 중 UI를 표시한다.
 

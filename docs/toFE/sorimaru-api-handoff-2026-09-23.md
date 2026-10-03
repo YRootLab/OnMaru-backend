@@ -22,7 +22,8 @@ GET /api/stories?keyword=한옥&language=ko-KR&limit=20
 - `language`: 선택, 기본 `ko-KR`
 - `limit`: 선택, 1~50, 기본 `20`
 - 검색 대상: story title, audio title, `contentTags`
-- 응답은 기존 Odii 목록과 동일한 `items`, `nextCursor`, `hasMore` 구조입니다.
+- 응답은 기존 Odii 목록과 동일한 `items`, `totalCount`, `nextCursor`, `hasMore` 구조입니다.
+- `totalCount`는 언어·카테고리·지역 필터를 적용한 전체 결과 건수이며 현재 페이지의 `items.length`와 구분합니다.
 
 ### 2. 근처 스토리
 
@@ -71,6 +72,7 @@ GET /api/recommendation?keyword=궁궐&language=ko-KR&limit=20
       "savedByMe": false
     }
   ],
+  "totalCount": 1,
   "nextCursor": null,
   "hasMore": false
 }

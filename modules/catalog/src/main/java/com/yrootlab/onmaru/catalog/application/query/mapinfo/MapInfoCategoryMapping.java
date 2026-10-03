@@ -10,6 +10,7 @@ public final class MapInfoCategoryMapping {
     public static final String VERSION = "map-category-v1";
 
     private static final Map<MapInfoCategory, List<String>> MAPPING = Map.ofEntries(
+            Map.entry(MapInfoCategory.HANOK, List.of("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE")),
             Map.entry(MapInfoCategory.SPOT, List.of("HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_VILLAGE", "GOTAEK", "SPOT")),
             Map.entry(MapInfoCategory.EXPERIENCE, List.of("HANOK_EXPERIENCE", "LOCAL_SCENE", "EXPERIENCE")),
             Map.entry(MapInfoCategory.CULTURE, List.of("CULTURE", "CULTURE_ART", "CULTURAL_HERITAGE")),
@@ -43,7 +44,13 @@ public final class MapInfoCategoryMapping {
     }
 
     public static List<String> queryValues(MapInfoCategory category) {
-        return category == null || category == MapInfoCategory.ALL ? List.of() : List.of(category.name());
+        if (category == null || category == MapInfoCategory.ALL) {
+            return List.of();
+        }
+        if (category == MapInfoCategory.HANOK) {
+            return MAPPING.get(category);
+        }
+        return List.of(category.name());
     }
 
 }

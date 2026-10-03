@@ -10,6 +10,41 @@
 - 새 개선율은 아직 확정하지 않았다. 기존 470초 serial과 411.62초 critical-path는 경계가 달라 12.42% 전체 CI 개선으로 주장하지 않는다. workflow가 기본 브랜치에 존재하고 #555/#556 gate 순환을 정리한 뒤 동일 조건 baseline/candidate 3회씩의 whole-workflow 중앙값·범위·실패율을 기록한다.
 - Toolkit #115/#122 및 Agent Toolkit #58 ownership 링크 변경은 OnMaruBE Skill PR merge 뒤의 후속 작업이다.
 - 메인 `README.md`에 일상 CI 관측과 수동 3+3 benchmark 흐름, Docker의 역할과 설치 경계, 로컬 dashboard 실행·정리, Skill dry-run/dispatch/wait/compare, 개선율 해석을 추가했다.
+## 2026-10-03 Issue #572 페이지네이션 totalCount
+
+- 브랜치: `fix/572-paginated-total-count` (branch parser #572).
+- 현상: 운영 `GET /api/v1/odii/stories?language=ko-KR&limit=20`은 20개와 `hasMore:true`를 반환하지만 필터 적용 후 전체 건수 필드가 없어 FE가 전체 조회·지역별 조회 규모를 표시할 수 없다.
+- 변경: Odii, 한옥/장소, 방문 후기, 저장 리소스·여정, Journey thread·timeline의 cursor/limit 응답에 `totalCount`를 추가한다. 값은 cursor 적용 전, 현재 필터와 공개/가용성 조건을 적용한 전체 건수다. OpenAPI·fixture·FE 문서를 함께 갱신한다.
+- DB 경로: Odii JDBC adapter는 동일한 repeatable-read transaction에서 실제 선택 언어의 활성·공개·재생 가능 story count를 조회한다.
+- 관리자 `AdminPage` 계열은 별도 count query와 운영 성능 검증이 필요해 Issue #573으로 분리했다.
+- 검증: 서비스 단위 테스트와 Spring API 대상 경계/JDBC 테스트, 전체 contract/R1/R2/Journey E2E fixture 검사, `git diff --check`, branch parser가 통과했다. 전체 `./gradlew test`는 다른 작업공간의 PostgreSQL 테스트와 경합해 기존 `JdbcTourApiCatalogPublisherTests.thirtyThousandPublishedPlacesStayWithinMapInfoLatencyBudgets`에서 DB 예외가 발생했다. 경합 종료 후 해당 테스트를 단독 재실행하자 DB 예외는 사라졌지만 ARM64 호스트의 amd64 PostGIS 에뮬레이션 환경에서 viewport p95가 `822.919333ms`로 `500ms` 기준을 초과했다. 변경 범위 대상 테스트는 모두 통과했다.
+- 사용자 승인: ARM64 로컬의 amd64 PostGIS 에뮬레이션 성능 실패를 PR에 명시하고, amd64 GitHub Actions의 `verify` 통과를 병합 조건으로 PR을 생성한다.
+- 최신 `origin/develop` 병합 후 audio/catalog/community/journey 모듈 테스트, Odii JDBC·웹 경계 테스트, 전체 contract/R1/R2/Journey E2E fixture 검사, `git diff --check`, branch parser가 통과했다.
+- 다음 단계: PR `verify` 확인과 배포 후 운영 API smoke를 수행한다.
+
+## 2026-10-02 Backend 병렬 정리 (#256 외 12건)
+
+- 브랜치: `feature/256-backend-batch` (`origin/develop` 최신 기준, branch parser #256).
+- 요청 범위: #256, #265, #375, #382, #392, #486, #500, #509, #518, #519, #520, #521, #545.
+- 구현 커밋: `9618d5d` quota anchor, `5191eff`/`698a5f1`/`1b72e26` FastAPI narration stream·보안 경계, `4058a3c` #382 Odii 이력, `aff90cf` #486 목록→상세 계약, `37aa390` #518/#520 quota·SSE 계약, `8c9e982` Spring stream relay.
+- #382: lifecycle/phase와 `fetched/mapped/staged/published/tombstones`를 DB·안전 로그에 남기고 production profile + JDBC + HTTP fixture와 AWS runbook을 추가했다. 로컬 AC와 교차 리뷰는 통과했으며 실제 Lightsail 로그·readonly SQL·공개 `trending-sounds` smoke는 배포 후 gate다.
+- #486: 목록에 노출되는 category/name/overview 기반 한옥은 `/api/v1/hanoks/{id}` 상세에서도 조회되며 원 category를 보존한다. production 경로 리뷰는 통과했다. 기존 demo seed의 목록/상세 불일치는 비차단 후속이다.
+- #518/#520: 2026-10 KST 회원 quota 2회, guest AI 401, exempt total bypass+active 1, Journey 전용 429 alias, FastAPI Gemini SSE → Spring → browser `run.text.delta`, candidate allowlist·timeout·fallback·cancel 경계를 구현했다. 실제 Gemini tier, first-delta latency, proxy buffering, 배포 설정과 snapshot smoke는 staging gate다.
+- 이미 구현되어 운영 검증 중심인 항목: #256, #265, #375, #509, #519, #521 일부, #545 일부. #392는 staging secret·실제 수집/ACTIVE revision/API 증거가 필요하다. #545는 로그인·쓰기·SSE와 workflow 실제 rollback이 남아 있다.
+- #500은 `develop`에는 이미 fail-closed지만 현재 `master`에만 Trivy `continue-on-error` 두 곳이 남아 있다. Git Flow상 이 브랜치에서 고치지 않고 `master` 대상 별도 hotfix/보호 PR로 처리해야 한다.
+- 최종 로컬 검증: Admission/Exploration/Journey Gradle 회귀 `BUILD SUCCESSFUL`(3m 5s), AI `304 passed, 1 skipped`, ruff/mypy PASS, 전체 contract와 R1/R2/Journey E2E fixture PASS, `git diff --check` PASS.
+- 다음 단계: PR 전 work-log cleanup, PR `verify`, staging 운영 gate를 수행한다. Issue는 실제 운영 AC를 충족하기 전 닫지 않는다.
+- 로컬 미추적 `.agents/`, `.claude/`, `skills-lock.json`은 기존 사용자 작업물이며 이번 변경에 포함하지 않는다.
+## 2026-10-03 Issue #566 지도 정보모드 cursor·한옥 필터 수정
+
+- 브랜치: `fix/566-map-info-cursor-hanok`.
+- 운영 `/map`은 신규 `/api/v1/map/info/*` 대신 2026-10-02 FE 커밋 `8468e52`에서 복구된 구형 `useMapData → /api/map/places` 경로를 사용한다. BE legacy adapter가 100건으로 제한한 뒤 FE가 거리·카테고리로 재필터링해 화면에는 100건 이하만 보인다.
+- map-info cursor는 마지막 `.`만 서명 경계로 분리해 거리값 `0.0`이 있는 정상 cursor의 두 번째 page 400을 수정했다.
+- 지도 public category에 `HANOK`을 추가했다. 목록·viewport 모두 `HANOK/HANOK_STAY/HANOK_CAFE/HANOK_EXPERIENCE` 원천 category만 union하며, 원거리 DISTRICT·REGION도 같은 조건으로 직접 집계한다.
+- controller·service·실제 PostgreSQL/PostGIS 통합 테스트에서 목록, PLACE, DISTRICT, REGION과 비한옥 제외를 검증했다. OpenAPI와 fixture도 갱신했다.
+- 상세 재현·코드 맥락·해결 결과는 `troubleshooting-worklog/26.10.03 map-info-100-item-and-hanok-filter-regression.md`에 기록했다.
+- FE 파일별 변경사항, 목표 API 계약, 필수 테스트와 BE 준비 완료 조건은 `docs/toFE/map-info-regression-fix-handoff-2026-10-03.md`에 전달 문서로 분리했다.
+- 다음 단계: PR·staging 배포 후 실제 두 번째 cursor 200과 `category=HANOK` list·viewport 응답을 확인하고, FE 신규 경로 전환 뒤 운영 검증한다.
 
 ## 2026-10-01 Issue #561 운영 온기 히트맵
 

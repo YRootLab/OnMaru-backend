@@ -10,6 +10,17 @@
 // ./schema.dbml
 // Level 1 overview:
 // ./overview.dbml
+// V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
+// failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
+// 기존 status enum은 유지하며 STARTED→RUNNING, COMPLETED→SUCCEEDED,
+// FAILED→FAILED, SKIPPED→ABANDONED로 대응한다. 다른 sync job은 새 컬럼을 null로 유지한다.
+// 시작과 terminal은 같은 id로 독립 commit하며 terminal 재기록은 기존 terminal을 덮어쓰지 않는다.
+// error_code에는 내부 오류 코드만 저장한다. counts의 fetched는 정상 수신 원천 story 수
+// (중복·curation 제외 포함), mapped는 중복 제거·curation 후 성공적으로 변환한 story 수다.
+// staged/published는 이전 revision 복사분을 포함한 spot+story 행 수이며 실패/skip의 published는 0이다.
+// tombstones는 삭제 후보 spot+story 집계이며 실패의 counts는 관측된 부분값이다.
+// 과거 run에는 fetched/mapped가 없을 수 있다. 운영 판정: ../operations/runbooks/odii-sync.md
+// provider 원문·예외 메시지·credential은 저장하지 않고 DB 장애 시 로그가 진단 경로가 된다.
 // 아래 DBML은 역사적 Odii 모델이며 새 migration의 전체 스키마가 아니다.
 // Journey durable run의 최신 논리 계약은 ./modules/discovery.dbml의
 // discovery_runs와 discovery_run_commands에 있다.
