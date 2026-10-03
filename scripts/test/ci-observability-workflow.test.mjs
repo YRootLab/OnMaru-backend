@@ -5,17 +5,21 @@ import { mkdtemp, mkdir, readFile, writeFile, access, rm } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { selectToolkitSource } from './helpers/ci-observability-toolkit.mjs';
 
 const fixtureDir = resolve('scripts/test/fixtures/ci-observability');
 const adapter = resolve('scripts/benchmark/ci-observability.py');
 const toolkitSha = 'd5b7892875000afc2deba6e6873717974d558ee5';
-const toolkitPath = process.env.ONMARU_TOOLKIT_SRC ?? (existsSync('/tmp/onmaru-ci-toolkit-9c6f003/src')
-  ? '/tmp/onmaru-ci-toolkit-9c6f003/src' : resolve(fixtureDir, 'toolkit_stub'));
+const toolkitPath = selectToolkitSource();
 const repository = 'YRootLab/OnMaru-backend';
 
 const fixture = async (name) => JSON.parse(await readFile(join(fixtureDir, name), 'utf8'));
 const clone = (value) => structuredClone(value);
+
+test('Toolkit source defaults to the CI-only repository fixture and honors only an explicit override', () => {
+  assert.equal(selectToolkitSource({}), resolve(fixtureDir, 'toolkit_stub'));
+  assert.equal(selectToolkitSource({ ONMARU_TOOLKIT_SRC: '/explicit/pinned-toolkit/src' }), '/explicit/pinned-toolkit/src');
+});
 
 async function runPython(args, env = {}) {
   return new Promise((done) => {
@@ -390,7 +394,7 @@ test('collect rejects unsafe archive members and metadata limits', async () => {
   });
 });
 
-test('export keeps source conclusion on HTTP failure and suppresses duplicate digest replay', async () => {
+test('export keeps source conclusion on HTTP failure and suppresses duplicate digest replay across observation times', async () => {
   await withApi({}, async ({ directory, args }) => {
     assert.equal((await runPython(args)).code, 0);
     let status = 401, delivered = 0;
@@ -419,6 +423,8 @@ test('export keeps source conclusion on HTTP failure and suppresses duplicate di
       const exported = JSON.parse(await readFile(join(directory, 'export-result.json'), 'utf8'));
       assert.equal(exported.status, 'exported');
       const afterFirst = delivered;
+      const collection = JSON.parse(await readFile(join(directory, 'collection.json'), 'utf8'));
+      await writeFile(join(directory, 'collection.json'), JSON.stringify({ ...collection, observed_at_ns: collection.observed_at_ns + 1_000_000 }));
       assert.equal((await runPython(exportArgs)).code, 0);
       const duplicate = JSON.parse(await readFile(join(directory, 'export-result.json'), 'utf8'));
       assert.equal(duplicate.status, 'duplicate');

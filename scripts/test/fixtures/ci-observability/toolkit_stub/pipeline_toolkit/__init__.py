@@ -1,8 +1,9 @@
 """Small offline Toolkit boundary double for consumer CI fixture tests.
 
-Local verification uses the real pinned Toolkit when available. This double keeps
-the repository's hygiene job independent of a network checkout; it is not shipped
-with the trusted post-run workflow.
+This CI-only double is the default for offline hygiene tests and is not shipped
+with the trusted post-run workflow. ONMARU_TOOLKIT_SRC explicitly selects a real
+checkout. Only the consumer-tested subset of pinned Toolkit
+d5b7892875000afc2deba6e6873717974d558ee5 is modeled here, not its full exporter.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import json
 import sqlite3
 import sys
 from types import ModuleType
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 
@@ -115,13 +117,15 @@ class _Bundle:
     digest: str
     observed_at_ns: int
     workflow: str
+    job_labels: tuple
 
 
 def transform_actions_evidence(evidence, policy, *, observed_at_ns):
-    raw = f"{evidence['identity']['repository']}:{evidence['run']['id']}:{evidence['run']['attempt']}:{evidence['evidence_digest']}"
+    raw = json.dumps([evidence['identity']['repository'], evidence['run']['id'],
+                      evidence['run']['attempt'], evidence['evidence_digest']], separators=(",", ":"))
     return _Bundle(_Identity(hashlib.sha256(raw.encode()).hexdigest()),
                    evidence["run"]["conclusion"], evidence["evidence_digest"], observed_at_ns,
-                   policy.workflow)
+                   policy.workflow, tuple(policy.jobs.get(job["id"], "other") for job in evidence["jobs"]))
 
 
 @dataclass
@@ -129,12 +133,27 @@ class ExportConfig:
     endpoint: str
     headers: dict
 
+    def __post_init__(self):
+        try:
+            parsed = urlsplit(self.endpoint)
+            valid = parsed.scheme == "https" or (parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"})
+            valid = valid and parsed.hostname and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment
+            valid = valid and not any(c.isspace() or c in "\\" for c in self.endpoint)
+            parsed.port
+        except (ValueError, TypeError):
+            valid = False
+        if not valid:
+            raise ValueError("endpoint must be HTTPS (HTTP is limited to loopback), without credentials/query/fragment")
+        if any(not isinstance(k, str) or not isinstance(v, str) or "\r" in k + v or "\n" in k + v for k, v in self.headers.items()):
+            raise ValueError("invalid exporter headers")
+
 
 class SQLiteReplayStore:
     def __init__(self, path):
         self.path = path
         with sqlite3.connect(path) as db:
-            db.execute("CREATE TABLE IF NOT EXISTS exports (key TEXT PRIMARY KEY)")
+            db.execute("CREATE TABLE IF NOT EXISTS exports (key TEXT PRIMARY KEY, plan TEXT NOT NULL, owner TEXT, lease REAL NOT NULL, state TEXT NOT NULL)")
+            db.execute("CREATE TABLE IF NOT EXISTS batches (export_key TEXT NOT NULL, key TEXT NOT NULL, state TEXT NOT NULL, PRIMARY KEY(export_key, key))")
 
 
 @dataclass
@@ -148,16 +167,18 @@ class ExportResult:
 
 
 def export_otlp(bundle, config, store):
-    key = hashlib.sha256(f"{bundle.identity.key}:{bundle.observed_at_ns}:{config.endpoint}".encode()).hexdigest()
+    key = hashlib.sha256(f"{bundle.identity.key}:{config.endpoint.rstrip('/')}".encode()).hexdigest()
     with sqlite3.connect(store.path) as db:
-        if db.execute("SELECT 1 FROM exports WHERE key=?", (key,)).fetchone():
+        if db.execute("SELECT 1 FROM exports WHERE key=? AND state='complete'", (key,)).fetchone():
             return ExportResult("duplicate", None, 0, 2, 2, bundle.ci_conclusion)
     attribute = {"key": "workflow", "value": {"stringValue": bundle.workflow}}
-    metric = {"resourceMetrics": [{"scopeMetrics": [{"metrics": [{"gauge": {"dataPoints": [{"attributes": [attribute]}]}}]}]}]}
+    points = [{"attributes": [attribute, {"key": "ci_job", "value": {"stringValue": label}}]}
+              for label in bundle.job_labels]
+    metric = {"resourceMetrics": [{"scopeMetrics": [{"metrics": [{"gauge": {"dataPoints": points}}]}]}]}
     pipeline = {"key": "cicd.pipeline.name", "value": {"stringValue": bundle.workflow}}
     trace = {"resourceSpans": [{"scopeSpans": [{"spans": [{"attributes": [pipeline]}]}]}]}
     for signal, body in (("metrics", metric), ("traces", trace)):
-        request = Request(config.endpoint + "/v1/" + signal, data=json.dumps(body).encode(),
+        request = Request(config.endpoint.rstrip("/") + "/v1/" + signal, data=json.dumps(body).encode(),
                           headers={"Content-Type": "application/json", **config.headers})
         try:
             with urlopen(request, timeout=5) as response:
@@ -166,7 +187,7 @@ def export_otlp(bundle, config, store):
         except Exception:
             return ExportResult("failed", "transport_error", 1, 0, 2, bundle.ci_conclusion)
     with sqlite3.connect(store.path) as db:
-        db.execute("INSERT INTO exports VALUES (?)", (key,))
+        db.execute("INSERT INTO exports VALUES (?, ?, NULL, 0, 'complete')", (key, "offline-fixture"))
     return ExportResult("exported", None, 2, 2, 2, bundle.ci_conclusion)
 
 
