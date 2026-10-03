@@ -13,6 +13,16 @@
 - 최종 로컬 검증: Admission/Exploration/Journey Gradle 회귀 `BUILD SUCCESSFUL`(3m 5s), AI `304 passed, 1 skipped`, ruff/mypy PASS, 전체 contract와 R1/R2/Journey E2E fixture PASS, `git diff --check` PASS.
 - 다음 단계: PR 전 work-log cleanup, PR `verify`, staging 운영 gate를 수행한다. Issue는 실제 운영 AC를 충족하기 전 닫지 않는다.
 - 로컬 미추적 `.agents/`, `.claude/`, `skills-lock.json`은 기존 사용자 작업물이며 이번 변경에 포함하지 않는다.
+## 2026-10-03 Issue #566 지도 정보모드 cursor·한옥 필터 수정
+
+- 브랜치: `fix/566-map-info-cursor-hanok`.
+- 운영 `/map`은 신규 `/api/v1/map/info/*` 대신 2026-10-02 FE 커밋 `8468e52`에서 복구된 구형 `useMapData → /api/map/places` 경로를 사용한다. BE legacy adapter가 100건으로 제한한 뒤 FE가 거리·카테고리로 재필터링해 화면에는 100건 이하만 보인다.
+- map-info cursor는 마지막 `.`만 서명 경계로 분리해 거리값 `0.0`이 있는 정상 cursor의 두 번째 page 400을 수정했다.
+- 지도 public category에 `HANOK`을 추가했다. 목록·viewport 모두 `HANOK/HANOK_STAY/HANOK_CAFE/HANOK_EXPERIENCE` 원천 category만 union하며, 원거리 DISTRICT·REGION도 같은 조건으로 직접 집계한다.
+- controller·service·실제 PostgreSQL/PostGIS 통합 테스트에서 목록, PLACE, DISTRICT, REGION과 비한옥 제외를 검증했다. OpenAPI와 fixture도 갱신했다.
+- 상세 재현·코드 맥락·해결 결과는 `troubleshooting-worklog/26.10.03 map-info-100-item-and-hanok-filter-regression.md`에 기록했다.
+- FE 파일별 변경사항, 목표 API 계약, 필수 테스트와 BE 준비 완료 조건은 `docs/toFE/map-info-regression-fix-handoff-2026-10-03.md`에 전달 문서로 분리했다.
+- 다음 단계: PR·staging 배포 후 실제 두 번째 cursor 200과 `category=HANOK` list·viewport 응답을 확인하고, FE 신규 경로 전환 뒤 운영 검증한다.
 
 ## 2026-10-01 Issue #561 운영 온기 히트맵
 

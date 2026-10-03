@@ -1,0 +1,58 @@
+{
+  "name": "map-info-places-hanok",
+  "description": "HANOK is a server-side union of the four canonical hanok catalog categories.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map/info/places",
+    "query": {"category": "HANOK", "language": "ko-KR", "limit": 30}
+  },
+  "response": {
+    "status": 200,
+    "schema": "MapInfoPlacePage",
+    "body": {
+      "schemaVersion": "1.0",
+      "query": {
+        "category": "HANOK",
+        "regionCode": null,
+        "bbox": null,
+        "cursor": null,
+        "snapshotId": "rev-20261003-001",
+        "language": "ko-KR",
+        "limit": 30,
+        "sort": "REGION_NAME",
+        "lat": null,
+        "lng": null
+      },
+      "snapshot": {
+        "id": "rev-20261003-001",
+        "publishedAt": "2026-10-03T03:10:00Z",
+        "status": "PUBLISHED"
+      },
+      "totalCount": 4,
+      "items": [
+        {
+          "placeId": "p-hanok-union-example",
+          "name": "한옥 통합 예시",
+          "displayCategory": "HANOK_STAY",
+          "matchedCategories": ["HANOK_STAY"],
+          "region": {"regionCode": "11:110", "name": "서울 종로구"},
+          "coordinates": {"lat": 37.58, "lng": 126.98},
+          "thumbnailUrl": null,
+          "summary": "한옥 통합 카테고리에 포함되는 장소입니다.",
+          "savedByMe": false
+        }
+      ],
+      "nextCursor": null,
+      "appliedCategories": ["HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE"],
+      "coverage": "COMPLETE",
+      "projection": {
+        "projectionName": "map_place_read_projection",
+        "revisionId": "rev-20261003-001",
+        "publishedAt": "2026-10-03T03:10:00Z",
+        "checksum": "sha256:map-info-hanok-fixture-001",
+        "rowCount": 30000,
+        "mappingVersion": "map-category-v1"
+      }
+    }
+  }
+}

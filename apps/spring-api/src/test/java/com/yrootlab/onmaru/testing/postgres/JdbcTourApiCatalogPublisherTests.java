@@ -216,6 +216,56 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     @Test
+    void hanokMapFilterReturnsOnlyTheFourHanokCatalogCategories() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                row("2101", "한옥 명소", "HANOK"),
+                row("2102", "한옥 숙소", "HANOK_STAY"),
+                row("2103", "한옥 카페", "HANOK_CAFE"),
+                row("2104", "한옥 체험", "HANOK_EXPERIENCE"),
+                row("2105", "일반 문화재", "HISTORIC_SITE"),
+                row("2106", "일반 카페", "CAFE")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        seedMapRegions();
+        seedMapBoundary("11");
+        seedMapBoundary("11:110");
+        var hanokCategories = List.of("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE");
+
+        var list = new JdbcMapInfoQueryRepository(dataSource).find(new MapInfoSqlQuery(
+                null, hanokCategories, null, null, "NAME", null, null, 30, null, null));
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 5,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 500));
+        var clusterViewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 7,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 500));
+        var districtViewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 500));
+        var regionViewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 12,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 500));
+
+        assertThat(list.totalCount()).isEqualTo(4);
+        assertThat(list.items()).extracting(MapInfoPlaceItem::name)
+                .containsExactlyInAnyOrder("한옥 명소", "한옥 숙소", "한옥 카페", "한옥 체험");
+        assertThat(viewport.totalCountInViewport()).isEqualTo(4);
+        assertThat(viewport.items()).extracting(item -> item.name())
+                .containsExactlyInAnyOrder("한옥 명소", "한옥 숙소", "한옥 카페", "한옥 체험");
+        assertThat(clusterViewport.totalCountInViewport()).isEqualTo(4);
+        assertThat(clusterViewport.items()).hasSize(1);
+        assertThat(clusterViewport.items().getFirst().count()).isEqualTo(4);
+        assertThat(clusterViewport.items().getFirst().categoryCounts().keySet())
+                .containsExactlyInAnyOrder("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE");
+        assertThat(clusterViewport.items().getFirst().categoryCounts().values()).containsOnly(1L);
+        assertThat(districtViewport.items()).extracting(item -> item.count()).containsExactly(4L);
+        assertThat(regionViewport.items()).extracting(item -> item.count()).containsExactly(4L);
+    }
+
+    @Test
     void nameKeysetCursorFollowsNameOrderAcrossRegionsWithoutOmission() throws Exception {
         var publisher = new JdbcTourApiCatalogPublisher(dataSource);
         var session = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
@@ -430,6 +480,41 @@ class JdbcTourApiCatalogPublisherTests {
              var rows = statement.executeQuery("SELECT count(*) FROM " + table)) {
             rows.next();
             return rows.getInt(1);
+        }
+    }
+
+    private void seedMapBoundary(String regionCode) throws Exception {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     INSERT INTO onmaru.catalog_region_boundaries
+                         (boundary_revision, region_id, geometry, source_name, rights_note, observed_at)
+                     SELECT 'map-info-hanok-test', id,
+                            ST_Multi(ST_GeomFromText(
+                                'POLYGON((126.8 37.4,127.2 37.4,127.2 37.8,126.8 37.8,126.8 37.4))', 4326)),
+                            'test', 'test', now()
+                     FROM onmaru.catalog_regions
+                     WHERE code = ?
+                     """)) {
+            statement.setString(1, regionCode);
+            assertThat(statement.executeUpdate()).isEqualTo(1);
+        }
+    }
+
+    private void seedMapRegions() throws Exception {
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                    VALUES (md5('map-info-hanok-test|11')::uuid, NULL, '11', '서울', 'SIDO', true)
+                    ON CONFLICT (code) DO NOTHING
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                    VALUES (
+                        md5('map-info-hanok-test|11:110')::uuid,
+                        md5('map-info-hanok-test|11')::uuid,
+                        '11:110', '종로구', 'SIGUNGU', true)
+                    ON CONFLICT (code) DO NOTHING
+                    """);
         }
     }
 

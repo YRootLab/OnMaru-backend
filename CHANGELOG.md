@@ -9,6 +9,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 - Issue #382의 Odii scheduler 실행을 시작·skip·실패·완료 상태와 단계별 집계로 영속화하고, 안전한 lifecycle 로그와 운영 조회 runbook을 보강했다.
 - Issue #486의 한옥 목록 노출 조건과 상세 조회 조건을 통일해 목록의 `placeId`가 상세에서 404가 되지 않도록 수정했다.
 - Issues #518, #520의 2026년 10월 회원 quota와 테스트 계정 예외, Journey 전용 429 응답, Gemini narration SSE 중계를 추가했다.
+- Issue #566의 지도 정보모드 cursor 두 번째 page 오류를 수정하고, 목록·viewport에 네 원천 category를 묶는 `HANOK` 통합 조회 계약을 추가했다.
 - Issue #561의 온기 히트맵 좌표를 지역 ID 또는 시도·시군구 주소로 정확히 매칭하고, 활성 장소 중심 좌표를 한 번씩 집계해 조회 지연을 줄였다.
 - Issue #553의 기존 활성 TourAPI 지도 projection을 이관 DB에서도 복구하고, 지역 코드 누락 장소가 publication을 막지 않도록 수정했다.
 - Issue #545의 검증된 `develop` 이미지 digest를 잠든 Lightsail 스테이징에 수동 반영하는 CI job과 제한 SSH 배포 경로를 추가했다.
