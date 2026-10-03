@@ -12,6 +12,11 @@
 // ./overview.dbml
 // V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
 // failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
+// V039는 관리자 cursor 목록의 필터 전체 건수와 keyset page 조회를 위해
+// identity_members(status, created_at, id), 좌표 snapshot이 완전한
+// community_visit_reviews(status, created_at, id), OPEN community_review_reports
+// (reason, created_at, id)에 전용 index를 추가한다. totalCount count query에는
+// cursor 조건을 적용하지 않아 첫 페이지와 다음 페이지가 같은 필터 전체 건수를 반환한다.
 // 기존 status enum은 유지하며 STARTED→RUNNING, COMPLETED→SUCCEEDED,
 // FAILED→FAILED, SKIPPED→ABANDONED로 대응한다. 다른 sync job은 새 컬럼을 null로 유지한다.
 // 시작과 terminal은 같은 id로 독립 commit하며 terminal 재기록은 기존 terminal을 덮어쓰지 않는다.

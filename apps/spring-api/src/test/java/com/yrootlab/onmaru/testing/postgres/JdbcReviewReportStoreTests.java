@@ -71,12 +71,14 @@ class JdbcReviewReportStoreTests {
         assertThat(first.items()).extracting(ReviewReport::reportId)
                 .containsExactly(new UUID(0, 4), new UUID(0, 3));
         assertThat(first.hasNext()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(4);
         var last = first.items().getLast();
         var second = store.openReportsPage(2,
                 new AdminCursor("reports", 2, "status=OPEN", last.createdAt(), last.reportId()));
         assertThat(second.items()).extracting(ReviewReport::reportId)
                 .containsExactly(new UUID(0, 2), new UUID(0, 1));
         assertThat(second.hasNext()).isFalse();
+        assertThat(second.totalCount()).isEqualTo(4);
     }
     @Test void reportReasonFilterKeepsTheCursorWithinMatchingRows() throws Exception {
         var store = new JdbcReviewReportStore(dataSource);
@@ -100,11 +102,13 @@ class JdbcReviewReportStoreTests {
         var first = store.openReportsPage(ReviewReportReason.SPAM, 1, null);
         assertThat(first.items()).extracting(ReviewReport::reportId).containsExactly(new UUID(0, 3));
         assertThat(first.hasNext()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(2);
         var last = first.items().getLast();
         var second = store.openReportsPage(ReviewReportReason.SPAM, 1,
                 new AdminCursor("reports", 1, "status=OPEN&reason=SPAM", last.createdAt(), last.reportId()));
         assertThat(second.items()).extracting(ReviewReport::reportId).containsExactly(new UUID(0, 1));
         assertThat(second.hasNext()).isFalse();
+        assertThat(second.totalCount()).isEqualTo(2);
     }
     private void seedReview() throws Exception {
         var author = UUID.randomUUID(); var place = UUID.randomUUID(); var at = OffsetDateTime.of(2026,9,25,0,0,0,0,ZoneOffset.UTC);

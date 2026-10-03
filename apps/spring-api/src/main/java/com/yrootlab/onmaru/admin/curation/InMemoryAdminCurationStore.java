@@ -22,16 +22,19 @@ public final class InMemoryAdminCurationStore implements AdminCurationStore {
 
     @Override
     public synchronized AdminPage<AdminCuration> findPage(String category, Boolean included, int limit, AdminCursor cursor) {
-        var filtered = items.stream()
+        var matching = items.stream()
                 .filter(item -> category == null || item.category().equals(category))
                 .filter(item -> included == null || item.included() == included)
                 .sorted(Comparator.comparing(AdminCuration::updatedAt).reversed().thenComparing(AdminCuration::id, Comparator.reverseOrder()))
+                .toList();
+        var filtered = matching.stream()
                 .filter(item -> cursor == null || item.updatedAt().isBefore(cursor.timestamp())
                         || item.updatedAt().equals(cursor.timestamp()) && item.id().compareTo(cursor.id()) < 0)
                 .limit(limit + 1L)
                 .toList();
         boolean hasNext = filtered.size() > limit;
-        return new AdminPage<>(filtered.subList(0, Math.min(limit, filtered.size())), hasNext);
+        long totalCount = cursor != null && cursor.totalCount() != null ? cursor.totalCount() : matching.size();
+        return new AdminPage<>(filtered.subList(0, Math.min(limit, filtered.size())), hasNext, totalCount);
     }
 
     @Override
