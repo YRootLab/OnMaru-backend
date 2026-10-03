@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.community.command.review;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewQuery;
 import com.yrootlab.onmaru.community.query.VisitReviewQueryService;
+import com.yrootlab.onmaru.community.query.VisitReviewAuthor;
 import org.junit.jupiter.api.Test;
 
 import java.text.Normalizer;
@@ -34,6 +35,8 @@ class VisitReviewCommandServiceTests {
         assertThat(review.placeId()).isEqualTo("p-jeonju-hanok-village");
         assertThat(review.text()).isEqualTo(Normalizer.normalize("전주\n처마가 좋았습니다.", Normalizer.Form.NFC));
         assertThat(review.mine()).isTrue();
+        assertThat(review.author()).isEqualTo(new VisitReviewAuthor(
+                "고요한 마루 0552", "CHARACTER_03", "BACKGROUND_07"));
         var queryPage = new VisitReviewQueryService(store, CLOCK)
                 .list(VisitReviewQuery.place("p-jeonju-hanok-village", 20, null, Optional.of(MEMBER_ID)));
         assertThat(queryPage.items()).extracting(com.yrootlab.onmaru.community.query.VisitReview::id)
@@ -82,6 +85,8 @@ class VisitReviewCommandServiceTests {
                     default -> Optional.empty();
                 },
                 () -> REVIEW_ID,
+                memberIds -> java.util.Map.of(MEMBER_ID, new VisitReviewAuthor(
+                        "고요한 마루 0552", "CHARACTER_03", "BACKGROUND_07")),
                 CLOCK);
     }
 }

@@ -2,6 +2,8 @@ package com.yrootlab.onmaru.community.command.review;
 
 import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReview;
+import com.yrootlab.onmaru.community.query.VisitReviewAuthor;
+import com.yrootlab.onmaru.community.query.VisitReviewAuthorProfileLookup;
 import com.yrootlab.onmaru.community.query.VisitReviewProjection;
 import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 
@@ -9,6 +11,7 @@ import java.text.Normalizer;
 import java.time.Clock;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,6 +20,7 @@ public final class VisitReviewCommandService {
     private final MutableVisitReviewStore store;
     private final VisitReviewPlaceLookup placeLookup;
     private final ReviewIdGenerator reviewIdGenerator;
+    private final VisitReviewAuthorProfileLookup authorProfileLookup;
     private final Clock clock;
 
     public VisitReviewCommandService(
@@ -24,9 +28,19 @@ public final class VisitReviewCommandService {
             VisitReviewPlaceLookup placeLookup,
             ReviewIdGenerator reviewIdGenerator,
             Clock clock) {
+        this(store, placeLookup, reviewIdGenerator, ignored -> Map.of(), clock);
+    }
+
+    public VisitReviewCommandService(
+            MutableVisitReviewStore store,
+            VisitReviewPlaceLookup placeLookup,
+            ReviewIdGenerator reviewIdGenerator,
+            VisitReviewAuthorProfileLookup authorProfileLookup,
+            Clock clock) {
         this.store = store;
         this.placeLookup = placeLookup;
         this.reviewIdGenerator = reviewIdGenerator;
+        this.authorProfileLookup = authorProfileLookup;
         this.clock = clock;
     }
 
@@ -81,6 +95,8 @@ public final class VisitReviewCommandService {
     }
 
     private VisitReview toReview(VisitReviewProjection projection, UUID memberId) {
+        var author = authorProfileLookup.findByMemberIds(Set.of(projection.authorMemberId()))
+                .getOrDefault(projection.authorMemberId(), VisitReviewAuthor.fallback());
         return new VisitReview(
                 projection.id().toString(),
                 projection.placeId(),
@@ -91,6 +107,7 @@ public final class VisitReviewCommandService {
                 projection.mood(),
                 projection.score(),
                 projection.tags(),
+                author,
                 null,
                 projection.createdAt(),
                 projection.authorMemberId().equals(memberId),

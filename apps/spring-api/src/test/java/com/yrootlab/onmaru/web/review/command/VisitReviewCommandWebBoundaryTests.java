@@ -5,6 +5,9 @@ import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.identity.profile.MemberProfileBackground;
+import com.yrootlab.onmaru.identity.profile.MemberProfileCharacter;
+import com.yrootlab.onmaru.identity.profile.NewMemberProfile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +50,8 @@ class VisitReviewCommandWebBoundaryTests {
     void setUp() {
         identityStore.clear();
         visitReviewStore.clear();
-        var memberId = identityStore.createMember(clock.instant());
+        var memberId = identityStore.createMember(clock.instant(), new NewMemberProfile(
+                "고요한 마루 0552", MemberProfileCharacter.CHARACTER_03, MemberProfileBackground.BACKGROUND_07));
         identityStore.saveSession(session("member-session", memberId));
         var otherMemberId = identityStore.createMember(clock.instant());
         identityStore.saveSession(session("other-session", otherMemberId));
@@ -65,6 +69,11 @@ class VisitReviewCommandWebBoundaryTests {
                 .andExpect(jsonPath("$.score").value(5))
                 .andExpect(jsonPath("$.tags[0]").value("고즈넉함"))
                 .andExpect(jsonPath("$.mine").value(true))
+                .andExpect(jsonPath("$.author.displayName").value("고요한 마루 0552"))
+                .andExpect(jsonPath("$.author.characterId").value("CHARACTER_03"))
+                .andExpect(jsonPath("$.author.backgroundId").value("BACKGROUND_07"))
+                .andExpect(jsonPath("$.author.memberId").doesNotExist())
+                .andExpect(jsonPath("$.authorMemberId").doesNotExist())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
