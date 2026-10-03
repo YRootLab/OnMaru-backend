@@ -199,6 +199,24 @@ test('sample archive decoding accepts one JSON document and rejects additional o
 });
 
 const toolkitSource = process.env.ONMARU_TOOLKIT_SRC ?? '/tmp/onmaru-ci-toolkit-9c6f003/src';
+
+test('root README explains the observable benchmark flow and installation boundary', () => {
+  const rootReadme = file('README.md');
+  for (const phrase of [
+    'Collector → Prometheus·Tempo → Grafana',
+    'Grafana, Prometheus, Tempo, OpenTelemetry Collector를 따로 설치할 필요는 없다',
+    'docker compose -f observability/local/compose.yaml up',
+    'http://127.0.0.1:3000/d/toolkit-ci-benchmark',
+    'run_experiment.py dispatch',
+    '--authorize-dispatch',
+    'Toolkit의 Markdown/JSON 결과가 정본',
+    '(baseline 중앙값 - candidate 중앙값) / baseline 중앙값 × 100',
+  ]) assert.match(rootReadme, new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(rootReadme, /baseline 3회.*candidate 3회/s);
+  assert.match(rootReadme, /Docker.*Spring.*FastAPI.*컨테이너/s);
+  assert.match(rootReadme, /dry-run.*기본/s);
+});
+
 test('pinned Toolkit authenticates both committed scopes and compares the producer manifest (offline API fixture)', { skip: !existsSync(toolkitSource) }, async () => {
   const { executeExperiment } = await mod();
   const raw = readFileSync('.github/pipeline-benchmark-test-plan.json');

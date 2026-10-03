@@ -9,6 +9,7 @@
 - 검증: Node 206/206, `bash scripts/verify-contracts`, Skill quick validation, Python syntax, `git diff --check`, branch parser, CI와 동일한 Java 전체 module test + Spring `bootJar` 56 tasks가 통과했다. 로컬 `actionlint` binary는 설치돼 있지 않지만 변경 workflow의 lint는 task 구현 검증에서 통과했다.
 - 새 개선율은 아직 확정하지 않았다. 기존 470초 serial과 411.62초 critical-path는 경계가 달라 12.42% 전체 CI 개선으로 주장하지 않는다. workflow가 기본 브랜치에 존재하고 #555/#556 gate 순환을 정리한 뒤 동일 조건 baseline/candidate 3회씩의 whole-workflow 중앙값·범위·실패율을 기록한다.
 - Toolkit #115/#122 및 Agent Toolkit #58 ownership 링크 변경은 OnMaruBE Skill PR merge 뒤의 후속 작업이다.
+- 메인 `README.md`에 일상 CI 관측과 수동 3+3 benchmark 흐름, Docker의 역할과 설치 경계, 로컬 dashboard 실행·정리, Skill dry-run/dispatch/wait/compare, 개선율 해석을 추가했다.
 
 ## 2026-10-01 Issue #561 운영 온기 히트맵
 
