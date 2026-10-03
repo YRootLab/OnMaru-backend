@@ -144,7 +144,8 @@ class JdbcIdentityStampFlowTests {
             });
             assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
             start.countDown();
-            assertThat(firstFuture.get()).isEqualTo(secondFuture.get());
+            assertThat(firstFuture.get(10, TimeUnit.SECONDS))
+                    .isEqualTo(secondFuture.get(10, TimeUnit.SECONDS));
         }
 
         assertThat(rowCount("onmaru.identity_members")).isEqualTo(1);
@@ -192,21 +193,25 @@ class JdbcIdentityStampFlowTests {
         }
         var service = new MemberProfileService(new JdbcIdentityStore(
                 new DriverManagerDataSource(jdbcUrl(), "onmaru_test", "onmaru_test")));
+        var ready = new CountDownLatch(2);
         var start = new CountDownLatch(1);
         try (var executor = Executors.newFixedThreadPool(2)) {
             var name = executor.submit(() -> {
+                ready.countDown();
                 start.await(10, TimeUnit.SECONDS);
                 return service.updateActiveProfile(memberId, new MemberProfilePatch(
                         "따뜻한 온니 2026", null, null), NOW.plusSeconds(1)).orElseThrow();
             });
             var character = executor.submit(() -> {
+                ready.countDown();
                 start.await(10, TimeUnit.SECONDS);
                 return service.updateActiveProfile(memberId, new MemberProfilePatch(
                         null, "CHARACTER_10", null), NOW.plusSeconds(1)).orElseThrow();
             });
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
             start.countDown();
-            name.get();
-            character.get();
+            name.get(10, TimeUnit.SECONDS);
+            character.get(10, TimeUnit.SECONDS);
         }
 
         assertThat(service.findByMemberIds(java.util.Set.of(memberId)).get(memberId))
