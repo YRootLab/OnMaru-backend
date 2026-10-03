@@ -89,6 +89,110 @@ class JdbcAdmissionStoreTests {
     }
 
     @Test
+    void anchoredRolloverPreservesPersistentActiveSlotsThroughStartAndConsumePaths() {
+        var anchor = Instant.parse("2026-09-30T15:00:00Z");
+        var anchoredPolicy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 2, Duration.ofDays(31), 1, anchor)));
+        var beforeEnd = new AdmissionService(new JdbcAdmissionStore(dataSource),
+                Clock.fixed(Instant.parse("2026-10-31T14:59:59Z"), ZoneOffset.UTC));
+        var atEnd = new AdmissionService(new JdbcAdmissionStore(dataSource),
+                Clock.fixed(Instant.parse("2026-10-31T15:00:00Z"), ZoneOffset.UTC));
+        var consumeRequest = new AdmissionRequest("journey.ai", new AdmissionSubject(SubjectType.MEMBER, "member-2"));
+        assertThat(beforeEnd.admitActive(request, anchoredPolicy).allowed()).isTrue();
+        assertThat(beforeEnd.admitActive(consumeRequest, anchoredPolicy).allowed()).isTrue();
+
+        assertThat(atEnd.admit(consumeRequest, anchoredPolicy).allowed()).isTrue();
+        for (var subject : List.of(request, consumeRequest)) {
+            var blocked = atEnd.admitActive(subject, anchoredPolicy);
+            assertThat(blocked.allowed()).isFalse();
+            assertThat(blocked.reason()).isEqualTo(AdmissionRejectionReason.ACTIVE_LIMIT);
+        }
+        assertThat(count("""
+                SELECT COUNT(*) FROM onmaru.operations_admission
+                WHERE window_start = TIMESTAMPTZ '2026-10-31T15:00:00Z' AND active_count = 1
+                """)).isEqualTo(2);
+        assertThat(count("SELECT consumed FROM onmaru.operations_admission WHERE scope_key = 'journey.ai:MEMBER:member-1'"))
+                .isZero();
+        for (var subject : List.of(request, consumeRequest)) {
+            atEnd.releaseActive(subject, anchoredPolicy);
+            assertThat(atEnd.admitActive(subject, anchoredPolicy).allowed()).isTrue();
+        }
+    }
+
+    @Test
+    void anchoredMonthPersistsExactKstStartAndResetsAtTheExactEnd() {
+        var anchor = Instant.parse("2026-09-30T15:00:00Z");
+        var anchoredPolicy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 2, Duration.ofDays(31), 0, anchor)));
+        var atStart = new AdmissionService(new JdbcAdmissionStore(dataSource), Clock.fixed(anchor, ZoneOffset.UTC));
+
+        assertThat(atStart.admit(request, anchoredPolicy).allowed()).isTrue();
+        assertThat(atStart.admit(request, anchoredPolicy).allowed()).isTrue();
+        assertThat(atStart.admit(request, anchoredPolicy).allowed()).isFalse();
+        assertThat(count("""
+                SELECT COUNT(*) FROM onmaru.operations_admission
+                WHERE scope_key = 'journey.ai:MEMBER:member-1'
+                  AND window_start = TIMESTAMPTZ '2026-09-30T15:00:00Z' AND consumed = 2
+                """)).isEqualTo(1);
+        var beforeEnd = new AdmissionService(new JdbcAdmissionStore(dataSource),
+                Clock.fixed(Instant.parse("2026-10-31T14:59:59Z"), ZoneOffset.UTC));
+        var rejected = beforeEnd.admit(request, anchoredPolicy);
+        assertThat(rejected.allowed()).isFalse();
+        assertThat(rejected.retryAfter()).isEqualTo(Duration.ofSeconds(1));
+        var atEnd = new AdmissionService(new JdbcAdmissionStore(dataSource),
+                Clock.fixed(Instant.parse("2026-10-31T15:00:00Z"), ZoneOffset.UTC));
+        assertThat(atEnd.admit(request, anchoredPolicy).allowed()).isTrue();
+        assertThat(count("""
+                SELECT COUNT(*) FROM onmaru.operations_admission
+                WHERE scope_key = 'journey.ai:MEMBER:member-1'
+                  AND window_start = TIMESTAMPTZ '2026-10-31T15:00:00Z' AND consumed = 1
+                """)).isEqualTo(1);
+    }
+
+    @Test
+    void concurrentAnchoredActiveAdmissionAllowsOneSlotAndNoMoreThanTwoStarts() throws Exception {
+        var anchor = Instant.parse("2026-09-30T15:00:00Z");
+        var anchoredPolicy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 2, Duration.ofDays(31), 1, anchor)));
+        var service = new AdmissionService(new JdbcAdmissionStore(dataSource),
+                Clock.fixed(Instant.parse("2026-10-31T14:59:59Z"), ZoneOffset.UTC));
+        var results = Collections.synchronizedList(new ArrayList<AdmissionDecision>());
+        var ready = new CountDownLatch(10);
+        var start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(10)) {
+            for (int index = 0; index < 10; index++) {
+                executor.submit(() -> {
+                    ready.countDown();
+                    start.await(5, TimeUnit.SECONDS);
+                    results.add(service.admitActive(request, anchoredPolicy));
+                    return null;
+                });
+            }
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            executor.shutdown();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+        assertThat(results).hasSize(10);
+        assertThat(results.stream().filter(AdmissionDecision::allowed)).hasSize(1);
+        assertThat(results.stream().filter(decision -> !decision.allowed()).map(AdmissionDecision::reason))
+                .containsOnly(AdmissionRejectionReason.ACTIVE_LIMIT);
+        assertThat(count("""
+                SELECT COUNT(*) FROM onmaru.operations_admission
+                WHERE scope_key = 'journey.ai:MEMBER:member-1'
+                  AND window_start = TIMESTAMPTZ '2026-09-30T15:00:00Z'
+                  AND consumed = 1 AND active_count = 1
+                """)).isEqualTo(1);
+        service.releaseActive(request, anchoredPolicy);
+        assertThat(service.admitActive(request, anchoredPolicy).allowed()).isTrue();
+        service.releaseActive(request, anchoredPolicy);
+        var third = service.admitActive(request, anchoredPolicy);
+        assertThat(third.allowed()).isFalse();
+        assertThat(third.reason()).isEqualTo(AdmissionRejectionReason.QUOTA_EXCEEDED);
+        assertThat(third.retryAfter()).isEqualTo(Duration.ofSeconds(1));
+    }
+
+    @Test
     void concurrentDailyAdmissionApprovesNoMoreThanLimitAndAuditsEveryAttempt() throws Exception {
         var service = new AdmissionService(
                 new JdbcAdmissionStore(dataSource),

@@ -1,6 +1,20 @@
 {
   "contractVersion": "1.2",
+  "response": {
+    "schema": "journey-sse-event.schema",
+    "body": {
+      "id": "4",
+      "event": "run.text.delta",
+      "data": {
+        "schemaVersion": "1.2",
+        "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+        "sequence": 4,
+        "text": "전주의 한옥과 골목을 잇는 여정을 구성하고 있어요."
+      }
+    }
+  },
   "fixtures": [
+    {"name": "text-delta", "given": "narration arrives before the validated proposal", "then": ["run.text.delta contains exactly schemaVersion, runId, sequence, text", "stage and terminal share the monotonic sequence", "each delta is at most 512 Unicode characters and each run at most 4000", "run state does not change", "text is never logged or added to telemetry attributes", "terminal then GET snapshot decides the final result"]},
     {"name": "accepted-opens-stream", "given": "POST succeeds", "then": ["RunAccepted.eventsUrl is present", "FE subscribes once", "GET snapshot remains render source"]},
     {"name": "replay", "given": "Last-Event-ID 3 and buffer contains 4", "then": ["id 4 is delivered", "sequence remains monotonic"]},
     {"name": "reset", "given": "Last-Event-ID is older than the buffer or process restarted", "then": ["reset contains runId", "FE GETs run then exploration before rendering"]},

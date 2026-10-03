@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.web.place.detail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.catalog.application.query.detail.CoordinatesProjection;
 import com.yrootlab.onmaru.catalog.application.query.detail.PlaceProjection;
+import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailQueryService;
 import com.yrootlab.onmaru.catalog.application.query.detail.RegionProjection;
 import com.yrootlab.onmaru.persistence.catalog.TourApiPlaceReference;
 import com.yrootlab.onmaru.tourism.catalog.client.TourApiPage;
@@ -74,6 +75,40 @@ class TourApiFallbackPlaceDetailStoreTests {
                 (operation, uri) -> { throw new AssertionError("TourAPI must not run"); }, uris);
 
         assertThat(store.findByPlaceId(base.placeId())).contains(base);
+    }
+
+    @Test
+    void hanokDetailKeepsSnapshotEligibilityWhenEnrichmentReplacesItsOverview() {
+        var eligible = PlaceProjection.publicPlace(
+                base.placeId(), base.name(), base.category(), base.region(), base.address(),
+                base.coordinates(), base.images(), "전통 한옥을 둘러보는 마을", List.of(), null);
+        var store = new TourApiFallbackPlaceDetailStore(
+                id -> Optional.of(eligible),
+                id -> Optional.of(new TourApiPlaceReference(id, "126508", "12")),
+                id -> false,
+                (operation, uri) -> page(operation, "{\"overview\":\"새로운 역사 문화 안내\"}"), uris);
+        var service = new PlaceDetailQueryService(store, (memberId, placeId) -> false);
+
+        assertThat(service.findHanok(base.placeId(), Optional.empty()))
+                .hasValueSatisfying(detail -> {
+                    assertThat(detail.category().name()).isEqualTo("HISTORIC_SITE");
+                    assertThat(detail.description()).isEqualTo("새로운 역사 문화 안내");
+                });
+    }
+
+    @Test
+    void enrichmentCannotMakeAnUnrelatedSnapshotPlaceEligibleForHanokDetail() {
+        var store = new TourApiFallbackPlaceDetailStore(
+                id -> Optional.of(base),
+                id -> Optional.of(new TourApiPlaceReference(id, "126508", "12")),
+                id -> false,
+                (operation, uri) -> page(operation, "{\"overview\":\"주변 한옥 관광 안내\"}"), uris);
+        var service = new PlaceDetailQueryService(store, (memberId, placeId) -> false);
+
+        assertThat(service.findHanok(base.placeId(), Optional.empty())).isEmpty();
+        assertThat(service.findCanonicalPlace(base.placeId(), Optional.empty()))
+                .hasValueSatisfying(detail ->
+                        assertThat(detail.description()).isEqualTo("주변 한옥 관광 안내"));
     }
 
     private TourApiParseResult page(String operation, String body) throws Exception {

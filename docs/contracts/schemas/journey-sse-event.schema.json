@@ -5,12 +5,31 @@
   "description": "The client parses id/event/data from text/event-stream, then validates this envelope. reset has no replay sequence.",
   "oneOf": [
     {"$ref": "#/$defs/stage"},
+    {"$ref": "#/$defs/textDelta"},
     {"$ref": "#/$defs/terminal"},
     {"$ref": "#/$defs/heartbeat"},
     {"$ref": "#/$defs/reset"},
     {"$ref": "#/$defs/authClosed"}
   ],
   "$defs": {
+    "textDelta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "event", "data"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "event": {"const": "run.text.delta"},
+        "data": {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "runId", "sequence", "text"],
+          "properties": {
+            "schemaVersion": {"const": "1.2"},
+            "runId": {"type": "string", "format": "uuid"},
+            "sequence": {"type": "integer", "minimum": 1},
+            "text": {"type": "string", "minLength": 1, "maxLength": 512}
+          }
+        }
+      }
+    },
     "stage": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "event", "data"],

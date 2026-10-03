@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
@@ -9,9 +11,19 @@ from httpx import ASGITransport, AsyncClient, Response
 
 from onmaru_ai.config.secrets import FakeSecretProvider
 from onmaru_ai.evals import compare_reports, evaluate_document
+from onmaru_ai.journey_llm import JourneyLlmService
 from onmaru_ai.main import create_app
+from onmaru_ai.observability import InMemoryTelemetrySink, install_observability
+from onmaru_ai.providers.gemini import (
+    GeminiAdapter,
+    GeminiConfig,
+    GeminiFailureCode,
+    GeminiPricing,
+    GeminiTransportRequest,
+    GeminiTransportResponse,
+)
 from onmaru_ai.rag import InMemoryRagActivationLog, RagActivationPolicy, RagActivationThresholds
-from onmaru_ai.security.internal_auth import create_internal_token
+from onmaru_ai.security.internal_auth import create_internal_token, install_internal_auth
 
 
 class CountingRagRetriever:
@@ -299,3 +311,128 @@ def test_rejects_blank_rag_corpus_revision_id() -> None:
 
     assert response.status_code == 422
     assert response.json()["code"] == "INTERNAL_AI_CONTRACT_INVALID"
+
+
+class JourneyStreamTransport:
+    def __init__(self, failure: GeminiFailureCode | None = None) -> None:
+        self.failure = failure
+        self.proposal = {
+            "narration": "전주의 한옥을 둘러봐요.",
+            "orderedRefs": ["place:allowed", "place:invalid"],
+            "title": "한옥 산책",
+            "summary": "골목 여행",
+            "stops": [{"ref": "place:allowed", "reason": "산책하기 좋아요."}],
+        }
+
+    async def generate(self, request: GeminiTransportRequest) -> GeminiTransportResponse:
+        del request
+        return self._chunk(json.dumps(self.proposal, ensure_ascii=False))
+
+    async def stream(
+        self, request: GeminiTransportRequest
+    ) -> AsyncIterator[GeminiTransportResponse]:
+        del request
+        yield self._chunk('{"narration":"전주의 한옥을 둘러봐요.')
+        if self.failure:
+            yield GeminiTransportResponse(429, {"error": "provider-secret"})
+            return
+        raw = json.dumps(self.proposal, ensure_ascii=False, separators=(",", ":"))
+        yield self._chunk(raw[len('{"narration":"전주의 한옥을 둘러봐요.') :])
+
+    def _chunk(self, text: str) -> GeminiTransportResponse:
+        return GeminiTransportResponse(
+            200, {"candidates": [{"content": {"parts": [{"text": text}]}}]}
+        )
+
+
+def streaming_app(failure: GeminiFailureCode | None = None) -> FastAPI:
+    app = FastAPI()
+    sink = InMemoryTelemetrySink()
+    install_observability(app, sink)
+    adapter = GeminiAdapter(
+        GeminiConfig("journey-test", "gemini-test", 2048, GeminiPricing(0, 0)),
+        JourneyStreamTransport(failure),
+        api_key="provider-secret",
+        telemetry_sink=sink,
+    )
+    install_internal_auth(app, FakeSecretProvider(), journey_llm=JourneyLlmService(adapter))
+    return app
+
+
+async def post_stream(app: FastAPI, auth_token: str, *, wrong_run: bool = False) -> Response:
+    async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
+        return await client.post(
+            "/internal/v1/journey/proposals/stream",
+            headers={
+                "Authorization": "Bearer " + auth_token,
+                "X-Request-Id": "req-stream",
+                "X-Run-Id": "run-stream",
+            },
+            json={
+                "schemaVersion": "internal.ai.v1",
+                "requestId": "req-stream",
+                "runId": "wrong-run" if wrong_run else "run-stream",
+                "candidateCount": 1,
+                "query": "전주 한옥 여행",
+                "candidateRefs": ["place:allowed"],
+            },
+        )
+
+
+def parse_internal_events(response: Response) -> list[tuple[str, Any]]:
+    events: list[tuple[str, Any]] = []
+    for frame in response.text.strip().split("\n\n"):
+        lines = frame.splitlines()
+        events.append(
+            (lines[0].removeprefix("event: "), json.loads(lines[1].removeprefix("data: ")))
+        )
+    return events
+
+
+def test_internal_stream_sends_narration_before_one_validated_proposal() -> None:
+    response = asyncio.run(post_stream(streaming_app(), token()))
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-accel-buffering"] == "no"
+    events = parse_internal_events(response)
+    assert events[0][0] == "text.delta"
+    assert events[-1][0] == "proposal"
+    assert len([event for event in events if event[0] == "proposal"]) == 1
+    assert (
+        "".join(data["text"] for event, data in events if event == "text.delta")
+        == "전주의 한옥을 둘러봐요."
+    )
+    proposal = events[-1][1]["proposal"]
+    assert proposal["schemaVersion"] == "internal.ai.v1"
+    assert proposal["runId"] == "run-stream"
+    assert proposal["orderedRefs"] == ["place:allowed"]
+    assert proposal["journey"]["title"] == "한옥 산책"
+    assert "provider-secret" not in response.text
+
+
+def test_internal_stream_sanitizes_partial_provider_failure_without_proposal() -> None:
+    response = asyncio.run(post_stream(streaming_app(GeminiFailureCode.AI_QUOTA_EXCEEDED), token()))
+    assert response.status_code == 200
+    events = parse_internal_events(response)
+    assert events[-1] == ("error", {"code": "AI_QUOTA_EXCEEDED"})
+    assert not any(event == "proposal" for event, _ in events)
+    assert "provider-secret" not in response.text
+
+
+def test_internal_stream_auth_and_contract_validation_precede_streaming() -> None:
+    forbidden = asyncio.run(post_stream(streaming_app(), token(scope="journey.read")))
+    assert forbidden.status_code == 403
+    invalid = asyncio.run(post_stream(streaming_app(), token(), wrong_run=True))
+    assert invalid.status_code == 422
+    assert not invalid.headers["content-type"].startswith("text/event-stream")
+
+
+def test_internal_stream_disabled_provider_preserves_unary_baseline() -> None:
+    app = create_app(secret_provider=FakeSecretProvider())
+    stream = asyncio.run(post_stream(app, token()))
+    assert stream.status_code == 503
+    assert stream.json()["code"] == "AI_SERVICE_UNAVAILABLE"
+    unary = asyncio.run(post_proposal(token(), app=app))
+    assert unary.status_code == 202
+    assert unary.json()["orderedRefs"] == ["place:001", "place:002"]
