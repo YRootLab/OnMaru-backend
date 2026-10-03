@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 from dataclasses import asdict
 import hashlib
 import io
@@ -11,8 +12,10 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import sqlite3
 import stat
 import sys
+import tempfile
 import time
 from urllib.parse import urlsplit
 from urllib.error import HTTPError
@@ -96,7 +99,8 @@ class GitHubAPI:
         self.opener = build_opener(NoRedirect)
 
     def get(self, path, limit=MAX_API_BYTES):
-        if not path.startswith("/repos/YRootLab/OnMaru-backend/") or ".." in path or "//" in path:
+        comparison = re.fullmatch(r"/repos/YRootLab/OnMaru-backend/compare/[0-9a-f]{40}\.\.\.[A-Za-z0-9_-]{1,128}", path)
+        if (path != f"/repos/{REPOSITORY}" and not path.startswith(f"/repos/{REPOSITORY}/")) or (".." in path and not comparison) or "//" in path:
             raise ValueError("unsafe API path")
         request = Request(self.origin + path, headers={
             "Authorization": "Bearer " + self.token,
@@ -265,6 +269,45 @@ def write_json(path, value):
     path.write_text(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
 
 
+def trusted_replay_run(api, run, source_id, default_branch):
+    """Only the controller executed from reviewed default-branch history owns state."""
+    if (not isinstance(run, dict) or run.get("id") != source_id
+            or run.get("name") != "CI Observability"
+            or run.get("path") != ".github/workflows/ci-observability.yml"
+            or run.get("repository", {}).get("full_name") != REPOSITORY
+            or run.get("head_repository", {}).get("full_name") != REPOSITORY
+            or run.get("status") != "completed"
+            or run.get("event") not in {"workflow_run", "workflow_dispatch"}
+            or run.get("head_branch") != default_branch or run.get("pull_requests") != []
+            or type(run.get("run_attempt")) is not int or run["run_attempt"] <= 0):
+        return False
+    sha = run.get("head_sha")
+    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        return False
+    comparison = api.json(f"/repos/{REPOSITORY}/compare/{sha}...{default_branch}")
+    return (comparison.get("status") in {"ahead", "identical"}
+            and comparison.get("base_commit", {}).get("sha") == sha
+            and comparison.get("merge_base_commit", {}).get("sha") == sha)
+
+
+def valid_replay_database(state, directory):
+    if len(state) > MAX_ARCHIVE_BYTES or not state.startswith(b"SQLite format 3\x00"):
+        return False
+    # Validate off to the side; malformed checkpoints never become local replay state.
+    with tempfile.TemporaryDirectory(prefix="replay-validation-", dir=directory) as temporary:
+        path = Path(temporary) / "checkpoint.sqlite"
+        path.write_bytes(state)
+        with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro&immutable=1", uri=True)) as db:
+            if db.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
+                return False
+            required = {
+                "exports": ["key", "plan", "owner", "lease", "state"],
+                "batches": ["export_key", "key", "state"],
+            }
+            return all([row[1] for row in db.execute(f"PRAGMA table_info({table})")] == columns
+                       for table, columns in required.items())
+
+
 def restore_replay_state(api, directory, collection):
     """Restore the last trusted diagnostic for this source identity, if one exists."""
     artifact_name = f"ci-observability-diagnostic-{collection['run_id']}-{collection['attempt']}"
@@ -272,45 +315,63 @@ def restore_replay_state(api, directory, collection):
     count, artifacts = response.get("total_count"), response.get("artifacts")
     if type(count) is not int or not 0 <= count <= MAX_ARTIFACTS or not isinstance(artifacts, list) or len(artifacts) > 100 or len(artifacts) > count:
         raise ValueError("invalid replay listing")
-    for artifact in sorted(artifacts, key=lambda item: item.get("id", 0), reverse=True):
+    if not artifacts:
+        return False
+    repository = api.json(f"/repos/{REPOSITORY}")
+    default_branch = repository.get("default_branch")
+    if (repository.get("full_name") != REPOSITORY or not isinstance(default_branch, str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", default_branch)):
+        raise ValueError("invalid trusted default branch")
+    candidates = [item for item in artifacts if isinstance(item, dict) and type(item.get("id")) is int]
+    for artifact in sorted(candidates, key=lambda item: item["id"], reverse=True):
         if not isinstance(artifact, dict) or artifact.get("name") != artifact_name or artifact.get("expired") is not False:
             continue
         artifact_id, size = artifact.get("id"), artifact.get("size_in_bytes")
         source = artifact.get("workflow_run")
         source_id = source.get("id") if isinstance(source, dict) else None
         if any(type(value) is not int or value <= 0 for value in (artifact_id, source_id, size)) or size > MAX_ARCHIVE_BYTES:
-            raise ValueError("invalid replay artifact metadata")
-        run = api.json(f"/repos/{REPOSITORY}/actions/runs/{source_id}")
-        if (run.get("id") != source_id or run.get("name") != "CI Observability"
-                or run.get("path") != ".github/workflows/ci-observability.yml"
-                or run.get("repository", {}).get("full_name") != REPOSITORY or run.get("status") != "completed"):
             continue
-        archive = api.archive(f"/repos/{REPOSITORY}/actions/artifacts/{artifact_id}/zip")
-        with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
-            members = zipped.infolist()
-            if len(members) > 16 or sum(item.file_size for item in members) > MAX_ARCHIVE_BYTES:
-                raise ValueError("replay archive bound")
-            names = set()
-            for item in members:
-                name = item.filename
-                mode = item.external_attr >> 16
-                if name in names or name.startswith("/") or "\\" in name or "/" in name or name in {".", ".."} or item.is_dir() or (mode and stat.S_IFMT(mode) not in {0, stat.S_IFREG}) or item.file_size > MAX_ARCHIVE_BYTES:
-                    raise ValueError("unsafe replay archive")
-                names.add(name)
-            if not {"collection.json", "replay.sqlite"} <= names:
-                raise ValueError("incomplete replay state")
-            old = bounded_json(zipped.read("collection.json"))
-            if any(old.get(key) != collection.get(key) for key in ("repository", "workflow", "run_id", "attempt", "evidence_digest", "toolkit_ref")):
+        try:
+            run = api.json(f"/repos/{REPOSITORY}/actions/runs/{source_id}")
+            if not trusted_replay_run(api, run, source_id, default_branch):
                 continue
-            when = old.get("observed_at_ns")
-            state = zipped.read("replay.sqlite")
-            if type(when) is not int or when <= 0 or len(state) > MAX_ARCHIVE_BYTES or not state.startswith(b"SQLite format 3\x00"):
-                raise ValueError("invalid replay state")
-            (directory / "replay.sqlite").write_bytes(state)
-            collection["observed_at_ns"] = when
-            write_json(directory / "collection.json", collection)
-            return True
+            restored = replay_checkpoint(api.archive(f"/repos/{REPOSITORY}/actions/artifacts/{artifact_id}/zip"), directory, collection)
+        except (ValueError, OSError, TypeError, KeyError, AttributeError, RuntimeError, EOFError, zipfile.BadZipFile, sqlite3.DatabaseError):
+            # Setup failures may upload diagnostics with no database. Continue to older
+            # verified checkpoints; an invalid candidate must not poison future exports.
+            continue
+        if restored is None:
+            continue
+        state, when = restored
+        (directory / "replay.sqlite").write_bytes(state)
+        collection["observed_at_ns"] = when
+        write_json(directory / "collection.json", collection)
+        return True
     return False
+
+
+def replay_checkpoint(archive, directory, collection):
+    with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
+        members = zipped.infolist()
+        if len(members) > 16 or sum(item.file_size for item in members) > MAX_ARCHIVE_BYTES:
+            raise ValueError("replay archive bound")
+        names = set()
+        for item in members:
+            name = item.filename
+            mode = item.external_attr >> 16
+            if name in names or name.startswith("/") or "\\" in name or "/" in name or name in {".", ".."} or item.is_dir() or (mode and stat.S_IFMT(mode) not in {0, stat.S_IFREG}) or item.file_size > MAX_ARCHIVE_BYTES:
+                raise ValueError("unsafe replay archive")
+            names.add(name)
+        if not {"collection.json", "replay.sqlite"} <= names:
+            return None
+        old = bounded_json(zipped.read("collection.json"))
+        if any(old.get(key) != collection.get(key) for key in ("repository", "workflow", "run_id", "attempt", "evidence_digest", "toolkit_ref")):
+            return None
+        when = old.get("observed_at_ns")
+        state = zipped.read("replay.sqlite")
+        if type(when) is not int or not 0 < when < 2 ** 64 or not valid_replay_database(state, directory):
+            return None
+        return state, when
 
 
 def collect(args):

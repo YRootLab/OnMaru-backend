@@ -23,7 +23,7 @@ TOOLKIT_REPOSITORY = "https://github.com/YRootLab/OnMaru-backend-ci-toolkit"
 MAX_STDOUT_BYTES = 64 * 1024
 SECRET_KEY = re.compile(r"(?:api[_-]?key|authorization|credential|password|secret|token)", re.IGNORECASE)
 SECRET_TEXT = (
-    (re.compile(r"(?i)(authorization\s*[:=]\s*bearer\s+)\S+"), r"\1[REDACTED]"),
+    (re.compile(r"(?i)\b(authorization[ \t]*[:=][ \t]*)(?:basic|bearer)[ \t]+[^\s'\"&,;]+"), r"\1[REDACTED]"),
     (re.compile(r"\bgh[opsu]_[A-Za-z0-9_]{8,}\b"), "[REDACTED]"),
     (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{8,}\b"), "github_pat_[REDACTED]"),
     (
@@ -182,11 +182,12 @@ def installed_direct_url(binary: Path) -> dict[str, Any]:
     probe = subprocess.run(
         [
             str(interpreter_path),
+            "-I",
             "-c",
             (
-                "import importlib.metadata as m, json, pathlib, pipeline_toolkit as p; "
+                "import importlib.metadata as m, importlib.util as u, json, pathlib; "
                 "d=m.distribution('onmaru-pipeline-toolkit'); "
-                "r=pathlib.Path(d.locate_file('')).resolve(); f=pathlib.Path(p.__file__).resolve(); "
+                "r=pathlib.Path(d.locate_file('')).resolve(); f=pathlib.Path(u.find_spec('pipeline_toolkit').origin).resolve(); "
                 "rel=f.relative_to(r); "
                 "print(json.dumps({'direct_url':json.loads(d.read_text('direct_url.json') or '{}'),"
                 "'distribution_root':str(r),'module_file':str(f),'relative_module':rel.as_posix(),"

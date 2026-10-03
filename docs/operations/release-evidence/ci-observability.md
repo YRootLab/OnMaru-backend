@@ -46,10 +46,12 @@ Actions 링크는 `https://github.com/YRootLab/OnMaru-backend/actions/runs/<숫�
 Mimir에서 source artifact와 대조할 대표 쿼리:
 
 ```promql
-toolkit_ci_job_duration_seconds_sum{workflow="ci",environment="test",ci_job="api"}
-toolkit_ci_outcome{workflow="ci",environment="test",scope="job",outcome="failure",ci_job="api"}
-toolkit_ci_collection_quality{workflow="ci",environment="test",scope="job",ci_job="api"}
+toolkit_ci_job_duration_seconds_sum{workflow="ci",environment="test",ci_job="other"}
+toolkit_ci_outcome{workflow="ci",environment="test",scope="job",outcome="failure",ci_job="other"}
+toolkit_ci_collection_quality{workflow="ci",environment="test",scope="job",ci_job="other"}
 ```
+
+현재 OnMaruBE adapter의 CI job catalog는 비어 있어 모든 job metric은 `ci_job="other"`로 집계된다. 위 쿼리는 이 실제 전송 label에 맞춘 전체 job 조회이며 Spring API 단독 selector가 아니다. 개별 job의 이름과 시간은 source artifact와 trace에서 확인한다.
 
 Tempo의 성공·비성공 TraceQL은 대시보드의 두 table target을 그대로 사용한다. Trace의 `cicd.pipeline.run.id`, `toolkit.ci.run.attempt`, `toolkit.ci.manifest.digest`, `cicd.pipeline.result`가 source artifact와 일치해야 한다. `Tempo trace` 링크는 실제 trace를 열고, `Actions run`과 `Manifest artifacts` 링크는 같은 숫자 run ID로 연결돼야 한다. Manifest 링크는 artifact 목록이지 검증된 개별 다운로드 링크가 아니다. 실패·취소는 ERROR만으로 찾지 말고 비성공 table의 result 속성으로 확인한다. workflow span이 없는 untimed evidence는 source diagnostic에서 확인한다.
 

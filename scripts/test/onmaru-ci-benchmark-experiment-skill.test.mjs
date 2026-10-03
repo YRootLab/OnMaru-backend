@@ -90,9 +90,9 @@ async function fakeToolkit(commitId = toolkitRef) {
   return { ...installation, argvPath: path.join(invocation, 'argv.json') };
 }
 
-function invoke(executable, argvPath, args = [], extraEnv = {}) {
+function invoke(executable, argvPath, args = [], extraEnv = {}, cwd = repoRoot) {
   return spawnSync('python3', [helper, ...args], {
-    cwd: repoRoot,
+    cwd,
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -296,6 +296,31 @@ test('ignores inherited Python shadow modules for provenance and Toolkit invocat
   assert.equal(result.status, 0, result.stdout);
   assert.deepEqual(JSON.parse(result.stdout), { dry_run: true });
   await assert.rejects(readFile(marker, 'utf8'), { code: 'ENOENT' });
+});
+
+test('provenance probe never executes a consumer cwd shadow package before validating ownership', async () => {
+  const fake = await fakeToolkit();
+  const consumer = await mkdtemp(path.join(tmpdir(), 'onmaru-consumer-shadow-'));
+  const shadowPackage = path.join(consumer, 'pipeline_toolkit');
+  const marker = path.join(consumer, 'executed-before-validation');
+  await mkdir(shadowPackage);
+  await writeFile(path.join(shadowPackage, '__init__.py'), `from pathlib import Path\nPath(${JSON.stringify(marker)}).write_text('executed')\n`);
+  const result = invoke(fake.executable, fake.argvPath, [], { FAKE_STDOUT: '{"dry_run":true}\n' }, consumer);
+  await assert.rejects(readFile(marker, 'utf8'), { code: 'ENOENT' });
+  assert.equal(result.status, 0, result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout), { dry_run: true });
+});
+
+test('redacts the complete Basic and Bearer Authorization payload in plain text and JSON strings', async () => {
+  const fake = await fakeToolkit();
+  const credentialText = 'Authorization: Basic dXNlcjpwYXNz\nAuthorization=Bearer opaque-credential\nauthorization: bAsIc c2VjcmV0==';
+  for (const output of [credentialText, JSON.stringify({ note: credentialText, explanation: 'Authorization policy uses Basic and Bearer credentials' })]) {
+    const result = invoke(fake.executable, fake.argvPath, [], { FAKE_STDOUT: output });
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stdout, /dXNlcjpwYXNz|opaque-credential|c2VjcmV0/);
+    assert.match(result.stdout, /REDACTED/);
+    if (output.startsWith('{')) assert.equal(JSON.parse(result.stdout).explanation, 'Authorization policy uses Basic and Bearer credentials');
+  }
 });
 
 test('kills the whole process group when the Toolkit parent exits before its grandchild', async () => {

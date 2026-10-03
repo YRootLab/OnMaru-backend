@@ -59,7 +59,7 @@ async function withApi(overrides, body) {
   const pages = overrides.pages ?? [jobs];
   const requests = [];
   const signedAuthorization = [];
-  let prior = null;
+  let priors = [];
   const server = createServer((req, res) => {
     requests.push(req.url);
     const json = (value) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(value)); };
@@ -86,16 +86,27 @@ async function withApi(overrides, body) {
       res.setHeader('Content-Type', 'application/zip'); res.end(archive); return;
     }
     if (req.url?.startsWith('/repos/YRootLab/OnMaru-backend/actions/artifacts?')) {
-      return json({ total_count: prior ? 1 : 0, artifacts: prior ? [{
-        id: 900, name: 'ci-observability-diagnostic-731-2', size_in_bytes: prior.length,
+      return json({ total_count: priors.length, artifacts: priors.map((prior, index) => ({
+        id: 900 + index, name: 'ci-observability-diagnostic-731-2', size_in_bytes: prior.length,
         expired: false, workflow_run: { id: 500 },
-      }] : [] });
+      })) });
     }
+    if (req.url === '/repos/YRootLab/OnMaru-backend') return json({ full_name: repository, default_branch: 'master' });
+    if (req.url?.startsWith('/repos/YRootLab/OnMaru-backend/compare/')) return json({
+      status: overrides.comparisonStatus ?? 'ahead',
+      base_commit: { sha: overrides.replayRun?.head_sha ?? 'b'.repeat(40) },
+      merge_base_commit: { sha: overrides.replayRun?.head_sha ?? 'b'.repeat(40) },
+    });
     if (req.url === '/repos/YRootLab/OnMaru-backend/actions/runs/500') return json({
       id: 500, name: 'CI Observability', path: '.github/workflows/ci-observability.yml',
-      status: 'completed', repository: { full_name: repository },
+      status: 'completed', conclusion: 'success', run_attempt: 1, event: 'workflow_run',
+      head_branch: 'master', head_sha: 'b'.repeat(40), pull_requests: [],
+      repository: { full_name: repository }, head_repository: { full_name: repository },
+      ...overrides.replayRun,
     });
-    if (req.url === '/repos/YRootLab/OnMaru-backend/actions/artifacts/900/zip' && prior) {
+    const replayId = /^\/repos\/YRootLab\/OnMaru-backend\/actions\/artifacts\/(9\d\d)\/zip$/.exec(req.url);
+    const prior = replayId ? priors[Number(replayId[1]) - 900] : null;
+    if (prior) {
       if (overrides.archiveRedirect) {
         res.statusCode = 302;
         res.setHeader('Location', `http://127.0.0.1:${server.address().port}/signed/replay.zip?sig=fixture`);
@@ -103,9 +114,9 @@ async function withApi(overrides, body) {
       }
       res.setHeader('Content-Type', 'application/zip'); res.end(prior); return;
     }
-    if (req.url === '/signed/replay.zip?sig=fixture' && prior) {
+    if (req.url === '/signed/replay.zip?sig=fixture' && priors[0]) {
       signedAuthorization.push(req.headers.authorization);
-      res.setHeader('Content-Type', 'application/zip'); res.end(prior); return;
+      res.setHeader('Content-Type', 'application/zip'); res.end(priors[0]); return;
     }
     res.statusCode = 404; json({ message: 'not found' });
   });
@@ -113,7 +124,7 @@ async function withApi(overrides, body) {
   const directory = await mkdtemp(join(tmpdir(), 'onmaru-observability-'));
   try {
     return await body({
-      directory, requests, signedAuthorization, setPrior: (value) => { prior = value; },
+      directory, requests, signedAuthorization, setPrior: (value) => { priors = Array.isArray(value) ? value : [value]; },
       apiBase: `http://127.0.0.1:${server.address().port}`,
       args: ['collect', '--repository', repository, '--run-id', '731', '--attempt', '2',
         '--workflow', 'Module Benchmark', '--api-base-url', `http://127.0.0.1:${server.address().port}`,
@@ -190,6 +201,86 @@ test('collect follows the signed archive location without forwarding the GitHub 
     assert.ok(requests.includes('/signed/module.zip?sig=fixture'));
     assert.deepEqual(signedAuthorization, [undefined]);
   });
+});
+
+test('replay accepts only post-run or manual executions verified on the default branch', async () => {
+  const cases = [
+    [{ replayRun: { event: 'workflow_dispatch' } }, true],
+    [{ comparisonStatus: 'identical' }, true],
+    [{ replayRun: { event: 'pull_request', head_repository: { full_name: 'attacker/fork' } } }, false],
+    [{ replayRun: { event: 'pull_request' } }, false],
+    [{ replayRun: { event: 'pull_request_target' } }, false],
+    [{ replayRun: { head_repository: { full_name: 'attacker/fork' } } }, false],
+    [{ replayRun: { event: 'workflow_dispatch', head_branch: 'feature/arbitrary' } }, false],
+    [{ replayRun: { event: 'workflow_dispatch', head_branch: 'b'.repeat(40) } }, false],
+    [{ replayRun: { head_sha: 'c'.repeat(40) }, comparisonStatus: 'diverged' }, false],
+    [{ replayRun: { pull_requests: [{ number: 42 }] } }, false],
+  ];
+  for (const [overrides, trusted] of cases) {
+    await withApi(overrides, async ({ directory, args, apiBase, setPrior, requests }) => {
+      assert.equal((await runPython(args)).code, 0);
+      const receiver = createServer((req, res) => { req.resume(); res.end('{}'); });
+      await new Promise((ready) => receiver.listen(0, '127.0.0.1', ready));
+      try {
+        const endpoint = `http://127.0.0.1:${receiver.address().port}`;
+        assert.equal((await runPython(['export', '--dir', directory, '--endpoint', endpoint])).code, 0);
+        const original = JSON.parse(await readFile(join(directory, 'collection.json'), 'utf8'));
+        setPrior(zip([
+          { name: 'collection.json', data: JSON.stringify(original) },
+          { name: 'replay.sqlite', data: await readFile(join(directory, 'replay.sqlite')) },
+        ]));
+        await rm(join(directory, 'replay.sqlite'));
+        await writeFile(join(directory, 'collection.json'), JSON.stringify({ ...original, observed_at_ns: original.observed_at_ns + 1_000_000 }));
+        const result = await runPython(['export', '--dir', directory, '--endpoint', endpoint, '--restore-from-api', apiBase]);
+        assert.equal(result.code, 0, result.stderr);
+        assert.equal(JSON.parse(await readFile(join(directory, 'export-result.json'), 'utf8')).status,
+          trusted ? 'duplicate' : 'exported', JSON.stringify(overrides));
+        assert.equal(JSON.parse(await readFile(join(directory, 'collection.json'), 'utf8')).observed_at_ns,
+          trusted ? original.observed_at_ns : original.observed_at_ns + 1_000_000);
+        if (!trusted) assert.ok(!requests.includes('/repos/YRootLab/OnMaru-backend/actions/artifacts/900/zip'));
+      } finally { receiver.close(); }
+    });
+  }
+});
+
+test('missing OTLP credentials can be corrected after a checkpointless diagnostic', async () => {
+  await withApi({}, async ({ directory, args, apiBase, setPrior }) => {
+    assert.equal((await runPython(args)).code, 0);
+    assert.equal((await runPython(['export', '--dir', directory, '--endpoint', '', '--headers-json', ''])).code, 1);
+    await assert.rejects(access(join(directory, 'replay.sqlite')));
+    setPrior(zip([{ name: 'collection.json', data: await readFile(join(directory, 'collection.json')) }]));
+    const receiver = createServer((req, res) => { req.resume(); res.end('{}'); });
+    await new Promise((ready) => receiver.listen(0, '127.0.0.1', ready));
+    try {
+      const result = await runPython(['export', '--dir', directory, '--endpoint', `http://127.0.0.1:${receiver.address().port}`,
+        '--restore-from-api', apiBase]);
+      assert.equal(result.code, 0, result.stderr);
+      assert.equal(JSON.parse(await readFile(join(directory, 'export-result.json'), 'utf8')).status, 'exported');
+    } finally { receiver.close(); }
+  });
+});
+
+test('checkpointless or invalid latest diagnostics fall back to an older valid checkpoint', async () => {
+  for (const invalidState of [null, 'SQLite format 3\u0000broken database']) {
+    await withApi({}, async ({ directory, args, apiBase, setPrior }) => {
+      assert.equal((await runPython(args)).code, 0);
+      const receiver = createServer((req, res) => { req.resume(); res.end('{}'); });
+      await new Promise((ready) => receiver.listen(0, '127.0.0.1', ready));
+      try {
+        const endpoint = `http://127.0.0.1:${receiver.address().port}`;
+        assert.equal((await runPython(['export', '--dir', directory, '--endpoint', endpoint])).code, 0);
+        const original = await readFile(join(directory, 'collection.json'));
+        const valid = zip([{ name: 'collection.json', data: original }, { name: 'replay.sqlite', data: await readFile(join(directory, 'replay.sqlite')) }]);
+        const recent = [{ name: 'collection.json', data: original }];
+        if (invalidState !== null) recent.push({ name: 'replay.sqlite', data: invalidState });
+        setPrior([valid, zip(recent)]);
+        await rm(join(directory, 'replay.sqlite'));
+        const result = await runPython(['export', '--dir', directory, '--endpoint', endpoint, '--restore-from-api', apiBase]);
+        assert.equal(result.code, 0, result.stderr);
+        assert.equal(JSON.parse(await readFile(join(directory, 'export-result.json'), 'utf8')).status, 'duplicate');
+      } finally { receiver.close(); }
+    });
+  }
 });
 
 test('collect rejects an archive redirect outside the trusted storage boundary', async () => {
@@ -370,6 +461,17 @@ test('CI and Module Benchmark exports use distinct trusted workflow labels and p
           .filter((attribute) => attribute.key === 'workflow')
           .map((attribute) => attribute.value.stringValue);
         assert.deepEqual([...new Set(labels)], [label]);
+        if (source === 'CI') {
+          const documentation = await readFile('docs/operations/release-evidence/ci-observability.md', 'utf8');
+          const selectors = [...documentation.matchAll(/ci_job="([^"]+)"/g)].map((match) => match[1]);
+          assert.ok(selectors.length > 0);
+          const jobLabels = metrics.resourceMetrics.flatMap((resource) => resource.scopeMetrics)
+            .flatMap((scope) => scope.metrics)
+            .flatMap((metric) => [...(metric.histogram?.dataPoints ?? []), ...(metric.gauge?.dataPoints ?? [])])
+            .flatMap((point) => point.attributes)
+            .filter((attribute) => attribute.key === 'ci_job').map((attribute) => attribute.value.stringValue);
+          assert.ok(selectors.every((selector) => jobLabels.includes(selector)), 'documented CI selector must match emitted telemetry');
+        }
         const names = traces.resourceSpans.flatMap((resource) => resource.scopeSpans)
           .flatMap((scope) => scope.spans)
           .flatMap((span) => span.attributes)
