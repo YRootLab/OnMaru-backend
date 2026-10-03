@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-04 Issue #604 지도 줌아웃 집계 빈 응답·timeout hotfix
+
+- 브랜치: `hotfix/604-map-viewport-aggregates` (`origin/develop` 기준).
+- 운영 재현: 전국·서울 bbox의 `DISTRICT/REGION` 응답이 양수 `totalCountInViewport`와 빈 `items`를 함께 반환했고, 같은 전국 요청에서 간헐적으로 `503 CATALOG_UNAVAILABLE`·`details.timeout=true`가 발생했다.
+- 원인: 원거리 집계가 장소 projection과 별도로 적재되는 행정경계 row를 필수 JOIN해, 운영에서 경계가 누락되거나 행정코드와 불일치하면 집계가 모두 사라졌다. 또한 집계 전에 동일 viewport 전체 count 공간 쿼리를 별도로 수행해 timeout 비용을 더했다.
+- 변경: DISTRICT/REGION은 `map_place_read_projection`의 `sido_code`/`sigungu_code`와 point geometry를 직접 그룹화해 count·center·bounds를 반환한다. 지역명은 `catalog_regions`가 있으면 사용하고 없으면 코드로 안전하게 대체한다. 원거리 `totalCountInViewport`는 반환 집계의 합계로 계산해 중복 공간 count 쿼리를 제거한다. Frontend Issue #246의 level 6 혼합 계약에 맞춰 단일 장소 grid cell은 `PLACE` item, 2개 이상은 `CLUSTER` item으로 반환한다.
+- 회귀: 행정경계 row 없이 ALL·HANOK의 DISTRICT/REGION 집계와 total count가 반환되는 PostgreSQL/PostGIS 통합 테스트를 추가했다.
+- 다음 단계: 전체 관련 회귀·성능 테스트와 CI `verify`를 통과한 뒤 `master` hotfix 배포, 운영 전국/서울 viewport smoke로 non-empty aggregate와 timeout 부재를 확인하고 `develop`에 forward-port한다.
+
 ## 2026-10-03 Issue #552 회원 익명 프로필·온기 후기 작성자
 
 - 브랜치: `feature/552-member-profile` (branch parser #552).
