@@ -3,6 +3,8 @@ package com.yrootlab.onmaru.scheduling.audio;
 import com.yrootlab.onmaru.audio.sync.AudioRevisionStore;
 import com.yrootlab.onmaru.audio.sync.OdiiRevisionSyncService;
 import com.yrootlab.onmaru.audio.sync.OdiiSyncCommand;
+import com.yrootlab.onmaru.audio.sync.OdiiSyncObserver;
+import com.yrootlab.onmaru.audio.sync.OdiiSyncStatus;
 import com.yrootlab.onmaru.catalog.application.sync.SyncRunLease;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,44 +71,59 @@ public class OdiiSyncSchedulingAdapter {
 
     public synchronized void runSync(String triggerSource) {
         UUID runId = UUID.randomUUID();
-        String phase = "DEPENDENCY_CHECK";
-        var syncService = syncServiceProvider.getIfAvailable();
-        var revisionStore = revisionStoreProvider.getIfAvailable();
-        var dataSource = dataSourceProvider.getIfAvailable();
-
-        if (syncService == null || revisionStore == null || dataSource == null) {
-            LOGGER.warn("ODII_SYNC_TERMINAL runId={} status=SKIPPED reason=MISSING_COMPONENT phase={} trigger={} "
-                            + "syncService={} revisionStore={} dataSource={}",
-                    runId, phase, triggerSource, syncService != null, revisionStore != null, dataSource != null);
-            return;
-        }
-
+        Instant startedAt = Instant.now();
+        String trigger = switch (triggerSource == null ? "" : triggerSource) {
+            case "application-ready", "scheduled-cron" -> triggerSource;
+            default -> "manual";
+        };
+        var outcome = new RunOutcome();
+        OdiiSyncRunStore history = null;
+        LOGGER.info("ODII_SYNC_STARTED runId={} trigger={} dataset={}", runId, trigger, dataset);
         try {
-            phase = "INITIALIZE";
-            LOGGER.info("ODII_SYNC_STARTED runId={} trigger={} dataset={}", runId, triggerSource, dataset);
+            // Resolve the DB first, so missing/failed application beans can still leave history.
+            var dataSource = dataSourceProvider.getIfAvailable();
+            if (dataSource != null) {
+                history = new JdbcOdiiSyncRunStore(dataSource);
+                saveHistory(history, new OdiiSyncRunStore.Run(runId, dataset, trigger, startedAt,
+                        null, "STARTED", null, null, null, null, 0, 0));
+            }
+            var syncService = syncServiceProvider.getIfAvailable();
+            var revisionStore = revisionStoreProvider.getIfAvailable();
+            if (syncService == null || revisionStore == null || dataSource == null) {
+                outcome.status = "SKIPPED";
+                outcome.code = "MISSING_COMPONENT";
+                LOGGER.warn("ODII_SYNC_COMPONENTS runId={} syncService={} revisionStore={} dataSource={}",
+                        runId, syncService != null, revisionStore != null, dataSource != null);
+                return;
+            }
+
+            outcome.phase = "INITIALIZE";
+            outcome.code = "INITIALIZATION_FAILED";
             UUID activeRevision = revisionStore.activeRevision(dataset);
             if (activeRevision == null) {
                 LOGGER.info("ODII_SYNC_PHASE runId={} phase=INITIALIZE dataset={}", runId, dataset);
                 activeRevision = revisionStore.initializeDataset(dataset, Instant.now());
             }
             if (activeRevision == null) {
-                LOGGER.error("ODII_SYNC_TERMINAL runId={} status=FAILED phase={} trigger={} dataset={}",
-                        runId, phase, triggerSource, dataset);
                 return;
             }
+            outcome.revisionId = activeRevision;
 
-            phase = "LEASE";
-            LOGGER.info("ODII_SYNC_PHASE runId={} phase={} trigger={} dataset={}", runId, phase, triggerSource, dataset);
-            SyncRunLease lease = acquireOrRenewLease(dataSource, dataset, OWNER_TOKEN);
+            outcome.phase = "LEASE";
+            outcome.code = "LEASE_DB_ERROR";
+            LOGGER.info("ODII_SYNC_PHASE runId={} phase=LEASE trigger={} dataset={}", runId, trigger, dataset);
+            SyncRunLease lease = acquireOrRenewLease(dataSource, dataset, OWNER_TOKEN, runId);
             if (lease == null) {
-                LOGGER.warn("ODII_SYNC_TERMINAL runId={} status=SKIPPED reason=LEASE_NOT_ACQUIRED phase={} trigger={} dataset={}",
-                        runId, phase, triggerSource, dataset);
+                outcome.status = "SKIPPED";
+                outcome.code = "LEASE_NOT_ACQUIRED";
                 return;
             }
+            outcome.generation = lease.generation();
 
-            phase = "SYNC";
-            LOGGER.info("ODII_SYNC_PHASE runId={} phase={} trigger={} dataset={} activeRevision={}",
-                    runId, phase, triggerSource, dataset, activeRevision);
+            outcome.phase = "SYNC";
+            outcome.code = "SYNC_FAILED";
+            LOGGER.info("ODII_SYNC_PHASE runId={} phase=SYNC trigger={} dataset={} activeRevision={}",
+                    runId, trigger, dataset, activeRevision);
 
             var command = new OdiiSyncCommand(
                     dataset,
@@ -116,22 +133,93 @@ public class OdiiSyncSchedulingAdapter {
                     false
             );
 
-            var result = syncService.sync(command);
-            boolean published = result.status() == com.yrootlab.onmaru.audio.sync.OdiiSyncStatus.PUBLISHED;
-            LOGGER.info("ODII_SYNC_TERMINAL runId={} status={} phase={} trigger={} dataset={} "
-                            + "revisionId={} staged={} tombstones={}",
-                    runId, published ? "COMPLETED" : "FAILED",
-                    published ? "PUBLISH" : result.status(), triggerSource, dataset,
-                    result.stagedRevisionId(), result.itemCount(), result.tombstoneCount());
+            var result = syncService.sync(command, new OdiiSyncObserver() {
+                @Override
+                public void phaseFailed(String ignoredDataset, UUID revisionId, String phase, String code) {
+                    outcome.phase = phase;
+                    outcome.code = code;
+                    outcome.revisionId = revisionId;
+                }
+                @Override
+                public void staged(String ignoredDataset, UUID revisionId, long count) {
+                    outcome.revisionId = revisionId;
+                    outcome.staged = count;
+                }
+                @Override
+                public void stageCompleted(String ignoredDataset, UUID revisionId, long tombstoneCount) {
+                    outcome.revisionId = revisionId;
+                    outcome.tombstones = tombstoneCount;
+                }
+                @Override
+                public void fetched(String ignoredDataset, UUID revisionId, long count) {
+                    outcome.fetched += count;
+                }
+                @Override
+                public void mapped(String ignoredDataset, UUID revisionId, long count) {
+                    outcome.mapped += count;
+                }
+            });
+            outcome.revisionId = result.stagedRevisionId();
+            outcome.staged = result.itemCount();
+            outcome.tombstones = result.tombstoneCount();
+            if (result.status() == OdiiSyncStatus.PUBLISHED) {
+                outcome.status = "COMPLETED";
+                outcome.phase = "PUBLISH";
+                outcome.code = null;
+                outcome.published = result.itemCount();
+            } else if ("SYNC_FAILED".equals(outcome.code)) {
+                outcome.phase = "PUBLISH";
+                outcome.code = result.status().name();
+            }
 
         } catch (Exception exception) {
             // Do not log exception messages: upstream URLs and provider errors may contain secrets.
-            LOGGER.error("ODII_SYNC_TERMINAL runId={} status=FAILED phase={} trigger={} dataset={} exceptionType={}",
-                    runId, phase, triggerSource, dataset, exception.getClass().getName());
+            outcome.exceptionType = exception.getClass().getName();
+        } finally {
+            if (history != null) {
+                saveHistory(history, new OdiiSyncRunStore.Run(runId, dataset, trigger, startedAt,
+                        Instant.now(), outcome.status, "COMPLETED".equals(outcome.status) ? null : outcome.phase,
+                        outcome.code, outcome.revisionId, outcome.generation, outcome.fetched, outcome.mapped,
+                        outcome.staged, outcome.published, outcome.tombstones));
+            }
+            String message = "ODII_SYNC_TERMINAL runId={} status={} reason={} phase={} trigger={} dataset={} "
+                    + "revisionId={} leaseGeneration={} fetched={} mapped={} staged={} published={} tombstones={} exceptionType={}";
+            Object[] arguments = {runId, outcome.status, outcome.code, outcome.phase, trigger, dataset,
+                    outcome.revisionId, outcome.generation, outcome.fetched, outcome.mapped, outcome.staged,
+                    outcome.published, outcome.tombstones, outcome.exceptionType};
+            switch (outcome.status) {
+                case "COMPLETED" -> LOGGER.info(message, arguments);
+                case "SKIPPED" -> LOGGER.warn(message, arguments);
+                default -> LOGGER.error(message, arguments);
+            }
         }
     }
 
-    private SyncRunLease acquireOrRenewLease(DataSource dataSource, String dataset, String ownerToken) {
+    private void saveHistory(OdiiSyncRunStore history, OdiiSyncRunStore.Run run) {
+        try {
+            history.save(run);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("ODII_SYNC_HISTORY_FAILED runId={} lifecycle={} exceptionType={}",
+                    run.id(), run.lifecycleStatus(), exception.getClass().getName());
+        }
+    }
+
+    private static final class RunOutcome {
+        private String status = "FAILED";
+        private String phase = "DEPENDENCY_CHECK";
+        private String code = "COMPONENT_CREATION_FAILED";
+        private String exceptionType;
+        private UUID revisionId;
+        private Integer generation;
+        private long fetched;
+        private long mapped;
+        private long staged;
+        private long published;
+        private long tombstones;
+    }
+
+    private SyncRunLease acquireOrRenewLease(DataSource dataSource, String dataset, String ownerToken, UUID runId)
+            throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try {
@@ -162,7 +250,7 @@ public class OdiiSyncSchedulingAdapter {
                         if (rs.next()) {
                             int generation = rs.getInt("generation");
                             connection.commit();
-                            return new SyncRunLease(UUID.randomUUID(), dataset, ownerToken, generation);
+                            return new SyncRunLease(runId, dataset, ownerToken, generation);
                         }
                     }
                 }
@@ -170,12 +258,8 @@ public class OdiiSyncSchedulingAdapter {
                 return null;
             } catch (SQLException e) {
                 connection.rollback();
-                LOGGER.warn("ODII_SYNC_LEASE_FAILED phase=LEASE exceptionType={}", e.getClass().getName());
-                return null;
+                throw e;
             }
-        } catch (SQLException exception) {
-            LOGGER.warn("ODII_SYNC_LEASE_FAILED phase=LEASE exceptionType={}", exception.getClass().getName());
-            return null;
         }
     }
 }

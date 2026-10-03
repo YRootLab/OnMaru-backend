@@ -29,7 +29,7 @@ public final class AdmissionService {
         var budget = policy.budgetFor(request.operation(), request.subject().type());
         var window = budget.window() == null ? policy.window() : budget.window();
         var now = clock.instant();
-        var windowStart = windowStart(now, window);
+        var windowStart = windowStart(now, window, budget.windowAnchor());
         var retryAfter = Duration.between(now, windowStart.plus(window));
         var scope = new AdmissionScope(request.operation(), request.subject().type(), request.subject().key());
         var decision = store.tryConsume(scope, windowStart, budget.limit(), retryAfter);
@@ -44,7 +44,7 @@ public final class AdmissionService {
         }
         var window = budget.window() == null ? policy.window() : budget.window();
         var now = clock.instant();
-        var windowStart = windowStart(now, window);
+        var windowStart = windowStart(now, window, budget.windowAnchor());
         var retryAfter = Duration.between(now, windowStart.plus(window));
         var scope = new AdmissionScope(request.operation(), request.subject().type(), request.subject().key());
         var decision = store.tryStart(scope, windowStart, budget.limit(), budget.activeLimit(), retryAfter, ACTIVE_RETRY_AFTER);
@@ -59,7 +59,14 @@ public final class AdmissionService {
         observationSink.recordRelease(scope);
     }
 
-    private Instant windowStart(Instant now, Duration window) {
+    private Instant windowStart(Instant now, Duration window, Instant anchor) {
+        if (anchor != null) {
+            if (now.isBefore(anchor)) {
+                throw new IllegalArgumentException("now must not precede windowAnchor");
+            }
+            long elapsedWindows = Duration.between(anchor, now).dividedBy(window);
+            return anchor.plus(window.multipliedBy(elapsedWindows));
+        }
         if (DAILY_WINDOW.equals(window)) {
             return now.atZone(KST).toLocalDate().atStartOfDay(KST).toInstant();
         }

@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.persistence.catalog;
 
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListCategory;
+import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListEligibility;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListProjection;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStatus;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapCoordinates;
@@ -46,9 +47,9 @@ public final class JdbcCatalogPlaceSnapshotStore {
               ON image.revision_id = version.revision_id
              AND image.place_id = version.place_id AND image.position = 0
             WHERE active.dataset = ?
-              AND (? = false OR version.category IN ('HANOK', 'HANOK_STAY', 'HANOK_CAFE', 'HANOK_EXPERIENCE')
-                   OR version.name ILIKE '%한옥%'
-                   OR version.overview ILIKE '%한옥%')
+              AND (? = false OR version.category = ANY (?)
+                   OR version.name ILIKE ?
+                   OR version.overview ILIKE ?)
             ORDER BY public_id.public_id
             """;
 
@@ -71,10 +72,16 @@ public final class JdbcCatalogPlaceSnapshotStore {
              var statement = connection.prepareStatement(SQL)) {
             statement.setString(1, DATASET);
             statement.setBoolean(2, hanokOnly);
+            var categories = connection.createArrayOf("text", HanokListEligibility.CATEGORIES.toArray(String[]::new));
+            statement.setArray(3, categories);
+            statement.setString(4, "%" + HanokListEligibility.KEYWORD + "%");
+            statement.setString(5, "%" + HanokListEligibility.KEYWORD + "%");
             try (var rows = statement.executeQuery()) {
                 var result = new ArrayList<T>();
                 while (rows.next()) result.add(mapper.map(rows));
                 return List.copyOf(result);
+            } finally {
+                categories.free();
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("failed to read active TourAPI catalog snapshot", exception);

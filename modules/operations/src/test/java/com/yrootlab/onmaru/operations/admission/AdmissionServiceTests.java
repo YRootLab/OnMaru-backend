@@ -14,10 +14,104 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 class AdmissionServiceTests {
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-09-15T03:00:05Z"), ZoneOffset.UTC);
+
+    @Test
+    void fixedWindowRolloverKeepsActiveSlotsForBothAdmissionPathsUntilReleased() {
+        var store = new InMemoryAdmissionStore();
+        var anchor = Instant.parse("2026-09-30T15:00:00Z");
+        var policy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 2, Duration.ofDays(31), 1, anchor)));
+        var beforeEnd = new AdmissionService(store,
+                Clock.fixed(Instant.parse("2026-10-31T14:59:59Z"), ZoneOffset.UTC));
+        var atEnd = new AdmissionService(store,
+                Clock.fixed(Instant.parse("2026-10-31T15:00:00Z"), ZoneOffset.UTC));
+        var activeRequest = new AdmissionRequest("journey.ai", new AdmissionSubject(SubjectType.MEMBER, "active-path"));
+        var consumeRequest = new AdmissionRequest("journey.ai", new AdmissionSubject(SubjectType.MEMBER, "consume-path"));
+        assertThat(beforeEnd.admitActive(activeRequest, policy).allowed()).isTrue();
+        assertThat(beforeEnd.admitActive(consumeRequest, policy).allowed()).isTrue();
+
+        assertThat(atEnd.admit(consumeRequest, policy).allowed()).isTrue();
+        for (var request : List.of(activeRequest, consumeRequest)) {
+            var blocked = atEnd.admitActive(request, policy);
+            assertThat(blocked.allowed()).isFalse();
+            assertThat(blocked.reason()).isEqualTo(AdmissionRejectionReason.ACTIVE_LIMIT);
+            atEnd.releaseActive(request, policy);
+            assertThat(atEnd.admitActive(request, policy).allowed()).isTrue();
+        }
+    }
+
+    @Test
+    void anchoredQuotaStartsAtExactKstOctoberBoundaryAndResetsAtNovemberBoundary() {
+        var store = new InMemoryAdmissionStore();
+        var anchor = Instant.parse("2026-09-30T15:00:00Z");
+        var end = Instant.parse("2026-10-31T15:00:00Z");
+        var policy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 2, Duration.ofDays(31), 0, anchor)));
+        var request = new AdmissionRequest("journey.ai", new AdmissionSubject(SubjectType.MEMBER, "member-1"));
+        var atStart = new AdmissionService(store, Clock.fixed(anchor, ZoneOffset.UTC));
+
+        assertThat(atStart.admit(request, policy).allowed()).isTrue();
+        assertThat(atStart.admit(request, policy).allowed()).isTrue();
+        var third = atStart.admit(request, policy);
+        assertThat(third.allowed()).isFalse();
+        assertThat(third.retryAfter()).isEqualTo(Duration.ofDays(31));
+
+        var beforeEnd = new AdmissionService(store, Clock.fixed(end.minusSeconds(1), ZoneOffset.UTC));
+        assertThat(beforeEnd.admit(request, policy).allowed()).isFalse();
+        assertThat(beforeEnd.admit(request, policy).retryAfter()).isEqualTo(Duration.ofSeconds(1));
+        var atEnd = new AdmissionService(store, Clock.fixed(end, ZoneOffset.UTC));
+        assertThat(atEnd.admit(request, policy).allowed()).isTrue();
+        assertThat(atEnd.admit(request, policy).allowed()).isTrue();
+        assertThat(atEnd.admit(request, policy).retryAfter()).isEqualTo(Duration.ofDays(31));
+    }
+
+    @Test
+    void anchoredActiveQuotaKeepsOneSlotAndTwoStartsUntilTheFixedWindowEnds() {
+        var store = new InMemoryAdmissionStore();
+        var anchor = Instant.parse("2026-09-30T15:00:00Z");
+        var policy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 2, Duration.ofDays(31), 1, anchor)));
+        var request = new AdmissionRequest("journey.ai", new AdmissionSubject(SubjectType.MEMBER, "member-1"));
+        var service = new AdmissionService(store, Clock.fixed(anchor, ZoneOffset.UTC));
+
+        assertThat(service.admitActive(request, policy).allowed()).isTrue();
+        var activeRejected = service.admitActive(request, policy);
+        assertThat(activeRejected.allowed()).isFalse();
+        assertThat(activeRejected.reason()).isEqualTo(AdmissionRejectionReason.ACTIVE_LIMIT);
+        assertThat(activeRejected.retryAfter()).isEqualTo(Duration.ofSeconds(30));
+        service.releaseActive(request, policy);
+
+        var beforeEnd = new AdmissionService(store,
+                Clock.fixed(Instant.parse("2026-10-31T14:59:59Z"), ZoneOffset.UTC));
+        assertThat(beforeEnd.admitActive(request, policy).allowed()).isTrue();
+        beforeEnd.releaseActive(request, policy);
+        var quotaRejected = beforeEnd.admitActive(request, policy);
+        assertThat(quotaRejected.allowed()).isFalse();
+        assertThat(quotaRejected.reason()).isEqualTo(AdmissionRejectionReason.QUOTA_EXCEEDED);
+        assertThat(quotaRejected.retryAfter()).isEqualTo(Duration.ofSeconds(1));
+    }
+
+    @Test
+    void anchoredAdmissionRejectsBeforeStartWithoutCreatingFutureWindowUsage() {
+        var store = new InMemoryAdmissionStore();
+        var anchor = Instant.parse("2026-09-30T15:00:00Z");
+        var policy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 2, Duration.ofDays(31), 1, anchor)));
+        var request = new AdmissionRequest("journey.ai", new AdmissionSubject(SubjectType.MEMBER, "member-1"));
+        var beforeStart = new AdmissionService(store, Clock.fixed(anchor.minusNanos(1), ZoneOffset.UTC));
+
+        assertThatIllegalArgumentException().isThrownBy(() -> beforeStart.admit(request, policy));
+        assertThatIllegalArgumentException().isThrownBy(() -> beforeStart.admitActive(request, policy));
+        var atStart = new AdmissionService(store, Clock.fixed(anchor, ZoneOffset.UTC));
+        assertThat(atStart.admit(request, policy).allowed()).isTrue();
+        assertThat(atStart.admit(request, policy).allowed()).isTrue();
+        assertThat(atStart.admit(request, policy).allowed()).isFalse();
+    }
 
     @Test
     void atomicStoreApprovesNoMoreThanOperationLimitUnderConcurrentRequests() throws Exception {

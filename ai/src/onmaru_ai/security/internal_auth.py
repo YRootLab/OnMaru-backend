@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import json
 import uuid
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
 
 from fastapi import FastAPI, Header, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from onmaru_ai.config.secrets import SecretProvider
 from onmaru_ai.observability.correlation import correlation_from
+from onmaru_ai.providers.gemini.models import GeminiFailureCode, GeminiProviderError
 from onmaru_ai.rag import InMemoryRagActivationLog, RagRetrievalGate
 
 INTERNAL_TOKEN_SECRET_NAME = "internal-ai.service-token"
@@ -71,15 +73,9 @@ def install_internal_auth(
     rag_feature_enabled: bool = False,
     journey_llm: Any | None = None,
 ) -> None:
-    @app.post(
-        "/internal/v1/journey/proposals",
-        status_code=status.HTTP_202_ACCEPTED,
-        response_model=None,
-    )
-    async def create_journey_proposal(
-        request: Request,
-        authorization: str = Header(default=""),
-    ) -> dict[str, object] | JSONResponse:
+    async def validated_body(
+        request: Request, authorization: str
+    ) -> JourneyProposalRequest | JSONResponse:
         try:
             validate_internal_token(authorization, secret_provider)
         except HTTPException as exception:
@@ -91,16 +87,35 @@ def install_internal_auth(
             return _contract_error()
         if body.run_id != context.run_id or body.request_id != context.request_id:
             return _contract_error()
-        rag_evidence_refs: tuple[str, ...] = ()
+        return body
+
+    def rag_refs(body: JourneyProposalRequest) -> tuple[str, ...] | JSONResponse:
         if body.use_rag:
             if body.corpus_revision_id is None:
                 return _contract_error()
             if rag_feature_enabled and rag_activation_log is not None and rag_retriever is not None:
                 revision_id = body.corpus_revision_id
-                rag_evidence_refs = RagRetrievalGate(rag_activation_log).retrieve_if_active(
+                return RagRetrievalGate(rag_activation_log).retrieve_if_active(
                     corpus_revision_id=revision_id,
                     retrieve=lambda: rag_retriever.retrieve(revision_id),
                 )
+        return ()
+
+    @app.post(
+        "/internal/v1/journey/proposals",
+        status_code=status.HTTP_202_ACCEPTED,
+        response_model=None,
+    )
+    async def create_journey_proposal(
+        request: Request,
+        authorization: str = Header(default=""),
+    ) -> dict[str, object] | JSONResponse:
+        body = await validated_body(request, authorization)
+        if isinstance(body, JSONResponse):
+            return body
+        rag_evidence_refs = rag_refs(body)
+        if isinstance(rag_evidence_refs, JSONResponse):
+            return rag_evidence_refs
         llm_proposal = None
         if journey_llm is not None and body.query.strip() and body.candidate_refs:
             llm_proposal = await journey_llm.generate(
@@ -109,27 +124,84 @@ def install_internal_auth(
                 request_id=body.request_id,
             )
         if llm_proposal is not None:
-            llm_response = {
-                "schemaVersion": "internal.ai.v1",
-                "runId": context.run_id,
-                "orderedRefs": llm_proposal.get("orderedRefs", []),
-                "outcome": "PROPOSAL" if llm_proposal.get("orderedRefs") else "NO_RESULTS",
-                "journey": llm_proposal,
-            }
-            if body.use_rag:
-                llm_response["ragEvidenceRefs"] = list(rag_evidence_refs)
-            return llm_response
+            return _proposal_response(body, llm_proposal, rag_evidence_refs)
         candidate_count = body.candidate_count
         selected_count = min(candidate_count, 3)
         response: dict[str, object] = {
             "schemaVersion": "internal.ai.v1",
-            "runId": context.run_id,
+            "runId": body.run_id,
             "orderedRefs": [f"place:{index:03d}" for index in range(1, selected_count + 1)],
             "outcome": "PROPOSAL" if selected_count else "NO_RESULTS",
         }
         if body.use_rag:
             response["ragEvidenceRefs"] = list(rag_evidence_refs)
         return response
+
+    @app.post("/internal/v1/journey/proposals/stream", response_model=None)
+    async def stream_journey_proposal(
+        request: Request, authorization: str = Header(default="")
+    ) -> StreamingResponse | JSONResponse:
+        body = await validated_body(request, authorization)
+        if isinstance(body, JSONResponse):
+            return body
+        evidence = rag_refs(body)
+        if isinstance(evidence, JSONResponse):
+            return evidence
+        if journey_llm is None:
+            return JSONResponse(status_code=503, content={"code": "AI_SERVICE_UNAVAILABLE"})
+        if not body.query.strip() or not body.candidate_refs:
+            return _contract_error()
+
+        async def events() -> AsyncIterator[str]:
+            try:
+                async with contextlib.aclosing(
+                    journey_llm.stream(
+                        query=body.query,
+                        candidate_refs=body.candidate_refs,
+                        request_id=body.request_id,
+                    )
+                ) as source:
+                    async for event in source:
+                        if await request.is_disconnected():
+                            return
+                        if event["event"] == "text.delta":
+                            yield _sse("text.delta", {"text": event["data"]["text"]})
+                        elif event["event"] == "proposal":
+                            proposal = _proposal_response(body, event["data"]["proposal"], evidence)
+                            yield _sse("proposal", {"proposal": proposal})
+                            return
+                        else:
+                            raise GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE)
+                raise GeminiProviderError(GeminiFailureCode.AI_INVALID_RESPONSE)
+            except GeminiProviderError as error:
+                yield _sse("error", {"code": error.code.value})
+            except Exception:
+                yield _sse("error", {"code": "AI_SERVICE_UNAVAILABLE"})
+
+        return StreamingResponse(
+            events(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        )
+
+
+def _proposal_response(
+    body: JourneyProposalRequest, proposal: Mapping[str, Any], evidence: tuple[str, ...]
+) -> dict[str, object]:
+    response: dict[str, object] = {
+        "schemaVersion": "internal.ai.v1",
+        "runId": body.run_id,
+        "orderedRefs": proposal.get("orderedRefs", []),
+        "outcome": "PROPOSAL" if proposal.get("orderedRefs") else "NO_RESULTS",
+        "journey": dict(proposal),
+    }
+    if body.use_rag:
+        response["ragEvidenceRefs"] = list(evidence)
+    return response
+
+
+def _sse(event: str, data: Mapping[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 def _contract_error() -> JSONResponse:

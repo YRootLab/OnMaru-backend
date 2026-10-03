@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.journey.events;
 
 public enum JourneyRunEventType {
     STAGE("run.stage"),
+    TEXT_DELTA("run.text.delta"),
     TERMINAL("run.terminal"),
     HEARTBEAT("heartbeat"),
     RESET("reset"),

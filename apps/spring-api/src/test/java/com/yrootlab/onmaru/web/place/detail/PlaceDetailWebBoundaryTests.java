@@ -12,6 +12,8 @@ import com.yrootlab.onmaru.identity.oauth.TokenHasher;
 import com.yrootlab.onmaru.journey.saved.place.InMemorySavedPlaceStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -115,6 +117,46 @@ class PlaceDetailWebBoundaryTests {
                 .andExpect(jsonPath("$.mapCard.placeId").value("p-jeonju-hanok-village"))
                 .andExpect(jsonPath("$.mapCard.savedByMe").value(true))
                 .andExpect(jsonPath("$.odiiLinkedCard.placeId").value("p-jeonju-hanok-village"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "HISTORIC_SITE, 북촌한옥마을, 역사 문화 마을",
+            "HISTORIC_SITE, 전통 문화 마을, 전통 한옥을 둘러보는 마을",
+            "HANOK, 전통 마을, 전통 문화 공간",
+            "HANOK_STAY, 전통 숙소, 전통 문화 공간",
+            "HANOK_CAFE, 전통 찻집, 전통 문화 공간",
+            "HANOK_EXPERIENCE, 전통 체험관, 전통 문화 공간"
+    })
+    void hanokListEligiblePlacesHaveDetailWithTheirOriginalCategory(
+            String category, String name, String description) throws Exception {
+        placeStore.add(PlaceProjection.publicPlace(
+                "p-tourapi-126537", name, category,
+                new RegionProjection("kr-11-seoul", "서울 종로구"),
+                "서울 종로구", new CoordinatesProjection(37.5826, 126.9848),
+                List.of(), description, List.of(), null));
+
+        mockMvc.perform(get("/api/v1/hanoks/p-tourapi-126537"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.placeId").value("p-tourapi-126537"))
+                .andExpect(jsonPath("$.category").value(category))
+                .andExpect(jsonPath("$.mapCard.category").value(category));
+        mockMvc.perform(get("/api/v1/places/p-tourapi-126537"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.category").value(category));
+    }
+
+    @Test
+    void unrelatedPublicPlaceHasCanonicalDetailButNoHanokDetail() throws Exception {
+        placeStore.add(PlaceProjection.publicPlace(
+                "p-public-palace", "문화 궁전", "HISTORIC_SITE",
+                new RegionProjection("kr-11-seoul", "서울 종로구"),
+                null, null, List.of(), "역사 문화 공간", List.of(), null));
+
+        mockMvc.perform(get("/api/v1/hanoks/p-public-palace"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/places/p-public-palace"))
+                .andExpect(status().isOk());
     }
 
     @Test

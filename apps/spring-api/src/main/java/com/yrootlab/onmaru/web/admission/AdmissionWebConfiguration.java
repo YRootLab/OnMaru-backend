@@ -7,6 +7,9 @@ import com.yrootlab.onmaru.operations.admission.AdmissionStore;
 import com.yrootlab.onmaru.operations.admission.InMemoryAdmissionStore;
 import com.yrootlab.onmaru.operations.admission.OperationBudget;
 import com.yrootlab.onmaru.operations.admission.SubjectType;
+import com.yrootlab.onmaru.web.exploration.JourneyAiTestQuotaProperties;
+import com.yrootlab.onmaru.web.exploration.JourneyAiAdmissionPolicyResolver;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +21,7 @@ import java.time.Duration;
 import java.util.List;
 
 @Configuration
+@EnableConfigurationProperties(JourneyAiTestQuotaProperties.class)
 public class AdmissionWebConfiguration {
 
     @Bean
@@ -50,6 +54,12 @@ public class AdmissionWebConfiguration {
                 new OperationBudget("journey.ai", SubjectType.GUEST, 2, Duration.ofDays(1), 1),
                 new OperationBudget("journey.ai", SubjectType.MEMBER, 5, Duration.ofDays(1), 1)
         ));
+    }
+
+    @Bean
+    JourneyAiAdmissionPolicyResolver journeyAiAdmissionPolicyResolver(
+            AdmissionPolicy admissionPolicy, JourneyAiTestQuotaProperties testQuota) {
+        return new JourneyAiAdmissionPolicyResolver(admissionPolicy, testQuota);
     }
 
     @Bean
