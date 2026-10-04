@@ -106,7 +106,7 @@ sudo ./production/install-deployer.sh /secure/path/onmaru-production-ci.pub
 
 예약·수동 운영 실행은 image build보다 먼저 제한 SSH의 `status <master-sha>`를 호출한다. 같은 master SHA가 이미 배포됐고 checkout과 공개 health까지 일치하면 `deployed`를 반환하므로 image build·scan과 Blue-Green 중첩을 모두 건너뛴다. 상태가 다를 때만 immutable image를 build·scan하고 migration gate를 통과한다. `master` push 자체는 향후 배포할 artifact를 검증하기 위해 계속 build·scan하지만 트래픽은 바꾸지 않는다.
 
-따라서 이 CD 코드를 처음 `master`에 넣는 release는 bootstrap release로 취급한다. 그 push 자체는 원래도 운영 배포 조건이 아니다. 서버 checkout을 해당 `master`로 fast-forward하고 위 bootstrap·key 설치·GitHub 설정을 마친 다음 `PRODUCTION_DEPLOY_ENABLED=true`로 바꾸고 **예약 실행을 기다리지 말고 첫 수동 dispatch를 관찰하며** 수행한다. workflow URL, build·scan, migration gate, 후보 memory/swap, Nginx switch, 공개 CSRF 200, webhook 수신, `/var/lib/onmaru/production-*` 상태를 확인한 뒤에야 예약 배포가 준비됐다고 본다.
+따라서 이 CD 코드를 처음 `master`에 넣는 release는 bootstrap release로 취급한다. 그 push 자체는 원래도 운영 배포 조건이 아니다. 서버 checkout을 해당 `master`로 fast-forward하고 위 bootstrap·key 설치·GitHub 설정을 마친 다음 `PRODUCTION_DEPLOY_ENABLED=true`로 바꾸고 **예약 실행을 기다리지 말고 첫 수동 dispatch를 관찰하며** 수행한다. workflow URL, build·scan, migration gate, 후보 memory/swap, Nginx switch, 공개 CSRF 200, webhook 수신, `/var/lib/onmaru/production-state/current` snapshot을 확인한 뒤에야 예약 배포가 준비됐다고 본다.
 
 ## 실패 중 자동 복구와 성공 후 운영 rollback
 
@@ -114,7 +114,7 @@ sudo ./production/install-deployer.sh /secure/path/onmaru-production-ci.pub
 
 반대로 성공 처리 뒤 기능 오류가 발견되면 GitHub Actions에서 `rollback_production=true`만 선택해 수동 rollback한다. `deploy_production`과 동시에 선택할 수 없다. rollback은 마지막 배포가 남긴 이전 slot을 낮은 cgroup 한도로 다시 시작하고 health·메모리·swap을 검증한 후 Nginx를 전환한다. 첫 Blue-Green 전환 직전의 legacy `spring-api`도 이전 slot으로 기록되므로 첫 배포 직후 되돌리기도 같은 절차를 사용한다. 다만 DB migration은 역적용하지 않으므로 이전 image가 현재 schema와 호환되는 expand/contract 배포만 이 경로를 사용할 수 있다.
 
-성공한 rollback은 거부한 SHA를 `/var/lib/onmaru/production-deploy-hold`에 기록한다. 그렇지 않으면 다음 `03:17 KST` schedule이 같은 최신 `master`를 다시 배포해 장애를 재현할 수 있다. hold와 같은 SHA의 preflight는 실패 알림만 남기며 build도 시작하지 않는다. 수정 commit이 `master`에 들어오면 새 SHA는 정상 배포되고 hold가 제거된다. 같은 SHA를 꼭 재사용해야 한다면 원인을 확인하고 관리자 SSH에서 hold 파일을 명시적으로 제거해야 하며, 자동화 계정에는 이 권한을 주지 않는다.
+성공한 rollback은 거부한 SHA를 원자적으로 교체되는 `/var/lib/onmaru/production-state/current/deploy-hold`에 기록한다. 그렇지 않으면 다음 `03:17 KST` schedule이 같은 최신 `master`를 다시 배포해 장애를 재현할 수 있다. hold와 같은 SHA의 preflight는 실패 알림만 남기며 build도 시작하지 않는다. 수정 commit이 `master`에 들어오면 hold가 없는 새 state snapshot으로 교체된다. 같은 SHA를 꼭 재사용해야 한다면 원인을 확인하고 관리자 SSH에서 현재 snapshot의 hold를 명시적으로 해제하는 운영 절차를 거쳐야 하며, 자동화 계정에는 이 권한을 주지 않는다.
 
 배포와 rollback이 성공하면 dangling 상태이면서 168시간보다 오래된 Docker image만 정리한다. 직전 image는 중지된 이전 컨테이너가 참조하므로 prune 대상이 아니며 즉시 rollback 가능성을 보존한다. 디스크 정리 실패는 이미 성공한 트래픽 전환을 다시 뒤집지 않고 warning과 webhook 결과로 관찰한다.
 
@@ -127,10 +127,10 @@ sudo ./production/install-deployer.sh /secure/path/onmaru-production-ci.pub
 3. GHCR의 immutable digest를 먼저 pull하고 `.env`의 이미지 참조를 원자적으로 변경한다.
 4. 비활성 Spring 슬롯을 384MB로 기동하고 최대 120초 동안 health, OOM, 가용 RAM과 swap 증가량을 확인한다.
 5. Nginx upstream 파일을 원자적으로 바꾸고 `nginx -t`를 통과한 뒤 reload한다.
-6. 공개 `/auth/csrf` smoke를 확인하고 SSE 최대 연결 시간보다 긴 70초 동안 기존 연결을 drain한다.
-7. 활성 슬롯 상태를 원자적으로 기록하고 이전 슬롯을 중지한 뒤 새 슬롯 한도를 정상 운영 값으로 올린다.
+6. 공개 `/auth/csrf` smoke를 확인하고 SSE 최대 연결 시간보다 긴 70초 동안 기존 연결을 drain하면서 후보 health, OOM, 가용 RAM과 swap 증가량을 계속 확인한 뒤 공개 smoke를 다시 수행한다.
+7. 새 슬롯 한도를 정상 운영 값으로 올리고 이전 슬롯 중지를 필수로 확인한다. 그 뒤 다섯 상태 값과 hold를 하나의 generation directory에 쓴 뒤 `current` symlink 하나를 원자 교체한다. 이전 슬롯 중지나 snapshot 확정이 실패하면 기존 슬롯을 다시 시작하고 route를 복구한다.
 
-후보 기동, Nginx 검증, reload 또는 공개 smoke 중 하나라도 실패하면 upstream과 `.env`를 이전 값으로 되돌리고 후보 슬롯을 중지한다. 이전 슬롯을 제거하지 않고 `stop` 상태로 남기므로 다음 배포에서 반대 슬롯으로 재사용할 수 있다.
+후보 기동, Nginx 검증, reload 또는 공개 smoke 중 하나라도 실패하면 upstream과 `.env`를 이전 값으로 되돌리고 후보 슬롯을 중지한다. 단, 이미 traffic을 전환한 뒤 이전 슬롯 재시작과 health 복구가 실패했다면 정상 후보를 끄거나 route를 불건전한 슬롯으로 되돌리지 않는다. 현재 정상 route를 보존하고 실패로 종료해 운영자 개입을 요구한다. 이전 슬롯을 제거하지 않고 `stop` 상태로 남기므로 다음 배포에서 반대 슬롯으로 재사용할 수 있다.
 
 ## PostgreSQL migration은 두 애플리케이션 버전과 호환돼야 한다
 
@@ -141,7 +141,7 @@ Blue와 Green은 전환 구간에 같은 production PostgreSQL을 사용한다. 
 ## 운영 확인과 중단 기준
 
 ```bash
-sudo cat /var/lib/onmaru/production-active-slot
+sudo find -L /var/lib/onmaru/production-state/current -maxdepth 1 -type f -print -exec cat {} \;
 docker compose --env-file .env ps
 docker stats --no-stream
 free -m

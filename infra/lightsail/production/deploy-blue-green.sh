@@ -23,13 +23,8 @@ DIR=$REPO/infra/lightsail
 ENV=$DIR/.env
 COMPOSE=$DIR/compose.yaml
 UPSTREAM=$DIR/nginx/runtime/upstream.conf
-STATE_DIR=/var/lib/onmaru
-STATE=$STATE_DIR/production-active-slot
-PREVIOUS_IMAGE=$STATE_DIR/production-previous-image
-PREVIOUS_SLOT=$STATE_DIR/production-previous-slot
-DEPLOYED_SHA=$STATE_DIR/production-deployed-sha
-PREVIOUS_SHA=$STATE_DIR/production-previous-sha
-HOLD=$STATE_DIR/production-deploy-hold
+STATE_DIR=/var/lib/onmaru/production-state
+CURRENT_STATE=$STATE_DIR/current
 MIN_AVAILABLE_KB=131072
 MAX_SWAP_DELTA_MB=192
 HEALTH_ATTEMPTS=60
@@ -45,12 +40,48 @@ active_id=
 OLD_IMAGE=
 UPSTREAM_BACKUP=
 DOCKER_CONFIG=
-STATE_TEMP=
-PREVIOUS_TEMP=
-PREVIOUS_SLOT_TEMP=
-DEPLOYED_SHA_TEMP=
-PREVIOUS_SHA_TEMP=
 ACTIVE_SHA=
+
+state_value() {
+    key=$1
+    [ -L "$CURRENT_STATE" ] && [ -f "$CURRENT_STATE/$key" ] || return 1
+    cat "$CURRENT_STATE/$key"
+}
+
+commit_state() {
+    next=$(mktemp -d "$STATE_DIR/.next.XXXXXX")
+    printf '%s\n' "$TARGET" > "$next/active-slot"
+    printf '%s\n' "$OLD_IMAGE" > "$next/previous-image"
+    printf '%s\n' "$ACTIVE" > "$next/previous-slot"
+    printf '%s\n' "$SHA" > "$next/deployed-sha"
+    printf '%s\n' "$ACTIVE_SHA" > "$next/previous-sha"
+    chmod 0600 "$next"/*
+    generation="$STATE_DIR/generation-$SHA-$(date +%s)-$$"
+    mv "$next" "$generation"
+    next_link="$STATE_DIR/.current.$$"
+    rm -f "$next_link"
+    ln -s "$(basename "$generation")" "$next_link"
+    mv -Tf "$next_link" "$CURRENT_STATE"
+}
+
+verify_candidate_stable() {
+    elapsed=0
+    while [ "$elapsed" -lt "$DRAIN_SECONDS" ]; do
+        available_kb=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
+        swap_now_mb=$(free -m | awk '/Swap:/ {print $3}')
+        swap_delta_mb=$((swap_now_mb - swap_before_mb))
+        [ "$swap_delta_mb" -lt 0 ] && swap_delta_mb=0
+        [ "$available_kb" -ge "$MIN_AVAILABLE_KB" ] || fail "Available memory fell below the deployment floor after traffic switch"
+        [ "$swap_delta_mb" -le "$MAX_SWAP_DELTA_MB" ] || fail "Swap growth exceeded the deployment budget after traffic switch"
+        [ "$(docker inspect --format '{{.State.OOMKilled}}' "$candidate_id")" = false ] || fail "Candidate was OOMKilled after traffic switch"
+        docker exec "$candidate_id" curl -fsS --max-time 2 http://127.0.0.1:8080/actuator/health >/dev/null 2>&1 \
+            || fail "Candidate became unhealthy after traffic switch"
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+    curl -fsS --max-time 5 https://api.onmaru.site/auth/csrf >/dev/null \
+        || fail "Public production smoke failed after the drain window"
+}
 
 compose() {
     docker compose --project-directory "$DIR" --env-file "$ENV" -f "$COMPOSE" "$@"
@@ -102,38 +133,49 @@ PY
 
 rollback() {
     set +e
+    old_recovered=1
+    route_recovered=1
     if [ "$SWITCHED" -eq 1 ] && [ -n "$UPSTREAM_BACKUP" ] && [ -f "$UPSTREAM_BACKUP" ]; then
+        old_recovered=0
+        route_recovered=0
         if [ -n "$active_id" ] && [ "$(docker inspect --format '{{.State.Running}}' "$active_id" 2>/dev/null)" != true ]; then
             docker start "$active_id" >/dev/null 2>&1
         fi
         attempt=1
         while [ -n "$active_id" ] && [ "$attempt" -le 30 ]; do
-            docker exec "$active_id" curl -fsS --max-time 2 http://127.0.0.1:8080/actuator/health >/dev/null 2>&1 && break
+            if docker exec "$active_id" curl -fsS --max-time 2 http://127.0.0.1:8080/actuator/health >/dev/null 2>&1; then
+                old_recovered=1
+                break
+            fi
             sleep 1
             attempt=$((attempt + 1))
         done
-        cp "$UPSTREAM_BACKUP" "$UPSTREAM"
-        nginx_id=$(compose ps -q nginx 2>/dev/null)
-        if [ -n "$nginx_id" ]; then
-            docker exec "$nginx_id" nginx -t >/dev/null 2>&1
-            docker exec "$nginx_id" nginx -s reload >/dev/null 2>&1
+        if [ "$old_recovered" -eq 1 ]; then
+            if cp "$UPSTREAM_BACKUP" "$UPSTREAM"; then
+                nginx_id=$(compose ps -q nginx 2>/dev/null)
+                if [ -n "$nginx_id" ] \
+                    && docker exec "$nginx_id" nginx -t >/dev/null 2>&1 \
+                    && docker exec "$nginx_id" nginx -s reload >/dev/null 2>&1; then
+                    route_recovered=1
+                fi
+            fi
+        fi
+        if [ "$route_recovered" -ne 1 ]; then
+            echo "CRITICAL: previous slot or route did not recover; preserving the healthy candidate route and environment" >&2
         fi
     fi
-    if [ "$CANDIDATE_STARTED" -eq 1 ] && [ -n "$TARGET" ]; then
+    if [ "$route_recovered" -eq 1 ] && [ "$CANDIDATE_STARTED" -eq 1 ] && [ -n "$TARGET" ]; then
         compose stop "spring-$TARGET" >/dev/null 2>&1
     fi
-    restore_env
+    if [ "$route_recovered" -eq 1 ]; then
+        restore_env
+    fi
     set -e
 }
 
 cleanup() {
     [ -z "$UPSTREAM_BACKUP" ] || rm -f "$UPSTREAM_BACKUP"
     [ -z "$DOCKER_CONFIG" ] || rm -rf "$DOCKER_CONFIG"
-    [ -z "$STATE_TEMP" ] || rm -f "$STATE_TEMP"
-    [ -z "$PREVIOUS_TEMP" ] || rm -f "$PREVIOUS_TEMP"
-    [ -z "$PREVIOUS_SLOT_TEMP" ] || rm -f "$PREVIOUS_SLOT_TEMP"
-    [ -z "$DEPLOYED_SHA_TEMP" ] || rm -f "$DEPLOYED_SHA_TEMP"
-    [ -z "$PREVIOUS_SHA_TEMP" ] || rm -f "$PREVIOUS_SHA_TEMP"
 }
 
 fail() {
@@ -164,12 +206,11 @@ GIT_TERMINAL_PROMPT=0 runuser -u ubuntu -- git -C "$REPO" fetch --quiet origin m
 [ "$(runuser -u ubuntu -- git -C "$REPO" rev-parse origin/master)" = "$SHA" ] || fail "Requested SHA is not the latest origin/master"
 runuser -u ubuntu -- git -C "$REPO" merge-base --is-ancestor HEAD "$SHA" || fail "Production checkout cannot fast-forward to requested SHA"
 
-if [ -f "$HOLD" ] && [ "$(cat "$HOLD")" = "$SHA" ]; then
+if [ "$(state_value deploy-hold 2>/dev/null || true)" = "$SHA" ]; then
     fail "Requested master SHA is held after an operational rollback"
 fi
 
-if [ -f "$DEPLOYED_SHA" ] \
-    && [ "$(cat "$DEPLOYED_SHA")" = "$SHA" ] \
+if [ "$(state_value deployed-sha 2>/dev/null || true)" = "$SHA" ] \
     && [ "$(runuser -u ubuntu -- git -C "$REPO" rev-parse HEAD)" = "$SHA" ]; then
     curl -fsS --max-time 5 https://api.onmaru.site/auth/csrf >/dev/null \
         || fail "Already-deployed production health check failed"
@@ -201,8 +242,8 @@ docker inspect --format '{{range .Mounts}}{{println .Destination}}{{end}}' "$ngi
     fail "Nginx runtime upstream mount is missing; run bootstrap-blue-green.sh"
 }
 
-if [ -f "$STATE" ]; then
-    ACTIVE=$(cat "$STATE")
+if [ -L "$CURRENT_STATE" ]; then
+    ACTIVE=$(state_value active-slot) || fail "Production state snapshot is incomplete"
     case "$ACTIVE" in legacy|blue|green) ;; *) fail "Invalid production active slot";; esac
 elif [ -n "$(compose --profile legacy ps -q spring-api)" ]; then
     ACTIVE=legacy
@@ -304,43 +345,18 @@ docker exec "$nginx_id" nginx -t >/dev/null || fail "Nginx candidate configurati
 docker exec "$nginx_id" nginx -s reload >/dev/null || fail "Nginx reload failed"
 
 curl -fsS --max-time 5 https://api.onmaru.site/auth/csrf >/dev/null || fail "Public production smoke failed after traffic switch"
-sleep "$DRAIN_SECONDS"
-
-mkdir -p "$STATE_DIR"
-chmod 0700 "$STATE_DIR"
-STATE_TEMP=$(mktemp "$STATE_DIR/.production-active-slot.XXXXXX")
-printf '%s\n' "$TARGET" > "$STATE_TEMP"
-chmod 0600 "$STATE_TEMP"
-PREVIOUS_TEMP=$(mktemp "$STATE_DIR/.production-previous-image.XXXXXX")
-printf '%s\n' "$OLD_IMAGE" > "$PREVIOUS_TEMP"
-chmod 0600 "$PREVIOUS_TEMP"
-PREVIOUS_SLOT_TEMP=$(mktemp "$STATE_DIR/.production-previous-slot.XXXXXX")
-printf '%s\n' "$ACTIVE" > "$PREVIOUS_SLOT_TEMP"
-chmod 0600 "$PREVIOUS_SLOT_TEMP"
-DEPLOYED_SHA_TEMP=$(mktemp "$STATE_DIR/.production-deployed-sha.XXXXXX")
-printf '%s\n' "$SHA" > "$DEPLOYED_SHA_TEMP"
-chmod 0600 "$DEPLOYED_SHA_TEMP"
-PREVIOUS_SHA_TEMP=$(mktemp "$STATE_DIR/.production-previous-sha.XXXXXX")
-printf '%s\n' "$ACTIVE_SHA" > "$PREVIOUS_SHA_TEMP"
-chmod 0600 "$PREVIOUS_SHA_TEMP"
+verify_candidate_stable
 
 docker update --memory 448m --memory-swap 896m --cpus 1.2 "$candidate_id" >/dev/null
-
+mkdir -p "$STATE_DIR"
+chmod 0700 "$STATE_DIR"
 case "$ACTIVE" in
-    legacy) compose --profile legacy stop spring-api >/dev/null ;;
-    blue|green) compose stop "spring-$ACTIVE" >/dev/null ;;
+    legacy) compose --profile legacy stop spring-api >/dev/null \
+        || fail "Retained legacy slot could not be stopped" ;;
+    blue|green) compose stop "spring-$ACTIVE" >/dev/null \
+        || fail "Retained $ACTIVE slot could not be stopped" ;;
 esac
-mv -f "$PREVIOUS_TEMP" "$PREVIOUS_IMAGE"
-PREVIOUS_TEMP=
-mv -f "$PREVIOUS_SLOT_TEMP" "$PREVIOUS_SLOT"
-PREVIOUS_SLOT_TEMP=
-mv -f "$PREVIOUS_SHA_TEMP" "$PREVIOUS_SHA"
-PREVIOUS_SHA_TEMP=
-mv -f "$STATE_TEMP" "$STATE"
-STATE_TEMP=
-mv -f "$DEPLOYED_SHA_TEMP" "$DEPLOYED_SHA"
-DEPLOYED_SHA_TEMP=
-rm -f "$HOLD"
+commit_state
 SUCCESS=1
 docker image prune -f --filter until=168h >/dev/null 2>&1 \
     || echo "Warning: deployment succeeded but old dangling images were not pruned." >&2

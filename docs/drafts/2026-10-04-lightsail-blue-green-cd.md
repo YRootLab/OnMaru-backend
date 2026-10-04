@@ -107,13 +107,13 @@ sequenceDiagram
     Host->>New: 평시 메모리 한도로 조정
 ```
 
-GitHub Actions는 `master` push에서 Spring image를 만들고 검사하지만 이 사건만으로 운영 트래픽을 바꾸지는 않습니다. FastAPI image 단계는 `develop`의 스테이징 실행에만 남겨 두었습니다. 실제 배포는 트래픽이 낮은 `03:17 KST` 예약 실행 또는 제가 “온마루 운영 배포해줘”라고 명시적으로 요청한 수동 실행으로 제한했습니다. 두 경로 모두 취약점 검사와 migration gate를 다시 통과한 digest만 전달합니다. 서버는 tag가 아니라 immutable digest를 pull합니다. SSH 계정도 일반 shell을 주지 않고 `status`, `deploy`, `rollback` 세 명령만 실행할 수 있게 제한했습니다. 서버에서는 checkout이 `master`인지, 작업 트리가 깨끗한지, 요청 SHA가 최신 `origin/master`인지 다시 확인합니다.
+GitHub Actions는 `master` push에서 Spring image를 만들고 검사하지만 이 사건만으로 운영 트래픽을 바꾸지는 않습니다. FastAPI image 단계는 `develop`의 스테이징 실행에만 남겨 두었습니다. 실제 배포는 트래픽이 낮은 `03:17 KST` 예약 실행 또는 제가 “온마루 운영 배포해줘”라고 명시적으로 요청한 수동 실행으로 제한했습니다. 두 경로 모두 취약점 검사와 migration gate를 다시 통과한 digest만 전달합니다. 서버는 tag가 아니라 immutable digest를 pull합니다. build에 사용한 commit SHA도 builder stage에서 끝내지 않고 최종 runner image의 환경 변수로 넘겨, 다음 배포가 현재 slot의 실제 출처를 검증할 수 있게 했습니다. SSH 계정도 일반 shell을 주지 않고 `status`, `deploy`, `rollback` 세 명령만 실행할 수 있게 제한했습니다. 서버에서는 checkout이 `master`인지, 작업 트리가 깨끗한지, 요청 SHA가 최신 `origin/master`인지 다시 확인합니다.
 
 예약 실행에서는 이 순서가 조금 다릅니다. image를 다시 만들기 전에 먼저 `status <master-sha>`만 호출합니다. 서버의 배포 SHA, checkout SHA, 공개 health가 모두 같을 때만 `deployed`로 판단하고 build·scan·migration을 통째로 생략합니다. 단순히 상태 파일의 SHA만 같다고 믿지 않은 이유는 프로세스가 죽었거나 checkout이 어긋난 상태를 성공으로 오인하지 않기 위해서였습니다. 반대로 셋 중 하나라도 다르면 그때 immutable image를 만들기 시작합니다. 매일 같은 commit을 다시 빌드하지 않으면서도, “아마 배포되어 있을 것”을 no-op의 근거로 삼지 않는 방식입니다.
 
-그다음 비활성 slot을 시작합니다. health가 통과하면 Nginx가 include하는 runtime upstream 파일을 임시 파일에서 `rename`하는 방식으로 교체합니다. `nginx -t`가 실패하거나 reload 뒤 공개 smoke가 실패하면 기존 upstream으로 되돌리고 후보를 중지합니다. 이전 컨테이너는 즉시 죽이지 않고 70초 동안 둡니다. 현재 API의 SSE 연결 최대 시간 60초보다 약간 긴 drain window입니다.
+그다음 비활성 slot을 시작합니다. health가 통과하면 Nginx가 include하는 runtime upstream 파일을 임시 파일에서 `rename`하는 방식으로 교체합니다. `nginx -t`가 실패하거나 reload 뒤 공개 smoke가 실패하면 기존 upstream으로 되돌리고 후보를 중지합니다. 이전 컨테이너는 즉시 죽이지 않고 70초 동안 둡니다. 현재 API의 SSE 연결 최대 시간 60초보다 약간 긴 drain window입니다. 여기서 단순히 `sleep 70`으로 끝내면 전환 직후 후보가 OOM으로 죽어도 성공 처리할 수 있습니다. 그래서 drain 동안에도 2초마다 후보 health, OOM, 가용 RAM, swap 증가량을 다시 검사하고 마지막 공개 smoke까지 통과해야 상태를 확정합니다.
 
-종료 처리도 happy path보다 중요했습니다. shell의 `set -e`만 믿으면 예상하지 못한 명령 하나가 실패했을 때 rollback 함수가 실행되지 않을 수 있습니다. 그래서 `EXIT`, `HUP`, `INT`, `TERM`에 공통 handler를 두고, 배포 성공 상태를 기록하기 전의 비정상 종료는 모두 rollback으로 보냅니다. 라우팅 전환 후 기존 컨테이너가 이미 멈췄다면 다시 시작하고 health를 확인한 뒤 upstream을 복구합니다.
+종료 처리도 happy path보다 중요했습니다. shell의 `set -e`만 믿으면 예상하지 못한 명령 하나가 실패했을 때 rollback 함수가 실행되지 않을 수 있습니다. 그래서 `EXIT`, `HUP`, `INT`, `TERM`에 공통 handler를 두고, 배포 성공 상태를 기록하기 전의 비정상 종료는 모두 rollback으로 보냅니다. 라우팅 전환 후 기존 컨테이너가 이미 멈췄다면 다시 시작하고 health를 확인한 뒤 upstream을 복구합니다. 여기서 health가 끝내 회복되지 않으면 route를 불건전한 이전 슬롯으로 되돌리거나 정상 후보를 끄지 않습니다. 자동 복구가 원래 장애보다 더 큰 outage를 만들지 않도록 가용한 route를 보존하고 실패를 운영자에게 넘깁니다.
 
 ## workflow가 실행조차 되지 않는 변수 범위를 뒤늦게 발견했습니다
 
@@ -129,7 +129,7 @@ CD 로직을 다시 검토하면서 가장 먼저 발견한 문제는 Docker나 
 
 처음 구현한 rollback은 배포 transaction 안에서만 동작했습니다. 후보가 뜨지 않거나 Nginx 전환 뒤 smoke가 실패하면 아직 성공하지 않은 작업을 원상복구합니다. 그런데 새 버전이 health check는 통과했지만 실제 기능에서 오류를 일으키는 경우는 다릅니다. workflow는 이미 성공했고, 10분 뒤 사용자가 문제를 발견할 수도 있습니다. 이때 필요한 것은 실패 처리의 연장이 아니라 별도의 운영 rollback입니다.
 
-둘을 같은 함수로 다루지 않았습니다. transaction rollback은 현재 실행의 임시 파일과 upstream backup을 사용합니다. 운영 rollback은 마지막 성공 배포가 남긴 active slot, previous slot, 두 image digest와 두 commit SHA를 읽고, 중지된 이전 컨테이너를 다시 검증한 뒤 새로운 트래픽 전환으로 수행합니다. 첫 Blue-Green 배포 전의 `spring-api`도 `legacy`라는 이전 slot으로 기록해, 첫 전환 직후에도 되돌아갈 수 있게 했습니다.
+둘을 같은 함수로 다루지 않았습니다. transaction rollback은 현재 실행의 임시 파일과 upstream backup을 사용합니다. 운영 rollback은 마지막 성공 배포가 남긴 active slot, previous slot, 두 image digest와 두 commit SHA를 읽고, 중지된 이전 컨테이너를 다시 검증한 뒤 새로운 트래픽 전환으로 수행합니다. 첫 Blue-Green 배포 전의 `spring-api`도 `legacy`라는 이전 slot으로 기록해, 첫 전환 직후에도 되돌아갈 수 있게 했습니다. 이 다섯 값을 각각 `mv`하면 세 번째 파일에서 실패했을 때 절반만 새 상태가 되는 문제가 생깁니다. 그래서 한 generation directory에 완성된 snapshot을 쓴 뒤 `current` symlink 하나만 원자적으로 교체하도록 바꿨습니다. 1GB 서버에서 이전 slot 중지 실패를 경고로만 넘기면 두 JVM과 scheduler가 계속 겹칠 수 있으므로, 이전 slot을 정상 중지한 뒤에만 snapshot을 확정합니다. 중지나 snapshot 교체가 실패하면 transaction rollback이 이전 slot과 route를 복구합니다.
 
 ```mermaid
 stateDiagram-v2
@@ -158,7 +158,7 @@ stateDiagram-v2
 
 GitHub Actions의 action reference도 `@v4`, `@v6` 같은 tag에서 40자리 commit SHA로 고정했습니다. tag는 읽기 쉽지만 이동할 수 있고, workflow는 build context와 package token을 제3자 action에 넘깁니다. GitHub도 full-length commit SHA pinning을 immutable release를 사용하는 방법으로 안내합니다. 그래서 실행 값은 SHA로 고정하고 옆 주석에 사람이 읽을 version을 남겼습니다. ([GitHub Actions 보안 강화 안내](https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-guides/security-hardening-for-github-actions), [repository Actions 정책](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository))
 
-마지막으로 예약 실행은 사람이 보고 있지 않다는 사실을 코드에 반영했습니다. deploy 성공과 실패뿐 아니라 이미 배포된 SHA의 no-op, rollback, preflight 실패도 webhook으로 보냅니다. “아무 일도 하지 않았다”는 결과 역시 의도된 no-op인지 workflow가 시작되지 않은 것인지 구분되어야 했습니다. 다만 알림 실패는 서비스 상태와 별개이므로 run 결과에서 production 전환 결과와 notification 결과를 따로 읽도록 했습니다.
+마지막으로 예약 실행은 사람이 보고 있지 않다는 사실을 코드에 반영했습니다. deploy 성공과 실패뿐 아니라 이미 배포된 SHA의 no-op, rollback, preflight 실패도 webhook으로 보냅니다. build나 migration에서 멈춘 실행도 단순 `deploy-skipped`로 뭉개지 않고 각 job 결과를 메시지에 넣었습니다. “아무 일도 하지 않았다”는 결과 역시 의도된 no-op인지 앞 단계 실패인지 구분되어야 했습니다. 다만 알림 실패는 서비스 상태와 별개이므로 run 결과에서 production 전환 결과와 notification 결과를 따로 읽도록 했습니다.
 
 ## 같은 PostgreSQL을 공유하면 스키마가 진짜 배포 경계가 됩니다
 

@@ -466,10 +466,14 @@ jobs:
             outcome=no-op
           elif [ "$MODE" = rollback ]; then
             outcome="rollback-$ROLLBACK_RESULT"
+          elif [ "$BUILD_RESULT" != success ]; then
+            outcome="build-$BUILD_RESULT"
+          elif [ "$MIGRATION_RESULT" != success ]; then
+            outcome="migration-$MIGRATION_RESULT"
           else
             outcome="deploy-$DEPLOY_RESULT"
           fi
-          message="OnMaru production $outcome | $GITHUB_SHA | $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          message="OnMaru production $outcome | preflight=$PREFLIGHT_RESULT build=$BUILD_RESULT migration=$MIGRATION_RESULT deploy=$DEPLOY_RESULT rollback=$ROLLBACK_RESULT | $GITHUB_SHA | $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           payload=$(jq -n --arg content "$message" --arg text "$message" '{content: $content, text: $text}')
           curl --fail --silent --show-error --retry 2 \
             -H 'Content-Type: application/json' \

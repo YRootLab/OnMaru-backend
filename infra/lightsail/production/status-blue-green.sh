@@ -11,9 +11,9 @@ case "$SHA" in *[!0-9a-f]*|'') echo "Invalid commit SHA" >&2; exit 2;; esac
 [ "${#SHA}" -eq 40 ] || { echo "Invalid commit SHA length" >&2; exit 2; }
 
 REPO=/opt/onmaru/repo
-STATE_DIR=/var/lib/onmaru
-DEPLOYED_SHA=$STATE_DIR/production-deployed-sha
-HOLD=$STATE_DIR/production-deploy-hold
+CURRENT_STATE=/var/lib/onmaru/production-state/current
+DEPLOYED_SHA=$CURRENT_STATE/deployed-sha
+HOLD=$CURRENT_STATE/deploy-hold
 
 if [ -f "$HOLD" ] && [ "$(cat "$HOLD")" = "$SHA" ]; then
     printf 'held\n'

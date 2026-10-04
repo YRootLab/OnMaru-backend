@@ -41,7 +41,18 @@ describe('Lightsail production blue-green deployment', () => {
     assert.match(script, /OOMKilled/);
     assert.match(script, /nginx -t/);
     assert.match(script, /nginx -s reload/);
-    assert.match(script, /production-active-slot/);
+    assert.match(script, /production-state/);
+    assert.match(script, /mv -Tf "\$next_link" "\$CURRENT_STATE"/);
+    assert.match(script, /verify_candidate_stable/);
+    assert.match(script, /Candidate became unhealthy after traffic switch/);
+    assert.match(script, /previous slot or route did not recover; preserving the healthy candidate route and environment/);
+    assert.match(script, /route_recovered=0/);
+    assert.match(script, /if \[ "\$route_recovered" -eq 1 \].*CANDIDATE_STARTED/);
+    assert.match(script, /nginx -s reload[\s\S]*route_recovered=1/);
+    const stopIndex = script.indexOf('compose stop "spring-$ACTIVE"');
+    const commitIndex = script.indexOf('commit_state', stopIndex);
+    assert.ok(stopIndex >= 0 && commitIndex > stopIndex,
+      'the previous slot must stop successfully before the state snapshot is committed');
     assert.match(script, /docker update --memory 448m --memory-swap 896m/);
     assert.match(script, /rollback/);
     assert.match(script, /trap .*HUP INT TERM/);
@@ -78,7 +89,8 @@ describe('Lightsail production blue-green deployment', () => {
 
     assert.ok(existsSync(join(root, statusPath)), `${statusPath} missing`);
     const status = read(statusPath);
-    assert.match(status, /production-deploy-hold/);
+    assert.match(status, /production-state\/current/);
+    assert.match(status, /deploy-hold/);
     assert.match(status, /printf 'held\\n'/);
     assert.match(status, /printf 'deployed\\n'/);
     assert.match(status, /printf 'deploy\\n'/);
@@ -146,12 +158,21 @@ describe('Lightsail production blue-green deployment', () => {
     assert.match(workflow, /rollback \$GITHUB_ACTOR/);
     assert.match(command, /rollback <github-actor>/);
     assert.match(installer, /onmaru-production-rollback/);
-    assert.match(deploy, /production-previous-sha/);
-    assert.match(deploy, /production-previous-slot/);
-    assert.match(deploy, /production-deploy-hold/);
-    assert.match(rollback, /production-previous-sha/);
-    assert.match(rollback, /production-previous-slot/);
-    assert.match(rollback, /production-deploy-hold/);
+    assert.match(deploy, /state_value deployed-sha/);
+    assert.match(deploy, /state_value deploy-hold/);
+    assert.match(rollback, /state_value previous-sha/);
+    assert.match(rollback, /state_value previous-slot/);
+    assert.match(rollback, /verify_target_stable/);
+    assert.match(rollback, /Rollback slot became unhealthy after traffic switch/);
+    assert.match(rollback, /rejected slot or route did not recover; preserving the healthy rollback route and environment/);
+    assert.match(rollback, /route_recovered=0/);
+    assert.match(rollback, /if \[ "\$route_recovered" -eq 1 \].*TARGET_STARTED/);
+    assert.match(rollback, /nginx -s reload[\s\S]*route_recovered=1/);
+    assert.match(rollback, /mv -Tf "\$next_link" "\$CURRENT_STATE"/);
+    const rollbackStopIndex = rollback.indexOf('docker stop "$active_id"');
+    const rollbackCommitIndex = rollback.indexOf('commit_state', rollbackStopIndex);
+    assert.ok(rollbackStopIndex >= 0 && rollbackCommitIndex > rollbackStopIndex,
+      'the rejected slot must stop successfully before rollback state is committed');
     assert.match(rollback, /--profile legacy ps -aq spring-api/);
     assert.match(rollback, /legacy\) backend=spring-api/);
     assert.match(rollback, /docker start "\$target_id"/);
@@ -172,6 +193,8 @@ describe('Lightsail production blue-green deployment', () => {
     assert.match(workflow, /if:\s+always\(\)/);
     assert.match(workflow, /PRODUCTION_DEPLOY_WEBHOOK_URL/);
     assert.match(workflow, /needs\.production-preflight\.outputs\.status/);
+    assert.match(workflow, /outcome="build-\$BUILD_RESULT"/);
+    assert.match(workflow, /outcome="migration-\$MIGRATION_RESULT"/);
   });
 
   it('prunes only old dangling images after successful production state changes', () => {
@@ -187,10 +210,15 @@ describe('Lightsail production blue-green deployment', () => {
   it('records a deployed master SHA and makes an identical scheduled deployment a no-op', () => {
     const script = read('infra/lightsail/production/deploy-blue-green.sh');
 
-    assert.match(script, /production-deployed-sha/);
+    assert.match(script, /state_value deployed-sha/);
     assert.match(script, /Already deployed master/);
-    assert.match(script, /DEPLOYED_SHA_TEMP/);
-    assert.match(script, /printf '%s\\n' "\$SHA"/);
+    assert.match(script, /printf '%s\\n' "\$SHA" > "\$next\/deployed-sha"/);
+
+    const dockerfile = read('Dockerfile');
+    const runnerIndex = dockerfile.indexOf('FROM eclipse-temurin:21-jre-alpine AS runner');
+    assert.ok(runnerIndex >= 0);
+    assert.match(dockerfile.slice(runnerIndex), /ARG ONMARU_BUILD_GIT_SHA=unknown/);
+    assert.match(dockerfile.slice(runnerIndex), /ENV ONMARU_BUILD_GIT_SHA=\$\{ONMARU_BUILD_GIT_SHA\}/);
   });
 
   it('documents one-time bootstrap, swap boundaries, schema compatibility, and GitHub configuration', () => {
