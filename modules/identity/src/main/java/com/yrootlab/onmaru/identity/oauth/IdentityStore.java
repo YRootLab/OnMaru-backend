@@ -17,6 +17,8 @@ public interface IdentityStore {
             String pkceVerifierHash,
             Instant now);
 
+    Optional<UUID> findLinkedMemberId(ExternalIdentity identity);
+
     UUID linkExternalIdentity(ExternalIdentity identity, NewMemberProfile profile, Instant now);
 
     void saveSession(SessionRecord session);
