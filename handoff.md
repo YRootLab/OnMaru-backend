@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-05 Issues #525/#556 CI 3+3 실측 완료
+
+- 브랜치: `feature/525-ci-performance-measurement`; baseline `a91698f`, candidate `b7f1d0d`, controller [37215998513](https://github.com/YRootLab/OnMaru-backend/actions/runs/37215998513).
+- 여섯 run attempt 1이 모두 성공했고 API/artifact identity, 공통 source tree·test plan, final provenance attestation이 검증됐다. Exclusion과 실패는 없다.
+- baseline 4 workers/cache `[495, 711, 712]`초, 중앙값 711초·범위 217초. candidate 2 workers/no-cache `[751, 545, 541]`초, 중앙값 545초·범위 210초.
+- Toolkit 결과는 `comparable`, `no_regression`, relative delta `-0.23347398030942335`; candidate가 중앙값 기준 약 23.35% 짧다. 표본 3회와 큰 범위 때문에 통계적 유의성은 주장하지 않는다.
+- 결정: candidate config를 shared Java CI에 반영하되 required test scope는 유지한다. 병합 후 실제 `CI / verify` 추세가 악화되면 같은 절차로 재측정한다.
+- 다음 단계: 보고서·README·config PR 검증/병합, #525/#556와 Toolkit #122/#135 증적 연결 및 종료. 별도로 #543 release tag 3+3 run은 진행 중이다.
+
 ## 2026-10-05 Issue #555 Cloud 왕복 완료 및 #556 실험 준비
 
 - 브랜치: `docs/555-cloud-observability-evidence`; 기준: release `v0.3.39`의 master→develop 역병합 PR #631 merge commit `6af4d0b`.
