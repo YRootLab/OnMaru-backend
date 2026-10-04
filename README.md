@@ -193,8 +193,8 @@ Dispatch 응답이 유실되거나 상태가 모호하면 이미 실행됐을 �
 | 환경 (Stage) | Spring Profile | Secrets Source | DB / 외부 API 동작 | 용도 |
 |---|---|---|---|---|
 | **Local (기본)** | `local` (default) | `fake` (Mock) | 인메모리 DB, 가짜 외부 API 키로도 오프라인 빌드/테스트 100% 통과 | 로컬 빠른 개발 및 단위/통합 테스트 |
-| **Develop** | `develop` | `ENVIRONMENT` | Neon 개발용 DB, 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
-| **Production** | `production` | `ENVIRONMENT` | Neon Production DB (PostGIS), 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 (Render) |
+| **Develop** | `develop` | `ENVIRONMENT` | 온디맨드 Lightsail 스테이징 DB, 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
+| **Production** | `production` | `ENVIRONMENT` | AWS Lightsail PostgreSQL/PostGIS, 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 (Lightsail) |
 
 ### 1. 프로파일별 실행 방법
 
@@ -205,11 +205,13 @@ Dispatch 응답이 유실되거나 상태가 모호하면 이미 실행됐을 �
 # 2) 개발/스테이징 환경 실행 (로컬 환경변수 또는 .env.local 주입)
 SPRING_PROFILES_ACTIVE=develop ./gradlew :apps:spring-api:bootRun
 
-# 3) 프로덕션 환경 실행 (Render 등의 컨테이너 환경)
+# 3) 프로덕션 환경 실행 (AWS Lightsail 컨테이너 환경)
 SPRING_PROFILES_ACTIVE=production \
 ONMARU_SECRETS_SOURCE=ENVIRONMENT \
 ./gradlew :apps:spring-api:bootRun
 ```
+
+Render와 Neon을 운영 환경으로 설명하는 이전 문서는 마이그레이션 이력 보존용 deprecated 자료다. 현재 배포·복구 절차는 [`infra/lightsail/README.md`](infra/lightsail/README.md)를 기준으로 한다.
 
 ### 2. 필수 환경변수 목록 (Production / Develop)
 

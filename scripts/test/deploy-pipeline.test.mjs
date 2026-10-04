@@ -73,8 +73,8 @@ describe('container and staging release pipeline', () => {
     assert.doesNotMatch(workflow, /branches:\n(?:\s+- .+\n)*\s+- main/);
     assert.match(workflow, /permissions:\n\s+contents: read\n\s+packages: write\n\s+security-events: write/);
     assert.match(workflow, /concurrency:/);
-    assert.match(workflow, /docker\/build-push-action@v6/);
-    assert.match(workflow, /aquasecurity\/trivy-action@v0\.36\.0/);
+    assert.match(workflow, /docker\/build-push-action@[0-9a-f]{40} # v6/);
+    assert.match(workflow, /aquasecurity\/trivy-action@[0-9a-f]{40} # v0\.36\.0/);
     assert.equal(
       workflow.match(/limit-severities-for-sarif:\s+true/g)?.length,
       2,
@@ -87,7 +87,7 @@ describe('container and staging release pipeline', () => {
       workflow.indexOf('  migration-gate:'),
       workflow.indexOf('  staging-smoke:'),
     );
-    assert.match(migrationGate, /actions\/setup-python@v5/);
+    assert.match(migrationGate, /actions\/setup-python@[0-9a-f]{40} # v5/);
     assert.match(migrationGate, /python-version:\s*["']?3\.12["']?/);
     assert.match(migrationGate, /pip install -r scripts\/test\/requirements-contract\.txt/);
     assert.ok(
