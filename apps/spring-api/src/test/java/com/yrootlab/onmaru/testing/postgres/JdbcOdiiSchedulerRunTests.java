@@ -291,7 +291,7 @@ class JdbcOdiiSchedulerRunTests {
     private static OdiiSyncSchedulingAdapter scheduler(StaticListableBeanFactory beans, String dataset) {
         return new OdiiSyncSchedulingAdapter(beans.getBeanProvider(OdiiRevisionSyncService.class),
                 beans.getBeanProvider(AudioRevisionStore.class), beans.getBeanProvider(DataSource.class),
-                dataset, List.of("ko"));
+                dataset, List.of("ko"), true);
     }
 
     private static String runAndAssertTerminal(OdiiSyncSchedulingAdapter scheduler, String status, String reason) {
