@@ -103,6 +103,31 @@ class OAuthLoginServiceTests {
     }
 
     @Test
+    void loginAfterDeletionCreatesNewMemberAndDoesNotRestoreOldSession() {
+        var store = new InMemoryIdentityStore();
+        var hasher = new TokenHasher("test-pepper");
+        var service = new OAuthLoginService(store, hasher, CLOCK);
+        var identity = new ExternalIdentity("KAKAO", KAKAO.issuer(), "rejoin-subject");
+        var firstState = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser-1", "pkce-1", null, "/discover"));
+        var first = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, firstState.state(), "browser-1", "pkce-1", identity));
+        assertThat(store.requestDeletion(hasher.hash(first.sessionToken()), CLOCK.instant())).isPresent();
+
+        var secondState = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser-2", "pkce-2", null, "/discover"));
+        var second = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, secondState.state(), "browser-2", "pkce-2", identity));
+
+        assertThat(second.memberId()).isNotEqualTo(first.memberId());
+        assertThat(store.findActiveMemberBySessionHash(hasher.hash(first.sessionToken()), CLOCK.instant())).isEmpty();
+        assertThat(store.findActiveMemberBySessionHash(hasher.hash(second.sessionToken()), CLOCK.instant()))
+                .get().extracting("id").isEqualTo(second.memberId());
+        assertThat(store.memberCount()).isEqualTo(2);
+        assertThat(store.externalAccountCount()).isEqualTo(1);
+    }
+
+    @Test
     void firstLoginCreatesProfileAndReloginKeepsTheMemberEdit() {
         var store = new InMemoryIdentityStore();
         var generator = new MemberProfileGenerator(bound -> bound == 10_000 ? 42 : 0);

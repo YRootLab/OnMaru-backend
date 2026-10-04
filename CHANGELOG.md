@@ -4,6 +4,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #617의 카카오 탈퇴 회원 재로그인을 새 회원 가입으로 처리하고, 이전 기록·세션 분리와 유효한 관리자 제재 우회를 방지했다.
 - Issue #586의 Lightsail Spring 운영 배포에 build 전 no-op preflight, 제한된 Blue-Green rollback과 재배포 hold, webhook 알림, Docker image 정리 및 GitHub Action SHA pinning을 추가했다.
 - Issue #604의 지도 원거리 집계를 행정경계 필수 JOIN에서 장소 projection 행정코드 기반으로 전환해 빈 DISTRICT/REGION 응답을 복구하고, 중복 전체 count 쿼리를 제거해 줌아웃 timeout 위험을 낮췄다. level 6의 단일 장소 cell은 category PLACE marker로 반환해 기존 혼합 marker/cluster 계약도 복구했다.
 - Issue #552의 카카오 비의존 익명 회원 프로필, 마이페이지 부분 수정 API, 온기 후기 최신 작성자 프로필과 FE 자산 ID 계약을 추가했다.

@@ -50,6 +50,11 @@ public final class CachingMapInfoViewportStore implements MapInfoViewportStore, 
         MapInfoViewportResponse value;
         try {
             value = delegate.find(query);
+            if ((value.renderMode() == MapInfoRenderMode.DISTRICT
+                    || value.renderMode() == MapInfoRenderMode.REGION)
+                    && value.totalCountInViewport() > 0 && value.items().isEmpty()) {
+                throw new IllegalStateException("map aggregate items are unavailable for a non-empty viewport");
+            }
         } catch (RuntimeException exception) {
             if (cached != null && now - cached.createdAtMillis < ttlMillis + staleIfErrorMillis && snapshotMatches(query, cached.value)) {
                 return cached.value.asStale();

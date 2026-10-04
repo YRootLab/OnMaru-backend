@@ -72,4 +72,23 @@ class MapInfoViewportQueryServiceTests {
         assertThat(MapInfoCategoryMapping.queryValues(MapInfoCategory.valueOf("HANOK")))
                 .containsExactly("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE");
     }
+
+    @Test
+    void clipsPartiallyOverlappingBboxToSupportedMapArea() {
+        var response = service.find(new MapInfoViewportQuery(
+                new MapInfoBounds(119.0, 35.0, 121.0, 36.0), 8,
+                MapInfoCategory.ALL, null, null, "ko-KR", 60));
+
+        assertThat(response.servedBbox()).isEqualTo(new MapInfoBounds(120.0, 35.0, 121.0, 36.0));
+    }
+
+    @Test
+    void rejectsBboxWithNoOverlapWithSupportedMapArea() {
+        assertThatThrownBy(() -> service.find(new MapInfoViewportQuery(
+                new MapInfoBounds(10.0, 10.0, 11.0, 11.0), 8,
+                MapInfoCategory.ALL, null, null, "ko-KR", 60)))
+                .isInstanceOf(MapInfoViewportInvalidRequestException.class)
+                .extracting("field")
+                .isEqualTo("bbox");
+    }
 }
