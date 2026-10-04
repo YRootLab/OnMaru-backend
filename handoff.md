@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-04 Issues #543/#554/#555/#556 실 통합 검증
+
+- 브랜치: `fix/543-556-integration` (`origin/develop` 기준), 관련 이슈: #543, #554, #555, #556 및 Toolkit #122/#115.
+- 사용자 요청: Grafana Cloud 실 전송, 수동 pipeline 3+3, release 3회 비교까지 검증하고 README에 구체적인 실행·벤치마킹 절차를 기록한 뒤 완료 조건을 충족한 관련 이슈를 닫는다.
+- 외부 설정: Grafana Cloud Stack을 생성했고 GitHub `ci-observability` environment에 `OTLP_ENDPOINT`, `OTLP_HEADERS`, 회전용 `GRAFANA_OTLP_TOKEN` secret 이름이 등록됐다. secret 값은 문서·로그·artifact에 기록하지 않는다.
+- 설계: `docs/superpowers/specs/2026-10-04-ci-benchmark-live-integration-design.md`. production 배포와 과거 release 비교 검증을 분리하고, 실제 Actions/Grafana 증거가 있는 이슈만 종료한다.
+- 다음 단계: 설계 검토 후 TDD로 관측 미설정 처리·release evidence 수집/검증 경로를 보강하고 README를 갱신한다. 이후 PR/merge, live replay, Grafana query, 3+3 experiment, release 3+3 순으로 실행한다.
+- 위험: Cloud token은 만료 전에 교체해야 한다. 과거 release asset에는 현재 `release-module-evidence.json`이 없어 실제 tag별 3회 수집이 필요하다.
+
 ## 2026-10-04 Issue #604 백엔드 viewport 집계·응답 계약 보강 (운영 배포 제외)
 
 - 추가 수정: category projection 행이 누락된 상태에서 `HANOK_CAFE` 장소가 있어도 `category=CAFE`가 0건이 되는 count/item 필터 불일치를 PostgreSQL 통합 테스트로 재현했다. `queryValues`가 `appliedCategories`와 같은 원본·canonical 분류 집합을 사용하도록 수정해 개별 탭도 `ALL`/`HANOK`과 동일한 보장으로 조회한다. 전체 `:modules:catalog:test :apps:spring-api:test`(12분), 3만 건 성능 테스트(1분 8초), `:apps:spring-api:bootJar`, 계약 문서 검증이 통과했다. 운영의 서울 bbox level 8~12는 현재도 `1569/0`이며 운영 SHA는 공개 응답에서 `x-revision: unknown`으로 확인 불가하다.
