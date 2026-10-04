@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-05 Issue #555 Cloud 왕복 완료 및 #556 실험 준비
+
+- 브랜치: `docs/555-cloud-observability-evidence`; 기준: release `v0.3.39`의 master→develop 역병합 PR #631 merge commit `6af4d0b`.
+- release: PR #629 병합, tag/GitHub Release `v0.3.39` (`86a09b3`), master CI와 image/deploy workflow 성공, PR #631 역병합 완료.
+- Cloud: 성공 source `37212332117`/observer `37212822953`, 실패 source `37214663596`/observer `37215389263` 모두 metrics+traces 2/2 ACK. Tempo 성공 trace `be40e6de233f9411e66f3bc38718f4a`, 실패 trace `f1248afad9e65b7f91118d0e7d228cf8`에서 run ID·result·manifest digest·Toolkit pin 일치를 확인했다.
+- 사용량: Grafana Metrics Drilldown CI/trace metric 16종, Stack Home active series 29·4 DPM·24시간 46 spans·1 service. 현재 trial 14일 잔여이며 공개 Free 한도는 10k active series, traces 50 GB/month, 14일 보존, $0이다.
+- local outage: 8,192 synthetic spans, export failure peak 512, queue pressure 6.25, in-flight 10을 관측하고 Tempo 복구·dashboard smoke·duplicate replay 억제를 확인했다.
+- 다음 단계: 이 문서 PR 검증·병합과 #555 종료 후 `feature/525-ci-performance-measurement`를 최신 develop에 병합하고, Toolkit bootstrap gate로 #556 실제 ci 3+3 dispatch를 정확히 1회 실행한다.
+
 ## 2026-10-05 Issue #625 v0.3.39 CI 통합 운영 승격
 
 - 브랜치: `release/v0.3.39`, 기준: `origin/develop` merge commit `db2474e` (PR #624).

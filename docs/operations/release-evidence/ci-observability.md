@@ -1,6 +1,25 @@
 # CI 관측 왕복 증적 (#555)
 
-이 문서는 Toolkit PR #130에서 도입한 Actions evidence → OTLP v1 → Mimir/Tempo → Grafana 계약과 PR #134의 outage range 검증 수정이 포함된 merge commit (`7ecbb89aae771604d9c1c532cf123f239e279110`)을 OnMaruBE의 선택적 후처리에 적용한다. 원본 `evidence.json`과 `diagnostics.md`가 CI 판정의 근거다. Grafana 패널의 값이나 OTLP HTTP 성공만으로 `CI / verify` 결과, Mimir 저장, Tempo 검색 가능성을 판정하지 않는다. 아래 Cloud 항목은 실제 tenant와 완료된 source run을 확인하기 전까지 모두 `pending`이다.
+이 문서는 Toolkit PR #130에서 도입한 Actions evidence → OTLP v1 → Mimir/Tempo → Grafana 계약과 PR #134의 outage range 검증 수정이 포함된 merge commit (`7ecbb89aae771604d9c1c532cf123f239e279110`)을 OnMaruBE의 선택적 후처리에 적용한다. 원본 `evidence.json`과 `diagnostics.md`가 CI 판정의 근거다. Grafana 패널의 값이나 OTLP HTTP 성공만으로 `CI / verify` 결과, Mimir 저장, Tempo 검색 가능성을 판정하지 않는다.
+
+## 2026-10-05 Grafana Cloud 실측 결과
+
+`ci-observability` environment의 write-only credential로 아래 성공·실패 source run을 후처리했다. 두 export 모두 metrics와 traces 총 2 batch를 전송하고 `acknowledged_batches=2`, `terminal_partial_batches=0`으로 끝났다. secret 값과 인증 header는 어떤 artifact에도 남기지 않았다.
+
+| 구분 | 성공 | 의도된 실패 |
+| --- | --- | --- |
+| Source CI | [37212332117](https://github.com/YRootLab/OnMaru-backend/actions/runs/37212332117), `success` | [37214663596](https://github.com/YRootLab/OnMaru-backend/actions/runs/37214663596), `failure` |
+| Observability | [37212822953](https://github.com/YRootLab/OnMaru-backend/actions/runs/37212822953) | [37215389263](https://github.com/YRootLab/OnMaru-backend/actions/runs/37215389263) |
+| Manifest digest | `sha256:76fdb1f4abcda87cc5ecd969f7582befe020b6c2abd362f752bbdbb2662cf715` | `sha256:b0d9f56232fa894d60a6a6cfb73e9c501d70415dbe149dffbe94bd40a311b274` |
+| Tempo trace | `be40e6de233f9411e66f3bc38718f4a`, 46 spans | `f1248afad9e65b7f91118d0e7d228cf8`, 46 spans, root/error span `failure` |
+
+Grafana Metrics Drilldown에서 `grafanacloud-scarletoctopus740-prom`을 조회해 CI/trace 파생 metric 16종을 확인했다. Stack Home의 현재 사용량은 active series 29, 4 data points/min, 최근 24시간 spans 46, service 1로 표시됐다. Tempo의 두 root span은 `cicd.pipeline.run.id`, 원본 Actions URL, `cicd.pipeline.result`, `toolkit.ci.manifest.digest`, `toolkit.ref`가 위 source와 일치했다. 이후 새 실행이 들어오면 Home의 rolling 24시간 수치는 달라지는 것이 정상이다.
+
+로컬 장애 drill은 Tempo 중단·복구 사이에 synthetic span 8,192개를 전송해 export failure peak 512, queue pressure 6.25, in-flight 10을 관측했고, 복구 후 dashboard smoke와 duplicate replay 억제를 다시 통과했다. 과거 run을 Cloud로 재전송한 별도 연습은 timestamp age 제한으로 HTTP 400이었으므로 성공 증거로 사용하지 않는다. 운영 replay는 원본 `observed_at_ns`와 checkpoint를 보존하면서 14일 artifact 보존 기간 안에 수행한다.
+
+현재 stack은 UI에 trial 14일 잔여로 표시되며, Grafana Cloud Free 공개 한도는 metrics 10,000 active series/month, traces 50 GB/month, metrics/traces 14일 보존, 비용 $0이다. 현재 29 active series는 series 한도의 0.29%다. 유료 전환 전에는 [공식 pricing](https://grafana.com/pricing/)과 stack의 **Cost Management and Billing → Usage**에서 실제 plan·월 누적 사용량을 다시 확인한다. 이 검증은 Free 한도 이내라는 admission 근거이며 사용량이 늘어날 때의 청구 예측을 대신하지 않는다.
+
+Credential rotation runbook은 다음 순서로 검증한다. 새 `set:alloy-data-write` token을 기존 token과 겹쳐 발급하고 GitHub `ci-observability` environment의 `OTLP_HEADERS`를 새 값으로 교체한 뒤, 완료된 최신 run 하나를 수동 replay한다. `export-result.json` ACK와 새 Tempo root span을 확인한 후에만 이전 token을 폐기한다. replay 실패 시 이전 token을 유지하고 secret을 되돌리며, token 값을 Issue·PR·로그에 복사하지 않는다. 실제 token 교체는 만료 전 또는 노출 의심 시 수행하며, 이번 검증에서는 정상 동작 중인 token을 불필요하게 재발급하지 않았다.
 
 ## 증적 기록 형식
 
