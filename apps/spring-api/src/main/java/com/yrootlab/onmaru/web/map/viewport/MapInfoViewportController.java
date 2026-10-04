@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.UUID;
@@ -25,6 +27,8 @@ import java.time.Duration;
 
 @RestController
 public final class MapInfoViewportController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MapInfoViewportController.class);
 
     private final MapInfoViewportQueryService service;
     private final MeterRegistry meterRegistry;
@@ -55,18 +59,20 @@ public final class MapInfoViewportController {
             @RequestParam(required = false) String regionCode,
             @RequestParam(required = false) String snapshotId,
             @RequestParam(required = false, defaultValue = "ko-KR") String language,
-            @RequestParam(required = false, defaultValue = "500") int limit,
+            @RequestParam(required = false, defaultValue = "60") int limit,
             HttpServletRequest request) {
+        long started = System.nanoTime();
         try {
-            long started = System.nanoTime();
+            if (limit < 1) throw new MapInfoViewportInvalidRequestException("limit");
             var query = new MapInfoViewportQuery(
                     parseBbox(bbox), zoomLevel, parseCategory(category), normalize(regionCode),
-                    normalize(snapshotId), language, limit);
+                    normalize(snapshotId), language, Math.min(limit, 60));
             var response = ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(requestExecutor.execute(() -> service.find(query)));
             record("success", category, System.nanoTime() - started);
             return response;
         } catch (MapInfoRequestTimeoutException exception) {
             record("timeout", category, 0);
+            logFailure("timeout", zoomLevel, bbox, category, started, exception);
             return ResponseEntity.status(503).cacheControl(CacheControl.noStore()).body(new ApiErrorResponse(
                     "1.0", "CATALOG_UNAVAILABLE", "Map catalog data is temporarily unavailable.", requestId(request),
                     Map.of("timeout", true)));
@@ -77,10 +83,20 @@ public final class MapInfoViewportController {
                     Map.of("field", exception.field())));
         } catch (IllegalStateException exception) {
             record("unavailable", category, 0);
+            logFailure("unavailable", zoomLevel, bbox, category, started, exception);
             return ResponseEntity.status(503).cacheControl(CacheControl.noStore()).body(new ApiErrorResponse(
                     "1.0", "CATALOG_UNAVAILABLE", "Map catalog data is temporarily unavailable.", requestId(request),
                     Map.of()));
         }
+    }
+
+    private void logFailure(String outcome, int zoomLevel, String bbox, String category,
+                            long started, Exception exception) {
+        String renderMode = zoomLevel <= 5 ? "PLACE" : zoomLevel <= 7 ? "CLUSTER"
+                : zoomLevel <= 10 ? "DISTRICT" : "REGION";
+        LOGGER.warn("event=map_viewport outcome={} renderMode={} zoomLevel={} bbox={} category={} durationMs={} itemCount=-1",
+                outcome, renderMode, zoomLevel, bbox, category,
+                java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started), exception);
     }
 
     private void record(String outcome, String category, long elapsedNanos) {

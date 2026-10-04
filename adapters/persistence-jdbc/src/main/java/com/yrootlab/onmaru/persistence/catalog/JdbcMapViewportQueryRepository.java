@@ -51,7 +51,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
 
     @Override
     public MapInfoViewportResponse find(MapInfoViewportQuery query) {
-        var mode = mode(query.zoomLevel());
+        var requestedMode = mode(query.zoomLevel());
         try (var connection = dataSource.getConnection()) {
             connection.setReadOnly(true);
             try (var timeout = connection.createStatement()) {
@@ -59,15 +59,26 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
             }
             var snapshot = snapshot(connection, query.snapshotId());
             var publication = publication(connection, snapshot.id());
+            var total = totalCount(connection, snapshot.id(), query);
+            var mode = requestedMode == MapInfoRenderMode.PLACE && total > query.limit()
+                    ? MapInfoRenderMode.CLUSTER : requestedMode;
             var items = switch (mode) {
                 case PLACE -> places(connection, snapshot.id(), query);
                 case CLUSTER -> clusters(connection, snapshot.id(), query);
                 case DISTRICT, REGION -> regions(connection, snapshot.id(), query, mode);
             };
-            var total = mode == MapInfoRenderMode.DISTRICT || mode == MapInfoRenderMode.REGION
-                    ? items.stream().mapToLong(MapInfoViewportItem::count).sum()
-                    : totalCount(connection, snapshot.id(), query);
-            var coverage = mode == MapInfoRenderMode.PLACE && items.size() < total ? "PARTIAL" : "COMPLETE";
+            if (mode == MapInfoRenderMode.DISTRICT && items.size() > query.limit()) {
+                mode = MapInfoRenderMode.REGION;
+                items = regions(connection, snapshot.id(), query, mode);
+            }
+            if ((mode == MapInfoRenderMode.DISTRICT || mode == MapInfoRenderMode.REGION)
+                    && (items.size() > query.limit()
+                    || items.stream().mapToLong(MapInfoViewportItem::count).sum() != total)) {
+                mode = MapInfoRenderMode.CLUSTER;
+                items = clusters(connection, snapshot.id(), query);
+            }
+            var representedCount = items.stream().mapToLong(MapInfoViewportItem::count).sum();
+            var coverage = representedCount < total ? "PARTIAL" : "COMPLETE";
             return new MapInfoViewportResponse(
                     "1.0", mode, PROFILE_VERSION, snapshot, total, items,
                     MapInfoCategoryMapping.applied(query.category()), coverage, query.bbox(), publication);
@@ -92,13 +103,10 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
         return MapInfoRenderMode.REGION;
     }
 
-    private int targetZoomLevel(MapInfoRenderMode mode) {
-        return switch (mode) {
-            case PLACE -> 5;
-            case CLUSTER -> 7;
-            case DISTRICT -> 10;
-            case REGION -> 14;
-        };
+    private int targetZoomLevel(MapInfoRenderMode mode, int zoomLevel) {
+        return mode == MapInfoRenderMode.PLACE
+                ? Math.min(zoomLevel, 5)
+                : Math.max(1, zoomLevel - 1);
     }
 
     private MapInfoSnapshot snapshot(Connection connection, String requested) throws SQLException {
@@ -212,7 +220,7 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                     items.add(new MapInfoViewportItem(
                             "PLACE", rows.getString(1), rows.getString(2),
                             new MapInfoPoint(rows.getDouble(4), rows.getDouble(5)), null, 1,
-                            Map.of(category, 1L), targetZoomLevel(MapInfoRenderMode.PLACE), rows.getString(1), category, null));
+                            Map.of(category, 1L), targetZoomLevel(MapInfoRenderMode.PLACE, query.zoomLevel()), rows.getString(1), category, null));
                 }
             }
         }
@@ -223,17 +231,18 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
             throws SQLException {
         double width = query.bbox().east() - query.bbox().west();
         double height = query.bbox().north() - query.bbox().south();
-        double cell = Math.max(width, height) / Math.max(4.0, Math.sqrt(query.limit()));
+        int cellsPerAxis = Math.max(1, (int) Math.floor(Math.sqrt(query.limit())));
+        double cell = Math.nextUp(Math.max(width, height)) / cellsPerAxis;
         var sql = """
                 WITH candidates AS (
                     SELECT place.place_id, place.public_id, place.name, place.display_category,
                            CASE WHEN ? = 'HANOK' THEN upper(place.display_category)
-                                ELSE category.canonical_category END AS canonical_category,
+                                ELSE coalesce(category.canonical_category, upper(place.display_category)) END AS canonical_category,
                            place.location_geom,
                            floor((ST_X(place.location_geom) - ?) / ?) AS gx,
                            floor((ST_Y(place.location_geom) - ?) / ?) AS gy
                     FROM onmaru.map_place_read_projection place
-                    JOIN onmaru.map_place_category_projection category
+                    LEFT JOIN onmaru.map_place_category_projection category
                       ON category.revision_id = place.revision_id
                      AND category.place_id = place.place_id
                     WHERE place.revision_id = ?::uuid AND place.status = 'ACTIVE'
@@ -241,11 +250,14 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                       AND (? = 'ALL' OR upper(place.display_category) = ANY (?)
                            OR category.canonical_category = ANY (?))
                       AND (? IS NULL OR place.sido_code = ? OR place.sigungu_code = ?)
+                ), distinct_places AS (
+                    SELECT DISTINCT gx, gy, place_id, location_geom
+                    FROM candidates
                 ), grouped AS (
-                    SELECT gx, gy, count(DISTINCT place_id) AS count,
+                    SELECT gx, gy, count(*) AS count,
                            ST_Centroid(ST_Collect(location_geom)) AS center,
                            ST_Envelope(ST_Extent(location_geom)) AS bounds
-                    FROM candidates GROUP BY gx, gy
+                    FROM distinct_places GROUP BY gx, gy
                     ORDER BY gx, gy
                     LIMIT ?
                 ), category_grouped AS (
@@ -298,11 +310,11 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
         return aggregates.values().stream().map(aggregate -> aggregate.count == 1
                 ? new MapInfoViewportItem(
                     "PLACE", aggregate.publicId, aggregate.name, aggregate.center, null, 1,
-                    aggregate.categoryCounts, targetZoomLevel(MapInfoRenderMode.PLACE),
+                    aggregate.categoryCounts, targetZoomLevel(MapInfoRenderMode.PLACE, query.zoomLevel()),
                     aggregate.publicId, aggregate.displayCategory, null)
                 : new MapInfoViewportItem(
                     "CLUSTER", aggregate.id, null, aggregate.center, aggregate.bounds, aggregate.count,
-                    aggregate.categoryCounts, targetZoomLevel(MapInfoRenderMode.CLUSTER), null, null, null)).toList();
+                    aggregate.categoryCounts, targetZoomLevel(MapInfoRenderMode.CLUSTER, query.zoomLevel()), null, null, null)).toList();
     }
 
     private List<MapInfoViewportItem> regions(
@@ -313,9 +325,9 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                 WITH candidates AS (
                     SELECT place.%s AS region_code, place.place_id, place.location_geom,
                            CASE WHEN ? = 'HANOK' THEN upper(place.display_category)
-                                ELSE category.canonical_category END AS canonical_category
+                                ELSE coalesce(category.canonical_category, upper(place.display_category)) END AS canonical_category
                     FROM onmaru.map_place_read_projection place
-                    JOIN onmaru.map_place_category_projection category
+                    LEFT JOIN onmaru.map_place_category_projection category
                       ON category.revision_id = place.revision_id
                      AND category.place_id = place.place_id
                     WHERE place.revision_id = ?::uuid
@@ -325,19 +337,27 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                       AND (? = 'ALL' OR upper(place.display_category) = ANY (?)
                            OR category.canonical_category = ANY (?))
                       AND (? IS NULL OR place.sido_code = ? OR place.sigungu_code = ?)
+                ), distinct_places AS (
+                    SELECT DISTINCT region_code, place_id, location_geom
+                    FROM candidates
+                ), region_counts AS (
+                    SELECT region_code, count(*) AS place_count,
+                           ST_Centroid(ST_Collect(location_geom)) AS center,
+                           ST_Envelope(ST_Extent(location_geom)) AS bounds
+                    FROM distinct_places
+                    GROUP BY region_code
                 )
                 SELECT candidates.region_code, coalesce(max(region.name), candidates.region_code),
-                       ST_Y(ST_Centroid(ST_Collect(candidates.location_geom))),
-                       ST_X(ST_Centroid(ST_Collect(candidates.location_geom))),
-                       ST_XMin(ST_Envelope(ST_Collect(candidates.location_geom))),
-                       ST_YMin(ST_Envelope(ST_Collect(candidates.location_geom))),
-                       ST_XMax(ST_Envelope(ST_Collect(candidates.location_geom))),
-                       ST_YMax(ST_Envelope(ST_Collect(candidates.location_geom))),
-                       count(DISTINCT candidates.place_id), candidates.canonical_category
+                       max(ST_Y(region_counts.center)), max(ST_X(region_counts.center)),
+                       max(ST_XMin(region_counts.bounds)), max(ST_YMin(region_counts.bounds)),
+                       max(ST_XMax(region_counts.bounds)), max(ST_YMax(region_counts.bounds)),
+                       count(DISTINCT candidates.place_id), candidates.canonical_category,
+                       region_counts.place_count
                 FROM candidates
+                JOIN region_counts ON region_counts.region_code = candidates.region_code
                 LEFT JOIN onmaru.catalog_regions region
                   ON region.code = candidates.region_code AND region.active
-                GROUP BY candidates.region_code, candidates.canonical_category
+                GROUP BY candidates.region_code, candidates.canonical_category, region_counts.place_count
                 ORDER BY candidates.region_code, candidates.canonical_category
                 """.formatted(placeRegionColumn, placeRegionColumn);
         Map<String, Aggregate> aggregates = new LinkedHashMap<>();
@@ -360,17 +380,18 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                         aggregate = new Aggregate(
                                 code, rows.getString(2),
                                 new MapInfoPoint(rows.getDouble(3), rows.getDouble(4)),
-                                new MapInfoBounds(rows.getDouble(5), rows.getDouble(6), rows.getDouble(7), rows.getDouble(8)));
+                                new MapInfoBounds(rows.getDouble(5), rows.getDouble(6), rows.getDouble(7), rows.getDouble(8)),
+                                rows.getLong(11));
                         aggregates.put(code, aggregate);
                     }
                     aggregate.categoryCounts.put(rows.getString(10), rows.getLong(9));
                 }
             }
         }
-        return aggregates.values().stream().limit(query.limit()).map(aggregate -> new MapInfoViewportItem(
+        return aggregates.values().stream().map(aggregate -> new MapInfoViewportItem(
                 mode.name(), mode.name().toLowerCase() + ":" + aggregate.code, aggregate.name,
-                aggregate.center, aggregate.bounds, aggregate.categoryCounts.values().stream().mapToLong(Long::longValue).sum(),
-                aggregate.categoryCounts, targetZoomLevel(mode), null, null, aggregate.code)).toList();
+                aggregate.center, aggregate.bounds, aggregate.count,
+                aggregate.categoryCounts, targetZoomLevel(mode, query.zoomLevel()), null, null, aggregate.code)).toList();
     }
 
     private void bindBbox(PreparedStatement statement, int index, MapInfoBounds bbox) throws SQLException {
@@ -389,10 +410,11 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
         private final String name;
         private final MapInfoPoint center;
         private final MapInfoBounds bounds;
+        private final long count;
         private final Map<String, Long> categoryCounts = new LinkedHashMap<>();
 
-        private Aggregate(String code, String name, MapInfoPoint center, MapInfoBounds bounds) {
-            this.code = code; this.name = name; this.center = center; this.bounds = bounds;
+        private Aggregate(String code, String name, MapInfoPoint center, MapInfoBounds bounds, long count) {
+            this.code = code; this.name = name; this.center = center; this.bounds = bounds; this.count = count;
         }
     }
 
