@@ -53,7 +53,16 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
     }
 
     @Override
+    public synchronized Optional<UUID> findLinkedMemberId(ExternalIdentity identity) {
+        return Optional.ofNullable(externalAccounts.get(identity));
+    }
+
+    @Override
     public synchronized UUID linkExternalIdentity(ExternalIdentity identity, NewMemberProfile profile, Instant now) {
+        var linkedMemberId = externalAccounts.get(identity);
+        if (linkedMemberId != null && members.get(linkedMemberId).status() != MemberLifecycleStatus.ACTIVE) {
+            externalAccounts.remove(identity);
+        }
         return externalAccounts.computeIfAbsent(identity, ignored -> {
             return createMember(now, profile);
         });

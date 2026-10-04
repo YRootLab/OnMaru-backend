@@ -154,6 +154,35 @@ class JdbcIdentityStampFlowTests {
     }
 
     @Test
+    void loginAfterDeletionCreatesFreshMemberWithoutRestoringOldSessionOrProfile() throws Exception {
+        resetAndMigrate();
+        var store = new JdbcIdentityStore(new DriverManagerDataSource(jdbcUrl(), "onmaru_test", "onmaru_test"));
+        var hasher = new TokenHasher("integration-pepper");
+        var service = new OAuthLoginService(store, hasher, Clock.fixed(NOW, ZoneOffset.UTC),
+                new MemberProfileGenerator(bound -> 0));
+        var provider = new OAuthProvider("KAKAO", "https://kauth.kakao.com");
+        var identity = new ExternalIdentity("KAKAO", provider.issuer(), "rejoin-user");
+        var firstState = service.startLogin(new StartOAuthLoginCommand(provider, "nonce-1", "pkce-1", null, "/"));
+        var first = service.completeLogin(new CompleteOAuthLoginCommand(
+                provider, firstState.state(), "nonce-1", "pkce-1", identity));
+        new MemberProfileService(store).updateActiveProfile(first.memberId(),
+                new MemberProfilePatch("이전 이름", null, null), NOW.plusSeconds(1)).orElseThrow();
+
+        assertThat(store.requestDeletion(hasher.hash(first.sessionToken()), NOW.plusSeconds(2))).isPresent();
+        var secondState = service.startLogin(new StartOAuthLoginCommand(provider, "nonce-2", "pkce-2", null, "/"));
+        var second = service.completeLogin(new CompleteOAuthLoginCommand(
+                provider, secondState.state(), "nonce-2", "pkce-2", identity));
+
+        assertThat(second.memberId()).isNotEqualTo(first.memberId());
+        assertThat(store.findActiveMemberBySessionHash(hasher.hash(first.sessionToken()), NOW)).isEmpty();
+        assertThat(store.findActiveMemberBySessionHash(hasher.hash(second.sessionToken()), NOW))
+                .get().extracting("id", "displayName").containsExactly(second.memberId(), "고요한 마루 0000");
+        assertThat(store.findByMemberId(first.memberId()).orElseThrow().displayName()).isEqualTo("이전 이름");
+        assertThat(rowCount("onmaru.identity_members")).isEqualTo(2);
+        assertThat(rowCount("onmaru.identity_external_accounts")).isEqualTo(1);
+    }
+
+    @Test
     void missingProfileForActiveSessionRaisesInvariantFailure() throws Exception {
         resetAndMigrate();
         var dataSource = new DriverManagerDataSource(jdbcUrl(), "onmaru_test", "onmaru_test");

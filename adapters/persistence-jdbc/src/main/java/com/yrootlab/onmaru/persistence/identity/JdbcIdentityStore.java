@@ -99,17 +99,46 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
     }
 
     @Override
+    public Optional<UUID> findLinkedMemberId(ExternalIdentity identity) {
+        return withConnection(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    SELECT member_id FROM onmaru.identity_external_accounts
+                    WHERE provider = ? AND issuer = ? AND subject = ?
+                    """)) {
+                bindIdentity(statement, identity);
+                try (var result = statement.executeQuery()) {
+                    return result.next() ? Optional.of(result.getObject(1, UUID.class)) : Optional.empty();
+                }
+            }
+        });
+    }
+
+    @Override
     public UUID linkExternalIdentity(ExternalIdentity identity, NewMemberProfile profile, Instant now) {
         return inTransaction(connection -> {
             try (var existing = connection.prepareStatement("""
-                    SELECT member_id FROM onmaru.identity_external_accounts
-                    WHERE provider = ? AND issuer = ? AND subject = ?
-                    FOR UPDATE
+                    SELECT account.member_id, member.status
+                    FROM onmaru.identity_external_accounts account
+                    JOIN onmaru.identity_members member ON member.id = account.member_id
+                    WHERE account.provider = ? AND account.issuer = ? AND account.subject = ?
+                    FOR UPDATE OF account, member
                     """)) {
                 bindIdentity(existing, identity);
                 try (var result = existing.executeQuery()) {
                     if (result.next()) {
-                        return result.getObject(1, UUID.class);
+                        var existingMemberId = result.getObject(1, UUID.class);
+                        if ("ACTIVE".equals(result.getString(2))) {
+                            return existingMemberId;
+                        }
+                        try (var unlink = connection.prepareStatement(
+                                "DELETE FROM onmaru.identity_external_accounts WHERE member_id = ? "
+                                        + "AND provider = ? AND issuer = ? AND subject = ?")) {
+                            unlink.setObject(1, existingMemberId);
+                            unlink.setString(2, identity.provider());
+                            unlink.setString(3, identity.issuer());
+                            unlink.setString(4, identity.subject());
+                            unlink.executeUpdate();
+                        }
                     }
                 }
             }

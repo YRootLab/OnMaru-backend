@@ -76,6 +76,11 @@ public final class OAuthLoginService {
                         tokenHasher.hash(command.pkceVerifier()),
                         now)
                 .orElseThrow(() -> new OAuthStateRejectedException("invalid oauth state"));
+        store.findLinkedMemberId(command.externalIdentity()).ifPresent(linkedMemberId -> {
+            if (!accessPolicy.allows(linkedMemberId, now)) {
+                throw new MemberAccessDeniedException();
+            }
+        });
         var memberId = store.linkExternalIdentity(command.externalIdentity(), profileGenerator.generate(), now);
         if (!accessPolicy.allows(memberId, now)) {
             throw new MemberAccessDeniedException();
