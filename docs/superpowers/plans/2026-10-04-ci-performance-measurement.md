@@ -6,7 +6,7 @@
 
 **Architecture:** 실제 application source와 test plan은 immutable `develop` SHA 하나로 고정하고, candidate branch에서는 allowlist된 `max-workers`와 `build-cache` 값만 바꾼다. 저장소 전용 Skill과 pinned Toolkit이 controller, 여섯 sample run, attestation, comparison을 소유하며 결과는 working tree 밖 receipt와 저장소 내 비밀값 없는 보고서로 분리한다.
 
-**Tech Stack:** GitHub Actions `workflow_dispatch`, Python 3.12, Node.js 22, Java 21/Gradle, `pipeline-toolkit` commit `d5b7892875000afc2deba6e6873717974d558ee5`
+**Tech Stack:** GitHub Actions `workflow_dispatch`, Python 3.12, Node.js 22, Java 21/Gradle, `pipeline-toolkit` commit `7ecbb89aae771604d9c1c532cf123f239e279110`
 
 ## Global Constraints
 
@@ -104,7 +104,7 @@ Run:
 ```bash
 python3 -m venv /tmp/onmaru-pipeline-toolkit-venv
 /tmp/onmaru-pipeline-toolkit-venv/bin/python -m pip install \
-  'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@d5b7892875000afc2deba6e6873717974d558ee5'
+  'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@7ecbb89aae771604d9c1c532cf123f239e279110'
 ```
 
 - [ ] **Step 2: candidate worktree에서 dry-run한다**
@@ -113,7 +113,7 @@ Run:
 
 ```bash
 ONMARU_PIPELINE_TOOLKIT_BIN=/tmp/onmaru-pipeline-toolkit-venv/bin/pipeline-toolkit \
-ONMARU_PIPELINE_TOOLKIT_REF=d5b7892875000afc2deba6e6873717974d558ee5 \
+ONMARU_PIPELINE_TOOLKIT_REF=7ecbb89aae771604d9c1c532cf123f239e279110 \
 python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py \
   --scope ci --reason 'develop 4 workers/cache와 2 workers/no-cache 현재 성능 비교'
 ```
@@ -139,7 +139,7 @@ Run:
 
 ```bash
 ONMARU_PIPELINE_TOOLKIT_BIN=/tmp/onmaru-pipeline-toolkit-venv/bin/pipeline-toolkit \
-ONMARU_PIPELINE_TOOLKIT_REF=d5b7892875000afc2deba6e6873717974d558ee5 \
+ONMARU_PIPELINE_TOOLKIT_REF=7ecbb89aae771604d9c1c532cf123f239e279110 \
 python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py dispatch \
   --authorize-dispatch --scope ci \
   --reason 'develop 4 workers/cache와 2 workers/no-cache 현재 성능 비교' \
@@ -175,7 +175,7 @@ Run:
 
 ```bash
 ONMARU_PIPELINE_TOOLKIT_BIN=/tmp/onmaru-pipeline-toolkit-venv/bin/pipeline-toolkit \
-ONMARU_PIPELINE_TOOLKIT_REF=d5b7892875000afc2deba6e6873717974d558ee5 \
+ONMARU_PIPELINE_TOOLKIT_REF=7ecbb89aae771604d9c1c532cf123f239e279110 \
 python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py wait \
   --receipt /tmp/onmaru-ci-performance-receipt.json --timeout 3600 \
   > /tmp/onmaru-ci-performance-result.json
@@ -220,7 +220,7 @@ Run:
 
 ```bash
 ONMARU_PIPELINE_TOOLKIT_BIN=/tmp/onmaru-pipeline-toolkit-venv/bin/pipeline-toolkit \
-ONMARU_PIPELINE_TOOLKIT_REF=d5b7892875000afc2deba6e6873717974d558ee5 \
+ONMARU_PIPELINE_TOOLKIT_REF=7ecbb89aae771604d9c1c532cf123f239e279110 \
 python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py compare \
   --input /tmp/onmaru-ci-performance-collection.json --format markdown
 ```

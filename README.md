@@ -106,7 +106,7 @@ macOS에서는 Docker Desktop 하나가 Engine과 Compose v2를 함께 제공한
 
 ```bash
 git clone https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git ../OnMaru-backend-ci-toolkit
-git -C ../OnMaru-backend-ci-toolkit checkout d5b7892875000afc2deba6e6873717974d558ee5
+git -C ../OnMaru-backend-ci-toolkit checkout 7ecbb89aae771604d9c1c532cf123f239e279110
 cd ../OnMaru-backend-ci-toolkit
 
 bash scripts/verify_toolkit.sh
@@ -142,9 +142,9 @@ Toolkit CLI는 실행 파일의 설치 출처와 commit까지 검사하므로 �
 ```bash
 python3 -m venv /tmp/onmaru-pipeline-toolkit
 /tmp/onmaru-pipeline-toolkit/bin/pip install \
-  'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@d5b7892875000afc2deba6e6873717974d558ee5'
+  'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@7ecbb89aae771604d9c1c532cf123f239e279110'
 export ONMARU_PIPELINE_TOOLKIT_BIN=/tmp/onmaru-pipeline-toolkit/bin/pipeline-toolkit
-export ONMARU_PIPELINE_TOOLKIT_REF=d5b7892875000afc2deba6e6873717974d558ee5
+export ONMARU_PIPELINE_TOOLKIT_REF=7ecbb89aae771604d9c1c532cf123f239e279110
 ```
 
 이제 OnMaruBE 저장소 루트로 돌아와 먼저 dry-run한다. 인자를 생략해도 dry-run이 기본이다.

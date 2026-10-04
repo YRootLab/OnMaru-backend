@@ -3,7 +3,7 @@
 This CI-only double is the default for offline hygiene tests and is not shipped
 with the trusted post-run workflow. ONMARU_TOOLKIT_SRC explicitly selects a real
 checkout. Only the consumer-tested subset of pinned Toolkit
-d5b7892875000afc2deba6e6873717974d558ee5 is modeled here, not its full exporter.
+7ecbb89aae771604d9c1c532cf123f239e279110 is modeled here, not its full exporter.
 """
 
 from __future__ import annotations

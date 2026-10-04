@@ -9,7 +9,7 @@ import { selectToolkitSource } from './helpers/ci-observability-toolkit.mjs';
 
 const fixtureDir = resolve('scripts/test/fixtures/ci-observability');
 const adapter = resolve('scripts/benchmark/ci-observability.py');
-const toolkitSha = 'd5b7892875000afc2deba6e6873717974d558ee5';
+const toolkitSha = '7ecbb89aae771604d9c1c532cf123f239e279110';
 const toolkitPath = selectToolkitSource();
 const repository = 'YRootLab/OnMaru-backend';
 

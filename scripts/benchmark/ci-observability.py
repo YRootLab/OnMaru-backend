@@ -31,7 +31,7 @@ from pipeline_toolkit.telemetry.export import ExportConfig, SQLiteReplayStore, e
 from pipeline_toolkit.security import redact
 
 
-TOOLKIT_REF = "d5b7892875000afc2deba6e6873717974d558ee5"
+TOOLKIT_REF = "7ecbb89aae771604d9c1c532cf123f239e279110"
 REPOSITORY = "YRootLab/OnMaru-backend"
 WORKFLOWS = {"CI": ".github/workflows/ci.yml", "Module Benchmark": ".github/workflows/module-benchmark.yml"}
 MAX_API_BYTES = 4 * 1024 * 1024
