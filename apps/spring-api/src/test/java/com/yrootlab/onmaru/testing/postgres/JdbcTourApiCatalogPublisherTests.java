@@ -23,6 +23,8 @@ import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoCategory;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSqlQuery;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportQuery;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoPlaceItem;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoRenderMode;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportItem;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -230,8 +232,6 @@ class JdbcTourApiCatalogPublisherTests {
         publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
                 page.quarantinedCount(), page.skippedCount(), fetchedAt);
         seedMapRegions();
-        seedMapBoundary("11");
-        seedMapBoundary("11:110");
         var hanokCategories = List.of("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE");
 
         var list = new JdbcMapInfoQueryRepository(dataSource).find(new MapInfoSqlQuery(
@@ -263,6 +263,53 @@ class JdbcTourApiCatalogPublisherTests {
         assertThat(clusterViewport.items().getFirst().categoryCounts().values()).containsOnly(1L);
         assertThat(districtViewport.items()).extracting(item -> item.count()).containsExactly(4L);
         assertThat(regionViewport.items()).extracting(item -> item.count()).containsExactly(4L);
+    }
+
+    @Test
+    void allCategoryRegionAggregatesDoNotRequireAdministrativeBoundaryRows() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                row("2201", "서울 한옥", "HANOK"),
+                row("2202", "서울 시장", "TRADITIONAL_MARKET")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        seedMapRegions();
+
+        var repository = new JdbcMapViewportQueryRepository(dataSource);
+        var district = repository.find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.ALL, null, null, "ko-KR", 500));
+        var region = repository.find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 12,
+                MapInfoCategory.ALL, null, null, "ko-KR", 500));
+
+        assertThat(district.totalCountInViewport()).isEqualTo(2);
+        assertThat(district.items()).extracting(item -> item.count()).containsExactly(2L);
+        assertThat(region.totalCountInViewport()).isEqualTo(2);
+        assertThat(region.items()).extracting(item -> item.count()).containsExactly(2L);
+    }
+
+    @Test
+    void levelSixReturnsSingletonCellsAsPlaceMarkers() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2301", "서쪽 관광지", "HISTORIC_SITE", "11", "110", "126.0", "37.0"),
+                rowWithRegion("2302", "동쪽 관광지", "TRADITIONAL_MARKET", "26", "260", "129.0", "35.0")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(124.0, 33.0, 132.0, 39.0), 6,
+                MapInfoCategory.ALL, null, null, "ko-KR", 500));
+
+        assertThat(viewport.renderMode()).isEqualTo(MapInfoRenderMode.CLUSTER);
+        assertThat(viewport.items()).extracting(MapInfoViewportItem::type).containsOnly("PLACE");
+        assertThat(viewport.items()).extracting(MapInfoViewportItem::name)
+                .containsExactlyInAnyOrder("서쪽 관광지", "동쪽 관광지");
     }
 
     @Test

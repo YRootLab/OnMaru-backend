@@ -5,6 +5,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 ## Unreleased
 
 - Issue #586의 Lightsail Spring 운영 배포에 build 전 no-op preflight, 제한된 Blue-Green rollback과 재배포 hold, webhook 알림, Docker image 정리 및 GitHub Action SHA pinning을 추가했다.
+- Issue #604의 지도 원거리 집계를 행정경계 필수 JOIN에서 장소 projection 행정코드 기반으로 전환해 빈 DISTRICT/REGION 응답을 복구하고, 중복 전체 count 쿼리를 제거해 줌아웃 timeout 위험을 낮췄다. level 6의 단일 장소 cell은 category PLACE marker로 반환해 기존 혼합 marker/cluster 계약도 복구했다.
 - Issue #552의 카카오 비의존 익명 회원 프로필, 마이페이지 부분 수정 API, 온기 후기 최신 작성자 프로필과 FE 자산 ID 계약을 추가했다.
 - Issue #573의 관리자 cursor 목록 응답에 필터 기준 `totalCount`를 추가하고, 서명 cursor에서 최초 전체 건수를 유지하며 PostgreSQL count query index를 보강했다.
 - Issue #592의 운영 관리자 로그인 세션이 PostgreSQL JDBC의 `Instant` 타입 추론 오류로 저장되지 않던 문제를 수정하고, 생성·회전·폐기 통합 회귀 테스트를 추가했다.
