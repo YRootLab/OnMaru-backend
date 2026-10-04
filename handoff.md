@@ -30,6 +30,14 @@
 - 2026-10-04 공개 운영 서울 bbox `126.9,37.5,127.1,37.7`, `category=ALL`, `limit=60`: level 5 PLACE 1569/60, 6~7 CLUSTER 1569/60, 8~10 DISTRICT 1569/0, 11~12 REGION 1569/0 (표기: total/items). 최신 #605 구현은 집계 total을 items count 합계로 계산하므로 현재 운영 응답은 해당 구현과 불일치한다. 전국 bbox 8개 병렬 요청은 모두 503으로 끝났다.
 - 운영 이미지/컨테이너의 정확한 SHA는 공개 read-only endpoint로 확인되지 않았다. 운영 DB 행정경계 row 누락·매핑 불일치는 이전 SQL의 필수 JOIN과 현상에 합치하지만 DB 직접 증거는 없다. 기본 캐시 TTL 30초·stale-if-error 30초이므로 장기 지속 현상을 캐시만으로 설명하기 어렵다.
 - 운영 배포 진입점 `deploy_production`/`production-deploy`와 repository variable `PRODUCTION_DEPLOY_ENABLED`가 없어 `onmaru-production-deploy` 절차는 사전 확인에서 중단됐다. 다음 단계는 Git Flow로 운영 배포 진입점 마련 또는 검증된 운영 배포 수단 확인, `74e3143` 이미지/컨테이너 배포 SHA 확인, level 5~12 및 ALL/HANOK smoke, 필요 시 운영 DB read-only 점검이다. Issue #604는 운영 AC를 확인할 때까지 열어 둔다.
+## 2026-10-04 Issue #617 카카오 탈퇴 후 신규 회원 재가입
+
+- 브랜치: `fix/617-kakao-rejoin`.
+- 사용자 결정: 탈퇴 후 같은 카카오 계정으로 다시 로그인하면 이전 회원을 복구하지 않고 새 회원 ID와 기본 프로필을 발급한다.
+- 원인: DELETING 회원의 외부 계정 연결이 남아 OAuth 로그인에서 이전 회원 ID를 반환하고 세션 생성이 거부됐다.
+- 변경: JDBC와 InMemory identity store가 DELETING 연결을 재로그인 transaction에서 해제하고 새 ACTIVE 회원에 연결한다. 기존 회원의 유효한 관리자 제재는 연결 해제 전에 검사해 우회를 막는다. 이전 회원의 deletion ledger·데이터 정리는 독립적으로 계속한다.
+- 검증: OAuth 로그인 단위 테스트와 JDBC/PostgreSQL 통합 테스트 통과. Node hygiene 225개, planning input/secret scan, Odii fixture 8개, `git diff --check`, branch parser #617 통과. 실제 운영 계정 탈퇴·재가입 smoke와 배포는 아직 수행하지 않았다.
+- 다음 단계: CI verify와 코드 리뷰 후 PR을 통해 develop에 병합하고 운영 반영 뒤 재가입 smoke를 확인한다.
 
 ## 2026-10-04 Issue #604 지도 줌아웃 집계 빈 응답·timeout hotfix
 
