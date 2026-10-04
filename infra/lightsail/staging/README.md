@@ -12,7 +12,7 @@
 
 ## 검증된 develop 이미지 반영 (운영자)
 
-스테이징을 중지한 상태에서만 새 이미지를 준비한다. GitHub Actions의 `Build Images and Optional Staging Deploy`를 `develop` ref로 수동 실행하며 `deploy_staging=true`를 선택한다. 이 작업은 같은 commit의 `CI / verify`, 이미지 취약점 검사, migration gate가 모두 통과한 뒤에만 진행된다. 이미지와 migration 파일을 해당 `develop` commit으로 맞추지만 스테이징 컨테이너는 시작하지 않는다. FE의 다음 `start`에서 Flyway와 Spring이 새 버전으로 기동한다.
+스테이징을 중지한 상태에서만 새 이미지를 준비한다. GitHub Actions의 `Build Images and Deploy`를 `develop` ref로 수동 실행하며 `deploy_staging=true`를 선택한다. 이 작업은 같은 commit의 `CI / verify`, 이미지 취약점 검사, migration gate가 모두 통과한 뒤에만 진행된다. 이미지와 migration 파일을 해당 `develop` commit으로 맞추지만 스테이징 컨테이너는 시작하지 않는다. FE의 다음 `start`에서 Flyway와 Spring이 새 버전으로 기동한다.
 
 ```bash
 gh workflow run deploy.yml --ref develop -f deploy_staging=true
@@ -42,4 +42,4 @@ ssh -i ~/.ssh/onmaru-staging onmaru-staging-operator@13.125.191.16 stop
 
 운영자는 첫 기동 시 Spring health, Flyway, 합성 장소 조회, CSRF, OAuth redirect, FE 로그인·쓰기·SSE 및 운영 health를 확인한다. `docker stats`와 `free -h`로 동시 실행 시 swap·메모리를 감시한다. 운영 상태가 흔들리면 즉시 `stop`을 실행한다.
 
-현재 `.github/workflows/deploy.yml`은 `master` push에서 이미지를 빌드·검사하지만 Lightsail 운영 배포는 하지 않는다. `develop` 스테이징 이미지 반영은 위 수동 명령으로만 수행한다. `STAGING_SPRING_URL`은 `https://staging-api.onmaru.site`이며 운영 URL로 우회하지 않는다. 공개 staging smoke는 DNS/TLS가 준비되고 FE 개발자가 서버를 켠 상태에서 workflow를 수동 실행할 때만 `run_staging_smoke=true`로 선택한다. 이 smoke는 배포와 별도 실행한다.
+현재 `.github/workflows/deploy.yml`은 `master` push에서 이미지를 빌드·검사하지만 즉시 운영에 배포하지 않는다. Lightsail 운영 Blue-Green 배포는 Repository Variable `PRODUCTION_DEPLOY_ENABLED=true`인 상태에서 매일 `03:17 KST` 예약 실행 또는 `deploy_production=true`를 선택한 명시적 수동 실행으로만 진행한다. 운영 preflight는 같은 SHA가 이미 healthy하게 배포됐다면 build 전에 no-op으로 끝낸다. `develop` 스테이징 이미지 반영도 위 수동 명령으로만 수행한다. 운영 Blue-Green 배포와 수동 rollback은 같은 1GB 호스트의 메모리 여유를 지키기 위해 스테이징이 실행 중이면 fail-closed로 중단한다. `STAGING_SPRING_URL`은 `https://staging-api.onmaru.site`이며 운영 URL로 우회하지 않는다. 공개 staging smoke는 DNS/TLS가 준비되고 FE 개발자가 서버를 켠 상태에서 workflow를 수동 실행할 때만 `run_staging_smoke=true`로 선택한다. 이 smoke는 배포와 별도 실행한다.

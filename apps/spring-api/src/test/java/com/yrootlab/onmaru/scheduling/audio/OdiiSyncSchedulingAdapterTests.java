@@ -15,6 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class OdiiSyncSchedulingAdapterTests {
@@ -24,7 +25,7 @@ class OdiiSyncSchedulingAdapterTests {
         ObjectProvider<OdiiRevisionSyncService> service = mock(ObjectProvider.class);
         when(service.getIfAvailable()).thenThrow(new IllegalStateException("secret-provider-key"));
         var scheduler = new OdiiSyncSchedulingAdapter(service, mock(ObjectProvider.class),
-                mock(ObjectProvider.class), "odii-audio", List.of("ko"));
+                mock(ObjectProvider.class), "odii-audio", List.of("ko"), true);
         var logger = (Logger) LoggerFactory.getLogger(OdiiSyncSchedulingAdapter.class);
         var appender = new ListAppender<ILoggingEvent>();
         appender.start();
@@ -38,6 +39,17 @@ class OdiiSyncSchedulingAdapterTests {
         } finally {
             logger.detachAppender(appender);
         }
+    }
+
+    @Test
+    void skipsApplicationReadySyncWhenBlueGreenStartupSyncIsDisabled() {
+        ObjectProvider<OdiiRevisionSyncService> service = mock(ObjectProvider.class);
+        var scheduler = new OdiiSyncSchedulingAdapter(service, mock(ObjectProvider.class),
+                mock(ObjectProvider.class), "odii-audio", List.of("ko"), false);
+
+        scheduler.initialSync();
+
+        verifyNoInteractions(service);
     }
 
     @Test

@@ -36,19 +36,22 @@ public class OdiiSyncSchedulingAdapter {
     private final ObjectProvider<DataSource> dataSourceProvider;
     private final String dataset;
     private final List<String> languages;
+    private final boolean syncOnStartup;
 
     public OdiiSyncSchedulingAdapter(
             ObjectProvider<OdiiRevisionSyncService> syncServiceProvider,
             ObjectProvider<AudioRevisionStore> revisionStoreProvider,
             ObjectProvider<DataSource> dataSourceProvider,
             @Value("${onmaru.audio.dataset:odii-audio}") String dataset,
-            @Value("${onmaru.odii.sync.languages:ko}") List<String> languages
+            @Value("${onmaru.odii.sync.languages:ko}") List<String> languages,
+            @Value("${onmaru.odii.sync-on-startup:true}") boolean syncOnStartup
     ) {
         this.syncServiceProvider = syncServiceProvider;
         this.revisionStoreProvider = revisionStoreProvider;
         this.dataSourceProvider = dataSourceProvider;
         this.dataset = dataset;
         this.languages = languages == null || languages.isEmpty() ? List.of("ko") : List.copyOf(languages);
+        this.syncOnStartup = syncOnStartup;
     }
 
     @Scheduled(cron = "${onmaru.odii.sync.cron:0 0 3 */3 * *}", zone = "Asia/Seoul")
@@ -65,6 +68,10 @@ public class OdiiSyncSchedulingAdapter {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void initialSync() {
+        if (!syncOnStartup) {
+            LOGGER.info("initial Odii sync disabled for this deployment startup");
+            return;
+        }
         LOGGER.info("triggering initial odii sync run");
         runSync("application-ready");
     }
