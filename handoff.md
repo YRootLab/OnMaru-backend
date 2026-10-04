@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-04 Issue #604 지도 줌아웃 집계 빈 응답·timeout hotfix
+
+- 브랜치: `hotfix/604-map-viewport-aggregates` (`origin/develop` 기준).
+- 운영 재현: 전국·서울 bbox의 `DISTRICT/REGION` 응답이 양수 `totalCountInViewport`와 빈 `items`를 함께 반환했고, 같은 전국 요청에서 간헐적으로 `503 CATALOG_UNAVAILABLE`·`details.timeout=true`가 발생했다.
+- 원인: 원거리 집계가 장소 projection과 별도로 적재되는 행정경계 row를 필수 JOIN해, 운영에서 경계가 누락되거나 행정코드와 불일치하면 집계가 모두 사라졌다. 또한 집계 전에 동일 viewport 전체 count 공간 쿼리를 별도로 수행해 timeout 비용을 더했다.
+- 변경: DISTRICT/REGION은 `map_place_read_projection`의 `sido_code`/`sigungu_code`와 point geometry를 직접 그룹화해 count·center·bounds를 반환한다. 지역명은 `catalog_regions`가 있으면 사용하고 없으면 코드로 안전하게 대체한다. 원거리 `totalCountInViewport`는 반환 집계의 합계로 계산해 중복 공간 count 쿼리를 제거한다. Frontend Issue #246의 level 6 혼합 계약에 맞춰 단일 장소 grid cell은 `PLACE` item, 2개 이상은 `CLUSTER` item으로 반환한다.
+- 회귀: 행정경계 row 없이 ALL·HANOK의 DISTRICT/REGION 집계와 total count가 반환되는 PostgreSQL/PostGIS 통합 테스트를 추가했다.
+- 다음 단계: 전체 관련 회귀·성능 테스트와 CI `verify`를 통과한 뒤 `master` hotfix 배포, 운영 전국/서울 viewport smoke로 non-empty aggregate와 timeout 부재를 확인하고 `develop`에 forward-port한다.
+
 ## 2026-10-03 Issue #552 회원 익명 프로필·온기 후기 작성자
 
 - 브랜치: `feature/552-member-profile` (branch parser #552).
@@ -160,3 +169,20 @@
 - SSH 22 인바운드가 넓게 열려 있다. 접속 경로를 보존하며 source IP를 제한해야 한다.
 - $7 번들은 1 GB RAM이라 Spring, PostgreSQL/PostGIS, Nginx 메모리 사용량을 관찰하고 OOM이 반복되면 상향을 검토한다.
 - Render 데이터의 실제 DB 버전/용량과 dump/restore 결과, GHCR package visibility, 필요한 운영 secret은 아직 확인하지 않았다.
+
+## 2026-10-04 Spring 운영 Blue-Green CD 준비 (#586)
+
+- 브랜치/worktree: `feature/586-lightsail-blue-green-cd`, `.worktrees/feature-586-lightsail-blue-green-cd`. 사용자 요청에 따라 GitHub Issue에는 이번 내용을 작성하지 않았다.
+- 기준: 최신 `origin/develop`에서 작업했다. `develop`은 자동 운영 배포하지 않으며, release 흐름을 거쳐 `master`에 반영된 Spring image만 운영 CD 대상으로 삼는다. FastAPI는 별도 Lightsail 배포 대상으로 남겨 두었다.
+- 구현: Blue/Green Spring slot, Nginx runtime upstream, 1GB 호스트용 메모리·swap·OOM gate, 제한 SSH deployer, immutable digest 배포, 공개 smoke·70초 drain·비정상 종료 rollback, `master` 전용 production job을 추가했다. 스테이징이 실행 중이면 운영 배포와 rollback은 fail-closed로 중단한다.
+- CD 보강: Repository Variable 활성화 gate, build 전 `status <sha>` no-op preflight, 성공 후 수동 rollback, 첫 전환의 legacy slot 복귀, 거부 SHA hold, 성공·실패·no-op webhook, 168시간 경과 dangling image 정리, 제3자 Action full commit SHA pinning을 추가했다. DB migration은 자동으로 되돌리지 않는다.
+- PR 전 독립 리뷰 보강: runner image에 build SHA를 보존하고, traffic 전환 뒤 drain 전체 구간의 health·OOM·memory·swap을 재검사한다. 배포 상태는 generation directory와 `current` symlink의 단일 원자 교체로 확정하며, 이전 slot 중지 성공 뒤에만 commit한다. 실패 복구에서는 이전 slot health가 확인된 경우에만 route·env를 되돌려 정상 후보를 잘못 중지하지 않는다. webhook은 build와 migration 실패 단계도 구분한다.
+- 시작 부하: Blue/Green 후보의 TourAPI·Odii `ApplicationReadyEvent` 동기화를 끌 수 있는 설정과 회귀 테스트를 추가했다. 정기 cron과 기존 DB lease/fence 정책은 유지한다.
+- 실서버 리허설: 운영 route를 바꾸지 않고 동일 image의 Green을 384MB 제한으로 약 60초 겹쳤다. 약 30초 후 healthy, Green 약 212MB, swap 약 114MB 증가, 최저 `MemAvailable` 약 156MB, 기존 운영 health 200, OOM 없음이었다. 이는 무부하 중첩 증거이며 실제 새 image 전환이나 부하 상태 검증은 아니다. 리허설 컨테이너는 제거했고 운영은 healthy 상태를 확인했다.
+- 블로그 초안: `docs/drafts/2026-10-04-lightsail-blue-green-cd.md`. Render+Neon에서 Lightsail로 옮긴 배경, Render 재활용의 DB/네트워크 문제, virtual memory와 thrashing, 측정 결과에 더해 GitHub variable 평가 시점, 두 종류 rollback, 예약 재배포를 막는 hold, image reference 기반 보존, Action supply-chain 경계를 서사로 정리했다. `blog-tone`과 `writing-rule`을 적용했다.
+- 검증: 전체 Node 223/223, production/staging 배포 계약 14/14, startup-sync·Odii PostgreSQL 집중 Spring 테스트 `BUILD SUCCESSFUL`, Compose config, workflow YAML parse, production shell `sh -n`, 두 skill quick validation, 문서 계약, `git diff --check`가 통과했다. 현재 환경에 ShellCheck와 Actionlint 실행 파일이 없어 이번 보강 뒤에는 재실행하지 못했으며 PR의 CI `verify`를 최종 gate로 사용한다.
+- 아직 활성화하지 않음: 운영 서버의 최초 `bootstrap-blue-green.sh`, production 전용 Ed25519 key 설치, Repository Variable `PRODUCTION_DEPLOY_ENABLED`, production environment의 `PRODUCTION_DEPLOY_SSH_KEY`/`PRODUCTION_DEPLOY_WEBHOOK_URL` secret과 `PRODUCTION_SSH_KNOWN_HOSTS` variable 설정, 실제 `master` 배포는 남아 있다. 첫 merge가 준비 없이 배포되지 않도록 활성화 flag 기본값은 false다.
+- 배포 시점 변경: `master` push는 build·scan·migration 검증까지만 수행한다. 실제 운영 배포는 매일 `03:17 KST` schedule 또는 `deploy_production=true`인 명시적 `workflow_dispatch`에서만 실행한다. 예약·수동 실행은 먼저 server SHA·clean master·public health를 검사하고 같으면 build 전 no-op 처리한다.
+- 서비스 범위: `master` 운영 경로는 Spring image만 build·scan·배포한다. FastAPI image 단계는 `develop` 스테이징 실행에만 두고, 별도 Lightsail CD 설계 전까지 운영 경로에서 제외한다.
+- 프로젝트 skill: `skills/onmaru-production-deploy/SKILL.md`이며 로컬 discoverability용 사본은 `~/.codex/skills/onmaru-production-deploy`에 있다. “온마루/AWS/Lightsail 운영 배포해줘” 또는 `$onmaru-production-deploy` 직접 호출에서 `deploy.yml`을 `master`/`deploy_production=true`로 한 번 dispatch하고 결과를 관찰한다. `develop`의 release/master 승격은 사용자가 함께 명시했을 때만 선행한다. 설명·상태·스테이징 요청은 배포 권한으로 해석하지 않는다.
+- Issue 상태: #586은 이번 CD 보강 외에도 SSH 22 `/32` 제한, 실제 backup 격리 restore, rollback 기간과 Render·Neon 정리 결과를 완료 기준으로 가지므로 이 PR에는 `Refs #586`을 사용하고 merge 뒤에도 해당 운영 증거가 생길 때까지 열어 둔다.
