@@ -108,6 +108,16 @@ describe('Lightsail production blue-green deployment', () => {
     assert.match(workflow, /needs\.production-preflight\.outputs\.deploy-required == 'true'/);
   });
 
+  it('continues the staging migration gate after production preflight is intentionally skipped', () => {
+    const workflow = read('.github/workflows/deploy.yml');
+    const migrationGate = workflow.slice(
+      workflow.indexOf('  migration-gate:'),
+      workflow.indexOf('  staging-deploy:'),
+    );
+
+    assert.match(migrationGate, /if:\s+always\(\) && needs\.build-and-scan-images\.result == 'success'/);
+  });
+
   it('deploys only from the nightly master schedule or an explicit master dispatch', () => {
     const workflow = read('.github/workflows/deploy.yml');
     const preflight = workflow.slice(
