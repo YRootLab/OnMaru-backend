@@ -3,7 +3,7 @@
 ## Release 3회 비교의 운영 경계 (#543)
 
 Release Benchmark Gate의 정본은 `benchmark/reports/release-module-comparison.json`이며,
-수치 판정은 Toolkit PR #130의 comparator를 포함하고 outage smoke race를 수정한 PR #134 병합 commit `d5b7892875000afc2deba6e6873717974d558ee5`가 소유한다.
+수치 판정은 Toolkit PR #130의 comparator를 포함하고 outage smoke race를 수정한 PR #134 병합 commit `7ecbb89aae771604d9c1c532cf123f239e279110`가 소유한다.
 baseline/candidate Release asset `release-module-evidence.json`의 사전 선택된 서로 다른
 성공 run 각 3개를 비교한다. [입력 필드와 실패 모델](../../benchmark/contracts.md)을 따른다.
 asset이 없으면 `inconclusive`로 기록한다. 일반 tag push 직후에는 아직 candidate asset이

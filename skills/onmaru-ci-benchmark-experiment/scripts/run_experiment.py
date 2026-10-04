@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 
-TOOLKIT_REF = "d5b7892875000afc2deba6e6873717974d558ee5"
+TOOLKIT_REF = "7ecbb89aae771604d9c1c532cf123f239e279110"
 TOOLKIT_REPOSITORY = "https://github.com/YRootLab/OnMaru-backend-ci-toolkit"
 MAX_STDOUT_BYTES = 64 * 1024
 SECRET_KEY = re.compile(r"(?:api[_-]?key|authorization|credential|password|secret|token)", re.IGNORECASE)
@@ -61,6 +61,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--scope", choices=("ci", "test"), default="ci")
     result.add_argument("--reason", default="OnMaru pipeline experiment")
     result.add_argument("--authorize-dispatch", action="store_true")
+    result.add_argument("--bootstrap-integration", action="store_true")
     result.add_argument("--receipt", type=Path)
     result.add_argument("--timeout", type=float, default=1800.0)
     result.add_argument("--poll-interval", type=float, default=5.0)
@@ -90,6 +91,8 @@ def toolkit_argv(args: argparse.Namespace) -> list[str]:
         command.extend(
             ["--repo-root", str(root), "--scope", args.scope, "--reason", args.reason]
         )
+        if args.action == "dispatch" and args.bootstrap_integration:
+            command.append("--bootstrap-integration")
     elif args.action == "wait":
         if args.receipt is None:
             raise ValueError("wait_receipt_required")

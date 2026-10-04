@@ -1,5 +1,21 @@
 # handoff.md
 
+## 2026-10-05 Issue #625 v0.3.39 CI 통합 운영 승격
+
+- 브랜치: `release/v0.3.39`, 기준: `origin/develop` merge commit `db2474e` (PR #624).
+- 목적: Grafana Cloud 호환 Toolkit pin과 제한된 #556 bootstrap gate를 default branch `master`에 승격해 #555 정식 replay와 실제 3+3 benchmark를 실행 가능하게 한다.
+- 절차: release PR의 필수 CI 통과 → `master` merge → Release Please/tag 확인 → `develop` 역동기화 → 새 default-branch workflow로 live integration 검증.
+- 관련: #543, #554, #555, #556, #568, #625. 실제 ACK·query·attestation 증적 전에는 통합 이슈를 종료하지 않는다.
+
+## 2026-10-04 Issues #543/#554/#555/#556 실 통합 검증
+
+- 브랜치: `fix/543-556-integration` (`origin/develop` 기준), 관련 이슈: #543, #554, #555, #556 및 Toolkit #122/#115.
+- 사용자 요청: Grafana Cloud 실 전송, 수동 pipeline 3+3, release 3회 비교까지 검증하고 README에 구체적인 실행·벤치마킹 절차를 기록한 뒤 완료 조건을 충족한 관련 이슈를 닫는다.
+- 외부 설정: Grafana Cloud Stack을 생성했고 GitHub `ci-observability` environment에 `OTLP_ENDPOINT`, `OTLP_HEADERS`, 회전용 `GRAFANA_OTLP_TOKEN` secret 이름이 등록됐다. secret 값은 문서·로그·artifact에 기록하지 않는다.
+- 설계: `docs/superpowers/specs/2026-10-04-ci-benchmark-live-integration-design.md`. production 배포와 과거 release 비교 검증을 분리하고, 실제 Actions/Grafana 증거가 있는 이슈만 종료한다.
+- 다음 단계: 설계 검토 후 TDD로 관측 미설정 처리·release evidence 수집/검증 경로를 보강하고 README를 갱신한다. 이후 PR/merge, live replay, Grafana query, 3+3 experiment, release 3+3 순으로 실행한다.
+- 위험: Cloud token은 만료 전에 교체해야 한다. 과거 release asset에는 현재 `release-module-evidence.json`이 없어 실제 tag별 3회 수집이 필요하다.
+
 ## 2026-10-04 Issue #604 백엔드 viewport 집계·응답 계약 보강 (운영 배포 제외)
 
 - 추가 수정: category projection 행이 누락된 상태에서 `HANOK_CAFE` 장소가 있어도 `category=CAFE`가 0건이 되는 count/item 필터 불일치를 PostgreSQL 통합 테스트로 재현했다. `queryValues`가 `appliedCategories`와 같은 원본·canonical 분류 집합을 사용하도록 수정해 개별 탭도 `ALL`/`HANOK`과 동일한 보장으로 조회한다. 전체 `:modules:catalog:test :apps:spring-api:test`(12분), 3만 건 성능 테스트(1분 8초), `:apps:spring-api:bootJar`, 계약 문서 검증이 통과했다. 운영의 서울 bbox level 8~12는 현재도 `1569/0`이며 운영 SHA는 공개 응답에서 `x-revision: unknown`으로 확인 불가하다.
@@ -76,12 +92,12 @@
 
 - 브랜치: `feature/554-monitoring-related`; 정본은 `skills/onmaru-ci-benchmark-experiment/` 하나이며 `.agents/skills` 복사본을 만들지 않는다.
 - 기본 동작은 dry-run이다. 실제 dispatch는 현재 대화에서 명시적으로 요청된 경우에만 helper의 `--authorize-dispatch`를 사용하며, 응답 유실·모호 상태에서는 절대 재시도하지 않는다.
-- 고정 Toolkit ref: `d5b7892875000afc2deba6e6873717974d558ee5`. 실제 #555/#556 dispatch·attestation 연동은 아직 실행하지 않았다.
+- 고정 Toolkit ref: `7ecbb89aae771604d9c1c532cf123f239e279110`. #555 Cloud 첫 전송에서 traces HTTP 200, DELTA histogram metrics HTTP 400을 관찰했고 Toolkit #137/PR #138에서 CUMULATIVE snapshot으로 수정했다. 같은 실제 source payload의 metrics도 HTTP 200으로 수용됨을 확인했다. 정식 workflow replay와 #556 dispatch·attestation은 pin의 develop/master 승격 뒤 수행한다.
 - 2026-10-03 CI hygiene 보완([#554](https://github.com/YRootLab/OnMaru-backend/issues/554), [#555](https://github.com/YRootLab/OnMaru-backend/issues/555), 브랜치 `feature/554-monitoring-related`): 암묵적 `/tmp` Toolkit 선택을 제거하자 저장소 offline 스텁에서 16개 중 5개가 실패했다. 스텁의 replay schema·endpoint 검증·시각과 무관한 중복 identity·`ci_job=other`를 pin의 소비 계약과 맞췄다. 기본 경로 contract를 추가하고 기존 replay 테스트를 시각 변경으로 강화했다. 기본 clean-env 집중 17/17, 명시적 pinned-source 집중 17/17, 기본 전체 Node 213/213, contracts·Python compile·diff check가 통과했다. 보고서: `.superpowers/sdd/2026-10-02-ci-observability-benchmark-skill/ci-hygiene-fix-report.md`.
 - 이전 세션에서 로컬 Toolkit의 성공/실패 synthetic round-trip과 dashboard query를 확인했고, outage range race는 Toolkit #133 / PR #134로 수정·병합됐다. 이번 최종 수정에서는 실제 stack·Cloud를 다시 검증하지 않았다.
 - 2026-10-03 최종 수정(#554/#555/#568): replay checkpoint는 동일 저장소의 default branch에서 실행된 `workflow_run`/수동 replay와 검증된 default-branch SHA 이력만 신뢰한다. checkpoint가 없거나 손상된 최근 diagnostic은 건너뛰어 이전 유효 상태를 복원하거나 새 상태로 export한다. Skill 설치 확인은 consumer cwd package를 실행하지 않으며 Basic/Bearer payload를 전체 마스킹한다. 문서의 job query는 실제 `ci_job="other"` label과 맞췄다.
-- 최신 검증: 고정 Toolkit `d5b7892875000afc2deba6e6873717974d558ee5` checkout을 `ONMARU_TOOLKIT_SRC`로 지정해 집중 Node 36/36, 전체 Node 212/212가 통과했다. `bash scripts/verify-contracts`, Skill quick validation, 두 Python helper syntax, `git diff --check`, branch parser(`#554`)도 통과했다. 동시에 수행한 초기 실행의 타이밍 민감 테스트 실패와 단독 재실행 결과는 `.superpowers/sdd/2026-10-02-ci-observability-benchmark-skill/final-fix-report.md`에 기록했다. Java 전체 module test/`bootJar`와 workflow lint는 이번 최종 수정에서 별도 재실행하지 않았다.
-- 외부 gate: 실제 Grafana Cloud round trip·outage/replay·series/span/retention/cost, release baseline/candidate 3+3 Actions 검증, 실제 pipeline dispatch·signed attestation, default-branch workflow 가용성 및 #555/#556 gate 순환 정리는 아직 `pending`이다. Fixture 통과로 이를 완료 처리하지 않으며 실제 dispatch는 명시적인 현재 대화 요청 전까지 실행하지 않는다.
+- 최신 검증: 고정 Toolkit `7ecbb89aae771604d9c1c532cf123f239e279110` checkout을 `ONMARU_TOOLKIT_SRC`로 지정해 집중 Node 36/36, 전체 Node 212/212가 통과했다. `bash scripts/verify-contracts`, Skill quick validation, 두 Python helper syntax, `git diff --check`, branch parser(`#554`)도 통과했다. 동시에 수행한 초기 실행의 타이밍 민감 테스트 실패와 단독 재실행 결과는 `.superpowers/sdd/2026-10-02-ci-observability-benchmark-skill/final-fix-report.md`에 기록했다. Java 전체 module test/`bootJar`와 workflow lint는 이번 최종 수정에서 별도 재실행하지 않았다.
+- 외부 gate: Grafana Cloud credential과 endpoint는 준비됐고 실제 metrics/traces 수용까지 확인했다. 남은 항목은 정식 workflow replay의 ACK 증적, dashboard/Tempo 원본 연결, 승인된 outage/replay, series/span/retention/cost 기록, release baseline/candidate 3+3 Actions 검증 및 pipeline signed attestation이다. #555를 우회하지 않고 #556만 최초 통합 실행에서 허용하는 Toolkit #135/PR #136의 제한된 bootstrap gate도 병합됐다. Fixture나 직접 payload 수용만으로 Issue를 완료 처리하지 않는다.
 - 새 개선율은 아직 확정하지 않았다. 기존 470초 serial과 411.62초 critical-path는 경계가 달라 12.42% 전체 CI 개선으로 주장하지 않는다. workflow가 기본 브랜치에 존재하고 #555/#556 gate 순환을 정리한 뒤 동일 조건 baseline/candidate 3회씩의 whole-workflow 중앙값·범위·실패율을 기록한다.
 - Toolkit #115/#122 및 Agent Toolkit #58 ownership 링크 변경은 OnMaruBE Skill PR merge 뒤의 후속 작업이다.
 - 메인 `README.md`에 일상 CI 관측과 수동 3+3 benchmark 흐름, Docker의 역할과 설치 경계, 로컬 dashboard 실행·정리, Skill dry-run/dispatch/wait/compare, 개선율 해석을 추가했다.
