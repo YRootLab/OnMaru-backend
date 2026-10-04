@@ -111,17 +111,18 @@ working tree 밖에 저장한다. 실제 비교는 Toolkit의 `pipeline-experime
 
 ```bash
 pipeline-toolkit experiment dry-run --repo-root "$PWD" --scope ci --reason 'Gradle worker 비교'
-# 아래 명령은 외부 gate 해결 후 사용자가 명시적으로 승인한 실험에서만 실행한다.
-pipeline-toolkit experiment dispatch --repo-root "$PWD" --scope ci --reason 'Gradle worker 비교' > /tmp/onmaru-experiment-receipt.json
+# 최초 통합 1회만 #135 bootstrap gate를 명시한다. 이후에는 두 이슈가 닫혀 있어야 한다.
+pipeline-toolkit experiment dispatch --repo-root "$PWD" --scope ci --reason 'Gradle worker 비교' --bootstrap-integration > /tmp/onmaru-experiment-receipt.json
 pipeline-toolkit experiment wait --receipt /tmp/onmaru-experiment-receipt.json > /tmp/onmaru-experiment-result.json
 # result의 collection 객체를 별도 collection.json으로 저장한 뒤 offline 재계산한다.
 pipeline-toolkit experiment compare --input /tmp/onmaru-experiment-collection.json --format markdown
 node --test scripts/test/pipeline-benchmark-experiment.test.mjs
 ```
 
-실 통합은 **pending external gate**다. Toolkit은 POST 전에 OnMaruBE #555/#556의 `closed`를
-요구하지만 #556 acceptance 자체에 실 dispatch가 포함되어 순환한다. Gate/acceptance 순서의
-승인된 정리가 필요하며 이 helper나 skill로 우회하지 않는다. 또한 두 workflow 모두
+Toolkit #135/PR #136은 최초 통합에 한해 `--bootstrap-integration`을 허용한다. 이 모드는 #555가
+닫혔고 #556만 열려 있는 상태, 정확한 저장소·workflow·scope에서만 동작하며 receipt에 bootstrap
+사용 사실을 남긴다. 일반 실행은 OnMaruBE #555/#556이 모두 닫혀 있어야 하며 helper나 skill로
+gate를 우회하지 않는다. 또한 두 workflow 모두
 [default branch에 존재해야 수동 실행이 가능하므로](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)
 `develop` 병합만으로 live availability를 주장하지 않는다. Multi-scope plan 검증은
 [Toolkit #131](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/issues/131) /
