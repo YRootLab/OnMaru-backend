@@ -1,6 +1,6 @@
 # CI 관측 왕복 증적 (#555)
 
-이 문서는 Toolkit PR #130에서 도입한 Actions evidence → OTLP v1 → Mimir/Tempo → Grafana 계약과 PR #134의 outage range 검증 수정이 포함된 merge commit (`d5b7892875000afc2deba6e6873717974d558ee5`)을 OnMaruBE의 선택적 후처리에 적용한다. 원본 `evidence.json`과 `diagnostics.md`가 CI 판정의 근거다. Grafana 패널의 값이나 OTLP HTTP 성공만으로 `CI / verify` 결과, Mimir 저장, Tempo 검색 가능성을 판정하지 않는다. 아래 Cloud 항목은 실제 tenant와 완료된 source run을 확인하기 전까지 모두 `pending`이다.
+이 문서는 Toolkit PR #130에서 도입한 Actions evidence → OTLP v1 → Mimir/Tempo → Grafana 계약과 PR #134의 outage range 검증 수정이 포함된 merge commit (`7ecbb89aae771604d9c1c532cf123f239e279110`)을 OnMaruBE의 선택적 후처리에 적용한다. 원본 `evidence.json`과 `diagnostics.md`가 CI 판정의 근거다. Grafana 패널의 값이나 OTLP HTTP 성공만으로 `CI / verify` 결과, Mimir 저장, Tempo 검색 가능성을 판정하지 않는다. 아래 Cloud 항목은 실제 tenant와 완료된 source run을 확인하기 전까지 모두 `pending`이다.
 
 ## 증적 기록 형식
 
@@ -11,7 +11,7 @@
   "issue": 555,
   "checked_at_utc": null,
   "consumer_sha": null,
-  "toolkit_sha": "d5b7892875000afc2deba6e6873717974d558ee5",
+  "toolkit_sha": "7ecbb89aae771604d9c1c532cf123f239e279110",
   "tenant_region": null,
   "source": {"workflow": null, "run_id": null, "attempt": null, "conclusion": null},
   "manifest": {"digest": null, "artifact_url": null, "collection_artifact_url": null, "diagnostic_artifact_url": null},

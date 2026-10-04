@@ -14,7 +14,7 @@ from pipeline_toolkit.contracts.module_evidence import (
     validate_module_evidence,
 )
 
-TOOLKIT_REF = "d5b7892875000afc2deba6e6873717974d558ee5"
+TOOLKIT_REF = "7ecbb89aae771604d9c1c532cf123f239e279110"
 IDENTITY_FIELDS = (
     "runner_image", "java_version", "python_version", "cache_state",
     "database_fixture", "cpu_memory_profile", "dependency_mode", "config_catalog_hash",
