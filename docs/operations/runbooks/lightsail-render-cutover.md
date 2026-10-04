@@ -1,6 +1,8 @@
 # Lightsail 배포 및 Render 앱·Neon DB 전환 runbook
 
-상태: **부분 실행 중**. Issue #519의 전환 절차와 수동 Compose 배포 구성이며 완료된 배포 기록은 아니다. 2026-10-01 서울 리전에 Ubuntu 24.04 LTS, $7 번들 Lightsail 인스턴스 `onmaru-prod-seoul`을 만들고 `onmaru-prod-seoul-ip` 고정 IP를 연결했다. 인스턴스 방화벽에는 HTTP 80, SSH 22, HTTPS 443(모든 IPv4)을 허용했다. 사용자가 브라우저 SSH 접속을 확인했고 Ubuntu 패키지 업데이트/재부팅 뒤 Docker Engine과 Compose plugin 설치 및 Docker 서비스 `active` 상태를 확인했다. `/opt/onmaru`도 만들고 `ubuntu` 소유권을 설정했다. SSH 22는 관리자 IP 제한이 아직 안 되어 있으므로 production 서비스 전 제한해야 한다. DNS, TLS 인증서, Compose 컨테이너, Spring, PostgreSQL/PostGIS 데이터는 아직 구성하지 않았다. 자동 스냅샷도 현재 비활성 상태다.
+> **Deprecated (전환 이력 보존용):** Render와 Neon에서 AWS Lightsail로 옮기던 당시의 cutover 계획이다. Render 운영 서버는 제거됐으며 현재 운영 절차의 기준 문서가 아니다. 최신 구성·배포·rollback은 [`infra/lightsail/README.md`](../../../infra/lightsail/README.md)를 따른다.
+
+상태: **완료된 과거 전환 계획**. 아래 내용은 Issue #519 당시의 의사결정과 순서를 재현하기 위해 남겨 두며, 현재 인프라 상태를 설명하지 않는다.
 
 ## 목표 구성
 
