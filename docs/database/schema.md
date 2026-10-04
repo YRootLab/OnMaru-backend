@@ -89,6 +89,10 @@
 // 식별해 개인정보를 복제하지 않고 deletion ledger에 기록하며, 모든 대상이 사라진 뒤에만
 // 회원 deletion ledger를 COMPLETED로 전환한다. DELETING tombstone은
 // cleanup과 경합한 체크인 또는 랭킹 참여가 개인정보 row를 다시 만들지 못하게 한다.
+// 탈퇴 후 동일 외부 계정으로 재로그인하면 DELETING 회원의 external account 연결을
+// 원자적으로 해제하고 새 ACTIVE 회원·프로필에 연결한다. 이전 회원의 deletion ledger,
+// 폐기된 세션과 데이터는 새 회원 ID로 이전하지 않으며 기존 cleanup 대상에 남는다.
+// 기존 연결의 회원 ID에 유효한 관리자 제재가 있으면 연결을 해제하기 전에 로그인을 거부한다.
 // V031은 TourAPI 국문 v4.4에서 기존 areaCode/sigunguCode를 대체한 법정동 코드
 // lDongRegnCd/lDongSignguCd를 catalog_kto_korean_content_versions에 보존한다.
 // 최초 areaBasedList2 전 페이지는 적격성 판정과 무관하게 원천 version에 저장하고,

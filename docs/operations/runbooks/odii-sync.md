@@ -1,6 +1,6 @@
 # Odii scheduler 실행 이력과 AWS 운영 판정
 
-Issue #382의 진단 절차다. Lightsail의 `/opt/onmaru` Compose 배포를 기준으로 하며, 이 문서는 실제 배포·원천 API 검증 완료 증거가 아니다. `production` 프로필의 JDBC store와 V038 migration 적용이 선행되어야 한다. `staging` 프로필에서는 scheduler가 비활성화되므로 자동 동기화를 기대하지 않는다. 배포/접근 권한은 [Lightsail runbook](lightsail-render-cutover.md)과 [Compose 설명](../../../infra/lightsail/README.md)을 따른다.
+Issue #382의 진단 절차다. Lightsail의 `/opt/onmaru` Compose 배포를 기준으로 하며, 이 문서는 실제 배포·원천 API 검증 완료 증거가 아니다. `production` 프로필의 JDBC store와 V038 migration 적용이 선행되어야 한다. `staging` 프로필에서는 scheduler가 비활성화되므로 자동 동기화를 기대하지 않는다. 현재 배포/접근 권한은 [Lightsail Compose 설명](../../../infra/lightsail/README.md)을 따른다.
 
 ## 실행과 로그 연결
 
