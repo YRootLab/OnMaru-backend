@@ -118,6 +118,25 @@ describe('Lightsail production blue-green deployment', () => {
     assert.match(migrationGate, /if:\s+always\(\) && needs\.build-and-scan-images\.result == 'success'/);
   });
 
+  it('continues staging jobs after the production-only preflight is intentionally skipped', () => {
+    const workflow = read('.github/workflows/deploy.yml');
+    const stagingDeploy = workflow.slice(
+      workflow.indexOf('  staging-deploy:'),
+      workflow.indexOf('  staging-smoke:'),
+    );
+    const stagingSmoke = workflow.slice(
+      workflow.indexOf('  staging-smoke:'),
+      workflow.indexOf('  rollback-on-failure:'),
+    );
+
+    assert.match(stagingDeploy, /if:\s+>-\s+always\(\) &&/);
+    assert.match(stagingDeploy, /needs\.build-and-scan-images\.result == 'success'/);
+    assert.match(stagingDeploy, /needs\.migration-gate\.result == 'success'/);
+    assert.match(stagingSmoke, /if:\s+>-\s+always\(\) &&/);
+    assert.match(stagingSmoke, /needs\.build-and-scan-images\.result == 'success'/);
+    assert.match(stagingSmoke, /needs\.migration-gate\.result == 'success'/);
+  });
+
   it('deploys only from the nightly master schedule or an explicit master dispatch', () => {
     const workflow = read('.github/workflows/deploy.yml');
     const preflight = workflow.slice(

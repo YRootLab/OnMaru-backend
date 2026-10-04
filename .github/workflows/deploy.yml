@@ -257,7 +257,13 @@ jobs:
           ./gradlew :apps:spring-api:test --tests '*Migration*' --no-daemon
 
   staging-deploy:
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy_staging && github.ref == 'refs/heads/develop'
+    if: >-
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.deploy_staging &&
+      github.ref == 'refs/heads/develop' &&
+      needs.build-and-scan-images.result == 'success' &&
+      needs.migration-gate.result == 'success'
     runs-on: ubuntu-latest
     needs:
       - build-and-scan-images
@@ -298,7 +304,12 @@ jobs:
             "deploy $GITHUB_SHA $SPRING_DIGEST $GITHUB_ACTOR"
 
   staging-smoke:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_staging_smoke
+    if: >-
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.run_staging_smoke &&
+      needs.build-and-scan-images.result == 'success' &&
+      needs.migration-gate.result == 'success'
     runs-on: ubuntu-latest
     needs:
       - build-and-scan-images
