@@ -15,6 +15,13 @@
 - 목적: Grafana Cloud 호환 Toolkit pin과 제한된 #556 bootstrap gate를 default branch `master`에 승격해 #555 정식 replay와 실제 3+3 benchmark를 실행 가능하게 한다.
 - 절차: release PR의 필수 CI 통과 → `master` merge → Release Please/tag 확인 → `develop` 역동기화 → 새 default-branch workflow로 live integration 검증.
 - 관련: #543, #554, #555, #556, #568, #625. 실제 ACK·query·attestation 증적 전에는 통합 이슈를 종료하지 않는다.
+## 2026-10-05 운영 정보지도 표시·줌 평가
+
+- 사용자 제보: `onmaru.site` 정보모드에서 줌아웃하면 `30:200` 등 내부 지역 코드가 표시되고 집계 마커가 늦게 갱신됨. 스크린샷 4장 제공.
+- 운영 `GET https://api.onmaru.site/api/v1/map/info/viewport` 재현: level 8 응답 `name=regionCode=30:200`, `count=154`; level 9 응답도 `name=regionCode`가 숫자 코드임. HTTP 200으로 집계 자체는 반환됨.
+- BE 원인 경로: `JdbcTourApiCatalogPublisher`가 지역 매칭 실패 시 raw 코드를 `sido_code` 및 `sigungu_code=concat_ws(':', ...)`로 저장하고, `JdbcMapViewportQueryRepository.regions`가 `catalog_regions` 이름 조회 실패 시 `coalesce(max(region.name), candidates.region_code)`로 코드명을 반환함. `catalog_regions`의 내부 코드는 `kr-*` 형태여서 raw 코드와 불일치할 수 있음. 운영 DB의 실제 매핑 누락 상태는 미확인.
+- FE 표시·지연 경로: `ViewportOverlays`가 응답 `item.name`과 `count`를 그대로 표시하고 200 이상은 `200+`로 절단. `viewportRefreshPolicy`는 idle 후 900ms, 2단계 이상 줌 변화에만 commit; `useInfoMapData`가 추가로 700ms debounce 후 요청. 응답 전 이전 마커를 유지하므로 1단계 줌 시 오래된 집계가 보일 수 있음.
+- 2026-10-05 후속 구현: BE Issue #630, 브랜치 `fix/630-map-region-names`. V041에 V032 검증 목록의 285개 한국어 행정구역 표시명을 활성 dataset 시점과 독립된 조회표로 추가하고, viewport 조회에서 raw `30:200`·`11:110`을 `유성구`·`종로구`로 표시한다. `regionCode`는 목록 필터 계약을 위해 유지하며 미매핑 이름은 `이 지역`으로 반환한다. PostgreSQL 통합 회귀에서 실패→통과를 확인했다. 집계 후 이름 조회로 쿼리를 바꾼 뒤 publisher 전체 24건(3만 장소 성능 기준 포함), 계약 검증, migration registry 정책이 통과했다. FE Issue #325는 별도 worktree `fix/325-map-zoom`에서 지도 테스트 149건·TypeScript·ESLint·production build를 통과하고 원격 브랜치까지 게시했다. 운영 배포는 미수행.
 
 ## 2026-10-04 Issues #543/#554/#555/#556 실 통합 검증
 

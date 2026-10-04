@@ -346,19 +346,37 @@ public final class JdbcMapViewportQueryRepository implements MapInfoViewportStor
                            ST_Envelope(ST_Extent(location_geom)) AS bounds
                     FROM distinct_places
                     GROUP BY region_code
+                ), aggregates AS (
+                    SELECT candidates.region_code,
+                           max(ST_Y(region_counts.center)) AS center_lat,
+                           max(ST_X(region_counts.center)) AS center_lng,
+                           max(ST_XMin(region_counts.bounds)) AS west,
+                           max(ST_YMin(region_counts.bounds)) AS south,
+                           max(ST_XMax(region_counts.bounds)) AS east,
+                           max(ST_YMax(region_counts.bounds)) AS north,
+                           count(DISTINCT candidates.place_id) AS category_count,
+                           candidates.canonical_category, region_counts.place_count
+                    FROM candidates
+                    JOIN region_counts ON region_counts.region_code = candidates.region_code
+                    GROUP BY candidates.region_code, candidates.canonical_category, region_counts.place_count
                 )
-                SELECT candidates.region_code, coalesce(max(region.name), candidates.region_code),
-                       max(ST_Y(region_counts.center)), max(ST_X(region_counts.center)),
-                       max(ST_XMin(region_counts.bounds)), max(ST_YMin(region_counts.bounds)),
-                       max(ST_XMax(region_counts.bounds)), max(ST_YMax(region_counts.bounds)),
-                       count(DISTINCT candidates.place_id), candidates.canonical_category,
-                       region_counts.place_count
-                FROM candidates
-                JOIN region_counts ON region_counts.region_code = candidates.region_code
+                SELECT aggregates.region_code, coalesce(display_name.name, region.name, '이 지역'),
+                       aggregates.center_lat, aggregates.center_lng,
+                       aggregates.west, aggregates.south, aggregates.east, aggregates.north,
+                       aggregates.category_count, aggregates.canonical_category,
+                       aggregates.place_count
+                FROM aggregates
                 LEFT JOIN onmaru.catalog_regions region
-                  ON region.code = candidates.region_code AND region.active
-                GROUP BY candidates.region_code, candidates.canonical_category, region_counts.place_count
-                ORDER BY candidates.region_code, candidates.canonical_category
+                  ON region.code = aggregates.region_code AND region.active
+                LEFT JOIN onmaru.map_region_display_names display_name
+                  ON display_name.provider_code = CASE
+                      WHEN aggregates.region_code ~ '^[0-9]+:[0-9]+$' THEN
+                          CASE WHEN length(split_part(aggregates.region_code, ':', 2)) >= 5
+                               THEN split_part(aggregates.region_code, ':', 2)
+                               ELSE split_part(aggregates.region_code, ':', 1)
+                                    || lpad(split_part(aggregates.region_code, ':', 2), 3, '0') END
+                      ELSE aggregates.region_code END
+                ORDER BY aggregates.region_code, aggregates.canonical_category
                 """.formatted(placeRegionColumn, placeRegionColumn);
         Map<String, Aggregate> aggregates = new LinkedHashMap<>();
         try (var statement = connection.prepareStatement(sql)) {

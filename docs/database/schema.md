@@ -103,6 +103,11 @@
 // catalog_region_source_codes, catalog_datalab_region_mappings에 등록한다.
 // 매핑은 공식 data.go.kr URL과 검증 시각을 보존하며, API의 약 35일 제공 지연을 고려한
 // 일별 방문자 동기화와 DB 기반 행정구역 원형 히트맵의 지역 레지스트리로 사용한다.
+// V041은 정보지도 viewport의 TourAPI 법정동 시도/시군구 원본 코드를 한국어로 표시하기 위한
+// map_region_display_names(provider_code PK, name, level) 조회표를 추가한다.
+// 285개 이름은 V032에서 검증한 provider code snapshot을 사용하되 활성 dataset 생성 시점과
+// 독립적으로 저장한다. viewport regionCode는 기존 필터 계약을 위해 그대로 유지하고,
+// 사용자 표시용 name만 이 표에서 조회한다. 매핑되지 않은 값은 내부 코드 대신 '이 지역'으로 표시한다.
 // V033은 ODII 공개 조회를 활성 revision 전체 Java snapshot 복원에서 PostgreSQL read model로
 // 전환한다. audio_odii_spots.public_id와 audio_odii_stories.public_id는 기존 Java
 // UUID.nameUUIDFromBytes 공개 ID와 동일한 generated stored UUID이며 (public_id, lang_code)
