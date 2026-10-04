@@ -4,7 +4,7 @@
   "request": {
     "method": "GET",
     "path": "/api/v1/map/info/viewport",
-    "query": {"bbox": "126.9,37.4,127.2,37.7", "zoomLevel": 7, "category": "FOOD", "limit": 500}
+    "query": {"bbox": "126.9,37.4,127.2,37.7", "zoomLevel": 7, "category": "FOOD", "limit": 60}
   },
   "response": {
     "status": 200,
@@ -14,6 +14,7 @@
       "renderMode": "CLUSTER",
       "profileVersion": "map-zoom-v1",
       "snapshot": {"id": "rev-20260929-001", "publishedAt": "2026-09-29T03:10:00Z", "status": "PUBLISHED"},
+      "snapshotId": "rev-20260929-001",
       "totalCountInViewport": 1250,
       "items": [
         {

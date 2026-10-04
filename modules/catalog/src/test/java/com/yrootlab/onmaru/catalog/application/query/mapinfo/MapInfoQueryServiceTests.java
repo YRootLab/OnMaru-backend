@@ -72,7 +72,8 @@ class MapInfoQueryServiceTests {
         var response = new MapInfoQueryService(port).list(new MapInfoListQuery(
                 MapInfoCategory.SPOT, null, null, null, null, "ko-KR", 1, "REGION_NAME", null, null));
 
-        assertThat(port.query.canonicalCategories()).containsExactly("SPOT");
+        assertThat(port.query.canonicalCategories())
+                .containsExactly("HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_VILLAGE", "GOTAEK", "SPOT");
         assertThat(response.appliedCategories()).contains("HANOK", "GOTAEK");
         assertThat(response.snapshot().id()).isEqualTo("rev-1");
         assertThat(response.nextCursor()).isNotBlank();
