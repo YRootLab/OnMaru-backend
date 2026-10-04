@@ -356,6 +356,15 @@
       "checksum": "member-profiles-v040-20261004",
       "sha256": "05fb2860d47177f1556f08c5f69daf72416d5a2727e4246b48e19ab37b333ae2",
       "description": "Privacy-first member display names and FE-owned character/background selections"
+    },
+    {
+      "version": "041",
+      "reservedFor": "MAP_REGION_DISPLAY_NAMES",
+      "issueNumber": 630,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V041__630_map_region_display_names.sql",
+      "checksum": "map-region-display-names-v041-20261005",
+      "sha256": "bb9d93741b12484252137f9739132bd8b2c314849a08b0dfd98e7222598d06ae",
+      "description": "Korean viewport labels for TourAPI administrative region codes"
     }
   ]
 }
