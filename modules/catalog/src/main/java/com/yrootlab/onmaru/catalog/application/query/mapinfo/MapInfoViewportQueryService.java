@@ -6,6 +6,7 @@ import java.util.UUID;
 public final class MapInfoViewportQueryService {
 
     private static final String PROFILE_VERSION = "map-zoom-v1";
+    private static final MapInfoBounds SUPPORTED_BOUNDS = new MapInfoBounds(120.0, 30.0, 132.0, 45.0);
 
     private final MapInfoViewportStore store;
 
@@ -15,7 +16,17 @@ public final class MapInfoViewportQueryService {
 
     public MapInfoViewportResponse find(MapInfoViewportQuery query) {
         validate(query);
-        return store.find(query);
+        var bbox = query.bbox();
+        var clipped = new MapInfoBounds(
+                Math.max(bbox.west(), SUPPORTED_BOUNDS.west()),
+                Math.max(bbox.south(), SUPPORTED_BOUNDS.south()),
+                Math.min(bbox.east(), SUPPORTED_BOUNDS.east()),
+                Math.min(bbox.north(), SUPPORTED_BOUNDS.north()));
+        if (clipped.west() >= clipped.east() || clipped.south() >= clipped.north()) {
+            throw new MapInfoViewportInvalidRequestException("bbox");
+        }
+        return store.find(new MapInfoViewportQuery(clipped, query.zoomLevel(), query.category(),
+                query.regionCode(), query.snapshotId(), query.language(), query.limit()));
     }
 
     public static String profileVersion() {

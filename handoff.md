@@ -1,5 +1,36 @@
 # handoff.md
 
+## 2026-10-04 Issue #604 백엔드 viewport 집계·응답 계약 보강 (운영 배포 제외)
+
+- 추가 수정: category projection 행이 누락된 상태에서 `HANOK_CAFE` 장소가 있어도 `category=CAFE`가 0건이 되는 count/item 필터 불일치를 PostgreSQL 통합 테스트로 재현했다. `queryValues`가 `appliedCategories`와 같은 원본·canonical 분류 집합을 사용하도록 수정해 개별 탭도 `ALL`/`HANOK`과 동일한 보장으로 조회한다. 전체 `:modules:catalog:test :apps:spring-api:test`(12분), 3만 건 성능 테스트(1분 8초), `:apps:spring-api:bootJar`, 계약 문서 검증이 통과했다. 운영의 서울 bbox level 8~12는 현재도 `1569/0`이며 운영 SHA는 공개 응답에서 `x-revision: unknown`으로 확인 불가하다.
+- 사용자 결정: 프론트 지도 수정은 별도로 master 배포했고, 이 세션에서는 백엔드 코드 오류만 개선한다. 운영 배포와 운영 smoke는 사용자가 직접 수행한다.
+- 브랜치 `hotfix/604-map-viewport-ux`의 미커밋 변경: category projection 행 누락 시에도 장소의 display category로 CLUSTER/DISTRICT/REGION을 집계하고, viewport 전체 count를 표시 item 제한과 분리한다. 지역 코드 누락 등으로 행정구역 집계가 비면 좌표 기반 CLUSTER로 전환해 장소를 유지한다. 캐시도 양수 count·빈 집계를 저장하지 않는다.
+- FE 계약을 위해 최상위 nullable `snapshotId`를 명시적으로 직렬화하고, viewport 시각 요소를 기본·최대 60개로 제한한다. 일부만 겹치는 bbox는 한국 지원 범위(120–132°E, 30–45°N)와 교집합 조회하고 완전 영역 밖은 `INVALID_REQUEST`로 반환한다. timeout/503은 줌·bbox·category·duration·itemCount를 key-value 로그로 남긴다.
+- TDD: category projection 누락, 제한된 item과 전체 count·PARTIAL coverage, 지역 코드 누락, timeout 로그, snapshotId, bbox 경계, limit=0 테스트에서 수정 전 실패를 확인했다. 수정 후 집중 회귀와 3만 건 성능 테스트가 통과했다. 최종 `./gradlew :modules:catalog:test :apps:spring-api:test`는 12분 26초에 성공했고, `:apps:spring-api:bootJar`, `scripts/verify-contracts --contracts-only`, `git diff --check`, branch parser(#604)도 통과했다.
+- 운영 실제 DB의 category/지역 매핑 상태와 컨테이너 SHA는 확인되지 않았다. 공개 API는 여전히 level 8–12에서 양수 total·빈 items를 반환한다. 배포 후 사용자가 운영 SHA 및 level 5–12 ALL/HANOK 실응답을 확인해야 #604를 완료할 수 있다.
+- 2026-10-04 추가 진단·수정: 운영 서울 bbox `126.9,37.5,127.1,37.7`에서 level 5~7은 1569/60, level 8~12는 1569/0을 재현했다(전체/item 수). `LIMIT 60`이 장소·cluster·district를 조용히 누락시키는 문제를 재현한 후, 밀집 PLACE→CLUSTER, 초과 DISTRICT→REGION→CLUSTER의 순서로 전체 장소를 대표하도록 수정했다. Kakao의 작은 level이 확대라는 규칙에 맞춰 집계 클릭의 `targetZoomLevel`을 현재보다 작게 바꿨다. 다중 category 매핑의 지역 count는 place ID 중복 제거로 계산한다. PostgreSQL/PostGIS 통합 테스트 18건과 `git diff --check`가 통과했다. 운영 DB는 확인되지 않았고 코드는 미커밋·미배포 상태다.
+- 추가 회귀: 같은 bbox에 지역 코드가 있는 장소와 없는 장소가 섞이면 기존 집계는 일부 장소만 표시하면서 `coverage=PARTIAL`이 되는 것을 재현했다. 지역 집계 item count 합계가 `totalCountInViewport`와 다르면 좌표 기반 CLUSTER로 전환하고, 최종 count 불일치는 200으로 숨기지 않고 실패 처리한다. 카테고리별 그룹의 첫 좌표를 지역 전체 중심으로 쓰던 오류와 복수 카테고리 장소가 cluster 중심에 중복 가중되던 오류를 고유 장소 기준 좌표 집계로 수정했다. 각 문제는 실패 테스트→수정→통과로 확인했다.
+- 최신 검증: `./gradlew :modules:catalog:test :apps:spring-api:test --console=plain` 성공(11m55s), 3만 장소 성능 테스트 단독 성공(1m14s), `bash scripts/verify-contracts --contracts-only` 성공, `./gradlew :apps:spring-api:bootJar --console=plain` 성공. 운영 반영은 하지 않았다.
+
+## 2026-10-04 ADR-0016 운영 배포 시간·수동 호출 정책
+
+- 사용자 재확인: 검증된 `master`의 정기 운영 배포는 KST 03:00, 낮 시간 즉시 배포는 `onmaru-production-deploy`의 명시적 호출에 한정한다. `master` push의 build 성공은 운영 배포 성공이 아니다.
+- 이 결정을 `docs/decisions/0016-production-deployment-window.md`에 `proposed`/retrospective ADR로 기록했다. 현재 workflow에는 예약 트리거와 수동 운영 배포 job이 없고 GitHub `production` environment도 없다는 구현 간극을 별도로 명시했다.
+- ADR Toolkit significance 12점(`recommended`), 전체 ADR validate 16건·오류 0건, index 성공.
+
+## 2026-10-04 프로젝트 운영 배포 스킬 위치 정리
+
+- 사용자 요청에 따라 개인 경로의 `onmaru-production-deploy`를 이 저장소의 `skills/onmaru-production-deploy/`에 동일한 내용으로 추가했다. `SKILL.md`와 `agents/openai.yaml`이 원본과 byte-for-byte 일치함을 확인했다.
+- 저장소의 `skills/`를 프로젝트 정본으로 사용한다. 개인 경로의 원본은 다른 프로젝트에서의 사용 가능성을 보존하기 위해 삭제하지 않았다.
+
+## 2026-10-04 Issue #604 운영 재점검 (배포 미완료)
+
+- 현재 작업 브랜치: `hotfix/604-map-viewport-ux` (`origin/develop`의 #606 병합 SHA `c93454d`에서 시작). API 기본 limit과 요청 limit 상한을 60으로 낮추고 controller 회귀 테스트를 추가했다. 테스트는 기존 구현에서 실패한 뒤 수정 후 통과했다.
+- 원격 `master`는 #605 병합 SHA `74e3143`, `develop`은 #606 병합 SHA `c93454d`. `master` push의 Deploy run 37144742725는 이미지 build/scan과 migration gate만 통과했고 운영 배포 job이 없다. `infra/lightsail/staging/README.md`도 master push가 운영 Lightsail을 배포하지 않는다고 명시한다.
+- 2026-10-04 공개 운영 서울 bbox `126.9,37.5,127.1,37.7`, `category=ALL`, `limit=60`: level 5 PLACE 1569/60, 6~7 CLUSTER 1569/60, 8~10 DISTRICT 1569/0, 11~12 REGION 1569/0 (표기: total/items). 최신 #605 구현은 집계 total을 items count 합계로 계산하므로 현재 운영 응답은 해당 구현과 불일치한다. 전국 bbox 8개 병렬 요청은 모두 503으로 끝났다.
+- 운영 이미지/컨테이너의 정확한 SHA는 공개 read-only endpoint로 확인되지 않았다. 운영 DB 행정경계 row 누락·매핑 불일치는 이전 SQL의 필수 JOIN과 현상에 합치하지만 DB 직접 증거는 없다. 기본 캐시 TTL 30초·stale-if-error 30초이므로 장기 지속 현상을 캐시만으로 설명하기 어렵다.
+- 운영 배포 진입점 `deploy_production`/`production-deploy`와 repository variable `PRODUCTION_DEPLOY_ENABLED`가 없어 `onmaru-production-deploy` 절차는 사전 확인에서 중단됐다. 다음 단계는 Git Flow로 운영 배포 진입점 마련 또는 검증된 운영 배포 수단 확인, `74e3143` 이미지/컨테이너 배포 SHA 확인, level 5~12 및 ALL/HANOK smoke, 필요 시 운영 DB read-only 점검이다. Issue #604는 운영 AC를 확인할 때까지 열어 둔다.
+
 ## 2026-10-04 Issue #604 지도 줌아웃 집계 빈 응답·timeout hotfix
 
 - 브랜치: `hotfix/604-map-viewport-aggregates` (`origin/develop` 기준).

@@ -110,7 +110,7 @@ components:
     Bbox:
       name: bbox
       in: query
-      description: west,south,east,north in WGS84 decimal degrees.
+      description: west,south,east,north in WGS84 decimal degrees. Viewport requests are clipped to 120–132°E and 30–45°N; no overlap returns INVALID_REQUEST.
       schema:
         type: string
         pattern: '^-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?$'
@@ -154,11 +154,11 @@ components:
     ViewportLimit:
       name: limit
       in: query
+      description: At most 60 visual items are returned, including when a larger limit is requested.
       schema:
         type: integer
         minimum: 1
-        maximum: 1000
-        default: 500
+        default: 60
   responses:
     InvalidRequest:
       description: Invalid category, bbox, zoom, limit, or cursor input.
@@ -279,7 +279,7 @@ components:
         appliedCategories:
           type: array
           items: { type: string }
-        coverage: { type: string, enum: [COMPLETE, PARTIAL, STALE] }
+        coverage: { type: string, enum: [COMPLETE, PARTIAL, STALE], description: PARTIAL when limited items represent fewer places than totalCountInViewport. }
         projection: { $ref: '#/components/schemas/MapInfoProjectionPublication' }
     MapInfoCategoryCounts:
       type: object
@@ -322,16 +322,17 @@ components:
     MapInfoViewportResponse:
       type: object
       additionalProperties: false
-      required: [schemaVersion, renderMode, profileVersion, snapshot, totalCountInViewport, items, appliedCategories, coverage, servedBbox, projection]
+      required: [schemaVersion, renderMode, profileVersion, snapshot, snapshotId, totalCountInViewport, items, appliedCategories, coverage, servedBbox, projection]
       properties:
         schemaVersion: { type: string, const: '1.0' }
         renderMode: { type: string, enum: [PLACE, CLUSTER, DISTRICT, REGION] }
         profileVersion: { type: string, const: map-zoom-v1 }
         snapshot: { $ref: '#/components/schemas/MapInfoSnapshot' }
+        snapshotId: { type: [string, 'null'], description: Published snapshot ID, or null when unavailable. }
         totalCountInViewport: { type: integer, minimum: 0 }
         items:
           type: array
-          maxItems: 1000
+          maxItems: 60
           items: { $ref: '#/components/schemas/MapInfoViewportItem' }
         appliedCategories:
           type: array
