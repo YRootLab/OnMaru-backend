@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.40](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.39...v0.3.40) (2026-10-04)
+
+
+### Bug Fixes
+
+* **map:** 정보지도 집계의 한국어 지역명 복구 ([43b2a74](https://github.com/YRootLab/OnMaru-backend/commit/43b2a74acce733fa7d3252decee3892160a978c3))
+* **map:** 정보지도 집계의 한국어 지역명 복구 ([#630](https://github.com/YRootLab/OnMaru-backend/issues/630)) ([19bc9f6](https://github.com/YRootLab/OnMaru-backend/commit/19bc9f6a6ed9dbb87cb00f84e7e6a0b46621c61a))
+
+
+### Performance Improvements
+
+* **ci:** adopt verified two-worker Gradle profile ([648d3bd](https://github.com/YRootLab/OnMaru-backend/commit/648d3bde9527c1be2cfaaf1aab1d6a20bcd5eff1))
+
 ## [0.3.39](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.38...v0.3.39) (2026-10-04)
 
 
