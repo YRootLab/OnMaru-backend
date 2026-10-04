@@ -312,7 +312,7 @@ components:
       properties:
         type: { type: string, enum: [CLUSTER, DISTRICT, REGION] }
         id: { type: string }
-        name: { type: string }
+        name: { type: string, description: DISTRICT와 REGION의 한국어 표시명. 내부 지역 코드를 노출하지 않는다. }
         center: { $ref: '#/components/schemas/MapInfoPoint' }
         bounds: { $ref: '#/components/schemas/MapInfoBounds' }
         count: { type: integer, minimum: 0 }

@@ -303,6 +303,32 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     @Test
+    void rawTourApiRegionCodesHaveKoreanViewportNames() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2291", "대전 한옥", "HANOK", "30", "200", "127.33", "36.36"),
+                rowWithRegion("2292", "서울 한옥", "HANOK", "11", "110", "126.98", "37.58")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var repository = new JdbcMapViewportQueryRepository(dataSource);
+        var bbox = new MapInfoBounds(125, 35, 129, 39);
+        var districts = repository.find(new MapInfoViewportQuery(
+                bbox, 9, MapInfoCategory.ALL, null, null, "ko-KR", 60));
+        var regions = repository.find(new MapInfoViewportQuery(
+                bbox, 12, MapInfoCategory.ALL, null, null, "ko-KR", 60));
+
+        assertThat(districts.items()).extracting(MapInfoViewportItem::name)
+                .containsExactlyInAnyOrder("유성구", "종로구");
+        assertThat(regions.items()).extracting(MapInfoViewportItem::name)
+                .containsExactlyInAnyOrder("대전광역시", "서울특별시");
+        assertThat(districts.items()).extracting(MapInfoViewportItem::count).containsOnly(1L);
+        assertThat(regions.items()).extracting(MapInfoViewportItem::count).containsOnly(1L);
+    }
+
+    @Test
     void regionAggregatesRemainVisibleWhenCategoryProjectionRowsAreMissing() throws Exception {
         var publisher = new JdbcTourApiCatalogPublisher(dataSource);
         var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");

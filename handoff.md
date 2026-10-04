@@ -1,11 +1,36 @@
 # handoff.md
 
+## 2026-10-05 Issues #525/#556 CI 3+3 실측 완료
+
+- 브랜치: `feature/525-ci-performance-measurement`; baseline `a91698f`, candidate `b7f1d0d`, controller [37215998513](https://github.com/YRootLab/OnMaru-backend/actions/runs/37215998513).
+- 여섯 run attempt 1이 모두 성공했고 API/artifact identity, 공통 source tree·test plan, final provenance attestation이 검증됐다. Exclusion과 실패는 없다.
+- baseline 4 workers/cache `[495, 711, 712]`초, 중앙값 711초·범위 217초. candidate 2 workers/no-cache `[751, 545, 541]`초, 중앙값 545초·범위 210초.
+- Toolkit 결과는 `comparable`, `no_regression`, relative delta `-0.23347398030942335`; candidate가 중앙값 기준 약 23.35% 짧다. 표본 3회와 큰 범위 때문에 통계적 유의성은 주장하지 않는다.
+- 결정: candidate config를 shared Java CI에 반영하되 required test scope는 유지한다. 병합 후 실제 `CI / verify` 추세가 악화되면 같은 절차로 재측정한다.
+- 다음 단계: 보고서·README·config PR 검증/병합, #525/#556와 Toolkit #122/#135 증적 연결 및 종료. 별도로 #543 release tag 3+3 run은 진행 중이다.
+
+## 2026-10-05 Issue #555 Cloud 왕복 완료 및 #556 실험 준비
+
+- 브랜치: `docs/555-cloud-observability-evidence`; 기준: release `v0.3.39`의 master→develop 역병합 PR #631 merge commit `6af4d0b`.
+- release: PR #629 병합, tag/GitHub Release `v0.3.39` (`86a09b3`), master CI와 image/deploy workflow 성공, PR #631 역병합 완료.
+- Cloud: 성공 source `37212332117`/observer `37212822953`, 실패 source `37214663596`/observer `37215389263` 모두 metrics+traces 2/2 ACK. Tempo 성공 trace `be40e6de233f9411e66f3bc38718f4a`, 실패 trace `f1248afad9e65b7f91118d0e7d228cf8`에서 run ID·result·manifest digest·Toolkit pin 일치를 확인했다.
+- 사용량: Grafana Metrics Drilldown CI/trace metric 16종, Stack Home active series 29·4 DPM·24시간 46 spans·1 service. 현재 trial 14일 잔여이며 공개 Free 한도는 10k active series, traces 50 GB/month, 14일 보존, $0이다.
+- local outage: 8,192 synthetic spans, export failure peak 512, queue pressure 6.25, in-flight 10을 관측하고 Tempo 복구·dashboard smoke·duplicate replay 억제를 확인했다.
+- 다음 단계: 이 문서 PR 검증·병합과 #555 종료 후 `feature/525-ci-performance-measurement`를 최신 develop에 병합하고, Toolkit bootstrap gate로 #556 실제 ci 3+3 dispatch를 정확히 1회 실행한다.
+
 ## 2026-10-05 Issue #625 v0.3.39 CI 통합 운영 승격
 
 - 브랜치: `release/v0.3.39`, 기준: `origin/develop` merge commit `db2474e` (PR #624).
 - 목적: Grafana Cloud 호환 Toolkit pin과 제한된 #556 bootstrap gate를 default branch `master`에 승격해 #555 정식 replay와 실제 3+3 benchmark를 실행 가능하게 한다.
 - 절차: release PR의 필수 CI 통과 → `master` merge → Release Please/tag 확인 → `develop` 역동기화 → 새 default-branch workflow로 live integration 검증.
 - 관련: #543, #554, #555, #556, #568, #625. 실제 ACK·query·attestation 증적 전에는 통합 이슈를 종료하지 않는다.
+## 2026-10-05 운영 정보지도 표시·줌 평가
+
+- 사용자 제보: `onmaru.site` 정보모드에서 줌아웃하면 `30:200` 등 내부 지역 코드가 표시되고 집계 마커가 늦게 갱신됨. 스크린샷 4장 제공.
+- 운영 `GET https://api.onmaru.site/api/v1/map/info/viewport` 재현: level 8 응답 `name=regionCode=30:200`, `count=154`; level 9 응답도 `name=regionCode`가 숫자 코드임. HTTP 200으로 집계 자체는 반환됨.
+- BE 원인 경로: `JdbcTourApiCatalogPublisher`가 지역 매칭 실패 시 raw 코드를 `sido_code` 및 `sigungu_code=concat_ws(':', ...)`로 저장하고, `JdbcMapViewportQueryRepository.regions`가 `catalog_regions` 이름 조회 실패 시 `coalesce(max(region.name), candidates.region_code)`로 코드명을 반환함. `catalog_regions`의 내부 코드는 `kr-*` 형태여서 raw 코드와 불일치할 수 있음. 운영 DB의 실제 매핑 누락 상태는 미확인.
+- FE 표시·지연 경로: `ViewportOverlays`가 응답 `item.name`과 `count`를 그대로 표시하고 200 이상은 `200+`로 절단. `viewportRefreshPolicy`는 idle 후 900ms, 2단계 이상 줌 변화에만 commit; `useInfoMapData`가 추가로 700ms debounce 후 요청. 응답 전 이전 마커를 유지하므로 1단계 줌 시 오래된 집계가 보일 수 있음.
+- 2026-10-05 후속 구현: BE Issue #630, 브랜치 `fix/630-map-region-names`. V041에 V032 검증 목록의 285개 한국어 행정구역 표시명을 활성 dataset 시점과 독립된 조회표로 추가하고, viewport 조회에서 raw `30:200`·`11:110`을 `유성구`·`종로구`로 표시한다. `regionCode`는 목록 필터 계약을 위해 유지하며 미매핑 이름은 `이 지역`으로 반환한다. PostgreSQL 통합 회귀에서 실패→통과를 확인했다. 집계 후 이름 조회로 쿼리를 바꾼 뒤 publisher 전체 24건(3만 장소 성능 기준 포함), 계약 검증, migration registry 정책이 통과했다. FE Issue #325는 별도 worktree `fix/325-map-zoom`에서 지도 테스트 149건·TypeScript·ESLint·production build를 통과하고 원격 브랜치까지 게시했다. 운영 배포는 미수행.
 
 ## 2026-10-04 Issues #543/#554/#555/#556 실 통합 검증
 
@@ -243,3 +268,11 @@
 - Issue 상태: #586은 이번 CD 보강 외에도 SSH 22 `/32` 제한, 실제 backup 격리 restore, rollback 기간과 Render·Neon 정리 결과를 완료 기준으로 가지므로 이 PR에는 `Refs #586`을 사용하고 merge 뒤에도 해당 운영 증거가 생길 때까지 열어 둔다.
 - release 전 staging 재검증에서 production preflight의 의도된 `skipped`가 간접 의존성으로 전파되어 migration/staging deploy까지 skip되는 현상을 재현했다. `migration-gate`가 image build 성공을 명시적으로 판정하도록 `always()` 조건을 추가하고 회귀 계약 테스트를 남겼다.
 - 후속 Actions run `37178635461`에서 image build와 migration gate는 성공했지만 같은 skip 전파가 `staging-deploy`에도 남아 있음을 확인했다. staging deploy/smoke가 `always()`에서 직접 build·migration 성공을 판정하도록 보강하고 두 job의 회귀 계약을 추가했다.
+
+## 2026-10-05 Issue #543 release module benchmark evidence
+
+- 브랜치: `docs/543-release-benchmark-evidence`; 기준: PR #633 merge commit `648d3bd`가 반영된 최신 `origin/develop`.
+- 범위: v0.3.38/v0.3.39의 `Module Benchmark`를 각각 서로 다른 3회 실행하고, 같은 `spring-api-postgres-other` module의 검토된 evidence를 Release asset으로 보존한 뒤 고정 Toolkit comparator로 release 판정을 재현한다.
+- 관련 이슈: [#543](https://github.com/YRootLab/OnMaru-backend/issues/543). 완료 조건은 3+3 중앙값 비교, 15% 초과 회귀의 승인 보류, 원본 run/artifact link 보존, 단일 정본 판정 및 계약 테스트 통과다.
+- 현재 증적: 여섯 실행이 모두 성공했다. v0.3.38 값은 467.05/341.36/394.40초, v0.3.39 값은 471.61/411.86/457.93초다. 중앙값 delta는 +16.108%로 `approval_hold`이며 자동 통과시키지 않는다.
+- 상태: 두 Release asset과 v0.3.39 비교 asset 업로드, README/운영 보고서 반영, 정본 comparator 재실행과 계약 테스트 35개 통과. 이 문서 PR 병합 후 #543과 Toolkit #115를 종료한다.

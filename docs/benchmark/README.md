@@ -9,6 +9,10 @@ Toolkit PR #130의 module comparator로 baseline/candidate 각 3회 중앙값을
 Release의 검토된 `release-module-evidence.json` asset이다. W4의 5% 비교와 trend는
 진단 전용이며 [정본 계약](contracts.md)에 입력 schema와 신뢰 경계를 명시한다.
 
+실제 v0.3.38 → v0.3.39 3+3 비교에서는 중앙값이 394.40초에서 457.93초로 늘어
+relative delta `+16.108%`, `approval_hold`가 됐다. 자동 승인하지 않으며 원본 여섯 run과
+Release asset, 재현 명령은 [실측 보고서](../reports/2026-10-05-release-module-benchmark.md)에 있다.
+
 `Module Benchmark`는 CI·테스트 코드·테스트 도구 변경이 `develop`에 반영될 때만 자동으로
 증적을 수집하며, 필요하면 `workflow_dispatch`로 수동 실행한다. 일반 코드 변경 PR에서는
 필수 `CI / verify`만 실행한다. 자동 실행 경로 목록은
@@ -111,17 +115,18 @@ working tree 밖에 저장한다. 실제 비교는 Toolkit의 `pipeline-experime
 
 ```bash
 pipeline-toolkit experiment dry-run --repo-root "$PWD" --scope ci --reason 'Gradle worker 비교'
-# 아래 명령은 외부 gate 해결 후 사용자가 명시적으로 승인한 실험에서만 실행한다.
-pipeline-toolkit experiment dispatch --repo-root "$PWD" --scope ci --reason 'Gradle worker 비교' > /tmp/onmaru-experiment-receipt.json
+# 최초 통합 1회만 #135 bootstrap gate를 명시한다. 이후에는 두 이슈가 닫혀 있어야 한다.
+pipeline-toolkit experiment dispatch --repo-root "$PWD" --scope ci --reason 'Gradle worker 비교' --bootstrap-integration > /tmp/onmaru-experiment-receipt.json
 pipeline-toolkit experiment wait --receipt /tmp/onmaru-experiment-receipt.json > /tmp/onmaru-experiment-result.json
 # result의 collection 객체를 별도 collection.json으로 저장한 뒤 offline 재계산한다.
 pipeline-toolkit experiment compare --input /tmp/onmaru-experiment-collection.json --format markdown
 node --test scripts/test/pipeline-benchmark-experiment.test.mjs
 ```
 
-실 통합은 **pending external gate**다. Toolkit은 POST 전에 OnMaruBE #555/#556의 `closed`를
-요구하지만 #556 acceptance 자체에 실 dispatch가 포함되어 순환한다. Gate/acceptance 순서의
-승인된 정리가 필요하며 이 helper나 skill로 우회하지 않는다. 또한 두 workflow 모두
+Toolkit #135/PR #136은 최초 통합에 한해 `--bootstrap-integration`을 허용한다. 이 모드는 #555가
+닫혔고 #556만 열려 있는 상태, 정확한 저장소·workflow·scope에서만 동작하며 receipt에 bootstrap
+사용 사실을 남긴다. 일반 실행은 OnMaruBE #555/#556이 모두 닫혀 있어야 하며 helper나 skill로
+gate를 우회하지 않는다. 또한 두 workflow 모두
 [default branch에 존재해야 수동 실행이 가능하므로](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch)
 `develop` 병합만으로 live availability를 주장하지 않는다. Multi-scope plan 검증은
 [Toolkit #131](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/issues/131) /
@@ -130,6 +135,10 @@ node --test scripts/test/pipeline-benchmark-experiment.test.mjs
 plan을 수집할 수 없으므로 동일 commit으로 설치해야 한다. Module/release/관측 후처리의
 활성 pin도 같은 commit으로 맞췄다. Fake API/로컬 테스트 통과는 실제 dispatch, 기본 브랜치 가용성,
 시간 API 가용성, provenance 업로드 검증을 대신하지 않는다.
+
+### 2026-10-05 실제 `ci` 3+3 결과
+
+[controller run 37215998513](https://github.com/YRootLab/OnMaru-backend/actions/runs/37215998513)에서 baseline `4 workers/cache`와 candidate `2 workers/no-cache`를 같은 application source와 committed plan으로 실행했다. Baseline `[495, 711, 712]`초의 중앙값은 711초, candidate `[751, 545, 541]`초의 중앙값은 545초였다. 여섯 run 모두 성공했고 artifact identity와 최종 attestation이 검증됐다. Toolkit verdict는 `no_regression`, relative delta는 `-0.23347398030942335`다. 이 필드는 `(candidate - baseline) / baseline`이므로 약 23.35% 단축을 뜻한다. 각 side 범위가 217초와 210초라 3회 결과만으로 통계적 유의성을 주장하지 않는다. 전체 provenance와 개별 링크는 [실측 보고서](../reports/2026-10-05-ci-performance-measurement.md)에 보존한다.
 
 ## Java required lane 유지 결정 (#525)
 

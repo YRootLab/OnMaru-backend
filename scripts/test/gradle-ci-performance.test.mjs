@@ -12,6 +12,19 @@ function read(path) {
   return readFileSync(join(root, path), 'utf8');
 }
 
+function performanceConfig(properties) {
+  const value = key => {
+    const matches = properties.match(new RegExp(`^${key.replaceAll('.', '\\.') }=(.+)$`, 'gm')) ?? [];
+    assert.equal(matches.length, 1, `${key} must be defined exactly once`);
+    return matches[0].slice(key.length + 1);
+  };
+  const workers = value('onmaru.ci.performance.max-workers');
+  const cache = value('onmaru.ci.performance.build-cache');
+  assert.match(workers, /^[1-4]$/, 'worker count must stay in the experiment allowlist');
+  assert.match(cache, /^(?:true|false)$/, 'build cache must be boolean');
+  return { workers: Number(workers), cache: cache === 'true' };
+}
+
 test('CI Gradle performance profile is opt-in and bounded', () => {
   const propertiesPath = 'gradle.properties';
   const initScriptPath = 'build-logic/ci-performance.gradle.kts';
@@ -21,8 +34,7 @@ test('CI Gradle performance profile is opt-in and bounded', () => {
 
   const properties = read(propertiesPath);
   assert.match(properties, /^onmaru\.ci\.performance\.enabled=false$/m);
-  assert.match(properties, /^onmaru\.ci\.performance\.max-workers=4$/m);
-  assert.match(properties, /^onmaru\.ci\.performance\.build-cache=true$/m);
+  performanceConfig(properties);
   assert.doesNotMatch(properties, /^org\.gradle\.(?:parallel|caching|max\.workers)=/m);
 
   const initScript = read(initScriptPath);
@@ -36,13 +48,14 @@ test('CI Gradle performance profile is opt-in and bounded', () => {
 });
 
 test('committed benchmark plans and shared Java CI actually apply the Gradle profile', { timeout: 240000 }, () => {
+  const committedConfig = performanceConfig(read('gradle.properties'));
   const workflow = spawnSync('ruby', ['-r', 'yaml', '-r', 'json', '-e', 'puts JSON.generate(YAML.load_file(ARGV[0]))', '.github/workflows/ci.yml'], { encoding: 'utf8' });
   assert.equal(workflow.status, 0, workflow.stderr);
   const javaRun = JSON.parse(workflow.stdout).jobs.java.steps.find(step => step.run?.includes('./gradlew')).run;
   const cases = [
     { name: 'ci benchmark', argv: commandArguments(selectPlan(Buffer.from(read('.github/pipeline-benchmark-test-plan.json')), 'ci').commands[0], { max_workers: 2, build_cache: false }), workers: 2, cache: false },
     { name: 'test benchmark', argv: commandArguments(selectPlan(Buffer.from(read('.github/pipeline-benchmark-test-plan.json')), 'test').commands[0], { max_workers: 3, build_cache: true }), workers: 3, cache: true },
-    { name: 'shared Java CI', argv: javaRun.replace(/\\\n/g, ' ').trim().split(/\s+/), workers: 4, cache: true },
+    { name: 'shared Java CI', argv: javaRun.replace(/\\\n/g, ' ').trim().split(/\s+/), ...committedConfig },
   ];
   const failures = [];
   for (const entry of cases) {
