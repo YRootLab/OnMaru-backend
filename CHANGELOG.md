@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.39](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.38...v0.3.39) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ci:** Cloud 관측과 benchmark 실통합 준비 ([db2474e](https://github.com/YRootLab/OnMaru-backend/commit/db2474e46d1d95ae6f05240630b2968b782d7969))
+* **ci:** Cloud 호환 Toolkit pin과 bootstrap 연동 ([#555](https://github.com/YRootLab/OnMaru-backend/issues/555) [#556](https://github.com/YRootLab/OnMaru-backend/issues/556)) ([bb83e76](https://github.com/YRootLab/OnMaru-backend/commit/bb83e7633384fb11cbc3afaf3598f4e3a6cf839b))
+
+## Changelog
+
 This project uses semantic version tags from `master`. Release notes should be generated from Conventional Commits through Release Please once releasable backend changes exist.
 
 ## Unreleased

@@ -219,7 +219,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: YRootLab/OnMaru-backend-ci-toolkit
-          ref: d5b7892875000afc2deba6e6873717974d558ee5
+          ref: 7ecbb89aae771604d9c1c532cf123f239e279110
           path: .toolkit-release
           persist-credentials: false
       - name: Collect selected release module evidence
@@ -250,7 +250,7 @@ jobs:
           CANDIDATE_SHA: ${{ needs.build-and-scan.outputs.commit-sha }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          test "$(git -C .toolkit-release rev-parse HEAD)" = d5b7892875000afc2deba6e6873717974d558ee5
+          test "$(git -C .toolkit-release rev-parse HEAD)" = 7ecbb89aae771604d9c1c532cf123f239e279110
           python3 scripts/benchmark/release-module-comparison.py \
             --baseline benchmark/module-input/baseline/release-module-evidence.json \
             --candidate benchmark/module-input/candidate/release-module-evidence.json \
@@ -300,7 +300,7 @@ jobs:
             --repository '${{ github.repository }}' \
             --artifact-uri 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
             --runner-profile 'ubuntu-latest-linux-amd64' \
-            --toolkit-version 'd5b7892875000afc2deba6e6873717974d558ee5' \
+            --toolkit-version '7ecbb89aae771604d9c1c532cf123f239e279110' \
             --wall-clock-seconds '${{ steps.compare.outputs.wall-clock-seconds }}' \
             --output benchmark/onmaru-backend/$RELEASE_TAG/trend-manifest.json
           node scripts/benchmark/workflow-support.mjs gate --comparison benchmark/reports/comparison.json --output benchmark/onmaru-backend/$RELEASE_TAG/gate.json
@@ -355,7 +355,7 @@ jobs:
   trend-comparison:
     if: github.event.repository.fork != true && needs.comparison.result == 'success'
     needs: [build-and-scan, baseline-lookup, comparison]
-    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@d5b7892875000afc2deba6e6873717974d558ee5
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@7ecbb89aae771604d9c1c532cf123f239e279110
     with:
       release-tag: ${{ needs.build-and-scan.outputs.release-tag }}
       commit-sha: ${{ needs.build-and-scan.outputs.commit-sha }}
@@ -363,7 +363,7 @@ jobs:
       environment: staging
       suite: onmaru-release-smoke
       config-hash: ${{ needs.comparison.outputs.config-hash }}
-      toolkit-ref: d5b7892875000afc2deba6e6873717974d558ee5
+      toolkit-ref: 7ecbb89aae771604d9c1c532cf123f239e279110
       candidate-artifact-name: trend-manifest-${{ needs.build-and-scan.outputs.release-tag }}
       history-release-tags: ${{ needs.baseline-lookup.outputs.baseline-tag }}
 

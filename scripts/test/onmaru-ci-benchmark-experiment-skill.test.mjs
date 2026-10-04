@@ -11,7 +11,7 @@ const helper = path.join(
   repoRoot,
   'skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py',
 );
-const toolkitRef = 'd5b7892875000afc2deba6e6873717974d558ee5';
+const toolkitRef = '7ecbb89aae771604d9c1c532cf123f239e279110';
 const fakeInstallations = new Map();
 
 async function fakeInstallation(commitId) {
@@ -135,6 +135,14 @@ test('dispatch requires a current-call authorization flag and never invokes Tool
   assert.equal(allowed.status, 0, allowed.stderr);
   assert.deepEqual(JSON.parse(await readFile(fake.argvPath, 'utf8')), [
     'experiment', 'dispatch', '--repo-root', repoRoot, '--scope', 'ci', '--reason', 'cache 비교',
+  ]);
+
+  const bootstrap = invoke(fake.executable, fake.argvPath, [
+    'dispatch', '--authorize-dispatch', '--bootstrap-integration', '--scope', 'ci', '--reason', '최초 통합 검증',
+  ], { FAKE_STDOUT: '{"experiment_run":{"id":43}}\n' });
+  assert.equal(bootstrap.status, 0, bootstrap.stderr);
+  assert.deepEqual(JSON.parse(await readFile(fake.argvPath, 'utf8')), [
+    'experiment', 'dispatch', '--repo-root', repoRoot, '--scope', 'ci', '--reason', '최초 통합 검증', '--bootstrap-integration',
   ]);
 });
 

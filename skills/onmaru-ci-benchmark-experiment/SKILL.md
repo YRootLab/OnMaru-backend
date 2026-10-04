@@ -24,15 +24,17 @@ OnMaruBE의 pipeline 설정 변경을 고정된 `develop`과 비교할 때만 �
 
 `dispatch`는 **현재 대화에서 사용자가 실제 실행을 명시적으로 요청한 경우에만** `--authorize-dispatch`를 붙인다. POST 응답이 유실되거나 모호하면 이미 실행됐을 수 있다. **절대 재-dispatch하지 말고** GitHub Actions에서 확인할 run을 안내한 뒤 멈춘다.
 
+#555가 종료됐고 #556만 실제 dispatch 완료 조건 때문에 열려 있는 최초 통합 검증에서는 Toolkit의 제한된 `--bootstrap-integration`을 함께 전달한다. 이 옵션은 #555를 우회할 수 없고 #556 종료 후에는 사용할 수 없다.
+
 ## 준비
 
 Python 3.9+, `git`, 인증된 `gh`, 고정 Toolkit CLI가 필요하다. Toolkit은 다음 커밋으로 설치하고 실행 환경에도 같은 ref를 지정한다.
 
 ```sh
 python3 -m venv /tmp/onmaru-pipeline-toolkit-venv
-/tmp/onmaru-pipeline-toolkit-venv/bin/python -m pip install 'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@d5b7892875000afc2deba6e6873717974d558ee5'
+/tmp/onmaru-pipeline-toolkit-venv/bin/python -m pip install 'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@7ecbb89aae771604d9c1c532cf123f239e279110'
 export ONMARU_PIPELINE_TOOLKIT_BIN=/tmp/onmaru-pipeline-toolkit-venv/bin/pipeline-toolkit
-export ONMARU_PIPELINE_TOOLKIT_REF=d5b7892875000afc2deba6e6873717974d558ee5
+export ONMARU_PIPELINE_TOOLKIT_REF=7ecbb89aae771604d9c1c532cf123f239e279110
 ```
 
 helper는 console script가 사용하는 Python distribution의 `direct_url.json`에서 repository와 commit을 검증한다. 설치 확인은 Python isolated mode로 실행해 consumer 현재 디렉터리, `PYTHONPATH`, user-site package를 검색하지 않는다. 위처럼 전용 virtualenv에 설치하거나 해당 interpreter의 system site-packages에 설치한다. Package를 import하기 전에 module 경로와 distribution 소유권을 확인하며 ref 환경변수 문자열만 맞는 실행 파일은 거부한다.
@@ -54,6 +56,8 @@ Dry-run 결과에서 immutable baseline/candidate SHA, scope, policy, workflow, 
 python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py dispatch \
   --authorize-dispatch --scope ci --reason 'Gradle worker 비교'
 ```
+
+최초 #556 통합 실행에만 `--bootstrap-integration`을 추가한다.
 
 receipt는 working tree 밖에 저장한다. 이후 `wait --receipt <path>`로 그 exact run/attempt만 기다리고, `compare --input <collection>`으로 offline replay한다. 최신 run을 대신 선택하거나 표본을 자동 추가하지 않는다.
 

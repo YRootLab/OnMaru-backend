@@ -107,7 +107,7 @@ test('workflow YAML structure preserves ordering, least privilege and fork guard
 test('workflow preserves reusable trend evidence through a pinned toolkit contract', async () => {
   const fs = await import('node:fs/promises');
   const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
-  const pinnedRef = 'd5b7892875000afc2deba6e6873717974d558ee5';
+  const pinnedRef = '7ecbb89aae771604d9c1c532cf123f239e279110';
   assert.match(yaml, /trend-manifest\.json/);
   assert.match(yaml, /trend-manifest-\$\{\{ needs\.build-and-scan\.outputs\.release-tag \}\}/);
   assert.match(yaml, new RegExp(`YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@${pinnedRef}`));
@@ -127,7 +127,7 @@ test('only the canonical module result owns release approval and W4 remains diag
   const approval = yaml.split('\n  regression-approval:')[1];
   assert.match(comparison, /release-module-comparison\.py/);
   assert.match(comparison, /release-module-evidence\.json/);
-  assert.match(comparison, /ref: d5b7892875000afc2deba6e6873717974d558ee5/);
+  assert.match(comparison, /ref: 7ecbb89aae771604d9c1c532cf123f239e279110/);
   assert.match(comparison, /gate: \$\{\{ steps\.module-comparison\.outputs\.gate \}\}/);
   assert.match(approval, /needs\.comparison\.outputs\.gate == 'approval_hold'/);
   assert.match(approval, /environment: benchmark-promotion/);
