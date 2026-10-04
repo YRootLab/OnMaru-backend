@@ -9,6 +9,10 @@ Toolkit PR #130의 module comparator로 baseline/candidate 각 3회 중앙값을
 Release의 검토된 `release-module-evidence.json` asset이다. W4의 5% 비교와 trend는
 진단 전용이며 [정본 계약](contracts.md)에 입력 schema와 신뢰 경계를 명시한다.
 
+실제 v0.3.38 → v0.3.39 3+3 비교에서는 중앙값이 394.40초에서 457.93초로 늘어
+relative delta `+16.108%`, `approval_hold`가 됐다. 자동 승인하지 않으며 원본 여섯 run과
+Release asset, 재현 명령은 [실측 보고서](../reports/2026-10-05-release-module-benchmark.md)에 있다.
+
 `Module Benchmark`는 CI·테스트 코드·테스트 도구 변경이 `develop`에 반영될 때만 자동으로
 증적을 수집하며, 필요하면 `workflow_dispatch`로 수동 실행한다. 일반 코드 변경 PR에서는
 필수 `CI / verify`만 실행한다. 자동 실행 경로 목록은
