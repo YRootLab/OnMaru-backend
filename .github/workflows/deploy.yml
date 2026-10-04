@@ -216,6 +216,7 @@ jobs:
           category: ai-service
 
   migration-gate:
+    if: always() && needs.build-and-scan-images.result == 'success'
     runs-on: ubuntu-latest
     needs: build-and-scan-images
     environment: staging
