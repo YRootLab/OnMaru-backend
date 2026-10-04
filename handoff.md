@@ -187,3 +187,4 @@
 - 프로젝트 skill: `skills/onmaru-production-deploy/SKILL.md`이며 로컬 discoverability용 사본은 `~/.codex/skills/onmaru-production-deploy`에 있다. “온마루/AWS/Lightsail 운영 배포해줘” 또는 `$onmaru-production-deploy` 직접 호출에서 `deploy.yml`을 `master`/`deploy_production=true`로 한 번 dispatch하고 결과를 관찰한다. `develop`의 release/master 승격은 사용자가 함께 명시했을 때만 선행한다. 설명·상태·스테이징 요청은 배포 권한으로 해석하지 않는다.
 - Issue 상태: #586은 이번 CD 보강 외에도 SSH 22 `/32` 제한, 실제 backup 격리 restore, rollback 기간과 Render·Neon 정리 결과를 완료 기준으로 가지므로 이 PR에는 `Refs #586`을 사용하고 merge 뒤에도 해당 운영 증거가 생길 때까지 열어 둔다.
 - release 전 staging 재검증에서 production preflight의 의도된 `skipped`가 간접 의존성으로 전파되어 migration/staging deploy까지 skip되는 현상을 재현했다. `migration-gate`가 image build 성공을 명시적으로 판정하도록 `always()` 조건을 추가하고 회귀 계약 테스트를 남겼다.
+- 후속 Actions run `37178635461`에서 image build와 migration gate는 성공했지만 같은 skip 전파가 `staging-deploy`에도 남아 있음을 확인했다. staging deploy/smoke가 `always()`에서 직접 build·migration 성공을 판정하도록 보강하고 두 job의 회귀 계약을 추가했다.
