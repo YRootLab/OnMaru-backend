@@ -1,5 +1,12 @@
 # handoff.md
 
+## 2026-10-05 Issue #625 v0.3.39 CI 통합 운영 승격
+
+- 브랜치: `release/v0.3.39`, 기준: `origin/develop` merge commit `db2474e` (PR #624).
+- 목적: Grafana Cloud 호환 Toolkit pin과 제한된 #556 bootstrap gate를 default branch `master`에 승격해 #555 정식 replay와 실제 3+3 benchmark를 실행 가능하게 한다.
+- 절차: release PR의 필수 CI 통과 → `master` merge → Release Please/tag 확인 → `develop` 역동기화 → 새 default-branch workflow로 live integration 검증.
+- 관련: #543, #554, #555, #556, #568, #625. 실제 ACK·query·attestation 증적 전에는 통합 이슈를 종료하지 않는다.
+
 ## 2026-10-04 Issues #543/#554/#555/#556 실 통합 검증
 
 - 브랜치: `fix/543-556-integration` (`origin/develop` 기준), 관련 이슈: #543, #554, #555, #556 및 Toolkit #122/#115.
