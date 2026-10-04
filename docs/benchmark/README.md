@@ -132,6 +132,10 @@ plan을 수집할 수 없으므로 동일 commit으로 설치해야 한다. Modu
 활성 pin도 같은 commit으로 맞췄다. Fake API/로컬 테스트 통과는 실제 dispatch, 기본 브랜치 가용성,
 시간 API 가용성, provenance 업로드 검증을 대신하지 않는다.
 
+### 2026-10-05 실제 `ci` 3+3 결과
+
+[controller run 37215998513](https://github.com/YRootLab/OnMaru-backend/actions/runs/37215998513)에서 baseline `4 workers/cache`와 candidate `2 workers/no-cache`를 같은 application source와 committed plan으로 실행했다. Baseline `[495, 711, 712]`초의 중앙값은 711초, candidate `[751, 545, 541]`초의 중앙값은 545초였다. 여섯 run 모두 성공했고 artifact identity와 최종 attestation이 검증됐다. Toolkit verdict는 `no_regression`, relative delta는 `-0.23347398030942335`다. 이 필드는 `(candidate - baseline) / baseline`이므로 약 23.35% 단축을 뜻한다. 각 side 범위가 217초와 210초라 3회 결과만으로 통계적 유의성을 주장하지 않는다. 전체 provenance와 개별 링크는 [실측 보고서](../reports/2026-10-05-ci-performance-measurement.md)에 보존한다.
+
 ## Java required lane 유지 결정 (#525)
 
 현재 required CI는 shared GitHub-hosted runner의 `Java 모듈 및 Spring API 전체 테스트`
