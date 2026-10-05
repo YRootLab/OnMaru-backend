@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.41...v0.4.0) (2026-10-05)
+
+
+### Features
+
+* **presence:** 실시간 온기(Live Presence) SSE 스트림 구현 ([5f78608](https://github.com/YRootLab/OnMaru-backend/commit/5f786080628bb7ad8b736ad9338f18d1de849b7c))
+* **staging:** 공개 API fixture 확장 ([991be16](https://github.com/YRootLab/OnMaru-backend/commit/991be16598f1aaad5d72e83135981a51670c0ea5))
+* **staging:** 공개 API fixture 확장 ([6dc9224](https://github.com/YRootLab/OnMaru-backend/commit/6dc922488ba6b60703907ad5d00a6eb51c8cac59))
+
+
+### Bug Fixes
+
+* **api:** 정보지도 category 필수화와 소리마루 테마 조회 복구 ([25c8538](https://github.com/YRootLab/OnMaru-backend/commit/25c853831c9c0004643f2c021f78ede7ea9ffbf6))
+* **api:** 정보지도 카테고리 계약과 소리마루 테마 조회 수정 ([832bb48](https://github.com/YRootLab/OnMaru-backend/commit/832bb4875595bc0c699e570e41aa74082e261005))
+* **audio:** 소리마루 테마 분류 범위와 정확도 개선 ([f25d438](https://github.com/YRootLab/OnMaru-backend/commit/f25d4385077c958af9ae71f02317c94a1484e9b9))
+* **presence:** application.yaml onmaru.web 중복 키 수정 ([4bd1381](https://github.com/YRootLab/OnMaru-backend/commit/4bd1381c698f82007bf9e708b3d42ae5b4c7066e))
+* **presence:** develop 브랜치 변경사항 merge (JourneyAi quota) ([9c8ecd9](https://github.com/YRootLab/OnMaru-backend/commit/9c8ecd9f0906c8e1a53c8638e3d226ffe6c92d57))
+* **presence:** SSE cleanup 이중 호출 및 IP 탐지 기본값 수정 ([a392e7e](https://github.com/YRootLab/OnMaru-backend/commit/a392e7ed573466c431ffd66145cb2bd2286c66c8))
+
+
+### Reverts
+
+* **presence:** forward-headers-strategy 기본값을 none으로 복구 ([94a5bb9](https://github.com/YRootLab/OnMaru-backend/commit/94a5bb9b083f34f36e6e4de7febaace325ecd6fc))
+
 ## [0.3.41](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.40...v0.3.41) (2026-10-05)
 
 
