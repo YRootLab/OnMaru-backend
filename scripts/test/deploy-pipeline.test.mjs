@@ -65,6 +65,13 @@ describe('container and staging release pipeline', () => {
     assert.ok(plan.smoke.endpoints.includes('/ready'));
   });
 
+  it('keeps staging fixtures deterministic by disabling startup source sync', () => {
+    const compose = read('infra/lightsail/staging/compose.yaml');
+
+    assert.match(compose, /ONMARU_TOURAPI_SYNC_ON_STARTUP:\s*["']false["']/);
+    assert.match(compose, /ONMARU_ODII_SYNC_ON_STARTUP:\s*["']false["']/);
+  });
+
   it('publishes a manual staging workflow with image build scan smoke and rollback jobs', () => {
     const workflow = read('.github/workflows/deploy.yml');
 

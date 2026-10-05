@@ -13,6 +13,14 @@
 - 사용자 결정: 정보지도 FE 기본 선택은 `HANOK`; BE의 viewport·places API는 기본 카테고리 없이 명시적 `category`만 받으며 누락·`ALL`은 거부한다. 정보모드 `전체` 칩은 제거하고 온기모드 `전체 온기`는 유지한다. viewport 60개 상한은 이번 변경에서 유지한다.
 - 관련 이슈: BE #646, FE #334. 설계: `docs/superpowers/specs/2026-10-06-map-info-category-contract-design.md`.
 - 설계 후 구현은 `fix/646-category-contract-and-odii-themes`에서 진행 중이다. 정보지도 FE를 먼저 배포한다.
+## 2026-10-06 Issue #647 스테이징 공개 API fixture
+
+- 브랜치: `feature/647-staging-api-fixtures`, 관련 Issue: #647.
+- 요청: 소리마루 한 기능이 아니라 로컬/스테이징 FE가 호출하는 공개 API 흐름에 응답할 합성 fixture를 스테이징 DB에 제공한다.
+- 구현: 기존 장소 2건 seed를 장소 4건, 후기 3건(공개 2·숨김 1), Odii story 3건으로 확장하고 지도 projection·장소 상세 이미지/태그·후기·장소↔오디오 연결을 고정 ID로 구성했다. `p-staging-hanok-a`가 대표 cross-surface fixture다.
+- 안전: `onmaru_staging` DB 이름 guard와 운영 데이터 미사용 원칙을 유지하고, 모든 insert는 재실행 가능하도록 conflict 처리를 둔다. 스테이징 Odii 공개 host는 fixture 음원용 `samplelib.com`만 추가했다.
+- 검증: `:apps:spring-api:compileTestJava`와 `git diff --check` 통과. PostGIS에서 seed 두 번 실행·연결 row·비-staging 거부를 검증하는 `StagingFixtureTests`를 추가했다. 로컬 디스크 full 당시 Docker VM 로그 쓰기가 실패한 뒤 engine socket이 timeout 상태여서 Testcontainers 실행은 GitHub CI 게이트에서 확인한다.
+- 다음 단계: 코드 리뷰 반영, PR CI `verify` 통과 후 develop 병합, Issue reconcile, 검증된 develop image 스테이징 반영과 실제 공개 API smoke를 수행한다.
 
 ## 2026-10-05 Release v0.3.41 (#641)
 ## 2026-10-05 FE 실시간 온기 요청 사전 검토

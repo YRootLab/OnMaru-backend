@@ -32,7 +32,9 @@ ssh -i ~/.ssh/onmaru-staging onmaru-staging-operator@13.125.191.16 status
 ssh -i ~/.ssh/onmaru-staging onmaru-staging-operator@13.125.191.16 stop
 ```
 
-`start`는 운영 PostgreSQL health를 먼저 확인하고, 스테이징 DB→Flyway→Spring 순서로 기동한다. Flyway가 빈 DB에 schema를 만든 후 `seed.sql`의 합성 장소 2개를 넣는다. 실패하면 스테이징 컨테이너를 중지한다. 사용 중에도 2시간 뒤 자동 중지되므로 더 필요하면 `start`를 다시 실행해 timer를 갱신한다. `status`는 컨테이너 상태와 자동 중지 예정 시각을 출력한다. 스테이징 인증키와 DB는 운영과 별도다.
+`start`는 운영 PostgreSQL health를 먼저 확인하고, 스테이징 DB→Flyway→Spring 순서로 기동한다. Flyway가 schema를 만든 후 `seed.sql`에 고정된 합성 fixture를 넣는다. fixture에는 공개 장소 4건, 공개·숨김 후기 3건, Odii story 3건과 지도 projection·이미지·태그·장소 연결이 포함된다. 지도에서 얻은 `p-staging-hanok-a`로 장소 상세, 공개 후기, 연결 오디오 흐름을 이어서 확인할 수 있다. seed는 같은 DB에 반복 적용해도 중복되지 않는다. 실패하면 스테이징 컨테이너를 중지한다. 사용 중에도 2시간 뒤 자동 중지되므로 더 필요하면 `start`를 다시 실행해 timer를 갱신한다. `status`는 컨테이너 상태와 자동 중지 예정 시각을 출력한다. 스테이징 인증키와 DB는 운영과 별도다.
+
+fixture의 이미지와 짧은 오디오 샘플은 각각 `picsum.photos`, `samplelib.com`의 공개 테스트 자원을 사용한다. 이 host들은 fixture 렌더링 확인 용도이며 운영 데이터나 회원·세션 정보는 포함하지 않는다.
 
 이미 healthy인 상태에서 `start`를 다시 실행하면 컨테이너를 재시작하지 않고 자동 종료 시간만 갱신한다. 새 이미지 SHA를 적용할 때는 운영자가 `stop` 후 staging `.env`를 갱신하고 이미지를 pull한 뒤 `start`를 실행한다.
 
@@ -40,6 +42,6 @@ ssh -i ~/.ssh/onmaru-staging onmaru-staging-operator@13.125.191.16 stop
 
 ## 확인과 배포 상태
 
-운영자는 첫 기동 시 Spring health, Flyway, 합성 장소 조회, CSRF, OAuth redirect, FE 로그인·쓰기·SSE 및 운영 health를 확인한다. `docker stats`와 `free -h`로 동시 실행 시 swap·메모리를 감시한다. 운영 상태가 흔들리면 즉시 `stop`을 실행한다.
+운영자는 첫 기동 시 Spring health, Flyway, 지도→장소 상세→후기→연결 오디오 fixture 조회, CSRF, OAuth redirect, FE 로그인·쓰기·SSE 및 운영 health를 확인한다. `docker stats`와 `free -h`로 동시 실행 시 swap·메모리를 감시한다. 운영 상태가 흔들리면 즉시 `stop`을 실행한다.
 
 현재 `.github/workflows/deploy.yml`은 `master` push에서 이미지를 빌드·검사하지만 즉시 운영에 배포하지 않는다. Lightsail 운영 Blue-Green 배포는 Repository Variable `PRODUCTION_DEPLOY_ENABLED=true`인 상태에서 매일 `03:17 KST` 예약 실행 또는 `deploy_production=true`를 선택한 명시적 수동 실행으로만 진행한다. 운영 preflight는 같은 SHA가 이미 healthy하게 배포됐다면 build 전에 no-op으로 끝낸다. `develop` 스테이징 이미지 반영도 위 수동 명령으로만 수행한다. 운영 Blue-Green 배포와 수동 rollback은 같은 1GB 호스트의 메모리 여유를 지키기 위해 스테이징이 실행 중이면 fail-closed로 중단한다. `STAGING_SPRING_URL`은 `https://staging-api.onmaru.site`이며 운영 URL로 우회하지 않는다. 공개 staging smoke는 DNS/TLS가 준비되고 FE 개발자가 서버를 켠 상태에서 workflow를 수동 실행할 때만 `run_staging_smoke=true`로 선택한다. 이 smoke는 배포와 별도 실행한다.
