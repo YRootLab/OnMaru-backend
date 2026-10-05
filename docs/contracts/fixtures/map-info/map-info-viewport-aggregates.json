@@ -4,7 +4,7 @@
   "request": {
     "method": "GET",
     "path": "/api/v1/map/info/viewport",
-    "query": {"bbox": "126.0,34.0,129.5,38.6", "zoomLevel": 9, "category": "ALL", "limit": 60}
+    "query": {"bbox": "126.0,34.0,129.5,38.6", "zoomLevel": 9, "category": "HANOK", "limit": 60}
   },
   "response": {
     "status": 200,
@@ -40,7 +40,7 @@
           "regionCode": "kr-45"
         }
       ],
-      "appliedCategories": ["HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_STAY", "TRADITIONAL_FOOD", "HANOK_CAFE", "TRADITIONAL_MARKET"],
+      "appliedCategories": ["HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE"],
       "coverage": "COMPLETE",
       "servedBbox": {"west": 125.125, "south": 32.85, "east": 130.375, "north": 39.75},
       "projection": {

@@ -13,6 +13,13 @@ public interface OdiiStoryRelationalReadPort {
             Instant cursorPublishedAt,
             String cursorStoryId);
 
+    OdiiStoryReadPage listTheme(
+            String language,
+            OdiiStoryTheme theme,
+            int limit,
+            Instant cursorPublishedAt,
+            String cursorStoryId);
+
     OdiiStoryReadSelection detail(String storyId, String language);
 
     OdiiStoryReadSelection search(String keyword, String language, int limit, boolean ranked);

@@ -49,7 +49,7 @@ class ActiveRevisionOdiiStoryQueryStoreTests {
             assertThat(story.language()).isEqualTo("ko-KR");
             assertThat(story.title()).isEqualTo("전주 한옥마을");
             assertThat(story.audioTitle()).isEqualTo("한옥 골목 이야기");
-            assertThat(story.category()).isEqualTo("오디오 관광");
+            assertThat(story.category()).isEqualTo("한옥/고택");
             assertThat(story.region()).isEqualTo(new OdiiRegionRef("kr", "대한민국", "COUNTRY", null));
             assertThat(story.coordinates()).isEqualTo(new OdiiCoordinates(35.817632, 127.152948));
             assertThat(story.transcriptStatus()).isEqualTo(OdiiTranscriptStatus.OFFICIAL);

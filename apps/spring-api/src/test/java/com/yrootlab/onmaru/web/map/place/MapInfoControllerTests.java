@@ -22,6 +22,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MapInfoControllerTests {
 
     @Test
+    void rejectsMissingBlankAndAllCategories() throws Exception {
+        var mvc = MockMvcBuilders.standaloneSetup(
+                new MapInfoController(new MapInfoQueryService((MapInfoQueryPort) query ->
+                        new MapInfoQueryResult(new MapInfoSnapshot("rev-1", Instant.EPOCH, "PUBLISHED"),
+                                null, 0, List.of(), null, false)))).build();
+        for (var request : List.of(get("/api/v1/map/info/places"),
+                get("/api/v1/map/info/places").param("category", " "),
+                get("/api/v1/map/info/places").param("category", "ALL"))) {
+            mvc.perform(request).andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.details.field").value("category"));
+        }
+    }
+
+    @Test
     void returnsTheStablePlacesEnvelopeAndFixtureFields() throws Exception {
         var item = new MapInfoPlaceItem(
                 "place-1", "온마루 한옥", "HANOK", List.of("HANOK"),
@@ -36,7 +50,7 @@ class MapInfoControllerTests {
                 new MapInfoController(new MapInfoQueryService((MapInfoQueryPort) query -> result)))
                 .build();
 
-        mvc.perform(get("/api/v1/map/info/places").param("category", "ALL"))
+        mvc.perform(get("/api/v1/map/info/places").param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schemaVersion").value("1.0"))
                 .andExpect(jsonPath("$.totalCount").value(1))
@@ -71,7 +85,7 @@ class MapInfoControllerTests {
                     throw new IllegalStateException("catalog unavailable");
                 }))).build();
 
-        mvc.perform(get("/api/v1/map/info/places").param("category", "ALL"))
+        mvc.perform(get("/api/v1/map/info/places").param("category", "HANOK"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("CATALOG_UNAVAILABLE"));
     }
@@ -85,7 +99,7 @@ class MapInfoControllerTests {
                 new MapInfoController(new MapInfoQueryService((MapInfoQueryPort) query -> result))).build();
 
         mvc.perform(get("/api/v1/map/info/places")
-                        .param("category", "ALL").param("snapshotId", "rev-2"))
+                        .param("category", "HANOK").param("snapshotId", "rev-2"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SNAPSHOT_EXPIRED"));
     }

@@ -4,7 +4,7 @@
   "request": {
     "method": "GET",
     "path": "/api/v1/map/info/viewport",
-    "query": {"bbox": "126.9,37.4,127.2,37.7", "zoomLevel": 6, "category": "ALL", "limit": 60}
+    "query": {"bbox": "126.9,37.4,127.2,37.7", "zoomLevel": 6, "category": "HANOK", "limit": 60}
   },
   "response": {
     "status": 200,
@@ -17,7 +17,7 @@
       "snapshotId": "rev-20260929-001",
       "totalCountInViewport": 320,
       "items": [],
-      "appliedCategories": ["HANOK", "HISTORIC_SITE", "TRADITIONAL_FOOD", "HANOK_CAFE"],
+      "appliedCategories": ["HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE"],
       "coverage": "PARTIAL",
       "servedBbox": {"west": 126.825, "south": 37.325, "east": 127.275, "north": 37.775},
       "projection": {

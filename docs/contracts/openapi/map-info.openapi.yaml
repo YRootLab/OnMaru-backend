@@ -96,10 +96,10 @@ components:
     Category:
       name: category
       in: query
+      required: true
       schema:
         type: string
-        enum: [ALL, HANOK, SPOT, EXPERIENCE, CULTURE, FESTIVAL, STAY, FOOD, CAFE, MARKET]
-        default: ALL
+        enum: [HANOK, SPOT, EXPERIENCE, CULTURE, FESTIVAL, STAY, FOOD, CAFE, MARKET]
     RegionCode:
       name: regionCode
       in: query

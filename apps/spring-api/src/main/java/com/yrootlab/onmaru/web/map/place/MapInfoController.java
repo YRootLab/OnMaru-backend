@@ -42,7 +42,7 @@ public final class MapInfoController {
 
     @GetMapping("/api/v1/map/info/places")
     ResponseEntity<?> list(
-            @RequestParam(required = false, defaultValue = "ALL") String category,
+            @RequestParam(required = false) String category,
             @RequestParam(required = false) String regionCode,
             @RequestParam(required = false) String bbox,
             @RequestParam(required = false) String cursor,
@@ -56,7 +56,7 @@ public final class MapInfoController {
         try {
             long started = System.nanoTime();
             var query = new MapInfoListQuery(
-                    MapInfoCategory.valueOf(category.trim().toUpperCase()),
+                    parseCategory(category),
                     clean(regionCode), parseBbox(bbox), clean(cursor), clean(snapshotId),
                     language, limit, sort, lat, lng);
             var response = ResponseEntity.ok(requestExecutor.execute(() -> service.list(query)));
@@ -112,6 +112,17 @@ public final class MapInfoController {
     }
 
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+
+    private MapInfoCategory parseCategory(String value) {
+        if (value == null || value.isBlank()) throw new MapInfoQueryException("INVALID_REQUEST", "category");
+        try {
+            var parsed = MapInfoCategory.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
+            if (parsed == MapInfoCategory.ALL) throw new MapInfoQueryException("INVALID_REQUEST", "category");
+            return parsed;
+        } catch (IllegalArgumentException exception) {
+            throw new MapInfoQueryException("INVALID_REQUEST", "category");
+        }
+    }
 
     private String requestId(HttpServletRequest request) {
         var attribute = request.getAttribute(RequestIdFilter.ATTRIBUTE);
