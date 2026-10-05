@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.41](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.40...v0.3.41) (2026-10-05)
+
+
+### Performance Improvements
+
+* **cd:** apply verified Gradle profile ([fa990fb](https://github.com/YRootLab/OnMaru-backend/commit/fa990fb89fccf9726b8336436ca5d3b364d96004))
+* **cd:** apply verified Gradle profile to delivery builds ([f9f0c1c](https://github.com/YRootLab/OnMaru-backend/commit/f9f0c1c090bc0fbfd4faa99c41b51dd82b9503fc))
+
 ## [0.3.40](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.39...v0.3.40) (2026-10-04)
 
 
