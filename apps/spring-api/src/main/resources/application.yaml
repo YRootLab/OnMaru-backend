@@ -74,6 +74,11 @@ onmaru:
       page-size: ${ONMARU_DATALAB_VISITOR_PAGE_SIZE:100}
       sync:
         cron: "${ONMARU_DATALAB_VISITOR_SYNC_CRON:0 30 3 * * *}"
+  presence:
+    allowed-rooms: "${ONMARU_PRESENCE_ALLOWED_ROOMS:hanok_anchae,hanok_sarangchae,hanok_haengnangchae}"
+    max-connections: ${ONMARU_PRESENCE_MAX_CONNECTIONS:200}
+  web:
+    trusted-proxy-ips: "${ONMARU_TRUSTED_PROXY_IPS:127.0.0.1}"
   map:
     info:
       db-statement-timeout: "${ONMARU_MAP_INFO_DB_STATEMENT_TIMEOUT:1500ms}"
