@@ -12,7 +12,11 @@ COPY modules modules
 COPY apps apps
 
 RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew :apps:spring-api:bootJar -x test --no-daemon
+    ./gradlew \
+    --init-script build-logic/ci-performance.gradle.kts \
+    :apps:spring-api:bootJar -x test \
+    --no-daemon \
+    -Ponmaru.ci.performance.enabled=true
 
 FROM eclipse-temurin:21-jre-alpine AS runner
 ARG ONMARU_BUILD_GIT_SHA=unknown

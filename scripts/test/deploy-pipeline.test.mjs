@@ -113,4 +113,25 @@ describe('container and staging release pipeline', () => {
       assert.doesNotMatch(workflow, /branches:\n(?:\s+- .+\n)*\s+- main/);
     }
   });
+
+  it('applies the verified Gradle profile to Spring image and migration builds without dropping outer caches', () => {
+    const dockerfile = read('Dockerfile');
+    const workflow = read('.github/workflows/deploy.yml');
+    const migrationGate = workflow.slice(
+      workflow.indexOf('  migration-gate:'),
+      workflow.indexOf('  staging-deploy:'),
+    );
+
+    assert.match(dockerfile, /RUN --mount=type=cache,target=\/root\/\.gradle/);
+    assert.match(dockerfile, /--init-script build-logic\/ci-performance\.gradle\.kts/);
+    assert.match(dockerfile, /:apps:spring-api:bootJar -x test/);
+    assert.match(dockerfile, /-Ponmaru\.ci\.performance\.enabled=true/);
+    assert.match(workflow, /cache-from: type=gha,scope=spring-api/);
+    assert.match(workflow, /cache-to: type=gha,mode=max,scope=spring-api/);
+
+    assert.match(migrationGate, /cache: gradle/);
+    assert.match(migrationGate, /--init-script build-logic\/ci-performance\.gradle\.kts/);
+    assert.match(migrationGate, /:apps:spring-api:test --tests '\*Migration\*'/);
+    assert.match(migrationGate, /-Ponmaru\.ci\.performance\.enabled=true/);
+  });
 });

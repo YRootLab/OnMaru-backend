@@ -140,6 +140,17 @@ test('only the canonical module result owns release approval and W4 remains diag
   assert.match(diagnosticPublish, /continue-on-error: true/);
 });
 
+test('release migration rehearsal consumes the verified Gradle profile while retaining dependency caching', async () => {
+  const fs = await import('node:fs/promises');
+  const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
+  const migration = yaml.split('\n  migration-gate:')[1].split('\n  staging-readiness:')[0];
+
+  assert.match(migration, /cache: gradle/);
+  assert.match(migration, /--init-script build-logic\/ci-performance\.gradle\.kts/);
+  assert.match(migration, /:apps:spring-api:test --tests '\*Migration\*'/);
+  assert.match(migration, /-Ponmaru\.ci\.performance\.enabled=true/);
+});
+
 test('promotion shell blocks unsuccessful prerequisites even with an approved regression', async () => {
   const fs = await import('node:fs/promises');
   const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
