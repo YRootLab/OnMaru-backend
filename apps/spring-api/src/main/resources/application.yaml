@@ -32,6 +32,7 @@ onmaru:
   web:
     cors:
       allowed-origins: "${ONMARU_CORS_ALLOWED_ORIGINS:https://onmaru-web.onrender.com,https://onmaru-frontend.vercel.app,https://www.onmaru.site,https://onmaru.site,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004,http://localhost:3005,http://localhost:3006,http://localhost:3007,http://localhost:3008}"
+    trusted-proxy-ips: "${ONMARU_TRUSTED_PROXY_IPS:127.0.0.1}"
   secrets:
     source: ${ONMARU_SECRETS_SOURCE:fake}
   journey:
@@ -85,8 +86,6 @@ onmaru:
   presence:
     allowed-rooms: "${ONMARU_PRESENCE_ALLOWED_ROOMS:hanok_anchae,hanok_sarangchae,hanok_haengnangchae}"
     max-connections: ${ONMARU_PRESENCE_MAX_CONNECTIONS:200}
-  web:
-    trusted-proxy-ips: "${ONMARU_TRUSTED_PROXY_IPS:127.0.0.1}"
   map:
     info:
       db-statement-timeout: "${ONMARU_MAP_INFO_DB_STATEMENT_TIMEOUT:1500ms}"
