@@ -5,8 +5,8 @@
 - 브랜치: `fix/646-category-contract-and-odii-themes`, 기준 `origin/develop` `5c3f943`. 관련 FE 정보지도 Issue: `YRootLab/OnMaru-Frontend#334`.
 - 정보지도 공개 viewport·places는 category 누락·빈 값·ALL을 400 `details.field=category`로 거부한다. FE가 HANOK 기본값과 전체 칩 제거를 먼저 배포해야 한다.
 - 소리마루 0건 원인: 활성 ODII category가 모두 `오디오 관광`으로 고정된 상태에서 요청 문자열을 정확히 비교했다. 여섯 테마 안정 코드와 기존 한국어 alias, 제목·장소명·태그 기반 다중 테마 분류, SQL 목록·건수 필터를 추가했다. 하나의 story가 여러 탭에 나타날 수 있다.
-- 관련 단위·컨트롤러 테스트 53개 및 추가 앱 테스트 통과. PostgreSQL 통합 테스트는 로컬 Docker 데몬이 응답하지 않아 미완료이며 PR CI에서 검증해야 한다. `scripts/verify-contracts` 결과 확인이 남았다.
-- 다음 단계: SQL 통합 테스트/CI 검증, FE 소리마루 안정 코드 적용 전달, `develop` PR 리뷰·병합. FE 정보지도 선배포 전에는 BE 운영 배포 금지.
+- 관련 단위·컨트롤러 테스트와 `scripts/verify-contracts` 통과. 로컬 PostgreSQL 통합 테스트는 Docker 데몬이 응답하지 않아 실행하지 못했으나, PR #651의 전체 Java/Spring 테스트와 필수 `verify`가 통과했다.
+- 다음 단계: FE 소리마루 안정 코드 적용 전달, PR #651의 `develop` 병합. FE 정보지도 선배포 전에는 BE 운영 배포 금지.
 
 ## 2026-10-06 정보지도 카테고리 계약 변경 설계
 
