@@ -7,9 +7,12 @@ import com.yrootlab.onmaru.operations.admission.AdmissionStore;
 import com.yrootlab.onmaru.operations.admission.InMemoryAdmissionStore;
 import com.yrootlab.onmaru.operations.admission.OperationBudget;
 import com.yrootlab.onmaru.operations.admission.SubjectType;
+import com.yrootlab.onmaru.web.exploration.JourneyAiTestQuotaProperties;
+import com.yrootlab.onmaru.web.exploration.JourneyAiAdmissionPolicyResolver;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -60,6 +63,12 @@ public class AdmissionWebConfiguration {
     }
 
     @Bean
+    JourneyAiAdmissionPolicyResolver journeyAiAdmissionPolicyResolver(
+            AdmissionPolicy admissionPolicy, JourneyAiTestQuotaProperties testQuota) {
+        return new JourneyAiAdmissionPolicyResolver(admissionPolicy, testQuota);
+    }
+
+    @Bean
     TrustedProxyProperties trustedProxyProperties(
             @Value("${onmaru.web.trusted-proxy-ips:127.0.0.1}") String rawIps) {
         var ips = Arrays.stream(rawIps.split(","))
@@ -78,8 +87,7 @@ public class AdmissionWebConfiguration {
     AdmissionFilter admissionFilter(
             AdmissionService admissionService,
             AdmissionPolicy admissionPolicy,
-            ClientIdentityResolver clientIdentityResolver
-    ) {
+            ClientIdentityResolver clientIdentityResolver) {
         return new AdmissionFilter(admissionService, admissionPolicy, clientIdentityResolver);
     }
 }
