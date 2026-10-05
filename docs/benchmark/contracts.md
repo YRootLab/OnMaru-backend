@@ -2,9 +2,78 @@
 
 ## 계약 상태
 
-`release metadata`와 evidence 필드는 현재 저장소 convention에서 도출한 v1 제안 계약이다.
-`pipeline-toolkit` CLI 계약은 공식 provenance와 `--help/schema` 출력이 확보되기 전까지
-`unverified`다. 이 상태에서 adapter가 임의의 toolkit command를 호출해서는 안 된다.
+Release promotion의 정본은 `release-module-comparison.json`이다. Toolkit PR #130 병합 commit
+`7ecbb89aae771604d9c1c532cf123f239e279110`의 Python API
+`compare_module_benchmarks(target=EvaluationTarget.RELEASE)`가 수치 정책을 소유한다.
+현재 pin에는 이 module 비교를 노출하는 CLI가 없으므로
+`scripts/benchmark/release-module-comparison.py`가 고정 checkout의 API를 직접 호출한다.
+중앙값·범위·15% 정책을 OnMaruBE에서 다시 계산하지 않는다.
+
+[Toolkit #129](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/issues/129)의
+[PR #130](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/pull/130) 수정으로 `1.4 → 1.61`은
+정확히 15%이며 승인 대상이 아니다. 이를 조금이라도 초과하면 `approval_hold`다. decimal
+경계 판정과 bool/NaN/±Infinity 거부는 upstream 계약을 사용하며 adapter에 epsilon을 추가하지
+않는다.
+
+기존 W4 `release metadata`와 evidence 필드는 진단용 v1 계약으로 유지한다.
+`.pipeline/benchmark.yml`의 가상 CLI provenance는 계속 `unverified`이며 W4 5% threshold,
+`gate.json`, trend 결과는 promotion 판정을 소유하지 않는다.
+
+## Release module 입력과 정본 결과 (#543)
+
+운영자가 baseline/candidate GitHub Release 각각에 `release-module-evidence.json`을 제공한다.
+workflow는 baseline lookup으로 선택한 tag와 실제 checkout된 candidate tag의 SHA를 사용한다.
+각 envelope는 다음 모양이며 `records`의 전체 필드 예시는
+`scripts/test/fixtures/release-module-comparison/record.json`에 있다.
+
+```json
+{
+  "schema_version": 1,
+  "release_tag": "v1.2.4",
+  "commit_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "records": []
+}
+```
+
+각 side는 동일 모듈의 서로 다른 Actions run 3개를 사전에 선택한다. 2개 이하는
+`inconclusive`이며 4개 이상을 주어 유리한 3개를 사후 선택하는 것도 허용하지 않는다.
+run attempt만 바꾼 재실행은 서로 다른 run으로 세지 않고 양쪽의 동일 run 재사용도 막는다.
+원본 `Module Benchmark`의 develop 진단 aggregate는 자체적으로 release 판정이 아니며,
+이 envelope와도 schema가 다르다. 현재 workflow가 새 benchmark run을 자동 생성하거나
+개별 manifest를 envelope로 자동 변환하지는 않는다.
+
+레코드는 `module_id`, `run_id`, `run_attempt`, `actions_url`, `manifest_url`, `metric_name`,
+`metric_value`, `unit`, `resource`, `provenance`, `artifact_uri`, `environment_identity`,
+`status`, `complete`만 소비한다. 측정 경계는 동일 모듈의 `module.wall_clock` seconds다.
+이는 Java required CI 전체 workflow wall clock을 뜻하지 않으며, manifest의 null
+`workflow_wall_clock_seconds`를 최장 모듈 시간이나 0으로 치환하지 않는다.
+
+provenance는 해당 repository·release commit SHA·`Module Benchmark` workflow와 일치해야
+한다. Toolkit comparability key가 모듈·metric·unit·repository/workflow/job·runner image·
+Java/Python version·cache·DB fixture·CPU/memory·dependency mode·catalog hash를 비교한다.
+Actions URL은 `https://github.com/<repo>/actions/runs/<run>/attempts/<attempt>`, manifest
+artifact link는 `https://github.com/<repo>/actions/runs/<run>/artifacts/<artifact>`만 허용한다.
+`artifact_uri`는 manifest link와 같아야 한다. credential/query/fragment URL은 배제한다.
+이 경계는 release asset 작성 권한을 신뢰하며 원본 Actions API나 artifact bytes를 다시
+조회하여 진위를 확인하지 않는다. 운영자는 선택한 run conclusion·commit·manifest와
+측정값을 검토한 뒤 asset을 게시해야 한다.
+
+정본은 Toolkit의 `classification`, `reason`, `sample_values`, `sample_range`,
+`baseline_median`, `candidate_median`, `relative_delta`, `valid_sample_count`,
+`policy_threshold`, `required_samples`, `policy_outcome`을 보존한다. `sources`에 원본
+Actions/manifest 링크와 개별 값·상태를 남기고 `exclusions`에는 side/index/reason만 기록한다.
+실패·취소·누락·음수/비유한 수·release identity 불일치는 유효 표본에서 제외한다.
+중앙값 0으로 delta가 정의되지 않는 v0.1.3 예외는 `inconclusive`로 닫는다.
+
+| 정본 결과 | `gate` | Promotion |
+| --- | --- | --- |
+| `comparable`, `policy_outcome=none` | `pass` | staging/migration/build 성공 시 통과 |
+| `comparable`, `policy_outcome=approval_hold` | `approval_hold` | 15% **초과** 회귀만 `benchmark-promotion` 승인 |
+| `failed` 또는 `inconclusive` | `blocked` | 자동 promotion 중지, 회귀 승인 생성 안 함 |
+
+정확히 15%는 승인 대상이 아니다. 승인 job 성공도 scan·migration·readiness 실패를 우회할
+수 없다. 입력 artifact가 없어도 정본 실패 사유를 게시하며, parser/import 자체 오류로
+비교 job이 실패하면 promotion은 닫힌다.
 
 ## Release metadata
 

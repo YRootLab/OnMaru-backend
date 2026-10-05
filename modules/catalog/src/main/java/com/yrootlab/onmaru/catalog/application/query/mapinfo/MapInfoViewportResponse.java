@@ -19,6 +19,10 @@ public record MapInfoViewportResponse(
         appliedCategories = List.copyOf(appliedCategories);
     }
 
+    public String getSnapshotId() {
+        return snapshot == null ? null : snapshot.id();
+    }
+
     public MapInfoViewportResponse asStale() {
         return new MapInfoViewportResponse(schemaVersion, renderMode, profileVersion, snapshot,
                 totalCountInViewport, items, appliedCategories, "STALE", servedBbox, projection);

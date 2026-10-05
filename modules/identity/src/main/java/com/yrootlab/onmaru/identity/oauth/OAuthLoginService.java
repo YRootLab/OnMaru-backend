@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.identity.oauth;
 
 import com.yrootlab.onmaru.identity.lifecycle.MemberAccessDeniedException;
 import com.yrootlab.onmaru.identity.lifecycle.MemberAccessPolicy;
+import com.yrootlab.onmaru.identity.profile.MemberProfileGenerator;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
@@ -16,18 +17,34 @@ public final class OAuthLoginService {
     private final TokenHasher tokenHasher;
     private final Clock clock;
     private final MemberAccessPolicy accessPolicy;
+    private final MemberProfileGenerator profileGenerator;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public OAuthLoginService(IdentityStore store, TokenHasher tokenHasher, Clock clock) {
-        this(store, tokenHasher, clock, MemberAccessPolicy.allowAll());
+        this(store, tokenHasher, clock, MemberAccessPolicy.allowAll(), new MemberProfileGenerator());
+    }
+
+    public OAuthLoginService(
+            IdentityStore store, TokenHasher tokenHasher, Clock clock, MemberProfileGenerator profileGenerator) {
+        this(store, tokenHasher, clock, MemberAccessPolicy.allowAll(), profileGenerator);
     }
 
     public OAuthLoginService(
             IdentityStore store, TokenHasher tokenHasher, Clock clock, MemberAccessPolicy accessPolicy) {
+        this(store, tokenHasher, clock, accessPolicy, new MemberProfileGenerator());
+    }
+
+    public OAuthLoginService(
+            IdentityStore store,
+            TokenHasher tokenHasher,
+            Clock clock,
+            MemberAccessPolicy accessPolicy,
+            MemberProfileGenerator profileGenerator) {
         this.store = store;
         this.tokenHasher = tokenHasher;
         this.clock = clock;
         this.accessPolicy = accessPolicy;
+        this.profileGenerator = profileGenerator;
     }
 
     public OAuthLoginStart startLogin(StartOAuthLoginCommand command) {
@@ -59,7 +76,12 @@ public final class OAuthLoginService {
                         tokenHasher.hash(command.pkceVerifier()),
                         now)
                 .orElseThrow(() -> new OAuthStateRejectedException("invalid oauth state"));
-        var memberId = store.linkExternalIdentity(command.externalIdentity(), now);
+        store.findLinkedMemberId(command.externalIdentity()).ifPresent(linkedMemberId -> {
+            if (!accessPolicy.allows(linkedMemberId, now)) {
+                throw new MemberAccessDeniedException();
+            }
+        });
+        var memberId = store.linkExternalIdentity(command.externalIdentity(), profileGenerator.generate(), now);
         if (!accessPolicy.allows(memberId, now)) {
             throw new MemberAccessDeniedException();
         }

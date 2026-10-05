@@ -7,6 +7,7 @@ public record MapPlacePage(
         MapCoverageStatus coverageStatus,
         String language,
         List<MapPlaceCard> items,
+        long totalCount,
         String nextCursor,
         boolean hasMore) {
 

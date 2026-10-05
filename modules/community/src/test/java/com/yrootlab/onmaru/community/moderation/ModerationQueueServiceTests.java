@@ -43,7 +43,7 @@ class ModerationQueueServiceTests {
         };
         ModerationQueueReadStore readStore = new ModerationQueueReadStore() {
             @Override public AdminPage<ModerationQueueItem> page(int limit, AdminCursor cursor, Instant now) {
-                return new AdminPage<>(List.of(), false);
+                return new AdminPage<>(List.of(), false, 0);
             }
             @Override public long oldestQueueAgeSeconds(Instant now) { return 0; }
         };

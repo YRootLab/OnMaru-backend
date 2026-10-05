@@ -5,6 +5,11 @@ import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.identity.profile.MemberProfileBackground;
+import com.yrootlab.onmaru.identity.profile.MemberProfileCharacter;
+import com.yrootlab.onmaru.identity.profile.NewMemberProfile;
+import com.yrootlab.onmaru.identity.profile.MemberProfilePatch;
+import com.yrootlab.onmaru.identity.profile.MemberProfileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,13 +46,18 @@ class VisitReviewCommandWebBoundaryTests {
     @Autowired
     private Clock clock;
 
+    @Autowired
+    private MemberProfileService profileService;
+
     private final TokenHasher hasher = new TokenHasher("fake-oauth-client-secret-current");
+    private UUID memberId;
 
     @BeforeEach
     void setUp() {
         identityStore.clear();
         visitReviewStore.clear();
-        var memberId = identityStore.createMember(clock.instant());
+        memberId = identityStore.createMember(clock.instant(), new NewMemberProfile(
+                "고요한 마루 0552", MemberProfileCharacter.CHARACTER_03, MemberProfileBackground.BACKGROUND_07));
         identityStore.saveSession(session("member-session", memberId));
         var otherMemberId = identityStore.createMember(clock.instant());
         identityStore.saveSession(session("other-session", otherMemberId));
@@ -65,14 +75,25 @@ class VisitReviewCommandWebBoundaryTests {
                 .andExpect(jsonPath("$.score").value(5))
                 .andExpect(jsonPath("$.tags[0]").value("고즈넉함"))
                 .andExpect(jsonPath("$.mine").value(true))
+                .andExpect(jsonPath("$.author.displayName").value("고요한 마루 0552"))
+                .andExpect(jsonPath("$.author.characterId").value("CHARACTER_03"))
+                .andExpect(jsonPath("$.author.backgroundId").value("BACKGROUND_07"))
+                .andExpect(jsonPath("$.author.memberId").doesNotExist())
+                .andExpect(jsonPath("$.authorMemberId").doesNotExist())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
         var reviewId = response.replaceAll("(?s).*\"id\":\"([^\"]+)\".*", "$1");
 
+        profileService.updateActiveProfile(memberId, new MemberProfilePatch(
+                "새로운 온니 2026", "CHARACTER_10", "BACKGROUND_01"), clock.instant()).orElseThrow();
+
         create("00000000-0000-0000-0000-000000000118", "  전주\r\n처마가 좋았습니다.  ", "한적", 5, "고즈넉함", "처마")
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(reviewId));
+                .andExpect(jsonPath("$.id").value(reviewId))
+                .andExpect(jsonPath("$.author.displayName").value("새로운 온니 2026"))
+                .andExpect(jsonPath("$.author.characterId").value("CHARACTER_10"))
+                .andExpect(jsonPath("$.author.backgroundId").value("BACKGROUND_01"));
 
         mockMvc.perform(get("/api/v1/places/p-jeonju-hanok-village/visit-reviews"))
                 .andExpect(status().isOk())

@@ -39,8 +39,8 @@ public final class AdminCursorCodec {
     public String encode(AdminCursor cursor) {
         try {
             byte[] payload = MAPPER.writeValueAsBytes(new Payload(
-                    2, cursor.resource(), cursor.limit(), cursor.filter(), cursor.timestamp().toString(), cursor.id().toString(),
-                    cursor.sortGroup(),
+                    3, cursor.resource(), cursor.limit(), cursor.filter(), cursor.timestamp().toString(), cursor.id().toString(),
+                    cursor.sortGroup(), cursor.totalCount(),
                     clock.instant().plus(TTL).toString()));
             String encoded = ENCODER.encodeToString(payload);
             return encoded + "." + ENCODER.encodeToString(sign(encoded, secrets.get(secretName).current()));
@@ -58,15 +58,18 @@ public final class AdminCursorCodec {
                 throw new IllegalArgumentException("invalid cursor");
             }
             Payload payload = MAPPER.readValue(DECODER.decode(parts[0]), Payload.class);
-            if ((payload.version() != 1 && payload.version() != 2) || !resource.equals(payload.resource())
+            if ((payload.version() < 1 || payload.version() > 3) || !resource.equals(payload.resource())
                     || limit != payload.limit() || !filter.equals(payload.filter())) {
                 throw new IllegalArgumentException("cursor does not match this query");
+            }
+            if (payload.totalCount() != null && payload.totalCount() < 0) {
+                throw new IllegalArgumentException("cursor has an invalid total count");
             }
             if (!Instant.parse(payload.expiresAt()).isAfter(clock.instant())) {
                 throw new IllegalArgumentException("cursor has expired");
             }
             return new AdminCursor(resource, limit, filter,
-                    Instant.parse(payload.timestamp()), UUID.fromString(payload.id()), payload.sortGroup());
+                    Instant.parse(payload.timestamp()), UUID.fromString(payload.id()), payload.sortGroup(), payload.totalCount());
         } catch (IllegalArgumentException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -104,6 +107,6 @@ public final class AdminCursorCodec {
     }
 
     private record Payload(int version, String resource, int limit, String filter, String timestamp, String id,
-                           String sortGroup, String expiresAt) {
+                           String sortGroup, Long totalCount, String expiresAt) {
     }
 }

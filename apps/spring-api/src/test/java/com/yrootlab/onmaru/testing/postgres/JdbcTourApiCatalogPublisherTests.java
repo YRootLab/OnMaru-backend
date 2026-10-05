@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.testing.postgres;
 
 import com.yrootlab.onmaru.catalog.application.qualification.SourceRecord;
+import com.yrootlab.onmaru.catalog.application.query.detail.PlaceDetailQueryService;
 import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListStore;
 import com.yrootlab.onmaru.catalog.application.query.hanok.InMemoryHanokListStore;
 import com.yrootlab.onmaru.catalog.application.query.spatial.MapPlaceStore;
@@ -22,6 +23,8 @@ import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoCategory;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoSqlQuery;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportQuery;
 import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoPlaceItem;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoRenderMode;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportItem;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,8 +46,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JdbcTourApiCatalogPublisherTests {
 
@@ -93,6 +98,14 @@ class JdbcTourApiCatalogPublisherTests {
         assertThat(queryCount("onmaru.map_place_read_projection WHERE sido_code IS NULL AND sigungu_code IS NULL"))
                 .isEqualTo(1);
         assertThat(queryCount("onmaru.map_projection_publications")).isEqualTo(1);
+        var repository = new JdbcMapViewportQueryRepository(dataSource);
+        var viewport = repository.find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.ALL, null, null, "ko-KR", 60));
+        assertThat(viewport.renderMode()).isEqualTo(MapInfoRenderMode.CLUSTER);
+        assertThat(viewport.totalCountInViewport()).isEqualTo(1);
+        assertThat(viewport.items()).hasSize(1);
+        assertThat(viewport.items().getFirst().type()).isEqualTo("PLACE");
     }
 
     @Test
@@ -181,6 +194,377 @@ class JdbcTourApiCatalogPublisherTests {
         assertThat(detail.address()).isEqualTo("서울 종로구");
         assertThat(source.contentId()).isEqualTo("2001");
         assertThat(source.contentTypeId()).isEqualTo("12");
+    }
+
+    @Test
+    void hanokSnapshotAndDetailShareEligibilityForHistoricPlaces() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var overviewFields = new java.util.LinkedHashMap<>(row("4862", "전통 문화 마을", "HISTORIC_SITE").fields());
+        overviewFields.put("overview", "전통 한옥을 둘러보는 마을");
+        var page = publisher.stagePage(session, List.of(
+                row("4861", "북촌한옥마을", "HISTORIC_SITE"),
+                new SourceRecord("kto-tourapi-korean", "areaBasedList2", Map.copyOf(overviewFields)),
+                row("4863", "문화 궁전", "HISTORIC_SITE"),
+                row("4864", "전통 숙소", "HANOK_STAY")));
+        publisher.complete(session, page.rawCount(), page.rawCount(),
+                page.publishedCount(), page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var snapshot = new JdbcCatalogPlaceSnapshotStore(dataSource).findPublishedHanokSnapshot();
+        assertThat(snapshot).extracting(place -> place.placeId())
+                .containsExactly("p-tourapi-4861", "p-tourapi-4862", "p-tourapi-4864");
+        var details = new PlaceDetailQueryService(new JdbcPlaceDetailStore(dataSource),
+                (memberId, placeId) -> false);
+        for (var place : snapshot) {
+            assertThat(details.findHanok(place.placeId(), Optional.empty()))
+                    .hasValueSatisfying(detail -> {
+                        assertThat(detail.placeId()).isEqualTo(place.placeId());
+                        assertThat(detail.category().name()).isEqualTo(place.category().name());
+                    });
+        }
+        assertThat(details.findHanok("p-tourapi-4863", Optional.empty())).isEmpty();
+    }
+
+    @Test
+    void hanokMapFilterReturnsOnlyTheFourHanokCatalogCategories() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                row("2101", "한옥 명소", "HANOK"),
+                row("2102", "한옥 숙소", "HANOK_STAY"),
+                row("2103", "한옥 카페", "HANOK_CAFE"),
+                row("2104", "한옥 체험", "HANOK_EXPERIENCE"),
+                row("2105", "일반 문화재", "HISTORIC_SITE"),
+                row("2106", "일반 카페", "CAFE")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        seedMapRegions();
+        var hanokCategories = List.of("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE");
+
+        var list = new JdbcMapInfoQueryRepository(dataSource).find(new MapInfoSqlQuery(
+                null, hanokCategories, null, null, "NAME", null, null, 30, null, null));
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 5,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 500));
+        var clusterViewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 7,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 500));
+        var districtViewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 500));
+        var regionViewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 12,
+                MapInfoCategory.valueOf("HANOK"), null, null, "ko-KR", 500));
+
+        assertThat(list.totalCount()).isEqualTo(4);
+        assertThat(list.items()).extracting(MapInfoPlaceItem::name)
+                .containsExactlyInAnyOrder("한옥 명소", "한옥 숙소", "한옥 카페", "한옥 체험");
+        assertThat(viewport.totalCountInViewport()).isEqualTo(4);
+        assertThat(viewport.items()).extracting(item -> item.name())
+                .containsExactlyInAnyOrder("한옥 명소", "한옥 숙소", "한옥 카페", "한옥 체험");
+        assertThat(clusterViewport.totalCountInViewport()).isEqualTo(4);
+        assertThat(clusterViewport.items()).hasSize(1);
+        assertThat(clusterViewport.items().getFirst().count()).isEqualTo(4);
+        assertThat(clusterViewport.items().getFirst().categoryCounts().keySet())
+                .containsExactlyInAnyOrder("HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE");
+        assertThat(clusterViewport.items().getFirst().categoryCounts().values()).containsOnly(1L);
+        assertThat(districtViewport.items()).extracting(item -> item.count()).containsExactly(4L);
+        assertThat(regionViewport.items()).extracting(item -> item.count()).containsExactly(4L);
+    }
+
+    @Test
+    void allCategoryRegionAggregatesDoNotRequireAdministrativeBoundaryRows() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                row("2201", "서울 한옥", "HANOK"),
+                row("2202", "서울 시장", "TRADITIONAL_MARKET")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        seedMapRegions();
+
+        var repository = new JdbcMapViewportQueryRepository(dataSource);
+        var district = repository.find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.ALL, null, null, "ko-KR", 500));
+        var region = repository.find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 12,
+                MapInfoCategory.ALL, null, null, "ko-KR", 500));
+
+        assertThat(district.totalCountInViewport()).isEqualTo(2);
+        assertThat(district.items()).extracting(item -> item.count()).containsExactly(2L);
+        assertThat(district.items().getFirst().targetZoomLevel()).isLessThan(9);
+        assertThat(region.totalCountInViewport()).isEqualTo(2);
+        assertThat(region.items()).extracting(item -> item.count()).containsExactly(2L);
+        assertThat(region.items().getFirst().targetZoomLevel()).isLessThan(12);
+    }
+
+    @Test
+    void rawTourApiRegionCodesHaveKoreanViewportNames() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2291", "대전 한옥", "HANOK", "30", "200", "127.33", "36.36"),
+                rowWithRegion("2292", "서울 한옥", "HANOK", "11", "110", "126.98", "37.58")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var repository = new JdbcMapViewportQueryRepository(dataSource);
+        var bbox = new MapInfoBounds(125, 35, 129, 39);
+        var districts = repository.find(new MapInfoViewportQuery(
+                bbox, 9, MapInfoCategory.ALL, null, null, "ko-KR", 60));
+        var regions = repository.find(new MapInfoViewportQuery(
+                bbox, 12, MapInfoCategory.ALL, null, null, "ko-KR", 60));
+
+        assertThat(districts.items()).extracting(MapInfoViewportItem::name)
+                .containsExactlyInAnyOrder("유성구", "종로구");
+        assertThat(regions.items()).extracting(MapInfoViewportItem::name)
+                .containsExactlyInAnyOrder("대전광역시", "서울특별시");
+        assertThat(districts.items()).extracting(MapInfoViewportItem::count).containsOnly(1L);
+        assertThat(regions.items()).extracting(MapInfoViewportItem::count).containsOnly(1L);
+    }
+
+    @Test
+    void regionAggregatesRemainVisibleWhenCategoryProjectionRowsAreMissing() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                row("2251", "서울 한옥", "HANOK"),
+                row("2252", "서울 시장", "TRADITIONAL_MARKET")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM onmaru.map_place_category_projection");
+        }
+
+        var repository = new JdbcMapViewportQueryRepository(dataSource);
+        var clustered = repository.find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 7,
+                MapInfoCategory.ALL, null, null, "ko-KR", 60));
+        assertThat(clustered.totalCountInViewport()).isEqualTo(2);
+        assertThat(clustered.items()).isNotEmpty();
+        for (int zoom : List.of(9, 12)) {
+            var all = repository.find(new MapInfoViewportQuery(
+                    new MapInfoBounds(126.9, 37.5, 127.1, 37.7), zoom,
+                    MapInfoCategory.ALL, null, null, "ko-KR", 60));
+            var hanok = repository.find(new MapInfoViewportQuery(
+                    new MapInfoBounds(126.9, 37.5, 127.1, 37.7), zoom,
+                    MapInfoCategory.HANOK, null, null, "ko-KR", 60));
+            assertThat(all.totalCountInViewport()).isEqualTo(2);
+            assertThat(all.items()).hasSize(1);
+            assertThat(all.items().getFirst().count()).isEqualTo(2);
+            assertThat(all.items().getFirst().regionCode()).isEqualTo(zoom == 9 ? "11:110" : "11");
+            assertThat(all.items().getFirst().name()).isNotBlank();
+            assertThat(all.items().getFirst().center()).isNotNull();
+            assertThat(all.items().getFirst().bounds()).isNotNull();
+            assertThat(all.items().getFirst().targetZoomLevel()).isLessThan(zoom);
+            assertThat(hanok.totalCountInViewport()).isEqualTo(1);
+            assertThat(hanok.items()).hasSize(1);
+            assertThat(hanok.items().getFirst().count()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void cafeFilterKeepsDisplayCategoryPlacesWhenCategoryProjectionRowsAreMissing() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                row("2253", "한옥 카페", "HANOK_CAFE"),
+                row("2254", "서울 시장", "TRADITIONAL_MARKET")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM onmaru.map_place_category_projection");
+        }
+
+        var repository = new JdbcMapViewportQueryRepository(dataSource);
+        for (int zoom : List.of(5, 9, 12)) {
+            var viewport = repository.find(new MapInfoViewportQuery(
+                    new MapInfoBounds(126.9, 37.5, 127.1, 37.7), zoom,
+                    MapInfoCategory.CAFE, null, null, "ko-KR", 60));
+            assertThat(viewport.totalCountInViewport()).isEqualTo(1);
+            assertThat(viewport.items()).hasSize(1);
+            assertThat(viewport.items().getFirst().count()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void districtViewportUsesCoarserAggregateInsteadOfHidingPlacesAtTheLimit() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2261", "서울 한옥", "HANOK", "11", "110", "126.98", "37.58"),
+                rowWithRegion("2262", "다른 구역 한옥", "HANOK", "11", "111", "126.99", "37.59")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var result = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.ALL, null, null, "ko-KR", 1));
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.totalCountInViewport()).isEqualTo(2);
+        assertThat(result.renderMode()).isEqualTo(MapInfoRenderMode.REGION);
+        assertThat(result.items().getFirst().count()).isEqualTo(2);
+        assertThat(result.coverage()).isEqualTo("COMPLETE");
+    }
+
+    @Test
+    void overlappingCategoryMappingsDoNotDoubleCountARegionPlace() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2271", "서울 한옥", "HANOK", "11", "110", "126.98", "37.58")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.map_place_category_projection (revision_id, place_id, canonical_category)
+                    SELECT revision_id, place_id, 'HISTORIC_SITE'
+                    FROM onmaru.map_place_read_projection
+                    WHERE status = 'ACTIVE'
+                    """);
+        }
+
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.ALL, null, null, "ko-KR", 60));
+        assertThat(viewport.totalCountInViewport()).isEqualTo(1);
+        assertThat(viewport.items()).hasSize(1);
+        assertThat(viewport.items().getFirst().count()).isEqualTo(1);
+        assertThat(viewport.coverage()).isEqualTo("COMPLETE");
+    }
+
+    @Test
+    void mixedMappedAndUnmappedPlacesRemainRepresentedAtBroadZoom() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2281", "지역 있는 장소", "HANOK", "11", "110", "126.98", "37.58"),
+                rowWithRegion("2282", "지역 없는 장소", "HANOK", "11", "110", "126.99", "37.59")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    UPDATE onmaru.map_place_read_projection
+                    SET sido_code = NULL, sigungu_code = NULL
+                    WHERE name = '지역 없는 장소'
+                    """);
+        }
+
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.ALL, null, null, "ko-KR", 60));
+        assertThat(viewport.totalCountInViewport()).isEqualTo(2);
+        assertThat(viewport.renderMode()).isEqualTo(MapInfoRenderMode.CLUSTER);
+        assertThat(viewport.items()).isNotEmpty();
+        assertThat(viewport.items().stream().mapToLong(MapInfoViewportItem::count).sum()).isEqualTo(2);
+        assertThat(viewport.coverage()).isEqualTo("COMPLETE");
+    }
+
+    @Test
+    void regionCenterAndBoundsRepresentAllCategoriesTogether() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2291", "한옥", "HANOK", "11", "110", "126.98", "37.58"),
+                rowWithRegion("2292", "시장", "TRADITIONAL_MARKET", "11", "110", "127.02", "37.62")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 9,
+                MapInfoCategory.ALL, null, null, "ko-KR", 60));
+        var aggregate = viewport.items().getFirst();
+        assertThat(aggregate.count()).isEqualTo(2);
+        assertThat(aggregate.center().lat()).isBetween(37.599999, 37.600001);
+        assertThat(aggregate.center().lng()).isBetween(126.999999, 127.000001);
+        assertThat(aggregate.bounds()).isEqualTo(new MapInfoBounds(126.98, 37.58, 127.02, 37.62));
+    }
+
+    @Test
+    void clusterCenterWeightsEachPlaceOnceDespiteOverlappingCategories() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2293", "한옥", "HANOK", "11", "110", "126.98", "37.58"),
+                rowWithRegion("2294", "시장", "TRADITIONAL_MARKET", "11", "110", "127.02", "37.62")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.map_place_category_projection (revision_id, place_id, canonical_category)
+                    SELECT revision_id, place_id, 'HISTORIC_SITE'
+                    FROM onmaru.map_place_read_projection
+                    WHERE name = '한옥'
+                    """);
+        }
+
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(126.9, 37.5, 127.1, 37.7), 6,
+                MapInfoCategory.ALL, null, null, "ko-KR", 1));
+        var cluster = viewport.items().getFirst();
+        assertThat(cluster.type()).isEqualTo("CLUSTER");
+        assertThat(cluster.count()).isEqualTo(2);
+        assertThat(cluster.center().lat()).isBetween(37.599999, 37.600001);
+        assertThat(cluster.center().lng()).isBetween(126.999999, 127.000001);
+    }
+
+    @Test
+    void levelSixReturnsSingletonCellsAsPlaceMarkers() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2301", "서쪽 관광지", "HISTORIC_SITE", "11", "110", "126.0", "37.0"),
+                rowWithRegion("2302", "동쪽 관광지", "TRADITIONAL_MARKET", "26", "260", "129.0", "35.0")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var viewport = new JdbcMapViewportQueryRepository(dataSource).find(new MapInfoViewportQuery(
+                new MapInfoBounds(124.0, 33.0, 132.0, 39.0), 6,
+                MapInfoCategory.ALL, null, null, "ko-KR", 500));
+
+        assertThat(viewport.renderMode()).isEqualTo(MapInfoRenderMode.CLUSTER);
+        assertThat(viewport.items()).extracting(MapInfoViewportItem::type).containsOnly("PLACE");
+        assertThat(viewport.items()).extracting(MapInfoViewportItem::name)
+                .containsExactlyInAnyOrder("서쪽 관광지", "동쪽 관광지");
+    }
+
+    @Test
+    void densePlaceViewportClustersEveryPlaceInsteadOfTruncatingMarkers() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
+        var session = publisher.start(fetchedAt);
+        var page = publisher.stagePage(session, List.of(
+                rowWithRegion("2311", "서쪽 관광지", "HISTORIC_SITE", "11", "110", "126.95", "37.55"),
+                rowWithRegion("2312", "동쪽 관광지", "TRADITIONAL_MARKET", "11", "110", "127.05", "37.65")));
+        publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                page.quarantinedCount(), page.skippedCount(), fetchedAt);
+
+        var repository = new JdbcMapViewportQueryRepository(dataSource);
+        for (int level : List.of(5, 6)) {
+            var viewport = repository.find(new MapInfoViewportQuery(
+                    new MapInfoBounds(126.9, 37.5, 127.1, 37.7), level,
+                    MapInfoCategory.ALL, null, null, "ko-KR", 1));
+
+            assertThat(viewport.renderMode()).isEqualTo(MapInfoRenderMode.CLUSTER);
+            assertThat(viewport.totalCountInViewport()).isEqualTo(2);
+            assertThat(viewport.items()).hasSize(1);
+            assertThat(viewport.items().getFirst().count()).isEqualTo(2);
+            assertThat(viewport.items().getFirst().targetZoomLevel()).isLessThan(level);
+            assertThat(viewport.coverage()).isEqualTo("COMPLETE");
+        }
     }
 
     @Test
@@ -398,6 +782,41 @@ class JdbcTourApiCatalogPublisherTests {
              var rows = statement.executeQuery("SELECT count(*) FROM " + table)) {
             rows.next();
             return rows.getInt(1);
+        }
+    }
+
+    private void seedMapBoundary(String regionCode) throws Exception {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     INSERT INTO onmaru.catalog_region_boundaries
+                         (boundary_revision, region_id, geometry, source_name, rights_note, observed_at)
+                     SELECT 'map-info-hanok-test', id,
+                            ST_Multi(ST_GeomFromText(
+                                'POLYGON((126.8 37.4,127.2 37.4,127.2 37.8,126.8 37.8,126.8 37.4))', 4326)),
+                            'test', 'test', now()
+                     FROM onmaru.catalog_regions
+                     WHERE code = ?
+                     """)) {
+            statement.setString(1, regionCode);
+            assertThat(statement.executeUpdate()).isEqualTo(1);
+        }
+    }
+
+    private void seedMapRegions() throws Exception {
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                    VALUES (md5('map-info-hanok-test|11')::uuid, NULL, '11', '서울', 'SIDO', true)
+                    ON CONFLICT (code) DO NOTHING
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.catalog_regions (id, parent_id, code, name, level, active)
+                    VALUES (
+                        md5('map-info-hanok-test|11:110')::uuid,
+                        md5('map-info-hanok-test|11')::uuid,
+                        '11:110', '종로구', 'SIGUNGU', true)
+                    ON CONFLICT (code) DO NOTHING
+                    """);
         }
     }
 

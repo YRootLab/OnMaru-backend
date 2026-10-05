@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.tourism.catalog.TourApiCatalogSyncService;
 import com.yrootlab.onmaru.tourism.catalog.TourApiClientConfiguration.TourApiSyncSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -18,13 +19,16 @@ public final class TourApiCatalogSyncSchedulingAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(TourApiCatalogSyncSchedulingAdapter.class);
     private final ObjectProvider<TourApiCatalogSyncService> serviceProvider;
     private final TourApiSyncSettings settings;
+    private final boolean syncOnStartup;
 
     public TourApiCatalogSyncSchedulingAdapter(
             ObjectProvider<TourApiCatalogSyncService> serviceProvider,
-            TourApiSyncSettings settings
+            TourApiSyncSettings settings,
+            @Value("${onmaru.tourapi.sync-on-startup:true}") boolean syncOnStartup
     ) {
         this.serviceProvider = serviceProvider;
         this.settings = settings;
+        this.syncOnStartup = syncOnStartup;
     }
 
     @Scheduled(cron = "${onmaru.tourapi.sync.cron:0 0 3 * * *}", zone = "Asia/Seoul")
@@ -39,6 +43,10 @@ public final class TourApiCatalogSyncSchedulingAdapter {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void initialSync() {
+        if (!syncOnStartup) {
+            LOGGER.info("TourAPI catalog startup sync disabled for this deployment startup");
+            return;
+        }
         run("application-ready");
     }
 

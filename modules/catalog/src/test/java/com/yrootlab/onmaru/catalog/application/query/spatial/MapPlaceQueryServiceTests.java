@@ -44,6 +44,7 @@ class MapPlaceQueryServiceTests {
         assertThat(page.items().getFirst().coordinates().lng()).isEqualTo(127.1530);
         assertThat(page.items().getFirst().savedByMe()).isTrue();
         assertThat(page.items().get(1).savedByMe()).isFalse();
+        assertThat(page.totalCount()).isEqualTo(3);
         assertThat(page.hasMore()).isTrue();
     }
 
@@ -71,6 +72,7 @@ class MapPlaceQueryServiceTests {
 
         assertThat(page.items()).extracting(MapPlaceCard::placeId)
                 .containsExactly("p-jeonju-hanok-village");
+        assertThat(page.totalCount()).isEqualTo(1);
         assertThat(page.coverageStatus()).isEqualTo(MapCoverageStatus.PARTIAL);
         assertThat(page.nextCursor()).isNull();
         assertThat(page.hasMore()).isFalse();

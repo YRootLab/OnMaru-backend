@@ -10,6 +10,22 @@
 // ./schema.dbml
 // Level 1 overview:
 // ./overview.dbml
+// V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
+// failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
+// V039는 관리자 cursor 목록의 필터 전체 건수와 keyset page 조회를 위해
+// identity_members(status, created_at, id), 좌표 snapshot이 완전한
+// community_visit_reviews(status, created_at, id), OPEN community_review_reports
+// (reason, created_at, id)에 전용 index를 추가한다. totalCount count query에는
+// cursor 조건을 적용하지 않아 첫 페이지와 다음 페이지가 같은 필터 전체 건수를 반환한다.
+// 기존 status enum은 유지하며 STARTED→RUNNING, COMPLETED→SUCCEEDED,
+// FAILED→FAILED, SKIPPED→ABANDONED로 대응한다. 다른 sync job은 새 컬럼을 null로 유지한다.
+// 시작과 terminal은 같은 id로 독립 commit하며 terminal 재기록은 기존 terminal을 덮어쓰지 않는다.
+// error_code에는 내부 오류 코드만 저장한다. counts의 fetched는 정상 수신 원천 story 수
+// (중복·curation 제외 포함), mapped는 중복 제거·curation 후 성공적으로 변환한 story 수다.
+// staged/published는 이전 revision 복사분을 포함한 spot+story 행 수이며 실패/skip의 published는 0이다.
+// tombstones는 삭제 후보 spot+story 집계이며 실패의 counts는 관측된 부분값이다.
+// 과거 run에는 fetched/mapped가 없을 수 있다. 운영 판정: ../operations/runbooks/odii-sync.md
+// provider 원문·예외 메시지·credential은 저장하지 않고 DB 장애 시 로그가 진단 경로가 된다.
 // 아래 DBML은 역사적 Odii 모델이며 새 migration의 전체 스키마가 아니다.
 // Journey durable run의 최신 논리 계약은 ./modules/discovery.dbml의
 // discovery_runs와 discovery_run_commands에 있다.
@@ -73,6 +89,10 @@
 // 식별해 개인정보를 복제하지 않고 deletion ledger에 기록하며, 모든 대상이 사라진 뒤에만
 // 회원 deletion ledger를 COMPLETED로 전환한다. DELETING tombstone은
 // cleanup과 경합한 체크인 또는 랭킹 참여가 개인정보 row를 다시 만들지 못하게 한다.
+// 탈퇴 후 동일 외부 계정으로 재로그인하면 DELETING 회원의 external account 연결을
+// 원자적으로 해제하고 새 ACTIVE 회원·프로필에 연결한다. 이전 회원의 deletion ledger,
+// 폐기된 세션과 데이터는 새 회원 ID로 이전하지 않으며 기존 cleanup 대상에 남는다.
+// 기존 연결의 회원 ID에 유효한 관리자 제재가 있으면 연결을 해제하기 전에 로그인을 거부한다.
 // V031은 TourAPI 국문 v4.4에서 기존 areaCode/sigunguCode를 대체한 법정동 코드
 // lDongRegnCd/lDongSignguCd를 catalog_kto_korean_content_versions에 보존한다.
 // 최초 areaBasedList2 전 페이지는 적격성 판정과 무관하게 원천 version에 저장하고,
@@ -83,6 +103,11 @@
 // catalog_region_source_codes, catalog_datalab_region_mappings에 등록한다.
 // 매핑은 공식 data.go.kr URL과 검증 시각을 보존하며, API의 약 35일 제공 지연을 고려한
 // 일별 방문자 동기화와 DB 기반 행정구역 원형 히트맵의 지역 레지스트리로 사용한다.
+// V041은 정보지도 viewport의 TourAPI 법정동 시도/시군구 원본 코드를 한국어로 표시하기 위한
+// map_region_display_names(provider_code PK, name, level) 조회표를 추가한다.
+// 285개 이름은 V032에서 검증한 provider code snapshot을 사용하되 활성 dataset 생성 시점과
+// 독립적으로 저장한다. viewport regionCode는 기존 필터 계약을 위해 그대로 유지하고,
+// 사용자 표시용 name만 이 표에서 조회한다. 매핑되지 않은 값은 내부 코드 대신 '이 지역'으로 표시한다.
 // V033은 ODII 공개 조회를 활성 revision 전체 Java snapshot 복원에서 PostgreSQL read model로
 // 전환한다. audio_odii_spots.public_id와 audio_odii_stories.public_id는 기존 Java
 // UUID.nameUUIDFromBytes 공개 ID와 동일한 generated stored UUID이며 (public_id, lang_code)
@@ -103,6 +128,13 @@
 // V037은 V036보다 먼저 게시된 활성 TourAPI revision의 지도 장소·카테고리·지역 집계
 // projection 및 publication을 원천 장소 변경 없이 채운다. 지역 코드가 없는 장소도
 // 위치와 공개 ID가 있으면 지도 목록에 포함하고 지역 집계에서는 제외한다.
+// V040부터 identity_member_profiles가 OnMaru 회원의 현재 공개 프로필을 소유한다.
+// display_name은 trim된 2~20자 익명 이름이며 중복을 허용한다. character_id는
+// CHARACTER_01..10, background_id는 BACKGROUND_01..10의 고정 FE 자산 슬롯만 저장한다.
+// 실제 캐릭터 이미지와 배경 HEX는 FE가 관리하며 DB에는 URL이나 HEX를 저장하지 않는다.
+// migration은 기존 회원 UUID hash로 프로필을 결정적으로 backfill한다. 신규 회원은 OAuth
+// 최초 연결 transaction에서 프로필을 함께 만들고, 후기 조회는 작성 당시 snapshot 대신
+// 이 현재 profile을 batch join한다. 회원 row 삭제 시 profile은 ON DELETE CASCADE로 삭제된다.
 // 파일 전체(Cmd+A)를 복사하여 https://dbdiagram.io/ 에 붙여넣으면 
 // 에러 없이 시각화된 ERD(관계도)를 볼 수 있습니다.
 

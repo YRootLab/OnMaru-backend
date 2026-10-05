@@ -83,6 +83,7 @@ jobs:
       - name: Run Gradle module and Spring API tests, then build the executable JAR
         run: |
           ./gradlew \
+            --init-script build-logic/ci-performance.gradle.kts \
             :adapters:tourism-api:test \
             :modules:insights:test \
             :modules:catalog:test \

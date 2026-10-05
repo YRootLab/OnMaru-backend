@@ -72,13 +72,16 @@ class OdiiStoryQueryServiceTests {
                 .containsExactly("odii-story-jeonju-hanok-01");
         assertThat(first.items().getFirst().contentTags()).contains("한옥 골목");
         assertThat(first.items().getFirst().savedByMe()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(2);
         assertThat(first.hasMore()).isTrue();
         assertThat(first.nextCursor()).isNotBlank();
         assertThat(second.items()).extracting(OdiiStorySummary::storyId)
                 .containsExactly("odii-story-gyeongju-01");
+        assertThat(second.totalCount()).isEqualTo(2);
         assertThat(second.hasMore()).isFalse();
         assertThat(filtered.items()).extracting(OdiiStorySummary::storyId)
                 .containsExactly("odii-story-jeonju-hanok-01");
+        assertThat(filtered.totalCount()).isEqualTo(1);
     }
 
     @Test
@@ -107,6 +110,7 @@ class OdiiStoryQueryServiceTests {
                         "ko-KR",
                         OdiiLanguageStatus.EXACT,
                         List.of(relationalStory),
+                        1,
                         false);
             }
 
@@ -116,7 +120,8 @@ class OdiiStoryQueryServiceTests {
                         REVISION_ONE,
                         "ko-KR",
                         OdiiLanguageStatus.EXACT,
-                        List.of(relationalStory));
+                        List.of(relationalStory),
+                        1);
             }
 
             @Override
@@ -193,14 +198,17 @@ class OdiiStoryQueryServiceTests {
     void listsNearbyStoriesByDistanceAndValidatesCoordinatesAndRadius() {
         var near = storyWithCoordinates("odii-story-near-01", 37.5665, 126.9780,
                 Instant.parse("2026-09-15T01:00:00Z"));
+        var alsoNear = storyWithCoordinates("odii-story-near-02", 37.5666, 126.9781,
+                Instant.parse("2026-09-15T00:30:00Z"));
         var far = storyWithCoordinates("odii-story-far-01", 35.1796, 129.0756,
                 Instant.parse("2026-09-15T02:00:00Z"));
-        store.replaceActive(snapshot(REVISION_ONE, far, near));
+        store.replaceActive(snapshot(REVISION_ONE, far, near, alsoNear));
 
-        var result = service.nearby(37.5665, 126.9780, 5_000, "ko-KR", 20, Optional.empty());
+        var result = service.nearby(37.5665, 126.9780, 5_000, "ko-KR", 1, Optional.empty());
 
         assertThat(result.items()).extracting(OdiiStorySummary::storyId)
                 .containsExactly("odii-story-near-01");
+        assertThat(result.totalCount()).isEqualTo(2);
         assertThatThrownBy(() -> service.nearby(91, 126.978, 5_000, "ko-KR", 20, Optional.empty()))
                 .isInstanceOf(OdiiStoryInvalidRequestException.class)
                 .hasMessageContaining("lat");
@@ -214,13 +222,16 @@ class OdiiStoryQueryServiceTests {
         store.replaceActive(snapshot(REVISION_ONE,
                 storyWithTextAndPublishedAt("odii-story-match", "궁궐 이야기", "왕실 산책",
                         List.of("궁궐"), Instant.parse("2026-09-10T00:00:00Z")),
+                storyWithTextAndPublishedAt("odii-story-match-two", "궁궐 두 번째 이야기", "왕실 산책",
+                        List.of("궁궐"), Instant.parse("2026-09-09T00:00:00Z")),
                 storyWithTextAndPublishedAt("odii-story-recent", "시장 이야기", "전통시장",
                         List.of("시장"), Instant.parse("2026-09-15T00:00:00Z"))));
 
-        var result = service.recommend("궁궐", "ko-KR", 20, Optional.empty());
+        var result = service.recommend("궁궐", "ko-KR", 1, Optional.empty());
 
         assertThat(result.items()).extracting(OdiiStorySummary::storyId)
                 .containsExactly("odii-story-match");
+        assertThat(result.totalCount()).isEqualTo(2);
     }
 
     @Test
@@ -233,10 +244,11 @@ class OdiiStoryQueryServiceTests {
                 storyWithTextAndPublishedAt("odii-story-second", "궁궐 두 번째 이야기", "궁궐 산책",
                         List.of("궁궐"), Instant.parse("2026-09-13T00:00:00Z"))));
 
-        var result = service.search("궁궐", "ko-KR", 2, Optional.empty());
+        var result = service.search("궁궐", "ko-KR", 1, Optional.empty());
 
         assertThat(result.items()).extracting(OdiiStorySummary::storyId)
-                .containsExactly("odii-story-duplicate", "odii-story-second");
+                .containsExactly("odii-story-duplicate");
+        assertThat(result.totalCount()).isEqualTo(2);
     }
 
     @Test

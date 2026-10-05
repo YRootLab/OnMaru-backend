@@ -136,8 +136,10 @@ public final class OdiiStoryQueryService {
                         || query.regionCode().equals(story.region().regionCode()))
                 .toList();
         var selection = selectLanguage(eligible, query.language());
-        var ordered = deduplicate(selection.stories()).stream()
+        var allOrdered = deduplicate(selection.stories()).stream()
                 .sorted(ORDER)
+                .toList();
+        var ordered = allOrdered.stream()
                 .filter(story -> cursor == null || isAfterCursor(story, cursor))
                 .limit(query.limit() + 1L)
                 .toList();
@@ -160,6 +162,7 @@ public final class OdiiStoryQueryService {
                 selection.language(),
                 selection.status(),
                 summaries,
+                allOrdered.size(),
                 nextCursor,
                 hasMore);
     }
@@ -192,6 +195,7 @@ public final class OdiiStoryQueryService {
                 page.language(),
                 page.languageStatus(),
                 summaries,
+                page.totalCount(),
                 nextCursor,
                 page.hasMore());
     }
@@ -206,19 +210,17 @@ public final class OdiiStoryQueryService {
         validateLimit(limit, "limit", 50);
 
         if (relationalReadPort != null) {
-            return page(relationalSelection(
-                    relationalReadPort.search(normalizedKeyword, language, limit, false)), memberId);
+            var result = relationalReadPort.search(normalizedKeyword, language, limit, false);
+            return page(relationalSelection(result), result.stories(), result.totalCount(), memberId);
         }
 
         var snapshot = store.activeSnapshot();
         var selection = selectLanguage(publicStories(snapshot.stories()), language);
-        var matches = deduplicate(selection.stories().stream()
+        var allMatches = deduplicate(selection.stories().stream()
                 .filter(story -> searchableText(story).contains(normalizedKeyword))
                 .sorted(ORDER)
-                .toList()).stream()
-                .limit(limit)
-                .toList();
-        return page(selection, matches, memberId);
+                .toList());
+        return page(selection, allMatches.stream().limit(limit).toList(), allMatches.size(), memberId);
     }
 
     public OdiiStoryPage nearby(
@@ -237,23 +239,22 @@ public final class OdiiStoryQueryService {
         validateLimit(limit, "limit", 50);
 
         if (relationalReadPort != null) {
-            return page(relationalSelection(relationalReadPort.nearby(
-                    latitude, longitude, radiusMeters, language, limit)), memberId);
+            var result = relationalReadPort.nearby(latitude, longitude, radiusMeters, language, limit);
+            return page(relationalSelection(result), result.stories(), result.totalCount(), memberId);
         }
 
         var snapshot = store.activeSnapshot();
         var selection = selectLanguage(publicStories(snapshot.stories()), language);
-        var nearby = deduplicate(selection.stories()).stream()
+        var allNearby = deduplicate(selection.stories()).stream()
                 .map(story -> new Distance(story, distanceMeters(
                         latitude, longitude, story.coordinates().lat(), story.coordinates().lng())))
                 .filter(distance -> distance.meters() <= radiusMeters)
                 .sorted(Comparator.comparingDouble(Distance::meters)
                         .thenComparing(distance -> distance.story().publishedAt(), Comparator.reverseOrder())
-                        .thenComparing(distance -> distance.story().storyId()))
+                .thenComparing(distance -> distance.story().storyId()))
                 .map(Distance::story)
-                .limit(limit)
                 .toList();
-        return page(selection, nearby, memberId);
+        return page(selection, allNearby.stream().limit(limit).toList(), allNearby.size(), memberId);
     }
 
     public OdiiStoryPage recommend(
@@ -266,8 +267,8 @@ public final class OdiiStoryQueryService {
         validateLimit(limit, "limit", 50);
 
         if (relationalReadPort != null) {
-            return page(relationalSelection(
-                    relationalReadPort.search(normalizedKeyword, language, limit, true)), memberId);
+            var result = relationalReadPort.search(normalizedKeyword, language, limit, true);
+            return page(relationalSelection(result), result.stories(), result.totalCount(), memberId);
         }
 
         var snapshot = store.activeSnapshot();
@@ -279,7 +280,7 @@ public final class OdiiStoryQueryService {
                         .thenComparing(OdiiStoryProjection::publishedAt, Comparator.reverseOrder())
                         .thenComparing(OdiiStoryProjection::storyId))
                 .toList();
-        return page(selection, ranked.stream().limit(limit).toList(), memberId);
+        return page(selection, ranked.stream().limit(limit).toList(), ranked.size(), memberId);
     }
 
     private List<OdiiStoryProjection> publicStories(List<OdiiStoryProjection> stories) {
@@ -296,6 +297,7 @@ public final class OdiiStoryQueryService {
     private OdiiStoryPage page(
             LanguageSelection selection,
             List<OdiiStoryProjection> stories,
+            long totalCount,
             Optional<UUID> memberId) {
         var summaries = stories.stream().map(story -> summary(story, memberId)).toList();
         var coverage = summaries.isEmpty()
@@ -309,12 +311,9 @@ public final class OdiiStoryQueryService {
                 selection.language(),
                 selection.status(),
                 summaries,
+                totalCount,
                 null,
                 false);
-    }
-
-    private OdiiStoryPage page(LanguageSelection selection, Optional<UUID> memberId) {
-        return page(selection, selection.stories(), memberId);
     }
 
     private String validateKeyword(String keyword) {

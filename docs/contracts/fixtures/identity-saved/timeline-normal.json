@@ -62,6 +62,7 @@
           ]
         }
       ],
+      "totalCount": 3,
       "nextCursor": null,
       "hasMore": false,
       "unavailableCount": 0

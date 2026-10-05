@@ -66,48 +66,136 @@ UV_OFFLINE=1 uv run pytest
 
 오프라인 보장은 **같은 장비와 사용자 계정의 예열된 캐시**를 전제로 한다. 다른 노트북으로 Git 저장소만 옮기면 캐시가 함께 이동하지 않으므로 인터넷 연결 상태에서 최초 실행을 다시 해야 한다. 후속 Issue에서 새 라이브러리를 추가할 때도 온라인 `check` 또는 `uv sync`를 먼저 실행해야 한다.
 
-## CI 기준선 수집과 비교
+## CI 관측과 Pipeline Benchmark
 
-CI를 바꾸기 전후의 시간을 비교할 때는, 한 번의 빠르거나 느린 실행으로 결론 내리지 않는다. 같은 커밋과 같은 실행 조건에서 CI를 세 번 완료해 중앙값을 기준선으로 남긴 뒤, 변경 후에도 같은 방식으로 세 번 수집한다. 이렇게 하면 일시적인 GitHub Actions 대기 시간이나 캐시 상태가 판단을 흐리는 일을 줄일 수 있다.
+이 구성은 서로 다른 두 작업을 연결한다. **CI 관측**은 완료된 CI의 시간·성공 여부를 대시보드에서 보는 경로이고, **Pipeline Benchmark**는 설정 변경이 실제로 빨라졌는지 baseline 3회와 candidate 3회로 통제해 비교하는 수동 실험이다. 관측 실패가 원래 CI의 성공·실패 판정을 바꾸지는 않는다.
 
-### 1. 비교 가능한 실행 세 번 만들기
+```mermaid
+flowchart LR
+    A[GitHub Actions CI 완료] --> B[신뢰된 후처리]
+    B --> C[OTel Collector]
+    C --> D[Prometheus · Tempo]
+    D --> E[Grafana dashboard]
 
-`develop`의 같은 커밋에서 CI를 한 번씩 차례로 실행한다. CI workflow에는 동시 실행을 정리하는 설정이 있으므로, 앞선 실행이 끝난 뒤 다음 실행을 시작한다.
-
-```bash
-gh workflow run CI --repo YRootLab/OnMaru-backend --ref develop
+    F[Skill 기본 dry-run] --> G{명시적 dispatch 승인?}
+    G -- 아니요 --> H[조건과 예상 실행만 확인]
+    G -- 예 --> I[baseline 3회 + candidate 3회]
+    I --> J[manifest · attestation 검증]
+    J --> K[Toolkit wait · compare]
+    K --> L[Markdown · JSON 결과]
 ```
 
-각 실행이 성공한 뒤 Actions 화면에서 run ID 세 개를 기록한다. 서로 다른 커밋, runner 이미지, 의존성 모드, 캐시 상태, Java/Python 버전을 섞으면 비교 대상이 아니다.
+일상 CI 경로에서는 GitHub Actions가 안전한 manifest를 만들고, 별도의 신뢰된 후처리가 OTLP로 보낸다. 로컬에서는 **Collector → Prometheus·Tempo → Grafana** 순서로 흘러가며, Grafana에서 workflow/job/module 시간과 성공·실패 trace를 함께 본다. 실제 실험은 `skills/onmaru-ci-benchmark-experiment/`가 고정 Toolkit CLI를 호출한다. 기본 동작은 언제나 dry-run이고, 현재 요청에서 실제 실행을 명시한 경우에만 여섯 개의 독립 run을 dispatch한다. 실험의 최종 개선 판정은 dashboard가 아니라 검증된 manifest를 읽은 Toolkit의 Markdown/JSON 결과가 정본이다.
 
-### 2. 기준선 artifact 만들기
+### Docker가 필요한 이유와 설치 범위
 
-Actions의 **Collect CI Baseline Evidence** workflow를 `develop`에서 실행하고, 아래 입력을 채운다. workflow가 기본 브랜치에 아직 동기화되지 않아 CLI 목록에 보이지 않을 때는 Actions 화면에서 `develop`을 선택해 실행한다.
+Docker는 Spring 또는 FastAPI를 이 절차에서 컨테이너로 실행하기 위한 것이 아니다. 로컬 관측 환경에 필요한 Collector, Prometheus, Tempo, Grafana 네 서비스를 같은 버전과 설정으로 한 번에 띄우고 깨끗하게 제거하기 위해 사용한다.
 
-| 입력 | 값 |
-| --- | --- |
-| `run_ids` | 성공한 CI run ID 세 개를 쉼표로 연결한 값 |
-| `runner_image` | 예: `ubuntu-latest` |
-| `dependency_mode` | 예: `locked` |
-| `cache_state` | 예: `unknown` |
-| `java_version` | `21` |
-| `python_version` | `3.12` |
+| 하려는 일 | 필요한 것 | 별도 설치 여부 |
+| --- | --- | --- |
+| 문서 확인, Skill dry-run | Python 3.9+, `git`, 인증된 `gh`, 고정 Toolkit CLI | Docker 불필요 |
+| 로컬 dashboard와 synthetic smoke | Docker Engine, Docker Compose v2, Python 3.9+ | Grafana, Prometheus, Tempo, OpenTelemetry Collector를 따로 설치할 필요는 없다 |
+| 실제 GitHub benchmark | 위 CLI와 `gh`, clean하고 push된 `feature/*` branch | 로컬 Docker 불필요 |
+| Grafana Cloud 전송 | 승인된 Cloud tenant와 GitHub environment secret | 선택 사항이며 로컬 확인에는 불필요 |
 
-성공하면 `ci-serial-baseline` artifact에 `serial-baseline.json`과 `summary.md`가 생성된다. artifact 보관 기간은 30일이며, 원시 로그나 서비스 자격 증명은 저장하지 않는다.
+macOS에서는 Docker Desktop 하나가 Engine과 Compose v2를 함께 제공한다. Compose stack은 Toolkit 저장소 안의 고정 image와 설정을 사용하며 실제 OnMaru 데이터나 Cloud credential을 요구하지 않는다. 종료할 때 volume까지 내리면 local synthetic 데이터도 삭제된다.
 
-### 3. 두 기준선 비교하기
+### 로컬 대시보드 실행
 
-수집한 변경 전·후 `serial-baseline.json`을 내려받은 뒤 아래처럼 실행한다.
+관측 stack은 OnMaruBE가 아니라 별도 [OnMaru Backend CI Toolkit](https://github.com/YRootLab/OnMaru-backend-ci-toolkit)에 있다. 처음 한 번 Toolkit을 내려받아 검증된 커밋에 고정한 뒤, **Toolkit 디렉터리에서** 실행한다.
 
 ```bash
-node scripts/benchmark/compare-ci-baseline.mjs \
-  --baseline ./baseline-before.json \
-  --candidate ./baseline-after.json \
-  --json-output ./ci-comparison.json \
-  --markdown-output ./ci-comparison.md
+git clone https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git ../OnMaru-backend-ci-toolkit
+git -C ../OnMaru-backend-ci-toolkit checkout 7ecbb89aae771604d9c1c532cf123f239e279110
+cd ../OnMaru-backend-ci-toolkit
+
+bash scripts/verify_toolkit.sh
+python3 scripts/build_ci_dashboard.py --check
+docker compose -f observability/local/compose.yaml up --build -d --wait --wait-timeout 180
+python3 scripts/local_observability_smoke.py --health-only
+PYTHONPATH=src python3 scripts/ci_dashboard_smoke.py --timeout 45
 ```
 
-`ci-comparison.json`은 후속 자동화가 읽는 구조화된 결과이고, `ci-comparison.md`는 PR이나 운영 기록에 바로 붙일 수 있는 요약이다. 비교 도구는 실행 조건이 하나라도 다르면 중단한다. GitHub Actions API만으로 확인할 수 없는 CPU·메모리 수치는 `0`으로 바꾸지 않고 “수집 불가”로 남긴다.
+정상 기동 후에는 다음 위치에서 직접 확인한다.
+
+- Grafana CI dashboard: <http://127.0.0.1:3000/d/toolkit-ci-benchmark>
+- Prometheus query UI: <http://127.0.0.1:9090>
+- Tempo trace: Grafana의 **Explore**에서 `local-tempo` datasource 선택
+
+Collector 뒤쪽 장애와 복구까지 점검하려면 Toolkit 디렉터리에서 아래 smoke를 추가 실행한다. 이 명령은 이 Compose 프로젝트의 Tempo만 잠시 멈췄다가 복구한다.
+
+```bash
+PYTHONPATH=src python3 scripts/collector_outage_smoke.py --exercise-outage
+PYTHONPATH=src python3 scripts/ci_dashboard_smoke.py --timeout 45
+```
+
+확인이 끝나면 disposable stack을 제거한다.
+
+```bash
+docker compose -f observability/local/compose.yaml down --volumes --remove-orphans
+```
+
+### Benchmark Skill 실행
+
+Toolkit CLI는 실행 파일의 설치 출처와 commit까지 검사하므로 임의 버전 대신 아래 고정 commit을 설치한다. 시스템 Python을 오염시키지 않도록 임시 가상환경을 사용하는 예시다.
+
+```bash
+python3 -m venv /tmp/onmaru-pipeline-toolkit
+/tmp/onmaru-pipeline-toolkit/bin/pip install \
+  'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@7ecbb89aae771604d9c1c532cf123f239e279110'
+export ONMARU_PIPELINE_TOOLKIT_BIN=/tmp/onmaru-pipeline-toolkit/bin/pipeline-toolkit
+export ONMARU_PIPELINE_TOOLKIT_REF=7ecbb89aae771604d9c1c532cf123f239e279110
+```
+
+이제 OnMaruBE 저장소 루트로 돌아와 먼저 dry-run한다. 인자를 생략해도 dry-run이 기본이다.
+
+```bash
+python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py \
+  --scope ci \
+  --reason 'Gradle worker 비교'
+```
+
+dry-run은 branch, remote SHA, workflow, gate, baseline/candidate를 확인할 뿐 GitHub run을 만들지 않는다. 후보 branch는 clean하고 remote에 push된 `feature/*`여야 한다. 실제 실행은 사용자가 현재 작업에서 명시적으로 요청한 때에만 다음처럼 승인 flag를 붙인다.
+
+```bash
+python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py dispatch \
+  --authorize-dispatch \
+  --scope ci \
+  --reason 'Gradle worker 비교' \
+  > /tmp/onmaru-experiment-receipt.json
+
+python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py wait \
+  --receipt /tmp/onmaru-experiment-receipt.json \
+  > /tmp/onmaru-experiment-result.json
+
+# result의 collection 객체를 /tmp/onmaru-experiment-collection.json으로 저장한 뒤 재계산한다.
+python3 skills/onmaru-ci-benchmark-experiment/scripts/run_experiment.py compare \
+  --input /tmp/onmaru-experiment-collection.json \
+  --format markdown
+```
+
+Dispatch 응답이 유실되거나 상태가 모호하면 이미 실행됐을 수 있으므로 **재-dispatch하지 않는다**. Receipt의 exact run/attempt와 GitHub Actions를 확인한다. 현재 workflow가 기본 브랜치에 없거나 integration gate가 닫혀 있지 않으면 실제 dispatch는 정상적으로 거부되며, dry-run 결과에 해결할 조건이 표시된다.
+
+### 개선율을 읽는 방법
+
+비교값은 같은 source, test plan, runner 조건과 측정 경계에서 얻은 **baseline 3회와 candidate 3회**의 whole-workflow 시간을 사용한다.
+
+`개선율 = (baseline 중앙값 - candidate 중앙값) / baseline 중앙값 × 100`
+
+위 사람이 읽는 개선율은 양수면 단축, 음수면 회귀다. Toolkit JSON의 `relative_delta`는 반대로 `(candidate - baseline) / baseline`이므로 음수면 단축이다. 중앙값만 쓰지 말고 여섯 개의 개별 값, 범위, 실패율, queue 조건도 함께 남긴다. 과거 serial whole-workflow 470초와 critical-path 411.62초처럼 측정 경계가 다른 값은 12.42% 개선으로 주장하지 않는다. 2026-10-05의 실제 3+3 결과는 [`CI Gradle profile 3+3 실측`](docs/reports/2026-10-05-ci-performance-measurement.md)에 있다. 상세 보안·증적 계약은 [`docs/benchmark/README.md`](docs/benchmark/README.md), 대시보드와 Cloud 운영 절차는 [`docs/operations/release-evidence/ci-observability.md`](docs/operations/release-evidence/ci-observability.md)를 참고한다.
+
+Release 사이의 module 성능은 일반 PR 실험과 분리한다. 각 tag에서 `Module Benchmark`를
+서로 다른 run으로 3회씩 실행하고 검토된 `release-module-evidence.json`을 각 Release에
+올린 다음, 고정 Toolkit adapter로 비교한다. 15% 초과 회귀는 자동 통과하지 않고
+`benchmark-promotion` 승인 검토로 보낸다. v0.3.38 → v0.3.39 실제 결과와 복사 가능한 명령은
+[`release module 3+3 실측`](docs/reports/2026-10-05-release-module-benchmark.md)에 있다.
+
+채택한 `2 workers / Gradle build cache disabled` profile은 required Java CI뿐 아니라 Spring
+Docker `bootJar`와 deploy/release migration rehearsal에도 opt-in으로 적용한다. 이때
+`actions/setup-java` dependency cache, Docker의 Gradle cache mount와 GHA BuildKit layer cache는
+유지된다. 즉 모든 cache를 끄는 구성이 아니며, task output을 재사용하는 Gradle build cache만
+disabled다. 이번 3+3은 worker와 task-output cache를 동시에 바꾼 실험이므로 CD 단독 개선율을
+주장하지 않고, 다음 측정에서는 두 축을 분리한다.
 
 ## 환경 분리 및 프로파일 전환 가이드 (Local, Develop, Production)
 
@@ -118,8 +206,8 @@ node scripts/benchmark/compare-ci-baseline.mjs \
 | 환경 (Stage) | Spring Profile | Secrets Source | DB / 외부 API 동작 | 용도 |
 |---|---|---|---|---|
 | **Local (기본)** | `local` (default) | `fake` (Mock) | 인메모리 DB, 가짜 외부 API 키로도 오프라인 빌드/테스트 100% 통과 | 로컬 빠른 개발 및 단위/통합 테스트 |
-| **Develop** | `develop` | `ENVIRONMENT` | Neon 개발용 DB, 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
-| **Production** | `production` | `ENVIRONMENT` | Neon Production DB (PostGIS), 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 (Render) |
+| **Develop** | `develop` | `ENVIRONMENT` | 온디맨드 Lightsail 스테이징 DB, 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
+| **Production** | `production` | `ENVIRONMENT` | AWS Lightsail PostgreSQL/PostGIS, 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 (Lightsail) |
 
 ### 1. 프로파일별 실행 방법
 
@@ -130,11 +218,13 @@ node scripts/benchmark/compare-ci-baseline.mjs \
 # 2) 개발/스테이징 환경 실행 (로컬 환경변수 또는 .env.local 주입)
 SPRING_PROFILES_ACTIVE=develop ./gradlew :apps:spring-api:bootRun
 
-# 3) 프로덕션 환경 실행 (Render 등의 컨테이너 환경)
+# 3) 프로덕션 환경 실행 (AWS Lightsail 컨테이너 환경)
 SPRING_PROFILES_ACTIVE=production \
 ONMARU_SECRETS_SOURCE=ENVIRONMENT \
 ./gradlew :apps:spring-api:bootRun
 ```
+
+Render와 Neon을 운영 환경으로 설명하는 이전 문서는 마이그레이션 이력 보존용 deprecated 자료다. 현재 배포·복구 절차는 [`infra/lightsail/README.md`](infra/lightsail/README.md)를 기준으로 한다.
 
 ### 2. 필수 환경변수 목록 (Production / Develop)
 

@@ -1111,6 +1111,32 @@
         },
         "required": ["lat", "lng"]
       },
+      "CharacterId": {
+        "type": "string",
+        "pattern": "^CHARACTER_(0[1-9]|10)$"
+      },
+      "BackgroundId": {
+        "type": "string",
+        "pattern": "^BACKGROUND_(0[1-9]|10)$"
+      },
+      "VisitReviewAuthor": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 20
+          },
+          "characterId": {
+            "$ref": "#/components/schemas/CharacterId"
+          },
+          "backgroundId": {
+            "$ref": "#/components/schemas/BackgroundId"
+          }
+        },
+        "required": ["displayName", "characterId", "backgroundId"]
+      },
       "VisitReview": {
         "type": "object",
         "properties": {
@@ -1156,6 +1182,10 @@
               "maxLength": 20
             }
           },
+          "author": {
+            "$ref": "#/components/schemas/VisitReviewAuthor",
+            "description": "조회 시점의 최신 OnMaru 프로필. 내부 memberId는 노출하지 않는다."
+          },
           "visitorCount": {
             "type": ["integer", "null"],
             "format": "int64",
@@ -1184,6 +1214,7 @@
           "lat",
           "lng",
           "text",
+          "author",
           "createdAt",
           "mine",
           "likeCount",
@@ -1240,6 +1271,11 @@
               "$ref": "#/components/schemas/VisitReview"
             }
           },
+          "totalCount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
           "nextCursor": {
             "type": [
               "string",
@@ -1282,6 +1318,7 @@
           "schemaVersion",
           "queryKey",
           "items",
+          "totalCount",
           "nextCursor",
           "hasMore",
           "asOf",

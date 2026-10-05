@@ -66,9 +66,12 @@ class AdminReviewPaginationBoundaryTests {
         assertThat(first.getStatusCode().value()).isEqualTo(200);
         var firstBody = (Map<?, ?>) first.getBody();
         assertThat(firstBody.get("hasNext")).isEqualTo(true);
+        assertThat(firstBody.get("totalCount")).isEqualTo(2L);
         String cursor = (String) firstBody.get("nextCursor");
         var second = controller.reviews("PUBLISHED", "한옥", 1, cursor, bearer, request);
-        assertThat(((Map<?, ?>) second.getBody()).get("hasNext")).isEqualTo(false);
+        var secondBody = (Map<?, ?>) second.getBody();
+        assertThat(secondBody.get("hasNext")).isEqualTo(false);
+        assertThat(secondBody.get("totalCount")).isEqualTo(2L);
 
         var changedFilter = controller.reviews("PUBLISHED", "카페", 1, cursor, bearer, request);
         assertThat(changedFilter.getStatusCode().value()).isEqualTo(400);
@@ -96,9 +99,12 @@ class AdminReviewPaginationBoundaryTests {
         assertThat(first.getStatusCode().value()).isEqualTo(200);
         var firstBody = (Map<?, ?>) first.getBody();
         assertThat(firstBody.get("hasNext")).isEqualTo(true);
+        assertThat(firstBody.get("totalCount")).isEqualTo(2L);
         String cursor = (String) firstBody.get("nextCursor");
         var second = controller.reports("SPAM", 1, cursor, bearer, request);
-        assertThat(((Map<?, ?>) second.getBody()).get("hasNext")).isEqualTo(false);
+        var secondBody = (Map<?, ?>) second.getBody();
+        assertThat(secondBody.get("hasNext")).isEqualTo(false);
+        assertThat(secondBody.get("totalCount")).isEqualTo(2L);
 
         var changedReason = controller.reports("ABUSE", 1, cursor, bearer, request);
         assertThat(changedReason.getStatusCode().value()).isEqualTo(400);

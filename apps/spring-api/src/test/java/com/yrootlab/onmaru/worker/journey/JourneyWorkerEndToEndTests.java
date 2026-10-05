@@ -31,8 +31,16 @@ import com.yrootlab.onmaru.journey.worker.JourneyWorkerService;
 import com.yrootlab.onmaru.journey.worker.PersistJourneyResultCommand;
 import com.yrootlab.onmaru.journey.worker.PersistJourneyResultResult;
 import com.yrootlab.onmaru.journey.worker.WorkerTelemetryEvent;
+import com.yrootlab.onmaru.journey.worker.AiProposalClient;
+import com.yrootlab.onmaru.journey.worker.CandidatePayload;
+import com.yrootlab.onmaru.journey.worker.JourneyWorkerPlan;
+import com.yrootlab.onmaru.journey.events.JourneyRunEventBuffer;
+import com.yrootlab.onmaru.journey.events.JourneyRunEventSink;
+import com.yrootlab.onmaru.journey.events.JourneyRunEventType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -48,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -63,6 +72,81 @@ class JourneyWorkerEndToEndTests {
         if (server != null) {
             server.stop(0);
         }
+    }
+
+    @Test
+    void internalDeltasReachPublicSinkBeforeTerminalAndValidatedSnapshotPersistence() throws Exception {
+        server = server(exchange -> respondStream(exchange, "event: text.delta\ndata: {\"text\":\"한옥 산책을 구성해요.\"}\n\n"
+                + "event: text.delta\ndata: {\"text\":\"골목을 이어봐요.\"}\n\n" + finalProposal()));
+        var runStore = new RecordingRunStore();
+        var resultStore = new RecordingResultStore(PersistJourneyResultResult.PERSISTED);
+        var telemetry = new ArrayList<WorkerTelemetryEvent>();
+        var sink = new JourneyRunEventBuffer(64, Duration.ofSeconds(15));
+        var outcome = streamingWorker(runStore, resultStore, aiClient(telemetry), sink, telemetry).process(request());
+        assertThat(outcome).isEqualTo(JourneyWorkerOutcome.COMPLETED_LLM);
+        var events = sink.replay(request().runId(), null).events();
+        assertThat(events.stream().filter(event -> event.type() == JourneyRunEventType.TEXT_DELTA).map(event -> event.data()))
+                .anyMatch(data -> data.contains("한옥 산책을 구성해요"))
+                .anyMatch(data -> data.contains("골목을 이어봐요"));
+        assertThat(events.getLast().type()).isEqualTo(JourneyRunEventType.TERMINAL);
+        assertThat(resultStore.commands).singleElement().satisfies(command -> {
+            assertThat(command.engine()).isEqualTo(JourneyResultEngine.LLM);
+            assertThat(command.orderedRefs()).containsExactly("place:002", "place:001");
+        });
+        assertThat(telemetry.toString()).doesNotContain("한옥 산책을 구성해요", "골목을 이어봐요");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"malformed", "duplicate", "provider-error", "unknown-ref"})
+    void malformedDuplicateOrProviderErrorStreamUsesCandidateOnlyBaseline(String mode) throws Exception {
+        String body = "event: text.delta\ndata: {\"text\":\"임시 설명이에요.\"}\n\n" + switch (mode) {
+            case "duplicate" -> finalProposal() + finalProposal();
+            case "provider-error" -> "event: error\ndata: {\"code\":\"AI_QUOTA_EXCEEDED\"}\n\n";
+            case "unknown-ref" -> finalProposal().replace("place:002", "private-ref");
+            default -> "event: proposal\ndata: broken-json\n\n";
+        };
+        server = server(exchange -> respondStream(exchange, body));
+        var resultStore = new RecordingResultStore(PersistJourneyResultResult.PERSISTED);
+        var telemetry = new ArrayList<WorkerTelemetryEvent>();
+        var outcome = streamingWorker(new RecordingRunStore(), resultStore, aiClient(telemetry),
+                new JourneyRunEventBuffer(64, Duration.ofSeconds(15)), telemetry).process(request());
+        assertThat(outcome).isEqualTo(JourneyWorkerOutcome.COMPLETED_BASELINE);
+        assertThat(resultStore.commands).singleElement().satisfies(command -> {
+            assertThat(command.engine()).isEqualTo(JourneyResultEngine.BASELINE);
+            assertThat(command.orderedRefs()).containsOnly("place:001", "place:002");
+            assertThat(command.degradedReason().name()).isEqualTo(mode.equals("provider-error") ? "AI_QUOTA_EXCEEDED" : "AI_INVALID_RESPONSE");
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"cancel", "generation"})
+    void cancelledOrReplacedRunNeverPublishesLateDeltaOrPersistsLateResult(String mode) throws Exception {
+        var runStore = new RecordingRunStore();
+        var resultStore = new RecordingResultStore(PersistJourneyResultResult.PERSISTED);
+        var sink = new JourneyRunEventBuffer(64, Duration.ofSeconds(15));
+        var ai = new AiProposalClient() {
+            @Override public JourneyWorkerPlan propose(JourneyWorkerRequest ignored, CandidatePayload payload) {
+                return new JourneyWorkerPlan(List.of("place:001"), "PROPOSAL");
+            }
+            public JourneyWorkerPlan propose(JourneyWorkerRequest ignored, CandidatePayload payload, Consumer<String> delta) {
+                delta.accept("취소 전 설명");
+                if (mode.equals("cancel")) {
+                    runStore.status = JourneyRunStatus.CANCELLED;
+                    sink.terminal(request().runId(), "CANCELLED", null);
+                } else {
+                    runStore.generation++;
+                }
+                delta.accept("late-private-description");
+                return new JourneyWorkerPlan(List.of("place:001"), "PROPOSAL");
+            }
+        };
+        var outcome = streamingWorker(runStore, resultStore, ai, sink, new ArrayList<>()).process(request());
+        assertThat(outcome).isEqualTo(JourneyWorkerOutcome.DISCARDED_LATE_RESULT);
+        assertThat(resultStore.commands).isEmpty();
+        assertThat(runStore.finished).isEmpty();
+        assertThat(sink.replay(request().runId(), null).events().stream()
+                .filter(event -> event.type() == JourneyRunEventType.TEXT_DELTA).map(event -> event.data()))
+                .hasSize(1).allMatch(data -> data.contains("취소 전 설명") && !data.contains("late-private"));
     }
 
     @Test
@@ -129,6 +213,25 @@ class JourneyWorkerEndToEndTests {
                 telemetry::add);
     }
 
+    private JourneyWorkerService streamingWorker(RecordingRunStore runStore, RecordingResultStore resultStore,
+            AiProposalClient ai, JourneyRunEventSink sink, List<WorkerTelemetryEvent> telemetry) throws Exception {
+        var provider = new InMemoryJourneyCandidateProvider();
+        provider.put("dataset-2026-09-16", "seoul-jongno", List.of(new JourneyCandidate("place:001"), new JourneyCandidate("place:002")));
+        return new JourneyWorkerService(runStore, provider, ai, new DefaultBaselinePlanner(),
+                resultStore, telemetry::add, sink, FIXED_CLOCK);
+    }
+
+    private static String finalProposal() {
+        return "event: proposal\ndata: {\"proposal\":{\"runId\":\"%s\",\"orderedRefs\":[\"place:002\",\"place:001\"],\"outcome\":\"PROPOSAL\"}}\n\n".formatted(request().runId());
+    }
+
+    private static void respondStream(HttpExchange exchange, String body) throws IOException {
+        var bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+        exchange.sendResponseHeaders(200, bytes.length);
+        exchange.getResponseBody().write(bytes);
+    }
+
     private static JourneyWorkerRequest request() {
         return new JourneyWorkerRequest(
                 UUID.fromString("11111111-1111-1111-1111-111111111111"),
@@ -171,6 +274,8 @@ class JourneyWorkerEndToEndTests {
 
     private static final class RecordingRunStore implements JourneyRunStore {
         final List<FinishRunCommand> finished = new ArrayList<>();
+        JourneyRunStatus status = JourneyRunStatus.RUNNING;
+        int generation = 2;
 
         @Override
         public RunCommandResult create(CreateRunCommand command) {
@@ -184,6 +289,10 @@ class JourneyWorkerEndToEndTests {
 
         @Override
         public RunCommandResult advance(AdvanceRunStageCommand command) {
+            if (generation != command.expectedGeneration()) {
+                throw new com.yrootlab.onmaru.journey.run.RunTransitionConflictException();
+            }
+            generation = command.expectedGeneration() + 1;
             return result(JourneyRunStatus.RUNNING, command.nextStage(), command.expectedGeneration() + 1);
         }
 
@@ -201,13 +310,13 @@ class JourneyWorkerEndToEndTests {
                     request.explorationId(),
                     actorKey,
                     request.baseVersion(),
-                    JourneyRunStatus.RUNNING,
+                    status,
                     JourneyRunStage.RETRIEVING,
                     null,
                     Instant.parse("2026-09-16T01:00:00Z"),
                     request.deadlineAt(),
                     Instant.parse("2026-09-16T01:00:01Z"),
-                    2,
+                    generation,
                     null,
                     "LLM"));
         }

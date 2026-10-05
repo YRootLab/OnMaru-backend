@@ -19,6 +19,12 @@ paths:
       tags: [Hanok]
       operationId: listHanoks
       summary: List public hanok places with keyset cursor pagination.
+      description: >-
+        한옥 category 또는 이름·개요에 한옥이 포함된 공개 관광 장소를 조회한다.
+        publishedAt 내림차순, placeId 오름차순으로 정렬하며 활성 revision이 같으면
+        순서가 안정적이다. 추천 점수 순서가 아니며 반환된 placeId는
+        /hanoks/{placeId}에서 조회할 수 있다. 공통 canonical 상세 경로는
+        /places/{placeId}다.
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
@@ -75,6 +81,10 @@ paths:
       tags: [Hanok]
       operationId: getHanokDetail
       summary: Get hanok-specific detail for a canonical public place.
+      description: >-
+        이름·개요에 한옥이 포함된 HISTORIC_SITE 등 한옥 목록 적격 공개 장소를
+        조회한다. 원래 catalog category를 보존하며 역사적 category 한옥만
+        HANOK으로 정규화한다. 공통 canonical 상세 경로는 /places/{placeId}다.
       parameters:
         - $ref: '#/components/parameters/PlaceId'
       responses:
@@ -382,7 +392,7 @@ components:
     HanokListResponse:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -390,6 +400,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HanokCard'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: [string, 'null']
         hasMore:
@@ -634,7 +648,7 @@ components:
     SavedResourcePage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -642,6 +656,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SavedPlaceSummary'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: [string, 'null']
         hasMore:
@@ -649,7 +667,7 @@ components:
     MemberTimeline:
       type: object
       additionalProperties: false
-      required: [schemaVersion, month, groups, nextCursor, hasMore, unavailableCount]
+      required: [schemaVersion, month, groups, totalCount, nextCursor, hasMore, unavailableCount]
       properties:
         schemaVersion:
           $ref: '#/components/schemas/SchemaVersion'
@@ -660,6 +678,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TimelineDayGroup'
+        totalCount:
+          type: integer
+          format: int64
+          minimum: 0
         nextCursor:
           type: [string, 'null']
         hasMore:

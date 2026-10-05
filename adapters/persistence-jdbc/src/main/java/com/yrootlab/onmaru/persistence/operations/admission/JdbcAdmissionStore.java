@@ -36,7 +36,7 @@ public final class JdbcAdmissionStore implements AdmissionStore {
                 ensureCounterRow(connection, scopeKey, windowStart);
                 var counter = lockCounter(connection, scopeKey);
                 var consumed = counter.windowStart().equals(windowStart) ? counter.consumed() : 0;
-                var activeCount = counter.windowStart().equals(windowStart) ? counter.activeCount() : 0;
+                var activeCount = counter.activeCount();
                 var nextConsumed = consumed;
                 AdmissionDecision decision;
                 if (consumed >= limit) {
@@ -77,7 +77,7 @@ public final class JdbcAdmissionStore implements AdmissionStore {
                 ensureCounterRow(connection, scopeKey, windowStart);
                 var counter = lockCounter(connection, scopeKey);
                 var consumed = counter.windowStart().equals(windowStart) ? counter.consumed() : 0;
-                var activeCount = counter.windowStart().equals(windowStart) ? counter.activeCount() : 0;
+                var activeCount = counter.activeCount();
                 var nextConsumed = consumed;
                 var nextActiveCount = activeCount;
                 AdmissionDecision decision;

@@ -48,6 +48,23 @@ class MapInfoControllerTests {
     }
 
     @Test
+    void acceptsHanokAsAPublicMapInfoCategory() throws Exception {
+        var result = new MapInfoQueryResult(
+                new MapInfoSnapshot("rev-1", Instant.EPOCH, "PUBLISHED"), null,
+                0, List.of(), null, false);
+        var mvc = MockMvcBuilders.standaloneSetup(
+                new MapInfoController(new MapInfoQueryService((MapInfoQueryPort) query -> result))).build();
+
+        mvc.perform(get("/api/v1/map/info/places").param("category", "HANOK"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.query.category").value("HANOK"))
+                .andExpect(jsonPath("$.appliedCategories[0]").value("HANOK"))
+                .andExpect(jsonPath("$.appliedCategories[1]").value("HANOK_STAY"))
+                .andExpect(jsonPath("$.appliedCategories[2]").value("HANOK_CAFE"))
+                .andExpect(jsonPath("$.appliedCategories[3]").value("HANOK_EXPERIENCE"));
+    }
+
+    @Test
     void returnsServiceUnavailableWhenTheCatalogReadFails() throws Exception {
         var mvc = MockMvcBuilders.standaloneSetup(
                 new MapInfoController(new MapInfoQueryService((MapInfoQueryPort) query -> {

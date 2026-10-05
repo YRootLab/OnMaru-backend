@@ -61,3 +61,14 @@ cd ai && uv run pytest tests/test_secrets.py
 ```
 
 Expected result: Spring secret tests와 FastAPI secret tests가 통과하고 current 및 previous value redaction이 확인된다.
+
+## CI 관측 전용 Grafana Cloud credential (#555)
+
+선택적 `CI Observability` workflow의 `ci-observability` GitHub environment에만 `OTLP_ENDPOINT`와 `OTLP_HEADERS` secret을 둔다. 이것은 위 Spring/FastAPI runtime `ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT/PREVIOUS`와 다른 자격 증명이다. required `CI / verify`, pull request head, 원본 artifact 수집 job에는 Cloud secret을 주지 않는다. GitHub job은 source artifact 읽기용 `contents: read`, `actions: read` 권한만 사용하고, Cloud 전송은 environment가 붙은 export job에서만 수행한다.
+
+1. Cloud 운영자는 해당 tenant·region의 OTLP ingest endpoint를 확인하고 metrics/traces write 범위의 최소 권한 access policy credential을 별도로 만든다. Grafana 관리·query·billing 권한을 전송 token에 넣지 않는다. endpoint와 인증 header 형식을 staging에서 검증한 뒤 GitHub environment secret으로 등록한다. Issue/PR/문서/로그에는 값 대신 version ID, 등록 시각, 관리 담당자만 기록한다.
+2. Environment 보호 규칙과 workflow 접근 범위를 검토한다. fork PR 또는 임의 PR head가 secret을 읽지 못하고 trusted default-branch post-run adapter만 export하는지 확인한다. 유효한 `OTLP_HEADERS` JSON에도 실제 header 값은 증적으로 남기지 않는다.
+3. 교체 시 새 version을 발급해 environment secret을 갱신하고 완료된 검증용 source run의 제한된 replay에서 metric/trace 저장과 diagnostic artifact를 확인한다. 옛 version을 폐기한 뒤 다시 검증하고 두 version ID, 시각, 결과만 기록한다. 인증 실패는 `export-result.json`과 `diagnostics.md`에서 확인하며 CI 원래 결론을 바꾸지 않는다.
+4. 침해 시 기존 version을 즉시 revoke하고 새 version을 발급한다. 영향을 받은 run/attempt와 누락된 telemetry를 기록해 원본 manifest와 replay checkpoint가 있는 경우에만 같은 digest로 복구한다. Secret 값이나 서명된 artifact URL을 복구 기록에 넣지 않는다.
+
+Cloud 전송·권한·보존·비용의 실제 수용 결과는 [CI 관측 왕복 증적](../release-evidence/ci-observability.md)에 기록한다. tenant 검증이 아직 수행되지 않은 항목은 `pending`으로 유지한다.

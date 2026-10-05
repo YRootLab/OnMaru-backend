@@ -56,6 +56,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.time.Clock;
 
 @Tag(name = "04. AI 여정 탐색 (Journey & AI)", description = "AI 기반 여행 여정 탐색, 대화 턴, 실시간 SSE 이벤트 스트림, 코스 저장 API")
 @RestController
@@ -70,6 +71,8 @@ public final class ExplorationController {
     private final IdempotencyService idempotencyService;
     private final AdmissionService admissionService;
     private final AdmissionPolicy admissionPolicy;
+    private final JourneyAiAdmissionPolicyResolver aiAdmissionPolicyResolver;
+    private final Clock clock;
     private final ExplorationSnapshotHydrator snapshotHydrator;
     private final ObjectProvider<JourneyRunCancellationService> cancellationService;
 
@@ -79,6 +82,8 @@ public final class ExplorationController {
             IdempotencyService idempotencyService,
             AdmissionService admissionService,
             AdmissionPolicy admissionPolicy,
+            JourneyAiAdmissionPolicyResolver aiAdmissionPolicyResolver,
+            Clock clock,
             ExplorationSnapshotHydrator snapshotHydrator,
             ObjectProvider<JourneyRunCancellationService> cancellationService) {
         this.explorationService = explorationService;
@@ -86,6 +91,8 @@ public final class ExplorationController {
         this.idempotencyService = idempotencyService;
         this.admissionService = admissionService;
         this.admissionPolicy = admissionPolicy;
+        this.aiAdmissionPolicyResolver = aiAdmissionPolicyResolver;
+        this.clock = clock;
         this.snapshotHydrator = snapshotHydrator;
         this.cancellationService = cancellationService;
     }
@@ -97,7 +104,7 @@ public final class ExplorationController {
     @ApiResponses({
             @ApiResponse(responseCode = "202", description = "여정 생성 런 접수 완료 (SSE 또는 폴링으로 상태 확인)"),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 요청 본문", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
-            @ApiResponse(responseCode = "429", description = "동시 실행 정원 초과 (Admission Throttled)", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+            @ApiResponse(responseCode = "429", description = "AI 사용량 또는 동시 실행 정원 초과", content = @Content(schema = @Schema(implementation = JourneyRateLimitedResponse.class)))
     })
     @PostMapping({"/api/v1/explorations", "/api/journey-curator/explore"})
     ResponseEntity<RunAcceptedResponse> create(
@@ -234,7 +241,7 @@ public final class ExplorationController {
     @ApiResponses({
             @ApiResponse(responseCode = "202", description = "대화 턴 런 접수 완료"),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 턴 요청 본문", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
-            @ApiResponse(responseCode = "429", description = "동시 실행 정원 초과", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+            @ApiResponse(responseCode = "429", description = "AI 사용량 또는 동시 실행 정원 초과", content = @Content(schema = @Schema(implementation = JourneyRateLimitedResponse.class)))
     })
     @PostMapping("/api/v1/explorations/{explorationId}/turns")
     ResponseEntity<RunAcceptedResponse> createTurn(
@@ -359,10 +366,13 @@ public final class ExplorationController {
     }
 
     private void admitAiRun(ExplorationActor actor) {
+        if (actor.type() == ExplorationActorType.GUEST) {
+            throw new ExplorationAuthenticationRequiredException();
+        }
         var decision = admissionService.admitActive(new AdmissionRequest(
                 JOURNEY_AI_OPERATION,
                 new AdmissionSubject(subjectType(actor.type()), actor.subject())
-        ), admissionPolicy);
+        ), aiAdmissionPolicyResolver.resolve(actor, clock.instant()));
         LOGGER.atInfo()
                 .addKeyValue("operation", JOURNEY_AI_OPERATION)
                 .addKeyValue("actorType", actor.type().name())

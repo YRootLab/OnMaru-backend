@@ -41,6 +41,8 @@ public final class JdbcReviewReportStore implements ReviewReportStore {
 
     @Override public AdminPage<ReviewReport> openReportsPage(ReviewReportReason reason, int limit, AdminCursor cursor) {
         return transactions.execute(connection -> {
+            long totalCount = cursor != null && cursor.totalCount() != null
+                    ? cursor.totalCount() : countOpenReports(connection, reason);
             StringBuilder sql = new StringBuilder("SELECT id,review_id,reporter_member_id,reason,detail,status,created_at FROM onmaru.community_review_reports WHERE status='OPEN'");
             if (reason != null) sql.append(" AND reason = ?");
             if (cursor != null) sql.append(" AND (created_at, id) < (?, ?)");
@@ -62,12 +64,26 @@ public final class JdbcReviewReportStore implements ReviewReportStore {
                             ReviewReportStatus.valueOf(result.getString("status")),
                             result.getObject("created_at", OffsetDateTime.class).toInstant()));
                     boolean hasNext = items.size() > limit;
-                    return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext);
+                    return new AdminPage<>(items.subList(0, Math.min(limit, items.size())), hasNext, totalCount);
                 }
             } catch (Exception exception) {
                 throw failure("Review report page query failed", exception);
             }
         });
+    }
+
+    private long countOpenReports(Connection connection, ReviewReportReason reason) {
+        String sql = "SELECT count(*) FROM onmaru.community_review_reports WHERE status='OPEN'"
+                + (reason == null ? "" : " AND reason = ?");
+        try (var statement = connection.prepareStatement(sql)) {
+            if (reason != null) statement.setString(1, reason.name());
+            try (var result = statement.executeQuery()) {
+                result.next();
+                return result.getLong(1);
+            }
+        } catch (Exception exception) {
+            throw failure("Review report count query failed", exception);
+        }
     }
 
     @Override public void closeOpenReports(UUID reviewId, ReviewReportStatus status) {

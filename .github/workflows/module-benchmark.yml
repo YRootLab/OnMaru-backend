@@ -26,10 +26,10 @@ permissions:
 
 jobs:
   benchmark:
-    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@f3d5f4c244b42260a6b9ae9c1f7c76e6550f525a
+    uses: YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/module-benchmark.yml@7ecbb89aae771604d9c1c532cf123f239e279110
     with:
       catalog_path: .github/benchmark-modules.yml
-      toolkit_ref: f3d5f4c244b42260a6b9ae9c1f7c76e6550f525a
+      toolkit_ref: 7ecbb89aae771604d9c1c532cf123f239e279110
       mode: develop
       max_parallel: 4
       baseline_ref: develop
@@ -49,7 +49,8 @@ jobs:
           COMPARISON_ID: ${{ needs.benchmark.outputs.comparison_id }}
           MANIFEST_URI: ${{ needs.benchmark.outputs.manifest_uri }}
           REPORT_ARTIFACT: ${{ needs.benchmark.outputs.report_artifact }}
-          CRITICAL_PATH_SECONDS: ${{ needs.benchmark.outputs.critical_path_seconds }}
+          LONGEST_MODULE_SECONDS: ${{ needs.benchmark.outputs.longest_module_duration_seconds }}
+          DAG_PATH_QUALITY: ${{ needs.benchmark.outputs.dag_critical_path_quality }}
         run: |
           {
             printf '## Module Benchmark\n\n'
@@ -59,5 +60,6 @@ jobs:
             printf '| Comparison ID | %s |\n' "${COMPARISON_ID:-unavailable}"
             printf '| Manifest URI | %s |\n' "${MANIFEST_URI:-unavailable}"
             printf '| Report artifact | %s |\n' "${REPORT_ARTIFACT:-unavailable}"
-            printf '| Critical path (seconds) | %s |\n' "${CRITICAL_PATH_SECONDS:-unavailable}"
+            printf '| Longest module (seconds) | %s |\n' "${LONGEST_MODULE_SECONDS:-unavailable}"
+            printf '| DAG critical path quality | %s |\n' "${DAG_PATH_QUALITY:-unavailable}"
           } >> "$GITHUB_STEP_SUMMARY"
