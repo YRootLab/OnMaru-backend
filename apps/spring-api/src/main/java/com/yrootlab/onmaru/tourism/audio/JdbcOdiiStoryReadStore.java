@@ -9,6 +9,7 @@ import com.yrootlab.onmaru.audio.query.OdiiStoryProjection;
 import com.yrootlab.onmaru.audio.query.OdiiStoryReadPage;
 import com.yrootlab.onmaru.audio.query.OdiiStoryReadSelection;
 import com.yrootlab.onmaru.audio.query.OdiiStoryRelationalReadPort;
+import com.yrootlab.onmaru.audio.query.OdiiStoryTheme;
 import com.yrootlab.onmaru.audio.query.OdiiTranscriptLine;
 import com.yrootlab.onmaru.audio.query.OdiiTranscriptStatus;
 import com.yrootlab.onmaru.audio.sync.AudioStatus;
@@ -41,6 +42,24 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
     private static final String STORY_PREFIX = "odii-story-";
     private static final String SPOT_PREFIX = "odii-spot-";
     private static final String FALLBACK_LANGUAGE = "ko-KR";
+    private static final String THEME_FILTER_SQL = """
+                  AND (?::text[] IS NULL OR EXISTS (
+                      SELECT 1 FROM unnest(?::text[]) AS theme_term(term)
+                      WHERE position(theme_term.term IN lower(story_version.title)) > 0
+                         OR ((story_version.title IS NULL OR btrim(story_version.title) = ''
+                              OR btrim(story_version.title) ~* '^([0-9]+[. ]*)?(이야기|소개|해설|오디오)([ 0-9]+)?$')
+                             AND position(theme_term.term IN lower(spot_version.title)) > 0)
+                         OR EXISTS (
+                             SELECT 1 FROM onmaru.audio_story_content_tag_versions theme_tag
+                             WHERE theme_tag.revision_id = story_version.revision_id
+                               AND theme_tag.story_id = story_version.story_id
+                               AND position(theme_term.term IN lower(theme_tag.label)) > 0
+                         )
+                  ))
+            """;
+    private static final String CANDIDATE_THEME_FILTER_SQL = THEME_FILTER_SQL
+            .replace("story_version", "candidate")
+            .replace("spot_version", "candidate_spot");
 
     private static final String BASE_COLUMNS = """
             active.revision_id,
@@ -111,6 +130,27 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
             Instant cursorPublishedAt,
             String cursorStoryId
     ) {
+        return listFiltered(language, null, limit, cursorPublishedAt, cursorStoryId);
+    }
+
+    @Override
+    public OdiiStoryReadPage listTheme(
+            String language,
+            OdiiStoryTheme theme,
+            int limit,
+            Instant cursorPublishedAt,
+            String cursorStoryId
+    ) {
+        return listFiltered(language, Objects.requireNonNull(theme), limit, cursorPublishedAt, cursorStoryId);
+    }
+
+    private OdiiStoryReadPage listFiltered(
+            String language,
+            OdiiStoryTheme theme,
+            int limit,
+            Instant cursorPublishedAt,
+            String cursorStoryId
+    ) {
         String requestedProviderLanguage = providerLanguage(language);
         UUID cursorPublicId = cursorStoryId == null ? null : parsePublicStoryId(cursorStoryId);
         String sql = """
@@ -144,6 +184,7 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                               split_part(split_part(candidate.audio_url, '://', 2), '/', 1),
                               ':[0-9]+$', ''))
                               = ANY (?::text[])
+                          %s
                     ) THEN ? ELSE 'ko' END AS lang_code
                 )
                 SELECT %s
@@ -187,9 +228,10 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                           AND identity.public_id > ?::uuid
                       )
                   )
+                %s
                 ORDER BY story_version.source_modified_at DESC, identity.public_id
                 LIMIT ?
-                """.formatted(BASE_COLUMNS);
+                """.formatted(CANDIDATE_THEME_FILTER_SQL, BASE_COLUMNS, THEME_FILTER_SQL);
         try (Connection connection = dataSource.getConnection()) {
             configureReadTransaction(connection);
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -197,6 +239,7 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                 statement.setString(parameter++, dataset);
                 statement.setString(parameter++, requestedProviderLanguage);
                 statement.setArray(parameter++, connection.createArrayOf("text", publicAudioHosts));
+                parameter = bindTheme(statement, connection, parameter, theme);
                 statement.setString(parameter++, requestedProviderLanguage);
                 statement.setArray(parameter++, connection.createArrayOf("text", publicAudioHosts));
                 setInstant(statement, parameter++, cursorPublishedAt);
@@ -207,6 +250,7 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                 } else {
                     statement.setObject(parameter++, cursorPublicId);
                 }
+                parameter = bindTheme(statement, connection, parameter, theme);
                 statement.setInt(parameter, limit + 1);
                 try (ResultSet resultSet = statement.executeQuery()) {
                     var rows = readRows(resultSet, false, connection);
@@ -216,7 +260,7 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                             ? resolveActiveLanguage(connection, language)
                             : pageRows.getFirst().projection().language();
                     String effectiveLanguage = resolvedLanguage == null ? language : resolvedLanguage;
-                    long totalCount = countActiveStories(connection, effectiveLanguage);
+                    long totalCount = countActiveStories(connection, effectiveLanguage, theme);
                     var page = new OdiiStoryReadPage(
                             activeRevision(connection),
                             effectiveLanguage,
@@ -674,13 +718,16 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
             List<OdiiTranscriptLine> transcript = includeTranscript && transcriptStatus != OdiiTranscriptStatus.MISSING
                     ? transcript(connection, revisionId, internalStoryId)
                     : List.of();
+            var tags = contentTags(resultSet);
             var projection = new OdiiStoryProjection(
                     STORY_PREFIX + resultSet.getObject("public_story_id", UUID.class),
                     SPOT_PREFIX + resultSet.getObject("public_spot_id", UUID.class),
                     publicLanguage(resultSet.getString("lang_code")),
                     resultSet.getString("spot_title"),
                     resultSet.getString("story_title"),
-                    metadata.category() == null ? category : metadata.category(),
+                    OdiiStoryTheme.primaryCategory(
+                            spot.title(), resultSet.getString("story_title"), tags,
+                            metadata.category() == null ? category : metadata.category()),
                     metadata.region(),
                     new OdiiCoordinates(
                             resultSet.getDouble("latitude"),
@@ -690,7 +737,7 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                     resultSet.getString("audio_url"),
                     transcriptStatus,
                     transcript,
-                    contentTags(resultSet),
+                    tags,
                     instant(resultSet, "source_modified_at"),
                     AudioStatus.valueOf(resultSet.getString("story_status")),
                     AudioStatus.valueOf(resultSet.getString("spot_status")));
@@ -807,8 +854,8 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
         }
     }
 
-    private long countActiveStories(Connection connection, String language) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
+    private long countActiveStories(Connection connection, String language, OdiiStoryTheme theme) throws SQLException {
+        String sql = """
                 SELECT COUNT(*)
                 FROM onmaru.catalog_active_datasets active
                 JOIN onmaru.audio_story_versions story_version
@@ -834,15 +881,31 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                       split_part(split_part(story_version.audio_url, '://', 2), '/', 1),
                       ':[0-9]+$', ''))
                       = ANY (?::text[])
-                """)) {
+                """ + THEME_FILTER_SQL;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, providerLanguage(language));
             statement.setString(2, dataset);
             statement.setArray(3, connection.createArrayOf("text", publicAudioHosts));
+            bindTheme(statement, connection, 4, theme);
             try (ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
                 return resultSet.getLong(1);
             }
         }
+    }
+
+    private int bindTheme(
+            PreparedStatement statement, Connection connection, int parameter, OdiiStoryTheme theme)
+            throws SQLException {
+        if (theme == null) {
+            statement.setNull(parameter++, Types.ARRAY);
+            statement.setNull(parameter++, Types.ARRAY);
+        } else {
+            var terms = connection.createArrayOf("text", theme.terms().toArray(String[]::new));
+            statement.setArray(parameter++, terms);
+            statement.setArray(parameter++, terms);
+        }
+        return parameter;
     }
 
     private OdiiLanguageStatus languageStatus(

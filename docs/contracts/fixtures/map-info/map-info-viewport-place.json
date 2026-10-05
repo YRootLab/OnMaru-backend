@@ -4,7 +4,7 @@
   "request": {
     "method": "GET",
     "path": "/api/v1/map/info/viewport",
-    "query": {"bbox": "127.152,35.814,127.154,35.816", "zoomLevel": 4, "category": "ALL", "limit": 60}
+    "query": {"bbox": "127.152,35.814,127.154,35.816", "zoomLevel": 4, "category": "HANOK", "limit": 60}
   },
   "response": {
     "status": 200,
@@ -24,13 +24,13 @@
           "center": {"lat": 35.8151, "lng": 127.153},
           "bounds": null,
           "count": 1,
-          "categoryCounts": {"SPOT": 1},
+          "categoryCounts": {"HANOK": 1},
           "targetZoomLevel": 4,
           "placeId": "p-jeonju-hanok-village",
-          "displayCategory": "SPOT"
+          "displayCategory": "HANOK"
         }
       ],
-      "appliedCategories": ["HANOK", "HISTORIC_SITE", "CULTURE_ART", "HANOK_CAFE", "TRADITIONAL_FOOD", "TRADITIONAL_MARKET"],
+      "appliedCategories": ["HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE"],
       "coverage": "COMPLETE",
       "servedBbox": {"west": 127.1515, "south": 35.8135, "east": 127.1545, "north": 35.8165},
       "projection": {

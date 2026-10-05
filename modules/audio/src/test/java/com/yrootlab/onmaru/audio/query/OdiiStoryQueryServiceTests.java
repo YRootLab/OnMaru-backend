@@ -85,6 +85,26 @@ class OdiiStoryQueryServiceTests {
     }
 
     @Test
+    void legacyThemeRequestAndStableCodeFindTheSameGenericOdiiStory() {
+        var hanokVillage = story("odii-story-hanok-village", "ko-KR", "오디오 관광", "kr-45-jeonju",
+                Instant.parse("2026-09-15T02:00:00Z"), OdiiTranscriptStatus.OFFICIAL, AudioStatus.ACTIVE);
+        store.replaceActive(snapshot(REVISION_ONE, hanokVillage));
+
+        var legacy = service.list(new OdiiStoryQuery(
+                "ko-KR", "한옥", null, 20, null, Optional.empty()));
+        var stable = service.list(new OdiiStoryQuery(
+                "ko-KR", "HANOK_HERITAGE", null, 20, null, Optional.empty()));
+        var village = service.list(new OdiiStoryQuery(
+                "ko-KR", "VILLAGE_STREETS", null, 20, null, Optional.empty()));
+
+        assertThat(legacy.totalCount()).isEqualTo(1);
+        assertThat(stable.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly(hanokVillage.storyId());
+        assertThat(village.items()).extracting(OdiiStorySummary::storyId)
+                .containsExactly(hanokVillage.storyId());
+    }
+
+    @Test
     void usesRelationalReadPortForListAndDetailWithoutMaterializingTheSnapshot() {
         var relationalStory = story(
                 "odii-story-10000000-0000-3000-8000-000000000001",
@@ -112,6 +132,17 @@ class OdiiStoryQueryServiceTests {
                         List.of(relationalStory),
                         1,
                         false);
+            }
+
+            @Override
+            public OdiiStoryReadPage listTheme(
+                    String language,
+                    OdiiStoryTheme theme,
+                    int limit,
+                    Instant cursorPublishedAt,
+                    String cursorStoryId
+            ) {
+                return list(language, limit, cursorPublishedAt, cursorStoryId);
             }
 
             @Override

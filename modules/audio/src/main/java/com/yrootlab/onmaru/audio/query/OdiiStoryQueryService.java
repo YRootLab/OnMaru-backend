@@ -124,14 +124,17 @@ public final class OdiiStoryQueryService {
 
     public OdiiStoryPage list(OdiiStoryQuery query) {
         validateQuery(query);
-        if (relationalReadPort != null && query.category() == null && query.regionCode() == null) {
-            return relationalList(query);
+        var theme = OdiiStoryTheme.fromRequest(query.category());
+        if (relationalReadPort != null && query.regionCode() == null
+                && (query.category() == null || theme.isPresent())) {
+            return relationalList(query, theme.orElse(null));
         }
         var snapshot = store.activeSnapshot();
         var cursor = decodeCursor(query.cursor(), snapshot.revisionId(), query);
         var eligible = snapshot.stories().stream()
                 .filter(this::isPublicAndPlayable)
-                .filter(story -> query.category() == null || query.category().equals(story.category()))
+                .filter(story -> theme.map(value -> value.matches(story))
+                        .orElseGet(() -> query.category() == null || query.category().equals(story.category())))
                 .filter(story -> query.regionCode() == null
                         || query.regionCode().equals(story.region().regionCode()))
                 .toList();
@@ -167,13 +170,15 @@ public final class OdiiStoryQueryService {
                 hasMore);
     }
 
-    private OdiiStoryPage relationalList(OdiiStoryQuery query) {
+    private OdiiStoryPage relationalList(OdiiStoryQuery query, OdiiStoryTheme theme) {
         OdiiStoryCursor cursor = decodeCursorForQuery(query.cursor(), query);
-        var page = relationalReadPort.list(
-                query.language(),
-                query.limit(),
-                cursor == null ? null : cursor.publishedAt(),
-                cursor == null ? null : cursor.storyId());
+        var page = theme == null
+                ? relationalReadPort.list(query.language(), query.limit(),
+                        cursor == null ? null : cursor.publishedAt(),
+                        cursor == null ? null : cursor.storyId())
+                : relationalReadPort.listTheme(query.language(), theme, query.limit(),
+                        cursor == null ? null : cursor.publishedAt(),
+                        cursor == null ? null : cursor.storyId());
         if (cursor != null && !page.revisionId().equals(cursor.revisionId())) {
             throw new OdiiCursorExpiredException();
         }

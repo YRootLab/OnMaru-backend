@@ -24,6 +24,17 @@ import static org.hamcrest.Matchers.nullValue;
 class MapInfoViewportControllerTests {
 
     @Test
+    void rejectsMissingBlankAndAllCategories() throws Exception {
+        for (var request : java.util.List.of(
+                get("/api/v1/map/info/viewport").param("bbox", "126.8,35.0,127.2,36.0").param("zoomLevel", "5"),
+                get("/api/v1/map/info/viewport").param("bbox", "126.8,35.0,127.2,36.0").param("zoomLevel", "5").param("category", " "),
+                get("/api/v1/map/info/viewport").param("bbox", "126.8,35.0,127.2,36.0").param("zoomLevel", "5").param("category", "ALL"))) {
+            mockMvc.perform(request).andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.details.field").value("category"));
+        }
+    }
+
+    @Test
     void capsRequestedViewportMarkersAtSixty() throws Exception {
         var observedLimit = new AtomicInteger();
         MapInfoViewportStore store = query -> {
@@ -36,6 +47,7 @@ class MapInfoViewportControllerTests {
         boundedMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
                         .param("zoomLevel", "8")
+                        .param("category", "HANOK")
                         .param("limit", "500"))
                 .andExpect(status().isOk());
         org.junit.jupiter.api.Assertions.assertEquals(60, observedLimit.get());
@@ -60,7 +72,7 @@ class MapInfoViewportControllerTests {
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
                         .param("zoomLevel", "8")
-                        .param("category", "ALL"))
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schemaVersion").value("1.0"))
                 .andExpect(jsonPath("$.renderMode").value("DISTRICT"))
@@ -98,7 +110,8 @@ class MapInfoViewportControllerTests {
                 new MapInfoViewportController(new MapInfoViewportQueryService(store))).build();
         mvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "8"))
+                        .param("zoomLevel", "8")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.snapshotId").value(nullValue()));
     }
@@ -107,49 +120,57 @@ class MapInfoViewportControllerTests {
     void keepsTheKakaoLevelRenderModeBoundaries() throws Exception {
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "1"))
+                        .param("zoomLevel", "1")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.renderMode").value("PLACE"));
 
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "5"))
+                        .param("zoomLevel", "5")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.renderMode").value("PLACE"));
 
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "6"))
+                        .param("zoomLevel", "6")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.renderMode").value("CLUSTER"));
 
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "7"))
+                        .param("zoomLevel", "7")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.renderMode").value("CLUSTER"));
 
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "8"))
+                        .param("zoomLevel", "8")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.renderMode").value("DISTRICT"));
 
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "10"))
+                        .param("zoomLevel", "10")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.renderMode").value("DISTRICT"));
 
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "11"))
+                        .param("zoomLevel", "11")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.renderMode").value("REGION"));
 
         mockMvc.perform(get("/api/v1/map/info/viewport")
                         .param("bbox", "126.8,35.0,127.2,36.0")
-                        .param("zoomLevel", "14"))
+                        .param("zoomLevel", "14")
+                        .param("category", "HANOK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.renderMode").value("REGION"));
     }
@@ -183,7 +204,8 @@ class MapInfoViewportControllerTests {
 
             timeoutMvc.perform(get("/api/v1/map/info/viewport")
                             .param("bbox", "126.8,35.0,127.2,36.0")
-                            .param("zoomLevel", "8"))
+                            .param("zoomLevel", "8")
+                            .param("category", "HANOK"))
                     .andExpect(status().isServiceUnavailable())
                     .andExpect(jsonPath("$.code").value("CATALOG_UNAVAILABLE"));
         }
