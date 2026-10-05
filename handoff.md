@@ -1,5 +1,18 @@
 # handoff.md
 
+## 2026-10-05 FE 실시간 온기 요청 사전 검토
+
+- 현재 워크스페이스 브랜치: `feature/realtime-related-fe-requests`. 다른 개발자가 이 브랜치에서 후속 구현을 이어갈 예정이므로 현재 이름을 유지한다. 다만 저장소의 branch parser 규칙상 Issue 번호가 없는 브랜치이므로 PR 생성 전에는 적절한 GitHub Issue를 연결하고 브랜치 정책 충족 방법을 정리해야 한다.
+- 요청 원문: `/Users/yangseunghyeon/Downloads/onmaru-backend-request.md`. 이번 세션에서는 요청서를 읽고 현재 Spring·Lightsail·Nginx·CSRF·CORS 구성과 대조했으며, 애플리케이션 코드·인프라 설정·요청 원문은 변경하지 않았다.
+- 검토 결론: Live Presence는 AI 기능이 아니고 기존 비즈니스 API 및 SSE 경계와 맞으므로 FastAPI가 아니라 Spring MVC `SseEmitter`로 구현하는 안을 권장한다. 저장소에도 Journey SSE의 `SseEmitter`, heartbeat, 종료 콜백 구현이 이미 있다.
+- 문서 정정 필요: `SseEmitter`가 열린 연결마다 요청 스레드를 계속 점유한다는 설명은 부정확하다. Servlet async가 요청 스레드를 반환하지만 `send()`는 블로킹될 수 있으므로 작은 bounded 전송 executor, 유한 큐, 전송 timeout 및 느린 연결 제거가 필요하다.
+- 인스턴스 제약: 운영 Lightsail은 약 909 MiB RAM이고 Compose 제한은 Spring 448 MiB, PostgreSQL 320 MiB, Nginx 64 MiB다. JVM은 Spring 컨테이너 RAM의 60%를 최대 heap 기준으로 사용한다. 전체 SSE 상한 200개는 확정 용량이 아니라 검증 목표로 취급하고, 초기에는 50~100개 상한으로 시작해 heap·CPU·executor queue·기존 API latency를 부하 테스트한 뒤 조정한다.
+- Nginx 현황: 운영과 스테이징의 일반 `location /`에 이미 HTTP/1.1, 빈 `Connection`, `proxy_buffering off`, `proxy_request_buffering off`, `proxy_read_timeout 130s`가 적용돼 있다. 구현 시 `/api/v1/realtime/` 전용 `location`을 추가해 `proxy_cache off`, `gzip off`, 긴 read timeout과 동일한 신뢰 프록시 헤더 정책을 명시적으로 적용하는 안을 권장한다.
+- CSRF 현황: 이 저장소는 Spring Security의 `SecurityFilterChain`이 아니라 자체 `CsrfProtectionFilter`로 `/api/**`의 unsafe method를 검사한다. 익명이고 쿠키 인증이나 사용자 상태 변경이 없는 `POST /api/v1/realtime/warmth`만 정확히 예외 처리할 수 있으며, `permitAll` 표현 대신 자체 필터 예외라고 문서화해야 한다. CORS는 abuse 방어가 아니므로 clientId/IP/room/전체 rate limit은 별도로 필요하다.
+- CORS 현황: `/api/**`는 환경변수 기반 exact-origin allowlist와 `GET`, `POST`, `OPTIONS`를 이미 지원하지만 전역 `allowCredentials(true)`를 사용한다. 실시간 경로는 credentials 없이 운영 FE origin을 허용하고, `localhost:3000`은 운영 allowlist가 아니라 local 또는 staging 환경에서만 허용하는 방안을 권장한다.
+- 관련 Issue 조회: #519는 Lightsail 배포·운영 검증, #520은 기존 FE→BE 전달사항이며 이번 Live Presence 구현 전체를 직접 추적하지 않는다. 실제 구현 전에 중복 Issue를 다시 확인하고, 없으면 API 계약·Spring 구현·Nginx·보안 경계·부하 검증 acceptance criteria를 포함한 Issue를 생성한다.
+- 다음 단계: Issue/브랜치 정리 → 요청 계약 확정(`roomId` allowlist, 오늘 방문자 정의 포함) → Spring SSE/POST 및 bounded resource 구현 → CSRF/CORS 경계 테스트 → 운영·스테이징 Nginx 전용 경로 추가 → 로컬/스테이징 부하 및 curl 인수 테스트 순서로 진행한다.
+
 ## 2026-10-01 Issue #561 운영 온기 히트맵
 
 - 브랜치: `fix/561-warmth-heatmap`.
