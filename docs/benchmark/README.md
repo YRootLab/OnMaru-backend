@@ -153,17 +153,26 @@ module matrix로 전환하지 않는다.
 성능 개선 근거로 사용하지 않으며 이번 작업에서 새 실측이나 성능 향상을 주장하지 않는다.
 
 shared-runner Gradle 설정은 `-Ponmaru.ci.performance.enabled=true`로 활성화되는
-`max-workers=4`와 build cache를 opt-in으로 유지한다. worker 상한은
+`max-workers=2`와 Gradle build cache disabled를 opt-in으로 유지한다. worker 상한은
 `org.gradle.parallel=true`와 같지 않다. module별 runner matrix는 job마다 runner 생성·종료,
 Java 설치·dependency 준비·artifact 병합을 반복하므로 전체 wall clock과 runner 사용량을
 함께 측정해야 한다.
 
-공통 Java CI lane과 두 수동 benchmark scope는 `--init-script build-logic/ci-performance.gradle.kts`를
-명시하여 위 property를 실제 Gradle 실행 설정에 적용한다. Property 전달만으로는 이 script가
-로드되지 않는다. `gradle-ci-performance.test.mjs`는 실제 wrapper로 격리된 임시 project의
-`ciPerformanceProfile`을 실행해 effective worker 수와 cache 설정을 확인한다. 전체 Node 테스트를
-실행할 때도 JDK와 Gradle wrapper distribution이 필요하며 이 회귀 테스트는 `--offline`으로
-application dependency를 resolve하지 않는다.
+공통 Java CI lane, 두 수동 benchmark scope, Spring Docker builder와 deploy/release migration
+rehearsal은 `--init-script build-logic/ci-performance.gradle.kts`를 명시하여 위 property를
+실제 Gradle 실행 설정에 적용한다. Property 전달만으로는 이 script가 로드되지 않는다.
+Docker의 `/root/.gradle` BuildKit cache mount, deploy workflow의 GHA layer cache와
+`actions/setup-java cache: gradle` dependency/wrapper cache는 그대로 유지한다. disabled인 것은
+Gradle task-output build cache뿐이며, CI 전체 경계에서 측정한 23.35%를 Docker build 단독의
+개선율로 표현하지 않는다. worker와 task-output cache의 개별 인과 효과는 후속 2×2 실험에서
+분리한다.
+
+`gradle-ci-performance.test.mjs`는 실제 wrapper로 격리된 임시 project의
+`ciPerformanceProfile`을 실행해 effective worker 수와 cache 설정을 확인한다. deploy/release
+계약 테스트는 Docker `bootJar -x test`, Migration filter와 외부 cache 층이 유지된 상태에서
+opt-in profile 누락을 차단한다. 전체 Node 테스트를 실행할 때도 JDK와 Gradle wrapper
+distribution이 필요하며 이 회귀 테스트는 `--offline`으로 application dependency를 resolve하지
+않는다.
 
 self-hosted runner 풀은 선택하지 않았다. 채택하려면 상시 인스턴스·스토리지·패치·운영
 인력 비용, 작업별 정리와 격리, 외부 PR에서 secret에 접근하지 못하는 신뢰 경계, cache 오염

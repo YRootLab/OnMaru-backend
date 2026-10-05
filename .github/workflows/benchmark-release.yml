@@ -133,7 +133,11 @@ jobs:
           test -n "$ONMARU_DB_MIGRATION_USER"
           test -n "$ONMARU_DB_RUNTIME_USER"
           test "$ONMARU_DB_MIGRATION_USER" != "$ONMARU_DB_RUNTIME_USER"
-          ./gradlew :apps:spring-api:test --tests '*Migration*' --no-daemon
+          ./gradlew \
+            --init-script build-logic/ci-performance.gradle.kts \
+            :apps:spring-api:test --tests '*Migration*' \
+            --no-daemon \
+            -Ponmaru.ci.performance.enabled=true
 
   staging-readiness:
     if: github.event.repository.fork != true
