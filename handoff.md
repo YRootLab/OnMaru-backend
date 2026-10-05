@@ -1,5 +1,12 @@
 # handoff.md
 
+## 2026-10-05 Release v0.3.41 (#641)
+
+- 브랜치: `release/v0.3.41` (정확한 `origin/develop` SHA `f9f0c1c`에서 생성), 관련 이슈: #641. CD Gradle 성능 프로필을 포함한 `develop`을 `master`에 승격한다.
+- 범위: release PR 검증·병합, Release Please의 v0.3.41 tag/GitHub Release 확인, `master` → `develop` 역동기화와 workflow 결과 기록이다.
+- 안전 경계: production deploy를 수동 dispatch하지 않는다. release/tag에 의해 자동 실행되는 workflow는 관찰하되 승인 gate를 우회하지 않는다.
+- 로컬 검증: 전체 Node 계약 테스트 227/227, `scripts/verify-contracts`, `git diff --check`가 통과했다. GitHub required checks는 release PR에서 확인한다.
+
 ## 2026-10-05 Issue #638 CD Gradle profile 적용
 
 - 브랜치: `perf/638-cd-gradle-profile`; 기준: `origin/develop` commit `43b2a74`.
