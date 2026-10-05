@@ -77,15 +77,7 @@ final class PresenceStreamController {
             return ResponseEntity.status(503).build();
         }
 
-        try {
-            emitter.send(SseEmitter.event().name("snapshot").data(snapshotJson));
-        } catch (IOException e) {
-            emitter.completeWithError(e);
-            registry.leave(roomId, clientId, emitter);
-            admissionService.releaseActive(streamRequest, admissionPolicy);
-            return sse(emitter);
-        }
-
+        // 콜백을 먼저 등록해야 초기 전송 실패 시 이중 호출이 없다
         Runnable cleanup = () -> {
             registry.leave(roomId, clientId, emitter);
             admissionService.releaseActive(streamRequest, admissionPolicy);
@@ -93,6 +85,13 @@ final class PresenceStreamController {
         emitter.onCompletion(cleanup);
         emitter.onTimeout(cleanup);
         emitter.onError(ignored -> cleanup.run());
+
+        try {
+            emitter.send(SseEmitter.event().name("snapshot").data(snapshotJson));
+        } catch (IOException e) {
+            emitter.completeWithError(e);
+            return sse(emitter);
+        }
 
         return sse(emitter);
     }
