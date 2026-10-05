@@ -55,7 +55,7 @@ public final class MapInfoViewportController {
     ResponseEntity<?> viewport(
             @RequestParam String bbox,
             @RequestParam int zoomLevel,
-            @RequestParam(required = false, defaultValue = "ALL") String category,
+            @RequestParam(required = false) String category,
             @RequestParam(required = false) String regionCode,
             @RequestParam(required = false) String snapshotId,
             @RequestParam(required = false, defaultValue = "ko-KR") String language,
@@ -120,7 +120,11 @@ public final class MapInfoViewportController {
     }
 
     private MapInfoCategory parseCategory(String value) {
-        try { return MapInfoCategory.valueOf(value.trim().toUpperCase()); }
+        try {
+            var parsed = MapInfoCategory.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
+            if (parsed == MapInfoCategory.ALL) throw new MapInfoViewportInvalidRequestException("category");
+            return parsed;
+        }
         catch (Exception exception) { throw new MapInfoViewportInvalidRequestException("category"); }
     }
 

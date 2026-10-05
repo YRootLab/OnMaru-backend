@@ -106,7 +106,8 @@ public final class ActiveRevisionOdiiStoryQueryStore implements OdiiStoryQuerySt
                 publicLanguage(story.identity().langCode()),
                 spot.title(),
                 story.title(),
-                metadata.category(),
+                OdiiStoryTheme.primaryCategory(
+                        spot.title(), story.title(), story.contentTags(), metadata.category()),
                 metadata.region(),
                 new OdiiCoordinates(spot.latitude().doubleValue(), spot.longitude().doubleValue()),
                 story.durationSeconds(),
