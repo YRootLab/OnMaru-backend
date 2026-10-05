@@ -46,7 +46,9 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                   AND (?::text[] IS NULL OR EXISTS (
                       SELECT 1 FROM unnest(?::text[]) AS theme_term(term)
                       WHERE position(theme_term.term IN lower(story_version.title)) > 0
-                         OR position(theme_term.term IN lower(spot_version.title)) > 0
+                         OR ((story_version.title IS NULL OR btrim(story_version.title) = ''
+                              OR btrim(story_version.title) ~* '^([0-9]+[. ]*)?(이야기|소개|해설|오디오)([ 0-9]+)?$')
+                             AND position(theme_term.term IN lower(spot_version.title)) > 0)
                          OR EXISTS (
                              SELECT 1 FROM onmaru.audio_story_content_tag_versions theme_tag
                              WHERE theme_tag.revision_id = story_version.revision_id

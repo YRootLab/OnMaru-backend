@@ -42,6 +42,22 @@ class OdiiStoryThemeTests {
     }
 
     @Test
+    void expandsWithSpecificRelatedPlacesButDoesNotLabelEveryStoryInAThemedCollection() {
+        assertThat(OdiiStoryTheme.PALACE_HISTORY.matches("일반 관광지", "대성동고분군", List.of(), "오디오 관광"))
+                .isTrue();
+        assertThat(OdiiStoryTheme.NATURE_TRAILS.matches("일반 관광지", "순천만습지", List.of(), "오디오 관광"))
+                .isTrue();
+        assertThat(OdiiStoryTheme.SOUND_CULTURE.matches("일반 관광지", "전통 탈춤 공연", List.of(), "오디오 관광"))
+                .isTrue();
+        assertThat(OdiiStoryTheme.NATURE_TRAILS.matches("남산 둘레길", "향과 맛이 깊은 음식 여행", List.of(), "오디오 관광"))
+                .isFalse();
+        assertThat(OdiiStoryTheme.NATURE_TRAILS.matches("남산 둘레길", "이야기 1", List.of(), "오디오 관광"))
+                .isTrue();
+        assertThat(OdiiStoryTheme.NATURE_TRAILS.matches("남산 둘레길", "음식 여행", List.of("숲길"), "오디오 관광"))
+                .isTrue();
+    }
+
+    @Test
     void primaryCategoryOnlyReplacesGenericSourceCategory() {
         assertThat(OdiiStoryTheme.primaryCategory("전주 한옥마을", "이야기", List.of(), "오디오 관광"))
                 .isEqualTo("한옥/고택");
