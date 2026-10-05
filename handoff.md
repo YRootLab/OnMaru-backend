@@ -1,5 +1,11 @@
 # handoff.md
 
+## 2026-10-06 정보지도 카테고리 계약 변경 설계
+
+- 사용자 결정: 정보지도 FE 기본 선택은 `HANOK`; BE의 viewport·places API는 기본 카테고리 없이 명시적 `category`만 받으며 누락·`ALL`은 거부한다. 정보모드 `전체` 칩은 제거하고 온기모드 `전체 온기`는 유지한다. viewport 60개 상한은 이번 변경에서 유지한다.
+- 관련 이슈: BE #646, FE #334. 설계: `docs/superpowers/specs/2026-10-06-map-info-category-contract-design.md`.
+- 브랜치: `docs/646-map-category-contract`. 다음 단계: 설계 검토 후 FE를 먼저 배포하고 BE 계약을 변경한다.
+
 ## 2026-10-05 Release v0.3.41 (#641)
 
 - 브랜치: `release/v0.3.41` (정확한 `origin/develop` SHA `f9f0c1c`에서 생성), 관련 이슈: #641. CD Gradle 성능 프로필을 포함한 `develop`을 `master`에 승격한다.
