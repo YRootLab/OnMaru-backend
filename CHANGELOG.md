@@ -1,9 +1,57 @@
 # Changelog
 
+## [0.3.41](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.40...v0.3.41) (2026-10-05)
+
+
+### Performance Improvements
+
+* **cd:** apply verified Gradle profile ([fa990fb](https://github.com/YRootLab/OnMaru-backend/commit/fa990fb89fccf9726b8336436ca5d3b364d96004))
+* **cd:** apply verified Gradle profile to delivery builds ([f9f0c1c](https://github.com/YRootLab/OnMaru-backend/commit/f9f0c1c090bc0fbfd4faa99c41b51dd82b9503fc))
+
+## [0.3.40](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.39...v0.3.40) (2026-10-04)
+
+
+### Bug Fixes
+
+* **map:** 정보지도 집계의 한국어 지역명 복구 ([43b2a74](https://github.com/YRootLab/OnMaru-backend/commit/43b2a74acce733fa7d3252decee3892160a978c3))
+* **map:** 정보지도 집계의 한국어 지역명 복구 ([#630](https://github.com/YRootLab/OnMaru-backend/issues/630)) ([19bc9f6](https://github.com/YRootLab/OnMaru-backend/commit/19bc9f6a6ed9dbb87cb00f84e7e6a0b46621c61a))
+
+
+### Performance Improvements
+
+* **ci:** adopt verified two-worker Gradle profile ([648d3bd](https://github.com/YRootLab/OnMaru-backend/commit/648d3bde9527c1be2cfaaf1aab1d6a20bcd5eff1))
+
+## [0.3.39](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.38...v0.3.39) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ci:** Cloud 관측과 benchmark 실통합 준비 ([db2474e](https://github.com/YRootLab/OnMaru-backend/commit/db2474e46d1d95ae6f05240630b2968b782d7969))
+* **ci:** Cloud 호환 Toolkit pin과 bootstrap 연동 ([#555](https://github.com/YRootLab/OnMaru-backend/issues/555) [#556](https://github.com/YRootLab/OnMaru-backend/issues/556)) ([bb83e76](https://github.com/YRootLab/OnMaru-backend/commit/bb83e7633384fb11cbc3afaf3598f4e3a6cf839b))
+
+## Changelog
+
 This project uses semantic version tags from `master`. Release notes should be generated from Conventional Commits through Release Please once releasable backend changes exist.
 
 ## Unreleased
 
+- Issue #638에서 검증된 workers 2 / Gradle build cache disabled profile을 Spring Docker build와 deploy/release migration rehearsal에 적용하고 dependency·BuildKit cache는 유지했다.
+- Issues #525와 #556의 실제 3+3 CI benchmark에서 2 workers/no-cache profile이 4 workers/cache baseline보다 중앙값 기준 약 23.35% 짧고 실패율 0%임을 검증해 shared Java CI 설정에 반영했다.
+- Issue #543의 실제 v0.3.38/v0.3.39 release module 3+3 증적을 Release asset으로 보존하고, 중앙값 +16.108%를 15% 초과 회귀인 `approval_hold`로 검증했다.
+- Issue #617의 카카오 탈퇴 회원 재로그인을 새 회원 가입으로 처리하고, 이전 기록·세션 분리와 유효한 관리자 제재 우회를 방지했다.
+- Issue #586의 Lightsail Spring 운영 배포에 build 전 no-op preflight, 제한된 Blue-Green rollback과 재배포 hold, webhook 알림, Docker image 정리 및 GitHub Action SHA pinning을 추가했다.
+- Issue #604의 지도 원거리 집계를 행정경계 필수 JOIN에서 장소 projection 행정코드 기반으로 전환해 빈 DISTRICT/REGION 응답을 복구하고, 중복 전체 count 쿼리를 제거해 줌아웃 timeout 위험을 낮췄다. level 6의 단일 장소 cell은 category PLACE marker로 반환해 기존 혼합 marker/cluster 계약도 복구했다.
+- Issue #552의 카카오 비의존 익명 회원 프로필, 마이페이지 부분 수정 API, 온기 후기 최신 작성자 프로필과 FE 자산 ID 계약을 추가했다.
+- Issue #573의 관리자 cursor 목록 응답에 필터 기준 `totalCount`를 추가하고, 서명 cursor에서 최초 전체 건수를 유지하며 PostgreSQL count query index를 보강했다.
+- Issue #592의 운영 관리자 로그인 세션이 PostgreSQL JDBC의 `Instant` 타입 추론 오류로 저장되지 않던 문제를 수정하고, 생성·회전·폐기 통합 회귀 테스트를 추가했다.
+- Issues #543, #554, #555, #556, #568의 신뢰된 CI 관측 후처리, 로컬 Grafana 왕복 검증, release 3회 비교, 수동 3+3 pipeline 실험과 dry-run 기본 Skill을 추가했다.
+- Issue #572의 공개 cursor/limit 목록 응답에 현재 필터 기준 `totalCount`를 추가하고 OpenAPI·fixture·FE 연동 문서를 일치시켰다.
+- Issue #576의 Jackson Core DoS 취약점 2건을 수정한 2.21.7·3.1.7 버전을 Spring 런타임에 고정했다.
+- Issue #571의 온디맨드 스테이징 CORS allowlist에 로컬 프런트엔드 `localhost:3000`~`3008`을 추가했다.
+- Issue #382의 Odii scheduler 실행을 시작·skip·실패·완료 상태와 단계별 집계로 영속화하고, 안전한 lifecycle 로그와 운영 조회 runbook을 보강했다.
+- Issue #486의 한옥 목록 노출 조건과 상세 조회 조건을 통일해 목록의 `placeId`가 상세에서 404가 되지 않도록 수정했다.
+- Issues #518, #520의 2026년 10월 회원 quota와 테스트 계정 예외, Journey 전용 429 응답, Gemini narration SSE 중계를 추가했다.
+- Issue #566의 지도 정보모드 cursor 두 번째 page 오류를 수정하고, 목록·viewport에 네 원천 category를 묶는 `HANOK` 통합 조회 계약을 추가했다.
 - Issue #561의 온기 히트맵 좌표를 지역 ID 또는 시도·시군구 주소로 정확히 매칭하고, 활성 장소 중심 좌표를 한 번씩 집계해 조회 지연을 줄였다.
 - Issue #553의 기존 활성 TourAPI 지도 projection을 이관 DB에서도 복구하고, 지역 코드 누락 장소가 publication을 막지 않도록 수정했다.
 - Issue #545의 검증된 `develop` 이미지 digest를 잠든 Lightsail 스테이징에 수동 반영하는 CI job과 제한 SSH 배포 경로를 추가했다.

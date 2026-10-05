@@ -450,25 +450,27 @@ components:
         updatedAt: {type: string, format: date-time}
     ReviewPage:
       type: object
-      required: [items, hasNext]
+      required: [items, totalCount, hasNext]
       properties:
         schemaVersion: {type: string}
         items: {type: array, items: {$ref: '#/components/schemas/Review'}}
+        totalCount: {type: integer, format: int64, minimum: 0}
         nextCursor: {type: string, nullable: true}
         hasNext: {type: boolean}
         hasMore: {type: boolean, deprecated: true}
     ReportPage:
       type: object
-      required: [items, hasNext]
+      required: [items, totalCount, hasNext]
       properties:
         schemaVersion: {type: string}
         items: {type: array, items: {type: object}}
+        totalCount: {type: integer, format: int64, minimum: 0}
         nextCursor: {type: string, nullable: true}
         hasNext: {type: boolean}
         hasMore: {type: boolean, deprecated: true}
     ModerationQueuePage:
       type: object
-      required: [schemaVersion, generatedAt, oldestOpenReportAgeSeconds, items, hasNext]
+      required: [schemaVersion, generatedAt, oldestOpenReportAgeSeconds, items, totalCount, hasNext]
       properties:
         schemaVersion: {type: string}
         generatedAt: {type: string, format: date-time}
@@ -485,14 +487,16 @@ components:
               ageSeconds: {type: integer, minimum: 0}
               slaTargetAt: {type: string, format: date-time}
               overdue: {type: boolean}
+        totalCount: {type: integer, format: int64, minimum: 0}
         nextCursor: {type: string, nullable: true}
         hasNext: {type: boolean}
     UserPage:
       type: object
-      required: [items, hasNext]
+      required: [items, totalCount, hasNext]
       properties:
         schemaVersion: {type: string}
         items: {type: array, items: {type: object}}
+        totalCount: {type: integer, format: int64, minimum: 0}
         nextCursor: {type: string, nullable: true}
         hasNext: {type: boolean}
     MemberSanctionRequest:
@@ -519,10 +523,11 @@ components:
         createdAt: {type: string, format: date-time}
     CurationPage:
       type: object
-      required: [items, hasNext]
+      required: [items, totalCount, hasNext]
       properties:
         schemaVersion: {type: string}
         items: {type: array, items: {type: object}}
+        totalCount: {type: integer, format: int64, minimum: 0}
         nextCursor: {type: string, nullable: true}
         hasNext: {type: boolean}
     PipelineStatus:

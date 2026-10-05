@@ -12,6 +12,7 @@
 6. [소리마루 API FE 전달 보고서](sorimaru-api-handoff-2026-09-23.md): 검색·근처 조회·키워드 추천 호환 API와 FE 연동 규칙
 7. [지도 API 호환 및 한옥 목록 정책](fe-api-compatibility-handoff-2026-09-23.md): 지도·장소·히트맵 호환 경로와 한옥 도감 카페 제외 정책
 8. [한옥 수결첩 API 인계서](hanok-stamp-book-api-handoff-2026-09-26.md): 로그인·브라우저 위치·멱등성 체크인과 legacy localStorage 제거 절차
+9. [지도 정보모드 데이터 회귀 수정 전달서](map-info-regression-fix-handoff-2026-10-03.md): 100건 제한·한옥 필터 회귀를 제거하고 신규 list·viewport API로 복귀하는 FE 변경사항과 검증 기준
 
 정확한 API 필드와 오류 코드는 [Public REST API](../contracts/rest-api.md)가 정답이다. 이 폴더는 그 계약을 FE 작업 흐름으로 번역하며, 필드가 충돌하면 `docs/contracts`를 따른다.
 

@@ -89,10 +89,12 @@ class HanokListQueryServiceTests {
 
         assertThat(first.items()).extracting(HanokCard::placeId)
                 .containsExactly("p-jeonju-hanok-village");
+        assertThat(first.totalCount()).isEqualTo(2);
         assertThat(first.hasMore()).isTrue();
         assertThat(first.nextCursor()).isEqualTo("r1.hanoks.cursor.2026-09-14T08:00:00Z.p-jeonju-hanok-village");
         assertThat(second.items()).extracting(HanokCard::placeId)
                 .containsExactly("p-gyeongju-gyochon");
+        assertThat(second.totalCount()).isEqualTo(2);
         assertThat(second.hasMore()).isFalse();
     }
 

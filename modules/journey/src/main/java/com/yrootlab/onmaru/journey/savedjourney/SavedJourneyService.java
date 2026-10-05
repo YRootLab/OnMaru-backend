@@ -72,7 +72,7 @@ public final class SavedJourneyService {
         var toIndex = Math.min(items.size(), offset + limit);
         var selected = items.subList(offset, toIndex);
         var hasMore = toIndex < items.size();
-        return new SavedJourneyPage(selected, hasMore ? encodeCursor(toIndex) : null, hasMore);
+        return new SavedJourneyPage(selected, items.size(), hasMore ? encodeCursor(toIndex) : null, hasMore);
     }
 
     public SavedJourney get(UUID memberId, UUID savedJourneyId) {

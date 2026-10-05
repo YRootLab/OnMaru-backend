@@ -135,8 +135,14 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                           AND candidate_spot.location IS NOT NULL
                           AND candidate.source_modified_at IS NOT NULL
                           AND candidate.audio_url IS NOT NULL
-                          AND candidate.audio_url ~ '^https://'
-                          AND lower(split_part(split_part(candidate.audio_url, '://', 2), '/', 1))
+                          AND candidate.audio_url ~* '^https://'
+                          AND candidate.audio_url !~ '[[:space:][:cntrl:]]'
+                          AND candidate.audio_url !~ '%%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+                          AND position('?' in candidate.audio_url) = 0
+                          AND position('#' in candidate.audio_url) = 0
+                          AND lower(regexp_replace(
+                              split_part(split_part(candidate.audio_url, '://', 2), '/', 1),
+                              ':[0-9]+$', ''))
                               = ANY (?::text[])
                     ) THEN ? ELSE 'ko' END AS lang_code
                 )
@@ -164,8 +170,14 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                   AND spot_version.location IS NOT NULL
                   AND story_version.source_modified_at IS NOT NULL
                   AND story_version.audio_url IS NOT NULL
-                  AND story_version.audio_url ~ '^https://'
-                  AND lower(split_part(split_part(story_version.audio_url, '://', 2), '/', 1))
+                  AND story_version.audio_url ~* '^https://'
+                  AND story_version.audio_url !~ '[[:space:][:cntrl:]]'
+                  AND story_version.audio_url !~ '%%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+                  AND position('?' in story_version.audio_url) = 0
+                  AND position('#' in story_version.audio_url) = 0
+                  AND lower(regexp_replace(
+                      split_part(split_part(story_version.audio_url, '://', 2), '/', 1),
+                      ':[0-9]+$', ''))
                       = ANY (?::text[])
                   AND (
                       ?::timestamptz IS NULL
@@ -204,11 +216,13 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                             ? resolveActiveLanguage(connection, language)
                             : pageRows.getFirst().projection().language();
                     String effectiveLanguage = resolvedLanguage == null ? language : resolvedLanguage;
+                    long totalCount = countActiveStories(connection, effectiveLanguage);
                     var page = new OdiiStoryReadPage(
                             activeRevision(connection),
                             effectiveLanguage,
                             languageStatus(language, effectiveLanguage, resolvedLanguage == null),
                             pageRows.stream().map(StoryRow::projection).toList(),
+                            totalCount,
                             hasMore);
                     connection.commit();
                     return page;
@@ -245,8 +259,14 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                           AND candidate_spot.location IS NOT NULL
                           AND candidate_version.source_modified_at IS NOT NULL
                           AND candidate_version.audio_url IS NOT NULL
-                          AND candidate_version.audio_url ~ '^https://'
-                          AND lower(split_part(split_part(candidate_version.audio_url, '://', 2), '/', 1))
+                          AND candidate_version.audio_url ~* '^https://'
+                          AND candidate_version.audio_url !~ '[[:space:][:cntrl:]]'
+                          AND candidate_version.audio_url !~ '%%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+                          AND position('?' in candidate_version.audio_url) = 0
+                          AND position('#' in candidate_version.audio_url) = 0
+                          AND lower(regexp_replace(
+                              split_part(split_part(candidate_version.audio_url, '://', 2), '/', 1),
+                              ':[0-9]+$', ''))
                               = ANY (?::text[])
                     ) THEN ? ELSE 'ko' END AS lang_code
                 )
@@ -275,8 +295,14 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                   AND spot_version.location IS NOT NULL
                   AND story_version.source_modified_at IS NOT NULL
                   AND story_version.audio_url IS NOT NULL
-                  AND story_version.audio_url ~ '^https://'
-                  AND lower(split_part(split_part(story_version.audio_url, '://', 2), '/', 1))
+                  AND story_version.audio_url ~* '^https://'
+                  AND story_version.audio_url !~ '[[:space:][:cntrl:]]'
+                  AND story_version.audio_url !~ '%%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+                  AND position('?' in story_version.audio_url) = 0
+                  AND position('#' in story_version.audio_url) = 0
+                  AND lower(regexp_replace(
+                      split_part(split_part(story_version.audio_url, '://', 2), '/', 1),
+                      ':[0-9]+$', ''))
                       = ANY (?::text[])
                 ORDER BY story_version.source_modified_at DESC
                 """.formatted(BASE_COLUMNS);
@@ -298,7 +324,8 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                             revisionId,
                             effectiveLanguage,
                             languageStatus(language, effectiveLanguage, rows.isEmpty()),
-                            rows.stream().map(StoryRow::projection).toList());
+                            rows.stream().map(StoryRow::projection).toList(),
+                            rows.size());
                     connection.commit();
                     return selection;
                 }
@@ -505,13 +532,19 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                           AND candidate_spot.status = 'ACTIVE'
                           AND candidate_spot.location IS NOT NULL
                           AND candidate.source_modified_at IS NOT NULL
-                          AND candidate.audio_url ~ '^https://'
-                          AND lower(split_part(split_part(candidate.audio_url, '://', 2), '/', 1))
+                          AND candidate.audio_url ~* '^https://'
+                          AND candidate.audio_url !~ '[[:space:][:cntrl:]]'
+                          AND candidate.audio_url !~ '%%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+                          AND position('?' in candidate.audio_url) = 0
+                          AND position('#' in candidate.audio_url) = 0
+                          AND lower(regexp_replace(
+                              split_part(split_part(candidate.audio_url, '://', 2), '/', 1),
+                              ':[0-9]+$', ''))
                               = ANY (request.public_hosts)
                     ) THEN request.lang_code ELSE 'ko' END AS lang_code
                     FROM request
                 )%s
-                SELECT %s%s
+                SELECT %s%s, COUNT(*) OVER() AS total_count
                 FROM active
                 CROSS JOIN effective_language
                 CROSS JOIN request
@@ -536,8 +569,14 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                   AND spot_version.status = 'ACTIVE'
                   AND spot_version.location IS NOT NULL
                   AND story_version.source_modified_at IS NOT NULL
-                  AND story_version.audio_url ~ '^https://'
-                  AND lower(split_part(split_part(story_version.audio_url, '://', 2), '/', 1))
+                  AND story_version.audio_url ~* '^https://'
+                  AND story_version.audio_url !~ '[[:space:][:cntrl:]]'
+                  AND story_version.audio_url !~ '%%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+                  AND position('?' in story_version.audio_url) = 0
+                  AND position('#' in story_version.audio_url) = 0
+                  AND lower(regexp_replace(
+                      split_part(split_part(story_version.audio_url, '://', 2), '/', 1),
+                      ':[0-9]+$', ''))
                       = ANY (request.public_hosts)
                   %s
                 %s
@@ -564,16 +603,18 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                 statement.setArray(3, connection.createArrayOf("text", publicAudioHosts));
                 binder.bind(statement);
                 try (ResultSet resultSet = statement.executeQuery()) {
-                    var rows = readRows(resultSet, false, connection);
+                    var rows = readRows(resultSet, false, connection, false, true);
                     String resolvedLanguage = rows.isEmpty()
                             ? resolveActiveLanguage(connection, language)
                             : rows.getFirst().projection().language();
                     String effectiveLanguage = resolvedLanguage == null ? language : resolvedLanguage;
+                    long totalCount = rows.isEmpty() ? 0 : rows.getFirst().totalCount();
                     var selection = new OdiiStoryReadSelection(
                             rows.isEmpty() ? activeRevision(connection) : rows.getFirst().revisionId(),
                             effectiveLanguage,
                             languageStatus(language, effectiveLanguage, resolvedLanguage == null),
-                            rows.stream().map(StoryRow::projection).toList());
+                            rows.stream().map(StoryRow::projection).toList(),
+                            totalCount);
                     connection.commit();
                     return selection;
                 }
@@ -596,6 +637,16 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
             boolean includeTranscript,
             Connection connection,
             boolean includePopularity
+    ) throws SQLException {
+        return readRows(resultSet, includeTranscript, connection, includePopularity, false);
+    }
+
+    private List<StoryRow> readRows(
+            ResultSet resultSet,
+            boolean includeTranscript,
+            Connection connection,
+            boolean includePopularity,
+            boolean includeTotalCount
     ) throws SQLException {
         var rows = new ArrayList<StoryRow>();
         while (resultSet.next()) {
@@ -647,7 +698,8 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                     revisionId,
                     projection,
                     includePopularity ? resultSet.getLong("play_count") : 0,
-                    includePopularity ? resultSet.getLong("save_count") : 0));
+                    includePopularity ? resultSet.getLong("save_count") : 0,
+                    includeTotalCount ? resultSet.getLong("total_count") : 0));
         }
         return rows;
     }
@@ -729,8 +781,14 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                   AND spot_version.status = 'ACTIVE'
                   AND spot_version.location IS NOT NULL
                   AND story_version.source_modified_at IS NOT NULL
-                  AND story_version.audio_url ~ '^https://'
-                  AND lower(split_part(split_part(story_version.audio_url, '://', 2), '/', 1))
+                  AND story_version.audio_url ~* '^https://'
+                  AND story_version.audio_url !~ '[[:space:][:cntrl:]]'
+                  AND story_version.audio_url !~ '%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+                  AND position('?' in story_version.audio_url) = 0
+                  AND position('#' in story_version.audio_url) = 0
+                  AND lower(regexp_replace(
+                      split_part(split_part(story_version.audio_url, '://', 2), '/', 1),
+                      ':[0-9]+$', ''))
                       = ANY (?::text[])
                 GROUP BY identity.lang_code
                 ORDER BY CASE WHEN identity.lang_code = ? THEN 0 ELSE 1 END
@@ -745,6 +803,44 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
                     return null;
                 }
                 return publicLanguage(resultSet.getString(1));
+            }
+        }
+    }
+
+    private long countActiveStories(Connection connection, String language) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT COUNT(*)
+                FROM onmaru.catalog_active_datasets active
+                JOIN onmaru.audio_story_versions story_version
+                  ON story_version.revision_id = active.revision_id
+                JOIN onmaru.audio_odii_stories identity
+                  ON identity.id = story_version.story_id
+                 AND identity.lang_code = ?
+                JOIN onmaru.audio_spot_versions spot_version
+                  ON spot_version.revision_id = story_version.revision_id
+                 AND spot_version.spot_id = story_version.spot_id
+                WHERE active.dataset = ?
+                  AND story_version.status = 'ACTIVE'
+                  AND spot_version.status = 'ACTIVE'
+                  AND spot_version.location IS NOT NULL
+                  AND story_version.source_modified_at IS NOT NULL
+                  AND story_version.audio_url IS NOT NULL
+                  AND story_version.audio_url ~* '^https://'
+                  AND story_version.audio_url !~ '[[:space:][:cntrl:]]'
+                  AND story_version.audio_url !~ '%($|[^0-9A-Fa-f]|[0-9A-Fa-f]($|[^0-9A-Fa-f]))'
+                  AND position('?' in story_version.audio_url) = 0
+                  AND position('#' in story_version.audio_url) = 0
+                  AND lower(regexp_replace(
+                      split_part(split_part(story_version.audio_url, '://', 2), '/', 1),
+                      ':[0-9]+$', ''))
+                      = ANY (?::text[])
+                """)) {
+            statement.setString(1, providerLanguage(language));
+            statement.setString(2, dataset);
+            statement.setArray(3, connection.createArrayOf("text", publicAudioHosts));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
             }
         }
     }
@@ -812,7 +908,8 @@ public final class JdbcOdiiStoryReadStore implements OdiiStoryRelationalReadPort
             UUID revisionId,
             OdiiStoryProjection projection,
             long playCount,
-            long saveCount) {
+            long saveCount,
+            long totalCount) {
     }
 
     @FunctionalInterface

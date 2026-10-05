@@ -126,11 +126,13 @@ class JdbcVisitReviewStoreTests {
         assertThat(first.items()).extracting(VisitReviewProjection::id)
                 .containsExactly(new UUID(0, 3), new UUID(0, 2));
         assertThat(first.hasNext()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(3);
         var last = first.items().getLast();
         var second = store.findAdminPage(VisitReviewStatus.PUBLISHED, 2,
                 new AdminCursor("reviews", 2, "status=PUBLISHED", last.createdAt(), last.id()));
         assertThat(second.items()).extracting(VisitReviewProjection::id).containsExactly(new UUID(0, 1));
         assertThat(second.hasNext()).isFalse();
+        assertThat(second.totalCount()).isEqualTo(3);
     }
 
     @Test
@@ -165,6 +167,7 @@ class JdbcVisitReviewStoreTests {
         assertThat(page.items()).extracting(VisitReviewProjection::id)
                 .containsExactly(new UUID(0, 3), new UUID(0, 2));
         assertThat(page.hasNext()).isTrue();
+        assertThat(page.totalCount()).isEqualTo(3);
     }
 
     @Test
@@ -187,11 +190,13 @@ class JdbcVisitReviewStoreTests {
         assertThat(first.items()).extracting(member -> member.id())
                 .containsExactly(new UUID(0, 3), new UUID(0, 2));
         assertThat(first.hasNext()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(3);
         var last = first.items().getLast();
         var second = store.findPage("ACTIVE", 2,
                 new AdminCursor("users", 2, "status=ACTIVE", last.createdAt(), last.id()));
         assertThat(second.items()).extracting(member -> member.id()).containsExactly(new UUID(0, 1));
         assertThat(second.hasNext()).isFalse();
+        assertThat(second.totalCount()).isEqualTo(3);
     }
 
     @Test
@@ -246,11 +251,13 @@ class JdbcVisitReviewStoreTests {
         assertThat(first.items()).extracting(item -> item.id())
                 .containsExactly(new UUID(0, 3), new UUID(0, 2));
         assertThat(first.hasNext()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(3);
         var last = first.items().getLast();
         var second = store.findPage("VILLAGE", true, 2,
                 new AdminCursor("curations", 2, "category=VILLAGE&included=true", last.updatedAt(), last.id()));
         assertThat(second.items()).extracting(item -> item.id()).containsExactly(new UUID(0, 1));
         assertThat(second.hasNext()).isFalse();
+        assertThat(second.totalCount()).isEqualTo(3);
     }
 
     @Test
@@ -282,11 +289,13 @@ class JdbcVisitReviewStoreTests {
                 .containsExactly(new UUID(0, 3), new UUID(0, 1));
         assertThat(first.items().getFirst().priority()).isEqualTo(ModerationQueuePriority.HIGH_RISK);
         assertThat(first.hasNext()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(3);
         var last = first.items().getLast();
         var second = queue.page(2, new AdminCursor("moderation-queue", 2, "priority=all",
                 last.oldestOpenReportAt(), last.reviewId(), last.priority().name()), at.plusSeconds(3600));
         assertThat(second.items()).extracting(item -> item.reviewId()).containsExactly(new UUID(0, 2));
         assertThat(second.hasNext()).isFalse();
+        assertThat(second.totalCount()).isEqualTo(3);
         assertThat(queue.oldestQueueAgeSeconds(at.plusSeconds(3600))).isEqualTo(3600);
     }
 
@@ -320,11 +329,13 @@ class JdbcVisitReviewStoreTests {
         var first = store.findAdminPage(VisitReviewStatus.PUBLISHED, 100, null);
         assertThat(first.items()).hasSize(100);
         assertThat(first.hasNext()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(101);
         var last = first.items().getLast();
         var second = store.findAdminPage(VisitReviewStatus.PUBLISHED, 100,
                 new AdminCursor("reviews", 100, "status=PUBLISHED", last.createdAt(), last.id()));
         assertThat(second.items()).extracting(VisitReviewProjection::id).containsExactly(new UUID(0, 1));
         assertThat(second.hasNext()).isFalse();
+        assertThat(second.totalCount()).isEqualTo(101);
     }
 
     @Test
@@ -346,11 +357,45 @@ class JdbcVisitReviewStoreTests {
         var first = store.findAdminPage(VisitReviewStatus.PUBLISHED, "한옥", 1, null);
         assertThat(first.items()).extracting(VisitReviewProjection::id).containsExactly(new UUID(0, 3));
         assertThat(first.hasNext()).isTrue();
+        assertThat(first.totalCount()).isEqualTo(2);
         var last = first.items().getLast();
         var second = store.findAdminPage(VisitReviewStatus.PUBLISHED, "한옥", 1,
                 new AdminCursor("reviews", 1, "status=PUBLISHED&query=한옥", last.createdAt(), last.id()));
         assertThat(second.items()).extracting(VisitReviewProjection::id).containsExactly(new UUID(0, 1));
         assertThat(second.hasNext()).isFalse();
+        assertThat(second.totalCount()).isEqualTo(2);
+    }
+
+    @Test
+    void adminCountQueriesUseFilterIndexes() throws Exception {
+        try (var connection = dataSource.getConnection();
+             var configure = connection.createStatement()) {
+            configure.execute("SET enable_seqscan = off");
+            assertThat(explain(connection, """
+                    SELECT count(*) FROM onmaru.identity_members
+                    WHERE status = 'ACTIVE'::onmaru.identity_member_status
+                    """)).contains("identity_members_admin_status_page_idx");
+            assertThat(explain(connection, """
+                    SELECT count(*) FROM onmaru.community_visit_reviews
+                    WHERE status = 'PUBLISHED'::onmaru.community_review_status
+                      AND public_place_id IS NOT NULL
+                      AND latitude IS NOT NULL
+                      AND longitude IS NOT NULL
+                    """)).contains("community_visit_reviews_admin_status_page_idx");
+            assertThat(explain(connection, """
+                    SELECT count(*) FROM onmaru.community_review_reports
+                    WHERE status = 'OPEN' AND reason = 'SPAM'
+                    """)).contains("community_review_reports_admin_open_reason_page_idx");
+        }
+    }
+
+    private String explain(java.sql.Connection connection, String query) throws Exception {
+        try (var statement = connection.prepareStatement("EXPLAIN (COSTS OFF) " + query);
+             var result = statement.executeQuery()) {
+            var plan = new StringBuilder();
+            while (result.next()) plan.append(result.getString(1)).append('\n');
+            return plan.toString();
+        }
     }
 
     private void seedPlaceIdentity(UUID placeId) throws Exception {

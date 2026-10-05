@@ -13,6 +13,7 @@ public record VisitReview(
         String mood,
         Integer score,
         List<String> tags,
+        VisitReviewAuthor author,
         Long visitorCount,
         Instant createdAt,
         boolean mine,

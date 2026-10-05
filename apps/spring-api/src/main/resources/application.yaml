@@ -34,6 +34,12 @@ onmaru:
       allowed-origins: "${ONMARU_CORS_ALLOWED_ORIGINS:https://onmaru-web.onrender.com,https://onmaru-frontend.vercel.app,https://www.onmaru.site,https://onmaru.site,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004,http://localhost:3005,http://localhost:3006,http://localhost:3007,http://localhost:3008}"
   secrets:
     source: ${ONMARU_SECRETS_SOURCE:fake}
+  journey:
+    test-quota:
+      start: "${ONMARU_JOURNEY_TEST_QUOTA_START:2026-10-01T00:00:00+09:00}"
+      end: "${ONMARU_JOURNEY_TEST_QUOTA_END:2026-11-01T00:00:00+09:00}"
+      limit: ${ONMARU_JOURNEY_TEST_QUOTA_LIMIT:2}
+      exempt-member-ids: "${ONMARU_JOURNEY_TEST_QUOTA_EXEMPT_MEMBER_IDS:}"
   audio:
     dataset: ${ONMARU_AUDIO_DATASET:odii-audio}
     category: ${ONMARU_AUDIO_CATEGORY:오디오 관광}
@@ -49,6 +55,7 @@ onmaru:
       mobile-app: ${ONMARU_TOURAPI_MOBILE_APP:OnMaru}
       page-size: ${ONMARU_TOURAPI_PAGE_SIZE:1000}
       cron: "${ONMARU_TOURAPI_SYNC_CRON:0 0 3 * * *}"
+    sync-on-startup: ${ONMARU_TOURAPI_SYNC_ON_STARTUP:true}
   odii:
     client:
       connect-timeout: 1s
@@ -62,6 +69,7 @@ onmaru:
       keywords: ${ONMARU_ODII_KEYWORDS:한옥,고택,전통마을,궁궐,성곽,문화유산,역사문화,전통시장}
       page-size: ${ONMARU_ODII_PAGE_SIZE:100}
       cron: "${ONMARU_ODII_SYNC_CRON:0 0 3 * * *}"
+    sync-on-startup: ${ONMARU_ODII_SYNC_ON_STARTUP:true}
   datalab:
     visitor:
       base-uri: "${ONMARU_DATALAB_VISITOR_BASE_URI:https://apis.data.go.kr/B551011/DataLabService}"

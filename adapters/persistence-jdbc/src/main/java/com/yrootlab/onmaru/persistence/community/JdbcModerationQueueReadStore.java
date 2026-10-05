@@ -105,10 +105,12 @@ public final class JdbcModerationQueueReadStore implements ModerationQueueReadSt
 
     private AdminPage<ModerationQueueItem> page(Connection connection, int limit, AdminCursor cursor, Instant now) {
         try {
+            long totalCount = cursor != null && cursor.totalCount() != null
+                    ? cursor.totalCount() : countCandidates(connection);
             List<QueueKey> keys = queueKeys(connection, limit, cursor);
             boolean hasNext = keys.size() > limit;
             List<QueueKey> selected = keys.subList(0, Math.min(limit, keys.size()));
-            if (selected.isEmpty()) return new AdminPage<>(List.of(), false);
+            if (selected.isEmpty()) return new AdminPage<>(List.of(), false, totalCount);
 
             List<UUID> reviewIds = selected.stream().map(QueueKey::reviewId).toList();
             Map<UUID, List<ReviewReport>> reports = reports(connection, reviewIds);
@@ -125,9 +127,19 @@ public final class JdbcModerationQueueReadStore implements ModerationQueueReadSt
                                 report.reason(), report.detail(), report.createdAt())).toList(),
                         priorActions, key.oldestSignalAt(), ageSeconds, target, !target.isAfter(now));
             }).toList();
-            return new AdminPage<>(items, hasNext);
+            return new AdminPage<>(items, hasNext, totalCount);
         } catch (SQLException exception) {
             throw new IllegalStateException("Moderation queue page query failed", exception);
+        }
+    }
+
+    private long countCandidates(Connection connection) throws SQLException {
+        String sql = CANDIDATES_CTE
+                + " SELECT count(*) FROM candidates WHERE oldest_signal_at IS NOT NULL";
+        try (var statement = connection.prepareStatement(sql);
+             var result = statement.executeQuery()) {
+            result.next();
+            return result.getLong(1);
         }
     }
 

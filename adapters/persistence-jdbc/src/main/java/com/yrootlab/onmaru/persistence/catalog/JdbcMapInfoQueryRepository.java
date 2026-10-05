@@ -175,11 +175,13 @@ public final class JdbcMapInfoQueryRepository implements MapInfoQueryPort, MapIn
         }
         if (!q.canonicalCategories().isEmpty()) {
             sql.append("""
-                    AND EXISTS (SELECT 1 FROM onmaru.map_place_category_projection category
-                               WHERE category.revision_id = place.revision_id
-                                 AND category.place_id = place.place_id
-                                 AND category.canonical_category = ANY (?))
+                    AND (upper(place.display_category) = ANY (?)
+                         OR EXISTS (SELECT 1 FROM onmaru.map_place_category_projection category
+                                    WHERE category.revision_id = place.revision_id
+                                      AND category.place_id = place.place_id
+                                      AND category.canonical_category = ANY (?)))
                     """);
+            args.add(q.canonicalCategories());
             args.add(q.canonicalCategories());
         }
     }

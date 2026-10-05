@@ -38,6 +38,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -96,7 +98,7 @@ class ExplorationWebBoundaryTests {
     private InMemoryIdentityStore identityStore;
 
     @Autowired
-    private Clock clock;
+    private MutableClock clock;
 
     @Autowired
     private GuestCredentialService guestCredentialService;
@@ -122,9 +124,12 @@ class ExplorationWebBoundaryTests {
     @Autowired
     private RecordingJourneyRunStore durableRunStore;
 
+    @Autowired
+    private JourneyAiTestQuotaProperties testQuota;
+
     private final TokenHasher hasher = new TokenHasher("fake-oauth-client-secret-current");
-    private UUID guestId;
-    private String guestToken;
+    private UUID memberId;
+    private String memberToken;
     private String ownerToken;
     private String otherToken;
 
@@ -136,18 +141,139 @@ class ExplorationWebBoundaryTests {
         identityStore.clear();
         guestCredentialService.clear();
         durableRunStore.clear();
-        var guest = guestCredentialService.issue();
-        guestId = guest.guestId();
-        guestToken = guest.rawToken();
+        clock.set(Instant.parse("2026-10-02T00:00:00Z"));
+        testQuota.setExemptMemberIds(java.util.Set.of());
+        memberToken = UUID.randomUUID().toString();
+        memberId = registerMemberSession(memberToken);
         placeDetailStore.clear();
         telemetrySink.clear();
         seedPublicJeonjuPlace();
-        ownerToken = guestCredentialService.issue().rawToken();
-        otherToken = guestCredentialService.issue().rawToken();
+        ownerToken = UUID.randomUUID().toString();
+        registerMemberSession(ownerToken);
+        otherToken = UUID.randomUUID().toString();
+        registerMemberSession(otherToken);
+    }
+
+    @Test
+    void testPeriodStartSwitchesFromDailyBudgetToExactAnchoredTwoRunBudget() throws Exception {
+        clock.set(Instant.parse("2026-09-30T14:59:59Z"));
+        for (int count = 0; count < 5; count++) {
+            var accepted = objectMapper.readTree(createMemberExploration(memberToken, "kr-45-jeonju"));
+            cancelRun(memberToken, accepted.path("explorationId").asText(), accepted.path("runId").asText());
+        }
+        clock.set(Instant.parse("2026-09-30T15:00:00Z"));
+        for (int count = 0; count < 2; count++) {
+            var accepted = objectMapper.readTree(createMemberExploration(memberToken, "kr-45-jeonju"));
+            cancelRun(memberToken, accepted.path("explorationId").asText(), accepted.path("runId").asText());
+        }
+        mockMvc.perform(post("/api/v1/explorations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"서울 한옥 여행\",\"locale\":\"ko-KR\",\"regionCode\":\"kr-11-seoul\"}")
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token").header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "2678400"));
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(7);
+    }
+
+    @Test
+    void exemptMemberBypassesTotalButNotActiveRunLimit() throws Exception {
+        testQuota.setExemptMemberIds(java.util.Set.of(memberId));
+        for (int count = 0; count < 6; count++) {
+            var accepted = objectMapper.readTree(createMemberExploration(memberToken, "kr-45-jeonju"));
+            mockMvc.perform(post("/api/v1/explorations")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"query\":\"서울 한옥 여행\",\"locale\":\"ko-KR\",\"regionCode\":\"kr-11-seoul\"}")
+                            .cookie(memberCookie(memberToken), CSRF_COOKIE)
+                            .header("X-CSRF-TOKEN", "csrf-token").header("Idempotency-Key", UUID.randomUUID()))
+                    .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "30"));
+            cancelRun(memberToken, accepted.path("explorationId").asText(), accepted.path("runId").asText());
+        }
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(6);
+    }
+
+    @Test
+    void guestAiCreationRejectsBeforePersistenceOrDispatch() throws Exception {
+        var token = guestCredentialService.issue().rawToken();
+        mockMvc.perform(post("/api/v1/explorations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "query", "전주 한옥 여행", "locale", "ko-KR", "regionCode", "kr-45-jeonju")))
+                        .cookie(guestCookie(token), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
+        assertThat(explorationStore.explorationCount()).isZero();
+        assertThat(runDispatcher.dispatchCount()).isZero();
+    }
+
+    @Test
+    void guestClarificationAnswerRejectsBeforeAiDispatch() throws Exception {
+        var token = guestCredentialService.issue().rawToken();
+        var response = mockMvc.perform(post("/api/v1/explorations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"한옥 여행\",\"locale\":\"ko-KR\"}")
+                        .cookie(guestCookie(token), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token").header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isAccepted()).andReturn().getResponse().getContentAsByteArray();
+        var id = objectMapper.readTree(response).path("explorationId").asText();
+        mockMvc.perform(post("/api/v1/explorations/{id}/turns", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of("clientTurnId", UUID.randomUUID(), "baseVersion", 0,
+                                "query", "전주로 갈게요", "clarificationAnswer", Map.of("clarificationId", "region", "text", "전주"))))
+                        .cookie(guestCookie(token), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token").header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
+        assertThat(explorationStore.turnCount(UUID.fromString(id))).isEqualTo(1);
+        assertThat(runDispatcher.dispatchCount()).isZero();
+    }
+
+    @Test
+    void memberQuotaDoesNotResetAtNextKstMidnightAndIdempotentRetryDoesNotConsume() throws Exception {
+        clock.set(Instant.parse("2026-10-01T14:59:59Z"));
+        var body = objectMapper.writeValueAsBytes(Map.of("query", "전주 한옥 여행", "locale", "ko-KR", "regionCode", "kr-45-jeonju"));
+        var key = UUID.randomUUID();
+        var first = objectMapper.readTree(createWithKey(body, key));
+        var replay = objectMapper.readTree(createWithKey(body, key));
+        assertThat(replay.path("runId")).isEqualTo(first.path("runId"));
+        cancelRun(memberToken, first.path("explorationId").asText(), first.path("runId").asText());
+        clock.set(Instant.parse("2026-10-01T15:00:00Z"));
+        var second = objectMapper.readTree(createWithKey(body, UUID.randomUUID()));
+        cancelRun(memberToken, second.path("explorationId").asText(), second.path("runId").asText());
+        mockMvc.perform(post("/api/v1/explorations").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token").header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "2592000"))
+                .andExpect(jsonPath("$.details.retryAfterMs").value(2592000000L));
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(2);
+    }
+
+    @Test
+    void testPeriodEndRestoresDailyPolicyAndPreservesActiveSlotUntilCancellation() throws Exception {
+        clock.set(Instant.parse("2026-10-31T14:59:59Z"));
+        var first = objectMapper.readTree(createMemberExploration(memberToken, "kr-45-jeonju"));
+        clock.set(Instant.parse("2026-10-31T15:00:00Z"));
+        var body = objectMapper.writeValueAsBytes(Map.of("query", "서울 한옥 여행", "locale", "ko-KR", "regionCode", "kr-11-seoul"));
+        mockMvc.perform(post("/api/v1/explorations").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token").header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "30"));
+        cancelRun(memberToken, first.path("explorationId").asText(), first.path("runId").asText());
+        for (int count = 0; count < 5; count++) {
+            var accepted = objectMapper.readTree(createWithKey(body, UUID.randomUUID()));
+            cancelRun(memberToken, accepted.path("explorationId").asText(), accepted.path("runId").asText());
+        }
+        mockMvc.perform(post("/api/v1/explorations").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token").header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isTooManyRequests()).andExpect(header().string("Retry-After", "86400"));
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(6);
     }
 
     @Test
     void guestMissingRegionReturnsTerminalClarificationWithoutAiDispatch() throws Exception {
+        var guestToken = guestCredentialService.issue().rawToken();
         var response = mockMvc.perform(post("/api/v1/explorations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(Map.of(
@@ -184,7 +310,7 @@ class ExplorationWebBoundaryTests {
                                 "query", "전주 한옥 여행",
                                 "locale", "ko-KR",
                                 "regionCode", "kr-45-jeonju")))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isAccepted())
@@ -195,18 +321,18 @@ class ExplorationWebBoundaryTests {
     }
 
     @Test
-    void sameGuestCanReadButAnotherActorReceivesNotFound() throws Exception {
-        var result = createGuestExploration(ownerToken, "kr-45-jeonju");
+    void sameMemberCanReadButAnotherActorReceivesNotFound() throws Exception {
+        var result = createMemberExploration(ownerToken, "kr-45-jeonju");
         var explorationId = objectMapper.readTree(result).path("explorationId").asText();
 
         mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
-                        .cookie(guestCookie(ownerToken)))
+                        .cookie(memberCookie(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.explorationId").value(explorationId));
 
         mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
-                        .cookie(guestCookie(otherToken)))
+                        .cookie(memberCookie(otherToken)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
@@ -244,11 +370,11 @@ class ExplorationWebBoundaryTests {
     }
 
     @Test
-    void guestAiQuotaRejectsThirdDailyQueuedRunWithoutDispatching() throws Exception {
-        var first = objectMapper.readTree(createGuestExploration(guestToken, "kr-45-jeonju"));
-        cancelRun(guestToken, first.path("explorationId").asText(), first.path("runId").asText());
-        var second = objectMapper.readTree(createGuestExploration(guestToken, "kr-11-seoul"));
-        cancelRun(guestToken, second.path("explorationId").asText(), second.path("runId").asText());
+    void memberTestQuotaRejectsThirdRunWithoutDispatching() throws Exception {
+        var first = objectMapper.readTree(createMemberExploration(memberToken, "kr-45-jeonju"));
+        cancelRun(memberToken, first.path("explorationId").asText(), first.path("runId").asText());
+        var second = objectMapper.readTree(createMemberExploration(memberToken, "kr-11-seoul"));
+        cancelRun(memberToken, second.path("explorationId").asText(), second.path("runId").asText());
 
         mockMvc.perform(post("/api/v1/explorations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -256,50 +382,112 @@ class ExplorationWebBoundaryTests {
                                 "query", "경주 한옥 여행",
                                 "locale", "ko-KR",
                                 "regionCode", "kr-47-gyeongju")))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("Retry-After"))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.schemaVersion").value("1.2"))
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"))
-                .andExpect(jsonPath("$.details.retryAfterMs", greaterThan(0)));
+                .andExpect(jsonPath("$.classification").value("RATE_LIMITED"))
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.message").value("Too many requests"))
+                .andExpect(jsonPath("$.requestId", not(emptyOrNullString())))
+                .andExpect(jsonPath("$.details.retryAfterMs").value(greaterThan(0L), Long.class));
 
         assertThat(explorationStore.explorationCount()).isEqualTo(2);
         assertThat(runDispatcher.dispatchCount()).isEqualTo(2);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/v1/explorations", "/api/journey-curator/explore"})
+    void memberActiveQuotaReturnsFrontendAliasesOnBothCreationRoutes(String path) throws Exception {
+        var memberId = identityStore.createMember(clock.instant());
+        identityStore.saveSession(new SessionRecord(
+                hasher.hash("limited-member-session"), memberId, clock.instant(), clock.instant(),
+                clock.instant().plusSeconds(3600)));
+        var body = objectMapper.writeValueAsBytes(Map.of(
+                "query", "서울 한옥 여행", "locale", "ko-KR", "regionCode", "kr-11-seoul"));
+        for (int index = 0; index < 2; index++) {
+            var result = mockMvc.perform(post(path)
+                            .contentType(MediaType.APPLICATION_JSON).content(body)
+                            .cookie(new Cookie("__Host-onmaru-session", "limited-member-session"), CSRF_COOKIE)
+                            .header("X-CSRF-TOKEN", "csrf-token")
+                            .header("Idempotency-Key", UUID.randomUUID()))
+                    .andReturn();
+            if (index == 0) {
+                assertThat(result.getResponse().getStatus()).isEqualTo(202);
+            } else {
+                assertThat(result.getResponse().getStatus()).isEqualTo(429);
+                var error = objectMapper.readTree(result.getResponse().getContentAsByteArray());
+                assertThat(error.path("classification").asText()).isEqualTo("RATE_LIMITED");
+                assertThat(error.path("status").asInt()).isEqualTo(429);
+                assertThat(error.path("code").asText()).isEqualTo("RATE_LIMITED");
+                assertThat(error.path("details").path("retryAfterMs").asInt()).isEqualTo(30000);
+                assertThat(error.size()).isEqualTo(7);
+                assertThat(result.getResponse().getHeader("Retry-After")).isEqualTo("30");
+            }
+        }
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(1);
+    }
+
     @Test
-    void cancelRunReturnsActiveAdmissionSlotForSameGuest() throws Exception {
-        var created = createGuestExploration(guestToken, "kr-45-jeonju");
+    void clarificationTurnQuotaReturnsSameFrontendAliasesWithoutDispatching() throws Exception {
+        var first = objectMapper.readTree(createMemberExploration(memberToken, "kr-45-jeonju"));
+        cancelRun(memberToken, first.path("explorationId").asText(), first.path("runId").asText());
+        var second = objectMapper.readTree(createMemberExploration(memberToken, "kr-11-seoul"));
+        cancelRun(memberToken, second.path("explorationId").asText(), second.path("runId").asText());
+        var pending = objectMapper.readTree(createMemberExploration(memberToken, null));
+
+        mockMvc.perform(post("/api/v1/explorations/{id}/turns", pending.path("explorationId").asText())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "clientTurnId", UUID.randomUUID(), "baseVersion", 0,
+                                "query", "전주로 갈게요", "clarificationAnswer", Map.of(
+                                        "clarificationId", "region", "text", "전주"))))
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"))
+                .andExpect(jsonPath("$.classification").value("RATE_LIMITED"))
+                .andExpect(jsonPath("$.status").value(429));
+        assertThat(runDispatcher.dispatchCount()).isEqualTo(2);
+    }
+
+    @Test
+    void cancelRunReturnsActiveAdmissionSlotForSameMember() throws Exception {
+        var created = createMemberExploration(memberToken, "kr-45-jeonju");
         var root = objectMapper.readTree(created);
         var explorationId = root.path("explorationId").asText();
         var runId = root.path("runId").asText();
         var subject = new AdmissionRequest(
                 "journey.ai",
-                new AdmissionSubject(SubjectType.GUEST, guestId.toString()));
+                new AdmissionSubject(SubjectType.MEMBER, memberId.toString()));
         var rejectedBefore = counter(
                 "onmaru.admission.decisions",
                 "operation", "journey.ai",
-                "subjectType", "GUEST",
+                "subjectType", "MEMBER",
                 "decision", "rejected",
                 "reason", "ACTIVE_LIMIT");
         var releasedBefore = counter(
                 "onmaru.admission.releases",
                 "operation", "journey.ai",
-                "subjectType", "GUEST");
+                "subjectType", "MEMBER");
 
         assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isFalse();
         assertThat(counter(
                 "onmaru.admission.decisions",
                 "operation", "journey.ai",
-                "subjectType", "GUEST",
+                "subjectType", "MEMBER",
                 "decision", "rejected",
                 "reason", "ACTIVE_LIMIT")).isEqualTo(rejectedBefore + 1.0);
 
         mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isOk())
@@ -308,7 +496,7 @@ class ExplorationWebBoundaryTests {
         assertThat(counter(
                 "onmaru.admission.releases",
                 "operation", "journey.ai",
-                "subjectType", "GUEST")).isEqualTo(releasedBefore + 1.0);
+                "subjectType", "MEMBER")).isEqualTo(releasedBefore + 1.0);
 
         assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isTrue();
         admissionService.releaseActive(subject, admissionPolicy);
@@ -316,7 +504,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void cancelRunCancelsDurableRunForSameActorAndRun() throws Exception {
-        var created = createGuestExploration(guestToken, "kr-45-jeonju");
+        var created = createMemberExploration(memberToken, "kr-45-jeonju");
         var root = objectMapper.readTree(created);
         var explorationId = root.path("explorationId").asText();
         var runId = root.path("runId").asText();
@@ -324,14 +512,14 @@ class ExplorationWebBoundaryTests {
         mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
 
         assertThat(durableRunStore.cancellations()).singleElement().satisfies(command -> {
-            assertThat(command.actorKey()).isEqualTo("GUEST:" + guestId);
+            assertThat(command.actorKey()).isEqualTo("MEMBER:" + memberId);
             assertThat(command.runId()).isEqualTo(UUID.fromString(runId));
             assertThat(command.requestHash()).isNotBlank();
             assertThat(command.cancelledAt()).isNotNull();
@@ -340,14 +528,14 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void ownerCanHydrateLatestRunSnapshotDirectly() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var body = objectMapper.readTree(created);
         var explorationId = body.path("explorationId").asText();
         var runId = body.path("runId").asText();
         telemetrySink.clear();
 
         var result = mockMvc.perform(get("/api/v1/explorations/{explorationId}/runs/{runId}", explorationId, runId)
-                        .cookie(guestCookie(ownerToken)))
+                        .cookie(memberCookie(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.schemaVersion").value("1.2"))
@@ -371,25 +559,25 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void runSnapshotConcealsOtherActorAndUnknownRunAsNotFound() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var body = objectMapper.readTree(created);
         var explorationId = body.path("explorationId").asText();
         var runId = body.path("runId").asText();
 
         mockMvc.perform(get("/api/v1/explorations/{explorationId}/runs/{runId}", explorationId, runId)
-                        .cookie(guestCookie(otherToken)))
+                        .cookie(memberCookie(otherToken)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
 
         mockMvc.perform(get("/api/v1/explorations/{explorationId}/runs/{runId}", explorationId, UUID.randomUUID())
-                        .cookie(guestCookie(ownerToken)))
+                        .cookie(memberCookie(ownerToken)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 
     @Test
     void completedExplorationHydratesPublicBoardFromCurrentCatalog() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var body = objectMapper.readTree(created);
         var explorationId = UUID.fromString(body.path("explorationId").asText());
         var runId = UUID.fromString(body.path("runId").asText());
@@ -397,7 +585,7 @@ class ExplorationWebBoundaryTests {
         explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
 
         mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
-                        .cookie(guestCookie(ownerToken)))
+                        .cookie(memberCookie(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.board.title").value("전주 한옥 산책"))
@@ -412,7 +600,7 @@ class ExplorationWebBoundaryTests {
     void unavailableCatalogPlaceIsReportedWithoutLeakingPrivateBoard() throws Exception {
         placeDetailStore.clear();
         placeDetailStore.add(PlaceProjection.hidden("p-jeonju-hanok-village"));
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var body = objectMapper.readTree(created);
         var explorationId = UUID.fromString(body.path("explorationId").asText());
         var runId = UUID.fromString(body.path("runId").asText());
@@ -420,7 +608,7 @@ class ExplorationWebBoundaryTests {
         explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
 
         mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
-                        .cookie(guestCookie(ownerToken)))
+                        .cookie(memberCookie(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.board").isEmpty())
@@ -430,8 +618,12 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void memberWithGuestGrantCanReadGuestExploration() throws Exception {
-        var created = createGuestExploration(ownerToken, null);
-        var explorationId = UUID.fromString(objectMapper.readTree(created).path("explorationId").asText());
+        var guest = guestCredentialService.issue();
+        var explorationId = explorationService.create(
+                com.yrootlab.onmaru.journey.exploration.ExplorationActor.guest(guest.guestId().toString()),
+                new com.yrootlab.onmaru.journey.exploration.CreateExplorationCommand("한옥 여행", "ko-KR", null))
+                .explorationId();
+        guestCredentialService.linkExploration(guest.guestId(), explorationId);
         var memberId = identityStore.createMember(clock.instant());
         identityStore.saveSession(new SessionRecord(
                 hasher.hash("granted-member-session"),
@@ -439,7 +631,7 @@ class ExplorationWebBoundaryTests {
                 clock.instant(),
                 clock.instant(),
                 clock.instant().plusSeconds(3600)));
-        guestGrantService.claim(new GuestGrantClaimCommand(memberId, explorationId, ownerToken));
+        guestGrantService.claim(new GuestGrantClaimCommand(memberId, explorationId, guest.rawToken()));
 
         mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
                         .cookie(new Cookie("__Host-onmaru-session", "granted-member-session")))
@@ -452,7 +644,7 @@ class ExplorationWebBoundaryTests {
         mockMvc.perform(post("/api/v1/explorations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(Map.of("query", " ", "locale", "ko-KR")))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isBadRequest())
@@ -465,7 +657,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void clarificationTurnPersistsOnceAndDispatchesOneRun() throws Exception {
-        var created = createGuestExploration(ownerToken, null);
+        var created = createMemberExploration(ownerToken, null);
         var explorationId = objectMapper.readTree(created).path("explorationId").asText();
         var clientTurnId = UUID.randomUUID();
         var answer = new java.util.LinkedHashMap<String, Object>();
@@ -483,7 +675,7 @@ class ExplorationWebBoundaryTests {
             mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body)
-                            .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                            .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                             .header("X-CSRF-TOKEN", "csrf-token")
                             .header("Idempotency-Key", UUID.randomUUID()))
                     .andExpect(status().isAccepted())
@@ -498,7 +690,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void clarificationAnswerIsRejectedWhenLatestRunIsNotPendingClarification() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var explorationId = objectMapper.readTree(created).path("explorationId").asText();
         var answer = Map.of(
                 "clarificationId", "region",
@@ -511,7 +703,7 @@ class ExplorationWebBoundaryTests {
                                 "baseVersion", 0,
                                 "query", "서울로 바꿀게요",
                                 "clarificationAnswer", answer)))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isConflict())
@@ -523,7 +715,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void unknownClarificationIdIsRejectedAsVersionConflict() throws Exception {
-        var created = createGuestExploration(ownerToken, null);
+        var created = createMemberExploration(ownerToken, null);
         var explorationId = objectMapper.readTree(created).path("explorationId").asText();
 
         mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
@@ -535,7 +727,7 @@ class ExplorationWebBoundaryTests {
                                 "clarificationAnswer", Map.of(
                                         "clarificationId", "stale-region",
                                         "text", "전주"))))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isConflict())
@@ -552,7 +744,7 @@ class ExplorationWebBoundaryTests {
                 .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
 
         mockMvc.perform(get("/api/v1/explorations/{id}", UUID.randomUUID())
-                        .cookie(guestCookie("caller-invented-token")))
+                        .cookie(memberCookie("caller-invented-token")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
     }
@@ -582,7 +774,7 @@ class ExplorationWebBoundaryTests {
                                     "query", entry.getKey(),
                                     "locale", "ko-KR",
                                     "regionCode", "kr-45-jeonju")))
-                            .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                            .cookie(memberCookie(memberToken), CSRF_COOKIE)
                             .header("X-CSRF-TOKEN", "csrf-token")
                             .header("Idempotency-Key", UUID.randomUUID()))
                     .andExpect(status().isUnprocessableEntity())
@@ -602,7 +794,7 @@ class ExplorationWebBoundaryTests {
                                 "query", "전주\u0000 한옥 여행",
                                 "locale", "ko-KR",
                                 "regionCode", "kr-45-jeonju")))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isUnprocessableEntity())
@@ -621,13 +813,13 @@ class ExplorationWebBoundaryTests {
                                 "query", "전주 한옥 여행",
                                 "locale", "ko-KR",
                                 "unexpected", true)))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
-        var created = createGuestExploration(ownerToken, null);
+        var created = createMemberExploration(ownerToken, null);
         var explorationId = objectMapper.readTree(created).path("explorationId").asText();
         var turn = new java.util.LinkedHashMap<String, Object>();
         turn.put("clientTurnId", UUID.randomUUID());
@@ -638,7 +830,7 @@ class ExplorationWebBoundaryTests {
         mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(turn))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isUnprocessableEntity())
@@ -652,7 +844,7 @@ class ExplorationWebBoundaryTests {
         mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(turn))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isUnprocessableEntity())
@@ -683,7 +875,7 @@ class ExplorationWebBoundaryTests {
                                 "query", "서울 한옥 여행",
                                 "locale", "ko-KR",
                                 "regionCode", "kr-11-seoul")))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", key))
                 .andExpect(status().isConflict())
@@ -692,7 +884,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void turnUsesIdempotencyKeyForReplayAndConflict() throws Exception {
-        var created = createGuestExploration(ownerToken, null);
+        var created = createMemberExploration(ownerToken, null);
         var explorationId = objectMapper.readTree(created).path("explorationId").asText();
         var key = UUID.randomUUID();
         var clientTurnId = UUID.randomUUID();
@@ -721,7 +913,7 @@ class ExplorationWebBoundaryTests {
                                 "clarificationAnswer", Map.of(
                                         "clarificationId", "region",
                                         "text", "서울"))))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", key))
                 .andExpect(status().isConflict())
@@ -730,7 +922,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void turnRequiresExplicitBaseVersionBeforePersistence() throws Exception {
-        var created = createGuestExploration(ownerToken, null);
+        var created = createMemberExploration(ownerToken, null);
         var explorationId = objectMapper.readTree(created).path("explorationId").asText();
 
         mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
@@ -738,7 +930,7 @@ class ExplorationWebBoundaryTests {
                         .content(objectMapper.writeValueAsBytes(Map.of(
                                 "clientTurnId", UUID.randomUUID(),
                                 "query", "전주 한옥")))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isBadRequest())
@@ -749,7 +941,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void rejectedTurnDoesNotPersistRawTurnOrDispatchRun() throws Exception {
-        var created = createGuestExploration(ownerToken, null);
+        var created = createMemberExploration(ownerToken, null);
         var explorationId = UUID.fromString(objectMapper.readTree(created).path("explorationId").asText());
         var beforeTurns = explorationStore.turnCount(explorationId);
 
@@ -759,7 +951,7 @@ class ExplorationWebBoundaryTests {
                                 "clientTurnId", UUID.randomUUID(),
                                 "baseVersion", 0,
                                 "query", " ")))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isBadRequest())
@@ -772,7 +964,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void runEventsReplaysStageAndTerminalFramesThenCloses() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var tree = objectMapper.readTree(created);
         var explorationId = UUID.fromString(tree.path("explorationId").asText());
         var runId = UUID.fromString(tree.path("runId").asText());
@@ -781,7 +973,7 @@ class ExplorationWebBoundaryTests {
         explorationService.claimRun(explorationId, runId, "INTERPRETING");
         explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
 
-        var body = mockMvc.perform(get(eventsUrl).cookie(guestCookie(ownerToken)))
+        var body = mockMvc.perform(get(eventsUrl).cookie(memberCookie(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "text/event-stream;charset=UTF-8"))
@@ -811,7 +1003,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void runEventsHonorsLastEventIdAndReportsReplayTelemetry() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var tree = objectMapper.readTree(created);
         var explorationId = UUID.fromString(tree.path("explorationId").asText());
         var runId = UUID.fromString(tree.path("runId").asText());
@@ -821,7 +1013,7 @@ class ExplorationWebBoundaryTests {
         explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
 
         var body = mockMvc.perform(get(eventsUrl)
-                        .cookie(guestCookie(ownerToken))
+                        .cookie(memberCookie(ownerToken))
                         .header("Last-Event-ID", "1"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -843,13 +1035,13 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void runEventsDeliversTerminalPublishedAfterStreamOpens() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var tree = objectMapper.readTree(created);
         var explorationId = UUID.fromString(tree.path("explorationId").asText());
         var runId = UUID.fromString(tree.path("runId").asText());
         var eventsUrl = tree.path("eventsUrl").asText();
 
-        var result = mockMvc.perform(get(eventsUrl).cookie(guestCookie(ownerToken)))
+        var result = mockMvc.perform(get(eventsUrl).cookie(memberCookie(ownerToken)))
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
@@ -867,13 +1059,13 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void runEventsReturnsResetAndReportsTelemetryWhenLastEventIdMissesBuffer() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var tree = objectMapper.readTree(created);
         var runId = UUID.fromString(tree.path("runId").asText());
         var eventsUrl = tree.path("eventsUrl").asText();
 
         var body = mockMvc.perform(get(eventsUrl)
-                        .cookie(guestCookie(ownerToken))
+                        .cookie(memberCookie(ownerToken))
                         .header("Last-Event-ID", "0"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -911,7 +1103,7 @@ class ExplorationWebBoundaryTests {
 
     @Test
     void actionCommandsExposeVersionAndPinnedReferenceConflicts() throws Exception {
-        var created = createGuestExploration(ownerToken, "kr-45-jeonju");
+        var created = createMemberExploration(ownerToken, "kr-45-jeonju");
         var tree = objectMapper.readTree(created);
         var explorationId = UUID.fromString(tree.path("explorationId").asText());
         var runId = UUID.fromString(tree.path("runId").asText());
@@ -924,7 +1116,7 @@ class ExplorationWebBoundaryTests {
         mockMvc.perform(post("/api/v1/explorations/{id}/actions", explorationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(pin))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isOk())
@@ -938,7 +1130,7 @@ class ExplorationWebBoundaryTests {
         mockMvc.perform(post("/api/v1/explorations/{id}/actions", explorationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(exclude))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isConflict())
@@ -951,7 +1143,7 @@ class ExplorationWebBoundaryTests {
         mockMvc.perform(post("/api/v1/explorations/{id}/actions", explorationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(staleUnpin))
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isConflict())
@@ -959,7 +1151,7 @@ class ExplorationWebBoundaryTests {
                 .andExpect(jsonPath("$.details.currentVersion").value(1));
     }
 
-    private byte[] createGuestExploration(String guestToken, String regionCode) throws Exception {
+    private byte[] createMemberExploration(String memberToken, String regionCode) throws Exception {
         var body = new java.util.LinkedHashMap<String, Object>();
         body.put("query", "한옥 여행을 하고 싶어요");
         body.put("locale", "ko-KR");
@@ -969,7 +1161,7 @@ class ExplorationWebBoundaryTests {
         return mockMvc.perform(post("/api/v1/explorations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(body))
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isAccepted())
@@ -980,7 +1172,7 @@ class ExplorationWebBoundaryTests {
         return mockMvc.perform(post("/api/v1/explorations/{id}/turns", explorationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body)
-                        .cookie(guestCookie(ownerToken), CSRF_COOKIE)
+                        .cookie(memberCookie(ownerToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", key))
                 .andExpect(status().isAccepted())
@@ -991,18 +1183,18 @@ class ExplorationWebBoundaryTests {
         return mockMvc.perform(post("/api/v1/explorations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body)
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", key))
                 .andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsByteArray();
     }
 
-    private void cancelRun(String guestToken, String explorationId, String runId) throws Exception {
+    private void cancelRun(String memberToken, String explorationId, String runId) throws Exception {
         mockMvc.perform(post("/api/v1/explorations/{explorationId}/runs/{runId}/cancel", explorationId, runId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
-                        .cookie(guestCookie(guestToken), CSRF_COOKIE)
+                        .cookie(memberCookie(memberToken), CSRF_COOKIE)
                         .header("X-CSRF-TOKEN", "csrf-token")
                         .header("Idempotency-Key", UUID.randomUUID()))
                 .andExpect(status().isOk());
@@ -1013,8 +1205,19 @@ class ExplorationWebBoundaryTests {
         return counter == null ? 0.0 : counter.count();
     }
 
+    private UUID registerMemberSession(String token) {
+        var id = identityStore.createMember(clock.instant());
+        identityStore.saveSession(new SessionRecord(hasher.hash(token), id, clock.instant(), clock.instant(),
+                Instant.parse("2027-01-01T00:00:00Z")));
+        return id;
+    }
+
     private Cookie guestCookie(String token) {
         return new Cookie("__Host-onmaru-guest", token);
+    }
+
+    private Cookie memberCookie(String token) {
+        return new Cookie("__Host-onmaru-session", token);
     }
 
     private void seedPublicJeonjuPlace() {
@@ -1038,6 +1241,12 @@ class ExplorationWebBoundaryTests {
 
         @Bean
         @Primary
+        MutableClock quotaTestClock() {
+            return new MutableClock();
+        }
+
+        @Bean
+        @Primary
         InMemoryTelemetrySink inMemoryTelemetrySink() {
             return new InMemoryTelemetrySink();
         }
@@ -1051,6 +1260,16 @@ class ExplorationWebBoundaryTests {
         JourneyRunCancellationService journeyRunCancellationService(RecordingJourneyRunStore store) {
             return new JourneyRunCancellationService(store);
         }
+    }
+
+    static final class MutableClock extends Clock {
+        private Instant now = Instant.parse("2026-10-02T00:00:00Z");
+
+        void set(Instant value) { now = value; }
+
+        @Override public java.time.ZoneId getZone() { return java.time.ZoneOffset.UTC; }
+        @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+        @Override public Instant instant() { return now; }
     }
 
     static final class RecordingJourneyRunStore implements JourneyRunStore {

@@ -6,7 +6,6 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 public final class HanokListQueryService {
 
@@ -14,11 +13,6 @@ public final class HanokListQueryService {
     private static final String CURSOR_PREFIX = "r1.hanoks.cursor.";
     private static final Instant CURSOR_REFERENCE_NOW = Instant.parse("2026-09-14T08:00:00Z");
     private static final Duration CURSOR_TTL = Duration.ofDays(90);
-    private static final Set<HanokListCategory> HANOK_RELATED_CATEGORIES = Set.of(
-            HanokListCategory.HANOK,
-            HanokListCategory.HANOK_STAY,
-            HanokListCategory.HANOK_CAFE,
-            HanokListCategory.HANOK_EXPERIENCE);
 
     private final HanokListStore store;
     private final HanokSavedStateLookup savedStateLookup;
@@ -31,7 +25,7 @@ public final class HanokListQueryService {
     public HanokListPage list(HanokListQuery query) {
         var cursor = decodeCursor(query.cursor());
         var normalizedKeyword = normalize(query.keyword());
-        var filtered = store.findPublishedSnapshot().stream()
+        var allFiltered = store.findPublishedSnapshot().stream()
                 .filter(projection -> projection.status() == HanokListStatus.PUBLIC)
                 .filter(projection -> query.includeHanokCafe() || projection.category() != HanokListCategory.HANOK_CAFE)
                 .filter(projection -> matchesKeyword(projection, normalizedKeyword))
@@ -39,6 +33,8 @@ public final class HanokListQueryService {
                 .filter(projection -> query.category() == null || query.category() == projection.category())
                 .filter(projection -> !query.hasImage() || projection.thumbnailUrl() != null)
                 .sorted(order())
+                .toList();
+        var filtered = allFiltered.stream()
                 .filter(projection -> cursor == null || isAfterCursor(projection, cursor))
                 .toList();
         var limited = filtered.stream().limit(Math.max(query.limit(), 0) + 1L).toList();
@@ -58,7 +54,7 @@ public final class HanokListQueryService {
                         savedStateLookup.savedBy(query.memberId(), projection.placeId())))
                 .toList();
         var nextCursor = hasMore ? encodeCursor(pageItems.getLast()) : null;
-        return new HanokListPage(SCHEMA_VERSION, cards, nextCursor, hasMore);
+        return new HanokListPage(SCHEMA_VERSION, cards, allFiltered.size(), nextCursor, hasMore);
     }
 
     private Comparator<HanokListProjection> order() {
@@ -70,7 +66,8 @@ public final class HanokListQueryService {
         if (normalizedKeyword == null) {
             return true;
         }
-        if (normalizedKeyword.equals("한옥") && HANOK_RELATED_CATEGORIES.contains(projection.category())) {
+        if (normalizedKeyword.equals(HanokListEligibility.KEYWORD)
+                && HanokListEligibility.isHanokCategory(projection.category().name())) {
             return true;
         }
         return normalize(projection.name()).contains(normalizedKeyword)

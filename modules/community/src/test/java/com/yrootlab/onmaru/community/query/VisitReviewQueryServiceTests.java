@@ -8,6 +8,7 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,6 +45,7 @@ class VisitReviewQueryServiceTests {
         assertThat(page.items().getFirst().mine()).isTrue();
         assertThat(page.items().getFirst().likedByMe()).isTrue();
         assertThat(page.items().getFirst().likeCount()).isEqualTo(1);
+        assertThat(page.totalCount()).isEqualTo(3);
         assertThat(page.hasMore()).isTrue();
         assertThat(page.nextCursor()).isNotBlank();
         assertThat(page.coverage().status()).isEqualTo(ReviewCoverageStatus.SUPPORTED);
@@ -71,6 +73,7 @@ class VisitReviewQueryServiceTests {
                         "00000000-0000-0000-0000-000000000002");
         assertThat(second.items()).extracting(VisitReview::id)
                 .containsExactly("00000000-0000-0000-0000-000000000001");
+        assertThat(second.totalCount()).isEqualTo(2);
         assertThatThrownBy(() -> service.list(VisitReviewQuery.all(2, first.nextCursor(), java.util.Optional.empty())))
                 .isInstanceOf(VisitReviewCursorInvalidException.class);
         assertThatThrownBy(() -> service.list(VisitReviewQuery.region("kr-45-jeonju", 1, first.nextCursor(), java.util.Optional.empty())))
@@ -115,6 +118,36 @@ class VisitReviewQueryServiceTests {
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple("p-bukchon-hanok-cafe", null),
                         org.assertj.core.groups.Tuple.tuple("p-jeonju-hanok-village", 18_240L));
+    }
+
+    @Test
+    void mapsCurrentAuthorProfilesOncePerPageAndFallsBackWhenMissing() {
+        var store = new InMemoryVisitReviewStore();
+        store.add(review("00000000-0000-0000-0000-000000000001", "p-jeonju-hanok-village",
+                "kr-45-jeonju", Instant.parse("2026-09-15T01:00:00Z"), MEMBER_ID));
+        store.add(review("00000000-0000-0000-0000-000000000002", "p-bukchon-hanok-cafe",
+                "kr-11-jongno", Instant.parse("2026-09-15T02:00:00Z"), MEMBER_ID));
+        store.add(review("00000000-0000-0000-0000-000000000003", "p-bukchon-hanok-cafe",
+                "kr-11-jongno", Instant.parse("2026-09-15T03:00:00Z"), OTHER_MEMBER_ID));
+        var profile = new AtomicReference<>(new VisitReviewAuthor("고요한 마루 0552", "CHARACTER_03", "BACKGROUND_07"));
+        var requestedIds = new AtomicReference<Set<UUID>>();
+        VisitReviewAuthorProfileLookup lookup = memberIds -> {
+            requestedIds.set(memberIds);
+            return Map.of(MEMBER_ID, profile.get());
+        };
+        var service = new VisitReviewQueryService(store, ignored -> Map.of(), lookup, CLOCK);
+
+        var first = service.list(VisitReviewQuery.all(20, null, java.util.Optional.empty()));
+
+        assertThat(requestedIds.get()).containsExactlyInAnyOrder(MEMBER_ID, OTHER_MEMBER_ID);
+        assertThat(first.items().get(1).author()).isEqualTo(profile.get());
+        assertThat(first.items().getFirst().author()).isEqualTo(VisitReviewAuthor.fallback());
+
+        profile.set(new VisitReviewAuthor("따뜻한 온니 1004", "CHARACTER_10", "BACKGROUND_01"));
+        var second = service.list(VisitReviewQuery.all(20, null, java.util.Optional.empty()));
+
+        assertThat(second.items().get(1).author()).isEqualTo(profile.get());
+        assertThat(second.items().get(2).author()).isEqualTo(profile.get());
     }
 
     @Test

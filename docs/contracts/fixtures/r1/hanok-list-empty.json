@@ -16,6 +16,7 @@
     "body": {
       "schemaVersion": "1.2",
       "items": [],
+      "totalCount": 0,
       "nextCursor": null,
       "hasMore": false
     }

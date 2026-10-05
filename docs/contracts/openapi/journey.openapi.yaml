@@ -639,10 +639,11 @@ components:
     SavedJourneyPage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion: { type: string, const: '1.2' }
         items: { type: array, items: { $ref: '#/components/schemas/SavedJourneySummary' } }
+        totalCount: { type: integer, format: int64, minimum: 0 }
         nextCursor: { type: [string, 'null'] }
         hasMore: { type: boolean }
     ResumeSavedJourneyResponse:
@@ -656,10 +657,11 @@ components:
     JourneyThreadPage:
       type: object
       additionalProperties: false
-      required: [schemaVersion, items, nextCursor, hasMore]
+      required: [schemaVersion, items, totalCount, nextCursor, hasMore]
       properties:
         schemaVersion: { type: string, const: '1.2' }
         items: { type: array, items: { $ref: '#/components/schemas/JourneyThreadSummary' } }
+        totalCount: { type: integer, format: int64, minimum: 0 }
         nextCursor: { type: [string, 'null'] }
         hasMore: { type: boolean }
     JourneyThreadSummary:
@@ -712,6 +714,20 @@ components:
       type: object
       additionalProperties: false
       required: [schemaVersion, code, message, requestId, details]
+      description: >-
+        Journey AI의 HTTP 429 응답은 기존 오류 필드와 함께 classification=RATE_LIMITED,
+        status=429 호환 필드를 반환한다. 다른 오류에는 이 두 필드가 없다.
+        Retry-After 헤더는 초, details.retryAfterMs는 밀리초 단위다.
+      if:
+        properties:
+          code: { const: RATE_LIMITED }
+      then:
+        required: [classification, status]
+      else:
+        not:
+          anyOf:
+            - required: [classification]
+            - required: [status]
       properties:
         schemaVersion: { type: string, const: '1.2' }
         code:
@@ -720,3 +736,5 @@ components:
         message: { type: string }
         requestId: { type: string }
         details: { type: object }
+        classification: { type: string, const: RATE_LIMITED }
+        status: { type: integer, const: 429 }

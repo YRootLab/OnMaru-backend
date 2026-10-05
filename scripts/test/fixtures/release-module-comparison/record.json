@@ -1,0 +1,30 @@
+{
+  "module_id": "spring-api",
+  "run_id": "101",
+  "run_attempt": 1,
+  "actions_url": "https://github.com/YRootLab/OnMaru-backend/actions/runs/101/attempts/1",
+  "manifest_url": "https://github.com/YRootLab/OnMaru-backend/actions/runs/101/artifacts/901",
+  "metric_name": "module.wall_clock",
+  "metric_value": 100,
+  "unit": "seconds",
+  "resource": {"cpu_seconds": null, "max_rss_bytes": null},
+  "provenance": {
+    "repository": "YRootLab/OnMaru-backend",
+    "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "workflow": "Module Benchmark",
+    "job": "spring-api"
+  },
+  "artifact_uri": "https://github.com/YRootLab/OnMaru-backend/actions/runs/101/artifacts/901",
+  "environment_identity": {
+    "runner_image": "ubuntu-24.04",
+    "java_version": "21",
+    "python_version": "3.12",
+    "cache_state": "cold",
+    "database_fixture": "postgres-v1",
+    "cpu_memory_profile": "2cpu-7gb",
+    "dependency_mode": "fixture",
+    "config_catalog_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "status": "success",
+  "complete": true
+}

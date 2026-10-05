@@ -1,5 +1,8 @@
 package com.yrootlab.onmaru.identity.oauth;
 
+import com.yrootlab.onmaru.identity.profile.MemberProfileGenerator;
+import com.yrootlab.onmaru.identity.profile.MemberProfilePatch;
+import com.yrootlab.onmaru.identity.profile.MemberProfileService;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -95,7 +98,79 @@ class OAuthLoginServiceTests {
         assertThat(results.get(0).memberId()).isEqualTo(results.get(1).memberId());
         assertThat(store.memberCount()).isEqualTo(1);
         assertThat(store.externalAccountCount()).isEqualTo(1);
+        assertThat(store.profileCount()).isEqualTo(1);
         assertThat(store.sessionCount()).isEqualTo(2);
+    }
+
+    @Test
+    void loginAfterDeletionCreatesNewMemberAndDoesNotRestoreOldSession() {
+        var store = new InMemoryIdentityStore();
+        var hasher = new TokenHasher("test-pepper");
+        var service = new OAuthLoginService(store, hasher, CLOCK);
+        var identity = new ExternalIdentity("KAKAO", KAKAO.issuer(), "rejoin-subject");
+        var firstState = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser-1", "pkce-1", null, "/discover"));
+        var first = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, firstState.state(), "browser-1", "pkce-1", identity));
+        assertThat(store.requestDeletion(hasher.hash(first.sessionToken()), CLOCK.instant())).isPresent();
+
+        var secondState = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser-2", "pkce-2", null, "/discover"));
+        var second = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, secondState.state(), "browser-2", "pkce-2", identity));
+
+        assertThat(second.memberId()).isNotEqualTo(first.memberId());
+        assertThat(store.findActiveMemberBySessionHash(hasher.hash(first.sessionToken()), CLOCK.instant())).isEmpty();
+        assertThat(store.findActiveMemberBySessionHash(hasher.hash(second.sessionToken()), CLOCK.instant()))
+                .get().extracting("id").isEqualTo(second.memberId());
+        assertThat(store.memberCount()).isEqualTo(2);
+        assertThat(store.externalAccountCount()).isEqualTo(1);
+    }
+
+    @Test
+    void firstLoginCreatesProfileAndReloginKeepsTheMemberEdit() {
+        var store = new InMemoryIdentityStore();
+        var generator = new MemberProfileGenerator(bound -> bound == 10_000 ? 42 : 0);
+        var service = new OAuthLoginService(store, new TokenHasher("test-pepper"), CLOCK, generator);
+        var firstState = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser-1", "pkce-1", null, "/discover"));
+
+        var first = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO,
+                firstState.state(),
+                "browser-1",
+                "pkce-1",
+                new ExternalIdentity("KAKAO", "https://kauth.kakao.com", "profile-subject")));
+
+        var summary = store.findActiveMemberBySessionHash(
+                new TokenHasher("test-pepper").hash(first.sessionToken()), CLOCK.instant()).orElseThrow();
+        assertThat(summary.displayName()).isEqualTo("고요한 마루 0042");
+        assertThat(summary.characterId()).isEqualTo("CHARACTER_01");
+        assertThat(summary.backgroundId()).isEqualTo("BACKGROUND_01");
+
+        var profileService = new MemberProfileService(store);
+        profileService.updateActiveProfile(
+                first.memberId(),
+                new MemberProfilePatch("바꾼 이름", "CHARACTER_10", "BACKGROUND_10"),
+                CLOCK.instant().plusSeconds(60)).orElseThrow();
+
+        var secondState = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser-2", "pkce-2", null, "/discover"));
+        var second = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO,
+                secondState.state(),
+                "browser-2",
+                "pkce-2",
+                new ExternalIdentity("KAKAO", "https://kauth.kakao.com", "profile-subject")));
+
+        assertThat(second.memberId()).isEqualTo(first.memberId());
+        assertThat(store.findByMemberId(first.memberId()).orElseThrow())
+                .extracting("displayName", "characterId", "backgroundId")
+                .containsExactly(
+                        "바꾼 이름",
+                        com.yrootlab.onmaru.identity.profile.MemberProfileCharacter.CHARACTER_10,
+                        com.yrootlab.onmaru.identity.profile.MemberProfileBackground.BACKGROUND_10);
+        assertThat(store.profileCount()).isEqualTo(1);
     }
 
     @Test

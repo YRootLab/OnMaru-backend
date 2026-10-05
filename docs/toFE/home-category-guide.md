@@ -137,6 +137,7 @@ GET /api/v1/home/curated-courses?limit=20&category=HISTORIC_SITE
       "saved": false
     }
   ],
+  "totalCount": 1,
   "nextCursor": null,
   "hasMore": false
 }
@@ -146,6 +147,7 @@ GET /api/v1/home/curated-courses?limit=20&category=HISTORIC_SITE
 | --- | --- | --- |
 | `schemaVersion` | 응답 형식 버전 | 보통 표시하지 않음 |
 | `items` | 장소 카드 배열 | 배열 길이만큼 카드 렌더링 |
+| `totalCount` | 현재 필터를 적용한 전체 장소 수 | 전체 조회·필터 결과 건수 표시 |
 | `placeId` | 장소의 고정 식별자 | 상세 이동과 저장 API의 path에 사용 |
 | `name` | 장소 이름 | 카드 제목 |
 | `category` | 위 카테고리 값 | 배지·필터·분석 이벤트 |
@@ -178,7 +180,7 @@ GET /api/v1/home/trending-sounds?language=ko-KR&limit=20
 ```
 
 `language`의 기본값은 `ko-KR`이며 `category`, `regionCode`, `limit`, `cursor`를
-추가할 수 있다. 응답의 `items`, `nextCursor`, `hasMore`는 장소 목록과 같은
+추가할 수 있다. 응답의 `items`, `totalCount`, `nextCursor`, `hasMore`는 장소 목록과 같은
 페이지 처리 방식으로 사용한다.
 
 ### 응답 예시와 필드

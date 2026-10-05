@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.catalog.application.query.detail;
 import com.yrootlab.onmaru.catalog.application.tags.ContentTagExtractor;
 import com.yrootlab.onmaru.catalog.application.tags.ContentTagPipeline;
 import com.yrootlab.onmaru.catalog.application.tags.ContentTagSource;
+import com.yrootlab.onmaru.catalog.application.query.hanok.HanokListEligibility;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +39,7 @@ public final class PlaceDetailQueryService {
     }
 
     public Optional<CanonicalPlaceDetail> findCanonicalPlace(String placeId, Optional<UUID> memberId) {
-        return findPublicProjection(placeId)
+        return findPublicProjection(store.findByPlaceId(placeId))
                 .map(projection -> new CanonicalPlaceDetail(
                         SCHEMA_VERSION,
                         projection.placeId(),
@@ -54,8 +55,7 @@ public final class PlaceDetailQueryService {
     }
 
     public Optional<HanokDetail> findHanok(String placeId, Optional<UUID> memberId) {
-        return findPublicProjection(placeId)
-                .filter(projection -> isHanokCategory(projection.category()))
+        return findPublicProjection(store.findHanokByPlaceId(placeId))
                 .map(projection -> {
                     boolean savedByMe = savedPlaceStateLookup.savedBy(memberId, projection.placeId());
                     var mapCard = linkedCard(projection, savedByMe);
@@ -64,7 +64,8 @@ public final class PlaceDetailQueryService {
                             SCHEMA_VERSION,
                             projection.placeId(),
                             projection.name(),
-                            HanokCategory.HANOK,
+                            HanokCategory.valueOf(HanokListEligibility.KEYWORD.equals(projection.category())
+                                    ? "HANOK" : projection.category()),
                             projection.region(),
                             projection.address(),
                             projection.coordinates(),
@@ -78,15 +79,8 @@ public final class PlaceDetailQueryService {
                 });
     }
 
-    private boolean isHanokCategory(String category) {
-        return category != null && switch (category) {
-            case "HANOK", "HANOK_STAY", "HANOK_CAFE", "HANOK_EXPERIENCE", "한옥" -> true;
-            default -> false;
-        };
-    }
-
-    private Optional<PlaceProjection> findPublicProjection(String placeId) {
-        return store.findByPlaceId(placeId)
+    private Optional<PlaceProjection> findPublicProjection(Optional<PlaceProjection> candidate) {
+        return candidate
                 .filter(projection -> projection.status() == PlaceProjectionStatus.PUBLIC)
                 .filter(projection -> !projection.ambiguousMapping());
     }

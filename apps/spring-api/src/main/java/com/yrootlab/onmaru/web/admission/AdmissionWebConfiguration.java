@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Configuration
+@EnableConfigurationProperties(JourneyAiTestQuotaProperties.class)
 public class AdmissionWebConfiguration {
 
     @Bean
