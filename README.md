@@ -190,6 +190,13 @@ Release 사이의 module 성능은 일반 PR 실험과 분리한다. 각 tag에�
 `benchmark-promotion` 승인 검토로 보낸다. v0.3.38 → v0.3.39 실제 결과와 복사 가능한 명령은
 [`release module 3+3 실측`](docs/reports/2026-10-05-release-module-benchmark.md)에 있다.
 
+채택한 `2 workers / Gradle build cache disabled` profile은 required Java CI뿐 아니라 Spring
+Docker `bootJar`와 deploy/release migration rehearsal에도 opt-in으로 적용한다. 이때
+`actions/setup-java` dependency cache, Docker의 Gradle cache mount와 GHA BuildKit layer cache는
+유지된다. 즉 모든 cache를 끄는 구성이 아니며, task output을 재사용하는 Gradle build cache만
+disabled다. 이번 3+3은 worker와 task-output cache를 동시에 바꾼 실험이므로 CD 단독 개선율을
+주장하지 않고, 다음 측정에서는 두 축을 분리한다.
+
 ## 환경 분리 및 프로파일 전환 가이드 (Local, Develop, Production)
 
 > **💡 iOS 개발 경험이 있는 분들을 위한 매핑 가이드**

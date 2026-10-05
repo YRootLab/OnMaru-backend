@@ -14,6 +14,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #638에서 검증된 workers 2 / Gradle build cache disabled profile을 Spring Docker build와 deploy/release migration rehearsal에 적용하고 dependency·BuildKit cache는 유지했다.
 - Issues #525와 #556의 실제 3+3 CI benchmark에서 2 workers/no-cache profile이 4 workers/cache baseline보다 중앙값 기준 약 23.35% 짧고 실패율 0%임을 검증해 shared Java CI 설정에 반영했다.
 - Issue #543의 실제 v0.3.38/v0.3.39 release module 3+3 증적을 Release asset으로 보존하고, 중앙값 +16.108%를 15% 초과 회귀인 `approval_hold`로 검증했다.
 - Issue #617의 카카오 탈퇴 회원 재로그인을 새 회원 가입으로 처리하고, 이전 기록·세션 분리와 유효한 관리자 제재 우회를 방지했다.

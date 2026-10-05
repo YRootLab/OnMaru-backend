@@ -1,5 +1,15 @@
 # handoff.md
 
+## 2026-10-05 Issue #638 CD Gradle profile 적용
+
+- 브랜치: `perf/638-cd-gradle-profile`; 기준: `origin/develop` commit `43b2a74`.
+- 요청: Issue #525에서 채택한 workers 2 / Gradle build cache disabled profile을 Spring Docker builder와 deploy/release migration rehearsal에도 opt-in으로 적용한다.
+- cache 경계: `actions/setup-java` dependency/wrapper cache와 Docker BuildKit cache mount·GHA layer cache는 유지한다. 끄는 것은 cold 실험에서 별도 이득이 확인되지 않은 Gradle task-output build cache다.
+- 안전 조건: Docker `bootJar -x test`, Migration test filter, image digest, staging/readiness/rollback gate는 바꾸지 않는다. 먼저 계약 테스트가 profile 누락으로 실패하는 것을 확인한 뒤 최소 설정을 반영한다.
+- TDD: 새 deploy/release 계약 2개가 Dockerfile과 두 migration gate의 init script 누락으로 실패하는 것을 확인한 뒤, 세 Gradle 명령에 opt-in profile을 추가해 17/17 통과시켰다. 외부 dependency·BuildKit cache와 기존 task/filter는 테스트로 보존한다.
+- 검증: 전체 Node 227/227, `scripts/verify-contracts`, `git diff --check`가 통과했다. 실제 `docker build --target builder`에서 새 profile을 소비한 `bootJar -x test`가 45초에 성공했다. 로컬에 `actionlint`가 없어 해당 별도 lint는 실행하지 못했으며 workflow 구조는 repository contract tests와 GitHub PR CI에서 재검증한다.
+- 관련: [#638](https://github.com/YRootLab/OnMaru-backend/issues/638), #525, PR #633.
+
 ## 2026-10-05 Issues #525/#556 CI 3+3 실측 완료
 
 - 브랜치: `feature/525-ci-performance-measurement`; baseline `a91698f`, candidate `b7f1d0d`, controller [37215998513](https://github.com/YRootLab/OnMaru-backend/actions/runs/37215998513).
