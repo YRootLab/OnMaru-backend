@@ -196,8 +196,8 @@ class AdminApiWebBoundaryTests {
     @Test
     void listRoutesReturnValidationErrorForDamagedCursor() throws Exception {
         String bearer = "Bearer " + tokenCodec.issue(new AdminPrincipal(
-                UUID.fromString("00000000-0000-0000-0000-000000000509"),
-                "admin@example.com", AdminRole.ADMIN));
+                UUID.fromString("00000000-0000-0000-0000-000000000597"),
+                "admin-cookie-test@onmaru.kr", AdminRole.ADMIN));
         for (String path : new String[] {
                 "/api/v1/admin/reviews", "/api/v1/admin/reports",
                 "/api/v1/admin/users", "/api/v1/admin/curations",
