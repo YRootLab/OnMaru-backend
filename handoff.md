@@ -1,5 +1,15 @@
 # handoff.md
 
+## 2026-10-07 Issue #671 실시간 온기 CSRF 예외 및 MockMvc 호환성 수정
+
+- 브랜치: `fix/671-warmth-csrf-bypass`, 관련 Issue: #671, PR: #672.
+- 문제 원인: `CsrfProtectionFilter`에서 `request.getServletPath()`를 직접 사용하여 MockMvc 테스트 환경(기본 `servletPath=""`)에서 모든 요청의 CSRF 검증이 누락되어 11개의 WebBoundary 테스트가 실패함.
+- 해결 내용:
+  - `resolvePath(request)` 헬퍼를 추가하여 `request.getServletPath()`가 비어있는 경우 `request.getRequestURI()`로 fallback 하도록 처리하여 MockMvc 및 서블릿 컨테이너(Tomcat) 환경 모두에서 정상 동작 보장.
+  - `schemaVersion(request)`도 `resolvePath(request)`를 사용하도록 일관성 개선.
+  - `SecurityWebBoundaryTests`에 `POST /api/v1/realtime/warmth` 요청이 CSRF 토큰 없이도 204 No Content로 허용되는지 검증하는 `warmthBroadcastEndpointBypassesCsrf()` 테스트 케이스 추가.
+- 다음 단계: PR #672 CI `verify` 통과 확인 후 PR 리뷰 및 merge.
+
 ## 2026-10-06 Issue #492 관리자 JWT JTI PostgreSQL 폐기
 
 - 브랜치: `SHcommit/feat-security-jwt-jti-postgresql`, 관련 Issue: #492.
