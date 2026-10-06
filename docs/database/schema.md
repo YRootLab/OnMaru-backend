@@ -12,6 +12,11 @@
 // ./overview.dbml
 // V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
 // failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
+// V044는 관리자 파이프라인 상세 조회를 위해 operations_sync_runs에 scope,
+// requested_at, nullable progress snapshot을 추가한다. operations_sync_failures에는
+// 실행별 sanitized 오류 코드·메시지·endpoint·content ID만 저장하며 credential,
+// Authorization header, 개인정보와 전체 upstream payload는 저장하지 않는다.
+// 최신 실행 조회와 실패 cursor page는 각각 dataset/latest, run/time/id index를 사용한다.
 // V039는 관리자 cursor 목록의 필터 전체 건수와 keyset page 조회를 위해
 // identity_members(status, created_at, id), 좌표 snapshot이 완전한
 // community_visit_reviews(status, created_at, id), OPEN community_review_reports

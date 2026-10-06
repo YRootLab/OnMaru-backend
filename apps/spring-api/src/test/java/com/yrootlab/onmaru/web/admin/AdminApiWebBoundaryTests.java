@@ -156,6 +156,64 @@ class AdminApiWebBoundaryTests {
         }
     }
 
+    @Test
+    void pipelineStatusKeepsLegacyFieldsAndAddsNullableDetailContract() throws Exception {
+        String bearer = "Bearer " + tokenCodec.issue(new AdminPrincipal(
+                UUID.fromString("00000000-0000-0000-0000-000000000668"),
+                "admin@example.com", AdminRole.ADMIN));
+
+        mockMvc.perform(get("/api/v1/admin/pipelines/kto-korean-tour/status")
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.schemaVersion").value("1.1"))
+                .andExpect(jsonPath("$.dataset").value("kto-korean-tour"))
+                .andExpect(jsonPath("$.failureCount").value(0))
+                .andExpect(jsonPath("$.cumulativeFailureRunCount").value(0))
+                .andExpect(jsonPath("$.lastRun").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.contentStats").doesNotExist())
+                .andExpect(jsonPath("$.apiUsage").doesNotExist());
+    }
+
+    @Test
+    void pipelineManualRunIsExplicitlyUnsupportedBecauseSchedulingOwnsCollection() throws Exception {
+        String bearer = "Bearer " + tokenCodec.issue(new AdminPrincipal(
+                UUID.fromString("00000000-0000-0000-0000-000000000669"),
+                "admin@example.com", AdminRole.ADMIN));
+
+        mockMvc.perform(post("/api/v1/admin/pipelines/kto-korean-tour/runs").with(csrf())
+                        .header("Authorization", bearer)
+                        .header("Idempotency-Key", "00000000-0000-0000-0000-000000000670")
+                        .contentType("application/json").content("{\"scope\":\"ALL\"}"))
+                .andExpect(status().isNotImplemented())
+                .andExpect(jsonPath("$.code").value("NOT_IMPLEMENTED"));
+
+        mockMvc.perform(post("/api/v1/admin/pipelines/kto-korean-tour/runs").with(csrf())
+                        .header("Authorization", bearer)
+                        .header("Idempotency-Key", "00000000-0000-0000-0000-000000000671")
+                        .contentType("application/json").content("{\"scope\":\"VILLAGES\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void pipelineRunQueriesReturnStandardValidationErrorsForMalformedIdentifiersAndLimits() throws Exception {
+        String bearer = "Bearer " + tokenCodec.issue(new AdminPrincipal(
+                UUID.fromString("00000000-0000-0000-0000-000000000672"),
+                "admin@example.com", AdminRole.ADMIN));
+
+        mockMvc.perform(get("/api/v1/admin/pipelines/kto-korean-tour/runs/not-a-uuid")
+                        .header("Authorization", bearer))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        mockMvc.perform(get("/api/v1/admin/pipelines/kto-korean-tour/runs/00000000-0000-0000-0000-000000000668/failures")
+                        .param("limit", "101").header("Authorization", bearer))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
     private org.springframework.test.web.servlet.request.RequestPostProcessor csrf() {
         return request -> {
             String token = "test-csrf-token";

@@ -626,6 +626,8 @@ CREATE TABLE "operations_sync_schedules" (
 CREATE TABLE "operations_sync_runs" (
   "id" varchar(36) PRIMARY KEY,
   "dataset" varchar NOT NULL,
+  "scope" varchar NOT NULL DEFAULT 'ALL',
+  "requested_at" timestamp,
   "scheduled_for" timestamp NOT NULL,
   "attempt" int NOT NULL,
   "status" varchar(32) NOT NULL,
@@ -634,7 +636,21 @@ CREATE TABLE "operations_sync_runs" (
   "finished_at" timestamp,
   "next_attempt_at" timestamp,
   "error_code" varchar,
-  "counts" text
+  "counts" text,
+  "current_stage" varchar,
+  "progress_completed" bigint,
+  "progress_total" bigint
+);
+
+CREATE TABLE "operations_sync_failures" (
+  "id" varchar(36) PRIMARY KEY,
+  "run_id" varchar(36) NOT NULL,
+  "occurred_at" timestamp NOT NULL,
+  "endpoint" varchar,
+  "content_id" varchar,
+  "error_code" varchar NOT NULL,
+  "message" varchar NOT NULL,
+  "retryable" boolean NOT NULL
 );
 
 CREATE TABLE "operations_sync_checkpoints" (
@@ -816,6 +832,7 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -826,6 +843,9 @@ COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The execu
 
 
 
+
+
+COMMENT ON TABLE "operations_sync_runs" IS 'Latest-run migration index uses (dataset, COALESCE(started_at, scheduled_for) DESC, id DESC).';
 
 
 
@@ -976,6 +996,8 @@ ALTER TABLE "community_review_moderation_actions" ADD FOREIGN KEY ("review_id") 
 ALTER TABLE "operations_sync_checkpoints" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id");
 
 ALTER TABLE "operations_sync_quarantine" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id");
+
+ALTER TABLE "operations_sync_failures" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id");
 
 ALTER TABLE "ai_chunks" ADD FOREIGN KEY ("document_id", "revision") REFERENCES "ai_documents" ("document_id", "revision");
 

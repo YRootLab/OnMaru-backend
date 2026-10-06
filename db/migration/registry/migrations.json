@@ -383,6 +383,15 @@
       "checksum": "external-place-registry-v043-20261006",
       "sha256": "3bb0a7969e4295743c886c895664c351259e69e1995315a809072dccb2d14122",
       "description": "Client-asserted Kakao place identity and immutable VisitReview snapshot source"
+    },
+    {
+      "version": "044",
+      "reservedFor": "ADMIN_PIPELINE_DETAILS",
+      "issueNumber": 668,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V044__668_admin_pipeline_details.sql",
+      "checksum": "admin-pipeline-details-v044-20261006",
+      "sha256": "961bc080ed92941514c0c2765164fa1b44eae64cf7202b9b7b66ce36e419caee",
+      "description": "Admin pipeline run scope, progress snapshot, latest-run index and sanitized failures"
     }
   ]
 }

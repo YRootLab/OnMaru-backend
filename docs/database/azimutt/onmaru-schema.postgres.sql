@@ -712,6 +712,8 @@ CREATE TABLE "operations_sync_schedules" (
 CREATE TABLE "operations_sync_runs" (
   "id" uuid PRIMARY KEY,
   "dataset" varchar NOT NULL,
+  "scope" varchar NOT NULL DEFAULT 'ALL',
+  "requested_at" timestamptz,
   "scheduled_for" timestamptz NOT NULL,
   "attempt" int NOT NULL,
   "status" operations_sync_run_status NOT NULL,
@@ -720,7 +722,21 @@ CREATE TABLE "operations_sync_runs" (
   "finished_at" timestamptz,
   "next_attempt_at" timestamptz,
   "error_code" varchar,
-  "counts" jsonb
+  "counts" jsonb,
+  "current_stage" varchar,
+  "progress_completed" bigint,
+  "progress_total" bigint
+);
+
+CREATE TABLE "operations_sync_failures" (
+  "id" uuid PRIMARY KEY,
+  "run_id" uuid NOT NULL,
+  "occurred_at" timestamptz NOT NULL,
+  "endpoint" varchar,
+  "content_id" varchar,
+  "error_code" varchar NOT NULL,
+  "message" varchar NOT NULL,
+  "retryable" boolean NOT NULL
 );
 
 CREATE TABLE "operations_sync_checkpoints" (
@@ -962,6 +978,8 @@ CREATE UNIQUE INDEX ON "operations_sync_runs" ("dataset", "scheduled_for", "atte
 
 CREATE INDEX ON "operations_sync_runs" ("dataset", "status");
 
+CREATE INDEX ON "operations_sync_failures" ("run_id", "occurred_at", "id");
+
 CREATE INDEX ON "operations_sync_quarantine" ("expires_at");
 
 CREATE INDEX ON "ai_documents" ("source_type", "source_ref");
@@ -1023,6 +1041,10 @@ COMMENT ON COLUMN "journey_saved_odii_stories"."story_id" IS '공개 odii story 
 COMMENT ON COLUMN "community_review_reports"."reason" IS 'SPAM, ABUSE, PERSONAL_DATA, COPYRIGHT, OTHER';
 
 COMMENT ON COLUMN "community_review_moderation_actions"."actor_type" IS 'SYSTEM or OPERATOR; never a public member action';
+
+COMMENT ON TABLE "operations_sync_runs" IS 'Latest-run migration index uses (dataset, COALESCE(started_at, scheduled_for) DESC, id DESC).';
+
+COMMENT ON COLUMN "operations_sync_failures"."message" IS 'Sanitized; no credentials, personal data, or upstream payload';
 
 COMMENT ON COLUMN "ai_documents"."source_ref" IS 'Stable source identifier from Spring corpus export; not a DB FK';
 
@@ -1175,6 +1197,8 @@ ALTER TABLE "community_review_moderation_actions" ADD FOREIGN KEY ("review_id") 
 ALTER TABLE "operations_sync_checkpoints" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "operations_sync_quarantine" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "operations_sync_failures" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "ai_chunks" ADD FOREIGN KEY ("document_id", "revision") REFERENCES "ai_documents" ("document_id", "revision") DEFERRABLE INITIALLY IMMEDIATE;
 

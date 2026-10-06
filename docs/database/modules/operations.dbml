@@ -57,8 +57,11 @@ Table operations_sync_schedules [headercolor: #9C755F] {
 }
 
 Table operations_sync_runs [headercolor: #9C755F] {
+  Note: 'Latest-run migration index uses (dataset, COALESCE(started_at, scheduled_for) DESC, id DESC).'
   id uuid [pk]
   dataset varchar [not null]
+  scope varchar [not null, default: 'ALL']
+  requested_at timestamptz
   scheduled_for timestamptz [not null]
   attempt int [not null]
   status operations_sync_run_status [not null]
@@ -68,10 +71,28 @@ Table operations_sync_runs [headercolor: #9C755F] {
   next_attempt_at timestamptz
   error_code varchar
   counts jsonb
+  current_stage varchar
+  progress_completed bigint
+  progress_total bigint
 
   Indexes {
     (dataset, scheduled_for, attempt) [unique]
     (dataset, status)
+  }
+}
+
+Table operations_sync_failures [headercolor: #9C755F] {
+  id uuid [pk]
+  run_id uuid [not null]
+  occurred_at timestamptz [not null]
+  endpoint varchar
+  content_id varchar
+  error_code varchar [not null]
+  message varchar [not null, note: 'Sanitized; no credentials, personal data, or upstream payload']
+  retryable boolean [not null]
+
+  Indexes {
+    (run_id, occurred_at, id)
   }
 }
 
@@ -130,7 +151,9 @@ TableGroup operations [color: #9C755F, note: 'Idempotency, rate admission, durab
   operations_sync_leases
   operations_sync_watermarks
   operations_sync_quarantine
+  operations_sync_failures
 }
 
 Ref: operations_sync_checkpoints.run_id > operations_sync_runs.id
 Ref: operations_sync_quarantine.run_id > operations_sync_runs.id
+Ref: operations_sync_failures.run_id > operations_sync_runs.id
