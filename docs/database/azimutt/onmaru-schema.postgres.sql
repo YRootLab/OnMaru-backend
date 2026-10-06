@@ -134,6 +134,26 @@ CREATE TABLE "identity_exploration_grants" (
   PRIMARY KEY ("member_id", "exploration_id")
 );
 
+CREATE TABLE "identity_admin_accounts" (
+  "id" uuid PRIMARY KEY,
+  "email" varchar NOT NULL,
+  "password_hash" varchar NOT NULL,
+  "nickname" varchar NOT NULL,
+  "role" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "last_login_at" timestamptz,
+  "tokens_valid_after" timestamptz NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "identity_admin_access_token_revocations" (
+  "jti_hash" varchar PRIMARY KEY,
+  "admin_id" uuid NOT NULL,
+  "expires_at" timestamptz NOT NULL,
+  "revoked_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "catalog_regions" (
   "id" uuid PRIMARY KEY,
   "parent_id" uuid,
@@ -686,26 +706,6 @@ CREATE TABLE "operations_admission" (
   "active_count" int NOT NULL
 );
 
-CREATE TABLE "identity_admin_accounts" (
-  "id" uuid PRIMARY KEY,
-  "email" varchar NOT NULL,
-  "password_hash" varchar NOT NULL,
-  "nickname" varchar NOT NULL,
-  "role" varchar NOT NULL,
-  "status" varchar NOT NULL,
-  "last_login_at" timestamptz,
-  "tokens_valid_after" timestamptz NOT NULL,
-  "created_at" timestamptz NOT NULL,
-  "updated_at" timestamptz NOT NULL
-);
-
-CREATE TABLE "identity_admin_access_token_revocations" (
-  "jti_hash" varchar PRIMARY KEY,
-  "admin_id" uuid NOT NULL,
-  "expires_at" timestamptz NOT NULL,
-  "revoked_at" timestamptz NOT NULL
-);
-
 CREATE TABLE "operations_admission_audit" (
   "id" uuid PRIMARY KEY,
   "scope_key" varchar NOT NULL,
@@ -835,6 +835,8 @@ CREATE INDEX ON "identity_oauth_states" ("exploration_id");
 CREATE INDEX ON "identity_oauth_states" ("expires_at");
 
 CREATE INDEX ON "identity_exploration_grants" ("expires_at");
+
+CREATE INDEX ON "identity_admin_access_token_revocations" ("expires_at");
 
 CREATE INDEX ON "catalog_region_source_codes" ("region_id");
 
@@ -994,6 +996,8 @@ COMMENT ON COLUMN "identity_external_accounts"."provider" IS 'KAKAO active for M
 
 COMMENT ON COLUMN "identity_oauth_states"."pkce_verifier_hash" IS 'SHA-256 hash used for one-time OAuth PKCE verification';
 
+COMMENT ON COLUMN "identity_admin_access_token_revocations"."jti_hash" IS 'SHA-256 hash of the JWT ID; raw JTI values are never persisted';
+
 COMMENT ON COLUMN "catalog_region_boundaries"."geometry" IS 'PostGIS MultiPolygon(4326)';
 
 COMMENT ON COLUMN "catalog_place_public_ids"."public_id" IS 'Stable FE-visible p-lowercase-kebab-case ID';
@@ -1100,13 +1104,13 @@ ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERE
 
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "identity_admin_access_token_revocations" ADD FOREIGN KEY ("admin_id") REFERENCES "identity_admin_accounts" ("id") DEFERRABLE INITIALLY IMMEDIATE;
-
 ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_oauth_states" ADD FOREIGN KEY ("guest_id") REFERENCES "identity_guests" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_exploration_grants" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "identity_admin_access_token_revocations" ADD FOREIGN KEY ("admin_id") REFERENCES "identity_admin_accounts" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "catalog_regions" ADD FOREIGN KEY ("parent_id") REFERENCES "catalog_regions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
