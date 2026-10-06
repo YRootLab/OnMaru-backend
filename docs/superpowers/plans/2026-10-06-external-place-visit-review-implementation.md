@@ -33,7 +33,7 @@
 - `modules/community/.../command/review/*`: 태그 정책, 외부 장소 후기 command, application transaction port.
 - `adapters/persistence-jdbc/.../catalog/JdbcExternalPlaceRegistry.java`: identity/public ID/external snapshot 원자 저장.
 - `apps/spring-api/.../web/review/*`: region adapter, bean wiring, 신규 endpoint와 error mapping.
-- `V042__643_external_place_registry.sql`: external registry 실행 schema.
+- `V043__643_external_place_registry.sql`: external registry 실행 schema. 구현 중 `develop`의 Issue #640이 V042를 선점해 최신 병합 시 V043으로 재예약했다.
 - `docs/contracts/openapi/visit-reviews.openapi.json`: FE/BE 단일 계약.
 
 ### Task 1: Canonical Tag Policy
@@ -176,7 +176,7 @@ git commit -m "feat(catalog): 외부 장소 등록 경계를 정의"
 ### Task 3: External Place Registry Migration
 
 **Files:**
-- Create: `apps/spring-api/src/main/resources/db/migration/baseline/V042__643_external_place_registry.sql`
+- Create: `apps/spring-api/src/main/resources/db/migration/baseline/V043__643_external_place_registry.sql`
 - Modify: `apps/spring-api/src/test/java/com/yrootlab/onmaru/testing/postgres/DatabaseMigrationContractTests.java`
 - Modify: `docs/database/schema.md`
 - Modify: `docs/database/schema.dbml`
@@ -185,13 +185,13 @@ git commit -m "feat(catalog): 외부 장소 등록 경계를 정의"
 - Consumes: `catalog_place_identity`, `catalog_place_public_ids`.
 - Produces: one immutable snapshot per `(provider, external_id)`.
 
-- [ ] **Step 1: Change latest-version assertions from `041` to `042` and run RED**
+- [ ] **Step 1: Change latest-version assertions from `042` to `043` and run RED**
 
 ```bash
 ./gradlew :apps:spring-api:test --tests '*DatabaseMigrationContractTests' --no-daemon
 ```
 
-- [ ] **Step 2: Add V042**
+- [ ] **Step 2: Add V043**
 
 ```sql
 CREATE TABLE onmaru.catalog_external_places (
@@ -217,7 +217,7 @@ CREATE INDEX catalog_external_places_location_gix
     ON onmaru.catalog_external_places USING gist (location);
 ```
 
-checksum header, Issue #643, migration reservation `042`를 포함한다.
+checksum header, Issue #643, migration reservation `043`을 포함한다.
 
 - [ ] **Step 3: Update DBML and schema narrative**
 
@@ -229,7 +229,7 @@ registry는 Catalog-owned이지만 active dataset revision에는 포함되지 �
 node --test scripts/test/migration-policy.test.mjs
 ./gradlew :apps:spring-api:test --tests '*DatabaseMigrationContractTests' --tests '*FlywayMigrationBaselineTests' --no-daemon
 bash scripts/verify-contracts
-git add apps/spring-api/src/main/resources/db/migration/baseline/V042__643_external_place_registry.sql \
+git add apps/spring-api/src/main/resources/db/migration/baseline/V043__643_external_place_registry.sql \
   apps/spring-api/src/test/java/com/yrootlab/onmaru/testing/postgres/DatabaseMigrationContractTests.java \
   docs/database/schema.md docs/database/schema.dbml
 git commit -m "feat(db): 외부 장소 registry 스키마 추가"
@@ -497,4 +497,4 @@ git commit -m "docs(api): 외부 장소 온기 검증 결과 기록"
 
 - [ ] **Step 5: Prepare PR without merging**
 
-PR은 `develop` 대상이다. staging FE 연동까지 Issue 완료 조건이고 아직 검증하지 않았다면 `Refs #643`을 사용한다. PR 본문에는 migration 042, tag normalization 표, 400/409/422 fixture, 동시 등록 수렴, atomic rollback, 전체 검증 명령과 결과를 포함한다.
+PR은 `develop` 대상이다. staging FE 연동까지 Issue 완료 조건이고 아직 검증하지 않았다면 `Refs #643`을 사용한다. PR 본문에는 migration 043, tag normalization 표, 400/409/422 fixture, 동시 등록 수렴, atomic rollback, 전체 검증 명령과 결과를 포함한다.

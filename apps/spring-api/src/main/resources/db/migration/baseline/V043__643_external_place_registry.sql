@@ -1,4 +1,4 @@
--- onmaru-checksum: external-place-registry-v042-20261006
+-- onmaru-checksum: external-place-registry-v043-20261006
 -- Issue: #643. Client-asserted Kakao places backing VisitReview without publishing a Catalog revision.
 
 CREATE TABLE onmaru.catalog_external_places (
@@ -31,7 +31,7 @@ CREATE INDEX catalog_external_places_location_gix
 INSERT INTO onmaru_registry.migration_version_reservations (
     version, reserved_for, issue_number, description
 ) VALUES (
-    '042', 'EXTERNAL_PLACE_REGISTRY', 643,
+    '043', 'EXTERNAL_PLACE_REGISTRY', 643,
     'Client-asserted Kakao place identity and immutable VisitReview snapshot source'
 ) ON CONFLICT (version) DO UPDATE
 SET reserved_for = EXCLUDED.reserved_for,

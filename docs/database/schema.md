@@ -68,7 +68,7 @@
 // V026은 V021 이전 VisitReview에 결정적 p-legacy-* 공개 ID를 등록하고 가능한 최신
 // published Catalog version의 장소명·지역·좌표 snapshot을 backfill해 JDBC 전환 시
 // 기존 후기가 조회에서 사라지지 않게 한다.
-// V042의 catalog_external_places는 FE가 Kakao 검색에서 선택한 CLIENT_ASSERTED 장소를
+// V043의 catalog_external_places는 FE가 Kakao 검색에서 선택한 CLIENT_ASSERTED 장소를
 // Catalog-owned identity/public ID에 연결한다. 이 row는 active dataset revision이나 지도
 // 공개 projection에 자동 게시하지 않고 VisitReview 생성의 장소 snapshot source로만 쓴다.
 // (provider, external_id)는 하나의 immutable place identity를 가리키며 public_place_id는
@@ -135,7 +135,8 @@
 // projection 및 publication을 원천 장소 변경 없이 채운다. 지역 코드가 없는 장소도
 // 위치와 공개 ID가 있으면 지도 목록에 포함하고 지역 집계에서는 제외한다.
 // V040부터 identity_member_profiles가 OnMaru 회원의 현재 공개 프로필을 소유한다.
-// display_name은 trim된 2~20자 익명 이름이며 중복을 허용한다. character_id는
+// display_name은 trim/NFC 처리된 2~20자 익명 이름이며 V042부터 유일하다.
+// migration은 기존 중복 프로필의 첫 row를 유지하고 나머지를 결정적 익명 이름으로 복구한다. character_id는
 // CHARACTER_01..10, background_id는 BACKGROUND_01..10의 고정 FE 자산 슬롯만 저장한다.
 // 실제 캐릭터 이미지와 배경 HEX는 FE가 관리하며 DB에는 URL이나 HEX를 저장하지 않는다.
 // migration은 기존 회원 UUID hash로 프로필을 결정적으로 backfill한다. 신규 회원은 OAuth

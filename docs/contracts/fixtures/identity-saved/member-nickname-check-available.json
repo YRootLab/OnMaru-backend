@@ -1,0 +1,21 @@
+{
+  "name": "member-nickname-check-available",
+  "description": "A signed-in user checks a normalized nickname before updating the profile.",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/members/nickname/check",
+    "query": {
+      "value": "따뜻한 온니 1004"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "NicknameAvailability",
+    "headers": {
+      "Cache-Control": "no-store"
+    },
+    "body": {
+      "available": true
+    }
+  }
+}

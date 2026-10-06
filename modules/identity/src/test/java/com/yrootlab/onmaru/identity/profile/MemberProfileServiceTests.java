@@ -43,13 +43,26 @@ class MemberProfileServiceTests {
 
         var updated = service.updateActiveProfile(
                 MEMBER_ID,
-                new MemberProfilePatch("  같은 이름  ", "CHARACTER_10", null),
+                new MemberProfilePatch("  새로운 이름  ", "CHARACTER_10", null),
                 UPDATED_AT).orElseThrow();
 
-        assertThat(updated.displayName()).isEqualTo(Normalizer.normalize("같은 이름", Normalizer.Form.NFC));
+        assertThat(updated.displayName()).isEqualTo(Normalizer.normalize("새로운 이름", Normalizer.Form.NFC));
         assertThat(updated.characterId()).isEqualTo(MemberProfileCharacter.CHARACTER_10);
         assertThat(updated.backgroundId()).isEqualTo(MemberProfileBackground.BACKGROUND_01);
         assertThat(store.findByMemberId(OTHER_MEMBER_ID).orElseThrow().displayName()).isEqualTo("같은 이름");
+    }
+
+    @Test
+    void rejectsAnotherMembersNormalizedDisplayName() {
+        var service = new MemberProfileService(new FakeStore(
+                profile(MEMBER_ID, "고요한 마루 0001"),
+                profile(OTHER_MEMBER_ID, "같은 이름")));
+
+        assertThatThrownBy(() -> service.updateActiveProfile(
+                MEMBER_ID,
+                new MemberProfilePatch("  같은 이름  ", null, null),
+                UPDATED_AT))
+                .isInstanceOf(MemberProfileDuplicateException.class);
     }
 
     @Test
@@ -91,6 +104,11 @@ class MemberProfileServiceTests {
 
             @Override
             public Map<UUID, MemberProfile> findByMemberIds(Set<UUID> memberIds) {
+                throw new AssertionError("store must not be called");
+            }
+
+            @Override
+            public boolean existsByDisplayNameExcludingMember(String displayName, UUID excludedMemberId) {
                 throw new AssertionError("store must not be called");
             }
 
@@ -142,6 +160,12 @@ class MemberProfileServiceTests {
                 }
             }
             return Map.copyOf(found);
+        }
+
+        @Override
+        public boolean existsByDisplayNameExcludingMember(String displayName, UUID excludedMemberId) {
+            return profiles.values().stream().anyMatch(profile ->
+                    !profile.memberId().equals(excludedMemberId) && profile.displayName().equals(displayName));
         }
 
         @Override

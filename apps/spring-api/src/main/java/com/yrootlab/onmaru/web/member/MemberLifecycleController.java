@@ -5,6 +5,7 @@ import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
 import com.yrootlab.onmaru.identity.lifecycle.MemberSessionRequiredException;
 import com.yrootlab.onmaru.identity.lifecycle.MemberSummary;
 import com.yrootlab.onmaru.identity.profile.MemberProfile;
+import com.yrootlab.onmaru.identity.profile.MemberProfileDuplicateException;
 import com.yrootlab.onmaru.identity.profile.MemberProfileInvalidException;
 import com.yrootlab.onmaru.identity.profile.MemberProfilePatch;
 import com.yrootlab.onmaru.identity.profile.MemberProfileService;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -76,6 +78,31 @@ public final class MemberLifecycleController {
                 .orElseGet(() -> authRequired(request));
     }
 
+    @Operation(summary = "닉네임 중복 확인", description = "현재 회원의 기존 닉네임은 사용 가능한 것으로 판정합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "중복 확인 성공", content = @Content(schema = @Schema(implementation = NicknameAvailabilityResponse.class))),
+            @ApiResponse(responseCode = "400", description = "닉네임 형식 오류", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "로그인 세션 필요", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    @GetMapping("/api/v1/members/nickname/check")
+    ResponseEntity<?> checkNickname(
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @RequestParam(name = "value", required = false) String value,
+            HttpServletRequest request) {
+        var current = lifecycleService.currentMember(sessionToken);
+        if (current.isEmpty()) {
+            return authRequired(request);
+        }
+        try {
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.noStore())
+                    .body(new NicknameAvailabilityResponse(
+                            profileService.isDisplayNameAvailable(current.get().id(), value)));
+        } catch (MemberProfileInvalidException exception) {
+            return validationError(request, "value");
+        }
+    }
+
     @Operation(
             summary = "내 익명 프로필 수정",
             description = "표시 이름, 온니 캐릭터, 배경 중 전달한 값만 수정합니다."
@@ -105,6 +132,15 @@ public final class MemberLifecycleController {
                     .orElseGet(() -> authRequired(request));
         } catch (MemberProfileInvalidException exception) {
             return validationError(request, exception.field());
+        } catch (MemberProfileDuplicateException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .cacheControl(CacheControl.noStore())
+                    .body(new ApiErrorResponse(
+                            "1.2",
+                            "NICKNAME_DUPLICATED",
+                            "Nickname is already in use.",
+                            requestId(request),
+                            Map.of("field", "displayName")));
         }
     }
 
@@ -244,5 +280,8 @@ public final class MemberLifecycleController {
     }
 
     record MemberDeletingStatusResponse(String schemaVersion, String status) {
+    }
+
+    record NicknameAvailabilityResponse(boolean available) {
     }
 }
