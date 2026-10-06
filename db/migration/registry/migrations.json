@@ -386,11 +386,20 @@
     },
     {
       "version": "044",
+      "reservedFor": "ADMIN_JWT_REVOCATION",
+      "issueNumber": 492,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V044__492_admin_jwt_revocation.sql",
+      "checksum": "admin-jwt-revocation-v044-20261006",
+      "sha256": "428fe94ccd759eaf6cbc10cfcffeaabdfa21fb95f4ec2f6cd2df110f1b0fea7e",
+      "description": "Persist admin access-token revocations and account token validity boundary"
+    },
+    {
+      "version": "045",
       "reservedFor": "ADMIN_PIPELINE_DETAILS",
       "issueNumber": 668,
-      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V044__668_admin_pipeline_details.sql",
-      "checksum": "admin-pipeline-details-v044-20261006",
-      "sha256": "961bc080ed92941514c0c2765164fa1b44eae64cf7202b9b7b66ce36e419caee",
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V045__668_admin_pipeline_details.sql",
+      "checksum": "admin-pipeline-details-v045-20261006",
+      "sha256": "8101c5478d417066e667ee2ce532b4b87ea140af8a3ec6eb4cf1b7388b62b870",
       "description": "Admin pipeline run scope, progress snapshot, latest-run index and sanitized failures"
     }
   ]

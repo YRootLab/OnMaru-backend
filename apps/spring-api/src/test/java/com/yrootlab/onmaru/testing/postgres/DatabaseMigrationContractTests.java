@@ -91,7 +91,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("044");
+                    """)).isEqualTo("045");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM information_schema.tables
@@ -107,9 +107,10 @@ class DatabaseMigrationContractTests {
                         'community_visit_reviews',
                         'audio_odii_spots',
                         'operations_retention_deletion_ledger',
-                        'stamp_ranking_profiles'
+                        'stamp_ranking_profiles',
+                        'identity_admin_access_token_revocations'
                       )
-                    """)).isEqualTo(11);
+                    """)).isEqualTo(12);
         }
     }
 
@@ -137,7 +138,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("044");
+                    """)).isEqualTo("045");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM onmaru.community_visit_reviews

@@ -39,6 +39,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #492의 관리자 access token JTI 폐기 상태와 계정별 `tokens_valid_after` 경계를 PostgreSQL에 영속화하고, logout 즉시 폐기·production fail-closed·만료 row cleanup과 관측 지표를 추가했다.
 - Issue #643의 Kakao 외부 장소 온기 생성 API, 장소·좌표·태그 검증, typed error, 원자적 외부 장소 registry와 FE 연동 계약을 추가했다.
 - Issue #647의 온디맨드 스테이징 DB에 지도·장소 상세·후기·Odii 연결을 함께 검증하는 결정적 합성 fixture와 반복 seed 통합 검증을 추가했다.
 - Issue #638에서 검증된 workers 2 / Gradle build cache disabled profile을 Spring Docker build와 deploy/release migration rehearsal에 적용하고 dependency·BuildKit cache는 유지했다.

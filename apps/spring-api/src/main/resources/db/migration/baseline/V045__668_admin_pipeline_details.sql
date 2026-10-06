@@ -1,4 +1,4 @@
--- onmaru-checksum: admin-pipeline-details-v044-20261006
+-- onmaru-checksum: admin-pipeline-details-v045-20261006
 -- Issue: #668 Admin pipeline run details and sanitized failure log.
 
 ALTER TABLE onmaru.operations_sync_runs
@@ -42,7 +42,7 @@ COMMENT ON TABLE onmaru.operations_sync_failures IS
 INSERT INTO onmaru_registry.migration_version_reservations (
     version, reserved_for, issue_number, description
 ) VALUES (
-    '044', 'ADMIN_PIPELINE_DETAILS', 668,
+    '045', 'ADMIN_PIPELINE_DETAILS', 668,
     'Admin pipeline run scope, progress snapshot, latest-run index and sanitized failures'
 ) ON CONFLICT (version) DO UPDATE
 SET reserved_for = EXCLUDED.reserved_for,

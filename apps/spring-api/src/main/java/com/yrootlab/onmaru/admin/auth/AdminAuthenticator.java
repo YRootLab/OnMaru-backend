@@ -12,9 +12,13 @@ public final class AdminAuthenticator {
     }
 
     public AdminPrincipal authenticate(String authorization) {
+        return authenticateToken(authorization).principal();
+    }
+
+    public AdminAccessToken authenticateToken(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             throw new AdminAuthenticationException();
         }
-        return tokenCodec.verify(authorization);
+        return tokenCodec.verifyToken(authorization);
     }
 }

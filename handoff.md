@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-06 Issue #492 관리자 JWT JTI PostgreSQL 폐기
+
+- 브랜치: `SHcommit/feat-security-jwt-jti-postgresql`, 관련 Issue: #492.
+- 설계: 개별 logout은 SHA-256 JTI hash row, 계정 비활성화는 `tokens_valid_after` 경계로 분리했다.
+- 구현: V044 migration, JDBC JTI/계정 경계 저장소, logout 즉시 access token 폐기, DB 장애 `503 AUTH_UNAVAILABLE`, production JDBC startup 검증, bounded cleanup, Micrometer 관측을 추가했다.
+- 보안: token/JTI 원문과 signing secret은 저장·로그·metric tag에 포함하지 않는다. production에는 메모리 fallback이 없다.
+- 검증: 관리자·migration 집중 Gradle suite 통과, Node/hygiene 228개 통과, 계약·fixture 검증 통과, AI 304개 통과·live smoke 1개 skip, `git diff --check` 통과. 전체 `./gradlew test`는 변경 범위와 무관한 `JdbcIdentityStampFlowTests.concurrentPartialProfileUpdatesPreserveBothFields`에서 로컬 PostgreSQL 연결을 6분 이상 대기해 thread dump 확인 후 중단했다. JTI hash, 별도 store 조회, 동시 upsert, expiry/cleanup, 계정 상태·iat 경계, logout 직후 401, 폐기 기록 장애 503은 집중 suite에서 모두 검증됐다.
+- 다음 단계: 전체 검증, PR diff cleanup, `Closes #492`로 develop 대상 PR 생성. develop 병합 후 Issue reconcile 전에는 #492를 닫지 않는다.
+
 ## 2026-10-06 Issue #647 스테이징 공개 API fixture
 
 - 브랜치: `feature/647-staging-api-fixtures`, 관련 Issue: #647.
