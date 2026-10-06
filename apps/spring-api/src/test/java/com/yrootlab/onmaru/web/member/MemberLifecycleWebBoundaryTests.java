@@ -104,6 +104,53 @@ class MemberLifecycleWebBoundaryTests {
     }
 
     @Test
+    void nicknameCheckRequiresSessionAndExcludesTheCurrentMember() throws Exception {
+        store.createMember(clock.instant(), new NewMemberProfile(
+                "따뜻한 마루 0001",
+                MemberProfileCharacter.CHARACTER_01,
+                MemberProfileBackground.BACKGROUND_01));
+
+        mockMvc.perform(get("/api/v1/members/nickname/check")
+                        .queryParam("value", "  따뜻한 마루 0001  ")
+                        .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.available").value(false));
+
+        mockMvc.perform(get("/api/v1/members/nickname/check")
+                        .queryParam("value", "고요한 마루 0552")
+                        .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(true));
+
+        mockMvc.perform(get("/api/v1/members/nickname/check")
+                        .queryParam("value", "가")
+                        .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.field").value("value"));
+
+        mockMvc.perform(get("/api/v1/members/nickname/check")
+                        .queryParam("value", "따뜻한 마루 0001"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void patchMemberProfileRejectsAnotherMembersNickname() throws Exception {
+        store.createMember(clock.instant(), new NewMemberProfile(
+                "따뜻한 마루 0001",
+                MemberProfileCharacter.CHARACTER_01,
+                MemberProfileBackground.BACKGROUND_01));
+
+        mockMvc.perform(profilePatch("""
+                        {"displayName":"따뜻한 마루 0001"}
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.code").value("NICKNAME_DUPLICATED"))
+                .andExpect(jsonPath("$.details.field").value("displayName"));
+    }
+
+    @Test
     void patchMemberProfileRequiresCsrfAndActiveSession() throws Exception {
         mockMvc.perform(patch("/api/v1/members/me")
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON)

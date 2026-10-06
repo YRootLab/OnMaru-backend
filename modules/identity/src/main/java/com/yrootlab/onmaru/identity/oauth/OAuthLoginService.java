@@ -81,7 +81,7 @@ public final class OAuthLoginService {
                 throw new MemberAccessDeniedException();
             }
         });
-        var memberId = store.linkExternalIdentity(command.externalIdentity(), profileGenerator.generate(), now);
+        var memberId = store.linkExternalIdentity(command.externalIdentity(), profileGenerator::generate, now);
         if (!accessPolicy.allows(memberId, now)) {
             throw new MemberAccessDeniedException();
         }

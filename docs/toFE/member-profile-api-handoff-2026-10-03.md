@@ -48,9 +48,21 @@ Cookie: __Host-onmaru-session=...
 
 성공하면 생략했던 필드까지 포함한 현재 전체 `MemberMe`를 `200`으로 반환한다. 이름은 trim/NFC 처리 후 Unicode code point 기준 2~20자이며 제어문자는 허용하지 않는다. ID 범위는 정확히 `01..10`이다.
 
+닉네임 입력을 확정하기 전에는 로그인 쿠키와 함께 다음 조회 API를 호출한다. 이 조회는 CSRF token을 요구하지 않으며, 입력을 PATCH와 같이 trim/NFC 처리한다. 본인의 현재 닉네임은 `available: true`다.
+
+```http
+GET /api/v1/members/nickname/check?value=따뜻한%20온니%201004
+Cookie: __Host-onmaru-session=...
+```
+
+```json
+{"available": true}
+```
+
 - `400 VALIDATION_ERROR`: `details.field`가 `profile`, `displayName`, `characterId`, `backgroundId` 또는 알 수 없는 필드 이름이다.
 - `401 AUTH_REQUIRED`: 로그인 세션이 없거나 만료됐다.
 - `403 CSRF_INVALID`: CSRF cookie/header가 없거나 일치하지 않는다.
+- `409 NICKNAME_DUPLICATED`: 중복 확인 후 다른 요청이 먼저 같은 닉네임을 저장했다. `details.field`는 `displayName`이다.
 
 개인 응답은 `Cache-Control: no-store`다. 저장 버튼은 PATCH 진행 중 중복 제출을 막고, 실패 시 서버 응답 이전 상태를 유지한다.
 
