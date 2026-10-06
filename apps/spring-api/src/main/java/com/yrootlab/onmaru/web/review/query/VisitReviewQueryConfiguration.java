@@ -88,8 +88,9 @@ class VisitReviewQueryConfiguration {
     @Bean
     @Profile("production")
     @ConditionalOnMissingBean(CatalogPublicPlaceIdStore.class)
-    CatalogPublicPlaceIdStore catalogPublicPlaceIdStore(DataSource dataSource) {
-        return new JdbcCatalogPublicPlaceIdStore(dataSource);
+    CatalogPublicPlaceIdStore catalogPublicPlaceIdStore(
+            DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
+        return new JdbcCatalogPublicPlaceIdStore(dataSource, jdbcTransactionRunner);
     }
 
     @Bean
