@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -71,10 +72,27 @@ class LocalDevelopmentCorsConfigurationTests {
     }
 
     @Test
+    void allowsAuthorizationPreflightForAdminMeFromProductionFrontend() throws Exception {
+        var origin = "https://www.onmaru.site";
+
+        mockMvc.perform(options("/api/v1/auth/admin/me")
+                        .header("Origin", origin)
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "authorization"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", origin))
+                .andExpect(header().string(
+                        "Access-Control-Allow-Headers",
+                        containsStringIgnoringCase("authorization")))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+    }
+
+    @Test
     void rejectsCorsPreflightFromOriginsOutsideTheLocalDevelopmentAllowlist() throws Exception {
         mockMvc.perform(options("/api/v1/home/curated-courses")
                         .header("Origin", "http://localhost:3009")
-                        .header("Access-Control-Request-Method", "GET"))
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "authorization"))
                 .andExpect(status().isForbidden())
                 .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
     }
