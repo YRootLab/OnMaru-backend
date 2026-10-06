@@ -85,7 +85,7 @@ class StagingFixtureTests {
                     WHERE place_id = '54500000-0000-4000-8000-000000000022'
                     """)).isEqualTo("선택 필드가 적은 합성 테스트 데이터입니다.");
             assertThat(value(connection, """
-                    SELECT published_at::text FROM onmaru.map_projection_publications
+                    SELECT (published_at AT TIME ZONE 'UTC')::text FROM onmaru.map_projection_publications
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
                     """)).startsWith("2026-10-06 00:00:00");
             assertThat(value(connection, """

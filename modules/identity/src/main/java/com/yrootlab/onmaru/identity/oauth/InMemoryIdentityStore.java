@@ -16,8 +16,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 public final class InMemoryIdentityStore implements IdentityStore, MemberLifecycleStore, MemberProfileStore {
+
+    private static final int GENERATED_NICKNAME_ATTEMPTS = 8;
 
     private final Map<String, OAuthStateRecord> states = new HashMap<>();
     private final Map<ExternalIdentity, UUID> externalAccounts = new HashMap<>();
@@ -58,13 +61,26 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
     }
 
     @Override
-    public synchronized UUID linkExternalIdentity(ExternalIdentity identity, NewMemberProfile profile, Instant now) {
+    public synchronized UUID linkExternalIdentity(
+            ExternalIdentity identity,
+            Supplier<NewMemberProfile> profileSupplier,
+            Instant now) {
         var linkedMemberId = externalAccounts.get(identity);
         if (linkedMemberId != null && members.get(linkedMemberId).status() != MemberLifecycleStatus.ACTIVE) {
             externalAccounts.remove(identity);
         }
         return externalAccounts.computeIfAbsent(identity, ignored -> {
-            return createMember(now, profile);
+            var memberId = UUID.randomUUID();
+            NewMemberProfile profile = null;
+            for (int attempt = 0; attempt < GENERATED_NICKNAME_ATTEMPTS; attempt++) {
+                profile = profileSupplier.get();
+                if (!displayNameExists(profile.displayName())) {
+                    createMember(memberId, now, profile, profile.displayName());
+                    return memberId;
+                }
+            }
+            createMember(memberId, now, profile, MemberAnonymousId.from(memberId));
+            return memberId;
         });
     }
 
@@ -146,15 +162,26 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
 
     public synchronized UUID createMember(Instant now, NewMemberProfile profile) {
         var memberId = UUID.randomUUID();
+        var displayName = displayNameExists(profile.displayName())
+                ? MemberAnonymousId.from(memberId)
+                : profile.displayName();
+        createMember(memberId, now, profile, displayName);
+        return memberId;
+    }
+
+    private void createMember(UUID memberId, Instant now, NewMemberProfile profile, String displayName) {
         members.put(memberId, new MemberRecord(memberId, MemberLifecycleStatus.ACTIVE, now));
         profiles.put(memberId, new MemberProfile(
                 memberId,
-                profile.displayName(),
+                displayName,
                 profile.characterId(),
                 profile.backgroundId(),
                 now,
                 now));
-        return memberId;
+    }
+
+    private boolean displayNameExists(String displayName) {
+        return profiles.values().stream().anyMatch(profile -> profile.displayName().equals(displayName));
     }
 
     @Override
@@ -175,6 +202,12 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
     }
 
     @Override
+    public synchronized boolean existsByDisplayNameExcludingMember(String displayName, UUID excludedMemberId) {
+        return profiles.values().stream().anyMatch(profile ->
+                !profile.memberId().equals(excludedMemberId) && profile.displayName().equals(displayName));
+    }
+
+    @Override
     public synchronized Optional<MemberProfile> updateActiveProfile(
             UUID memberId,
             String displayName,
@@ -185,6 +218,9 @@ public final class InMemoryIdentityStore implements IdentityStore, MemberLifecyc
         var current = profiles.get(memberId);
         if (member == null || member.status() != MemberLifecycleStatus.ACTIVE || current == null) {
             return Optional.empty();
+        }
+        if (displayName != null && existsByDisplayNameExcludingMember(displayName, memberId)) {
+            throw new com.yrootlab.onmaru.identity.profile.MemberProfileDuplicateException();
         }
         var updated = new MemberProfile(
                 memberId,

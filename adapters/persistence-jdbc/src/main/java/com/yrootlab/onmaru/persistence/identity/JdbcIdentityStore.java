@@ -5,9 +5,11 @@ import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleStore;
 import com.yrootlab.onmaru.identity.lifecycle.MemberSummary;
 import com.yrootlab.onmaru.identity.oauth.ExternalIdentity;
 import com.yrootlab.onmaru.identity.oauth.IdentityStore;
+import com.yrootlab.onmaru.identity.oauth.MemberAnonymousId;
 import com.yrootlab.onmaru.identity.oauth.OAuthStateRecord;
 import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.profile.MemberProfile;
+import com.yrootlab.onmaru.identity.profile.MemberProfileDuplicateException;
 import com.yrootlab.onmaru.identity.profile.MemberProfileBackground;
 import com.yrootlab.onmaru.identity.profile.MemberProfileCharacter;
 import com.yrootlab.onmaru.identity.profile.MemberProfileStore;
@@ -24,8 +26,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleStore, MemberProfileStore {
+
+    private static final int GENERATED_NICKNAME_ATTEMPTS = 8;
 
     private final DataSource dataSource;
 
@@ -114,7 +119,10 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
     }
 
     @Override
-    public UUID linkExternalIdentity(ExternalIdentity identity, NewMemberProfile profile, Instant now) {
+    public UUID linkExternalIdentity(
+            ExternalIdentity identity,
+            Supplier<NewMemberProfile> profileSupplier,
+            Instant now) {
         return inTransaction(connection -> {
             try (var existing = connection.prepareStatement("""
                     SELECT account.member_id, member.status
@@ -151,18 +159,14 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
                 member.setObject(2, utc(now));
                 member.executeUpdate();
             }
-            try (var memberProfile = connection.prepareStatement("""
-                    INSERT INTO onmaru.identity_member_profiles (
-                        member_id, display_name, character_id, background_id, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?)
-                    """)) {
-                memberProfile.setObject(1, memberId);
-                memberProfile.setString(2, profile.displayName());
-                memberProfile.setString(3, profile.characterId().name());
-                memberProfile.setString(4, profile.backgroundId().name());
-                memberProfile.setObject(5, utc(now));
-                memberProfile.setObject(6, utc(now));
-                memberProfile.executeUpdate();
+            NewMemberProfile profile = null;
+            boolean profileInserted = false;
+            for (int attempt = 0; attempt < GENERATED_NICKNAME_ATTEMPTS && !profileInserted; attempt++) {
+                profile = profileSupplier.get();
+                profileInserted = insertProfileIfAvailable(connection, memberId, profile, now);
+            }
+            if (!profileInserted) {
+                insertFallbackProfile(connection, memberId, profile, now);
             }
             try (var account = connection.prepareStatement("""
                     INSERT INTO onmaru.identity_external_accounts (
@@ -394,6 +398,26 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
     }
 
     @Override
+    public boolean existsByDisplayNameExcludingMember(String displayName, UUID excludedMemberId) {
+        return withConnection(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM onmaru.identity_member_profiles profile
+                        WHERE profile.display_name = ? AND profile.member_id <> ?
+                    )
+                    """)) {
+                statement.setString(1, displayName);
+                statement.setObject(2, excludedMemberId);
+                try (var result = statement.executeQuery()) {
+                    result.next();
+                    return result.getBoolean(1);
+                }
+            }
+        });
+    }
+
+    @Override
     public Optional<MemberProfile> updateActiveProfile(
             UUID memberId,
             String displayName,
@@ -421,6 +445,13 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
                 try (var result = statement.executeQuery()) {
                     return result.next() ? Optional.of(mapProfile(result)) : Optional.empty();
                 }
+            } catch (SQLException exception) {
+                if ("23505".equals(exception.getSQLState())
+                        && exception.getMessage() != null
+                        && exception.getMessage().contains("identity_member_profiles_display_name_uq")) {
+                    throw new MemberProfileDuplicateException();
+                }
+                throw exception;
             }
         });
     }
@@ -434,6 +465,42 @@ public final class JdbcIdentityStore implements IdentityStore, MemberLifecycleSt
                 result.getObject("created_at", OffsetDateTime.class).toInstant(),
                 result.getObject("updated_at", OffsetDateTime.class).toInstant());
     }
+
+    private void insertFallbackProfile(
+            Connection connection, UUID memberId, NewMemberProfile profile, Instant now) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                INSERT INTO onmaru.identity_member_profiles (
+                    member_id, display_name, character_id, background_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """)) {
+            statement.setObject(1, memberId);
+            statement.setString(2, MemberAnonymousId.from(memberId));
+            statement.setString(3, profile.characterId().name());
+            statement.setString(4, profile.backgroundId().name());
+            statement.setObject(5, utc(now));
+            statement.setObject(6, utc(now));
+            statement.executeUpdate();
+        }
+    }
+
+    private boolean insertProfileIfAvailable(
+            Connection connection, UUID memberId, NewMemberProfile profile, Instant now) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                INSERT INTO onmaru.identity_member_profiles (
+                    member_id, display_name, character_id, background_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (display_name) DO NOTHING
+                """)) {
+            statement.setObject(1, memberId);
+            statement.setString(2, profile.displayName());
+            statement.setString(3, profile.characterId().name());
+            statement.setString(4, profile.backgroundId().name());
+            statement.setObject(5, utc(now));
+            statement.setObject(6, utc(now));
+            return statement.executeUpdate() == 1;
+        }
+    }
+
 
     private void bindIdentity(java.sql.PreparedStatement statement, ExternalIdentity identity) throws SQLException {
         statement.setString(1, identity.provider());

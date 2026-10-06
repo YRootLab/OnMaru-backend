@@ -184,6 +184,25 @@ CREATE TABLE "catalog_place_identity" (
   "created_at" timestamptz NOT NULL
 );
 
+CREATE TABLE "catalog_place_public_ids" (
+  "public_id" varchar PRIMARY KEY,
+  "place_id" uuid UNIQUE NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "catalog_external_places" (
+  "provider" varchar NOT NULL,
+  "external_id" varchar(128) NOT NULL,
+  "place_id" uuid UNIQUE NOT NULL,
+  "public_place_id" varchar UNIQUE NOT NULL,
+  "name" varchar(100) NOT NULL,
+  "region_code" varchar NOT NULL,
+  "location" geography NOT NULL,
+  "provenance" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  PRIMARY KEY ("provider", "external_id")
+);
+
 CREATE TABLE "catalog_place_sources" (
   "id" uuid PRIMARY KEY,
   "place_id" uuid NOT NULL,
@@ -805,6 +824,8 @@ CREATE UNIQUE INDEX ON "catalog_dataset_revisions" ("dataset", "id");
 
 CREATE INDEX ON "catalog_dataset_revisions" ("dataset", "status");
 
+CREATE INDEX ON "catalog_external_places" USING GIST ("location");
+
 CREATE UNIQUE INDEX ON "catalog_place_sources" ("provider", "dataset", "external_id", "language");
 
 CREATE INDEX ON "catalog_place_sources" ("place_id");
@@ -955,6 +976,18 @@ COMMENT ON COLUMN "identity_oauth_states"."pkce_verifier_hash" IS 'SHA-256 hash 
 
 COMMENT ON COLUMN "catalog_region_boundaries"."geometry" IS 'PostGIS MultiPolygon(4326)';
 
+COMMENT ON COLUMN "catalog_place_public_ids"."public_id" IS 'Stable FE-visible p-lowercase-kebab-case ID';
+
+COMMENT ON COLUMN "catalog_external_places"."provider" IS 'MVP: KAKAO';
+
+COMMENT ON COLUMN "catalog_external_places"."public_place_id" IS 'Opaque p-ext-{32 lowercase hex}';
+
+COMMENT ON COLUMN "catalog_external_places"."region_code" IS 'Canonical kr-* or kr-unassigned';
+
+COMMENT ON COLUMN "catalog_external_places"."location" IS 'PostGIS Point(4326)';
+
+COMMENT ON COLUMN "catalog_external_places"."provenance" IS 'CLIENT_ASSERTED';
+
 COMMENT ON COLUMN "catalog_place_sources"."external_id" IS 'KTO Korean contentid, future source id, or normalized source key';
 
 COMMENT ON COLUMN "catalog_place_versions"."location" IS 'PostGIS Point(4326)';
@@ -1038,6 +1071,12 @@ ALTER TABLE "insights_concentration_observations" ADD FOREIGN KEY ("target_id") 
 ALTER TABLE "operations_sync_runs" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "operations_sync_watermarks" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "catalog_place_public_ids" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERENCES "catalog_place_public_ids" ("public_id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

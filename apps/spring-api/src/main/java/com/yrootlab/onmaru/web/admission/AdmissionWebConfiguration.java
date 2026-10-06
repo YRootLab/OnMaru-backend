@@ -53,6 +53,7 @@ public class AdmissionWebConfiguration {
     AdmissionPolicy admissionPolicy() {
         return new AdmissionPolicy(Duration.ofMinutes(1), List.of(
                 new OperationBudget("login.start", SubjectType.IP, 20),
+                new OperationBudget("review.create.external", SubjectType.IP, 30),
                 new OperationBudget("journey.ai", SubjectType.GUEST, 2, Duration.ofDays(1), 1),
                 new OperationBudget("journey.ai", SubjectType.MEMBER, 5, Duration.ofDays(1), 1),
                 new OperationBudget("presence.warmth", SubjectType.CLIENT_ID, 3, Duration.ofSeconds(1)),

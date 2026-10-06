@@ -42,6 +42,10 @@ Ref: insights_concentration_observations.target_id > insights_tourism_targets.id
 Ref: operations_sync_runs.revision_id >? catalog_dataset_revisions.id
 Ref: operations_sync_watermarks.revision_id > catalog_dataset_revisions.id
 
+Ref: catalog_place_public_ids.place_id > catalog_place_identity.id
+Ref: catalog_external_places.place_id > catalog_place_identity.id
+Ref: catalog_external_places.public_place_id > catalog_place_public_ids.public_id
+
 // Polymorphic application-validated relation:
 // journey_saved_resources.resource_type=PLACE      -> catalog_place_identity.id
 // journey_saved_resources.resource_type=ODII_STORY -> audio_odii_stories.id

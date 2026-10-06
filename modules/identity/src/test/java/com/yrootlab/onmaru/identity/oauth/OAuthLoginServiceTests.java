@@ -174,6 +174,52 @@ class OAuthLoginServiceTests {
     }
 
     @Test
+    void generatedNicknameCollisionRetriesSevenTimesBeforeUsingTheLastGeneratedCandidate() {
+        var store = new InMemoryIdentityStore();
+        store.createMember(CLOCK.instant(), new com.yrootlab.onmaru.identity.profile.NewMemberProfile(
+                "고요한 마루 0000",
+                com.yrootlab.onmaru.identity.profile.MemberProfileCharacter.CHARACTER_01,
+                com.yrootlab.onmaru.identity.profile.MemberProfileBackground.BACKGROUND_01));
+        var generatedNames = new java.util.concurrent.atomic.AtomicInteger();
+        var generator = new MemberProfileGenerator(bound ->
+                bound == 10_000 && generatedNames.getAndIncrement() == 7 ? 1 : 0);
+        var service = new OAuthLoginService(store, new TokenHasher("test-pepper"), CLOCK, generator);
+
+        var state = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser", "pkce", null, "/discover"));
+        var result = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, state.state(), "browser", "pkce",
+                new ExternalIdentity("KAKAO", KAKAO.issuer(), "collision")));
+
+        assertThat(store.findByMemberId(result.memberId()).orElseThrow().displayName())
+                .isEqualTo("고요한 마루 0001");
+    }
+
+    @Test
+    void generatedNicknameFallsBackToTwentyCharacterAnonymousIdAfterSevenRetries() {
+        var store = new InMemoryIdentityStore();
+        store.createMember(CLOCK.instant(), new com.yrootlab.onmaru.identity.profile.NewMemberProfile(
+                "고요한 마루 0000",
+                com.yrootlab.onmaru.identity.profile.MemberProfileCharacter.CHARACTER_01,
+                com.yrootlab.onmaru.identity.profile.MemberProfileBackground.BACKGROUND_01));
+        var service = new OAuthLoginService(
+                store,
+                new TokenHasher("test-pepper"),
+                CLOCK,
+                new MemberProfileGenerator(bound -> 0));
+        var state = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser", "pkce", null, "/discover"));
+
+        var result = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, state.state(), "browser", "pkce",
+                new ExternalIdentity("KAKAO", KAKAO.issuer(), "fallback")));
+
+        var displayName = store.findByMemberId(result.memberId()).orElseThrow().displayName();
+        assertThat(displayName).matches("익명-[0-9A-HJKMNP-TV-Z]{17}");
+        assertThat(displayName.codePointCount(0, displayName.length())).isEqualTo(20);
+    }
+
+    @Test
     void normalizesUnsafeReturnPathToDiscover() {
         var service = new OAuthLoginService(new InMemoryIdentityStore(), new TokenHasher("test-pepper"), CLOCK);
 

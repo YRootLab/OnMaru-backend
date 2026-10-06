@@ -1,0 +1,50 @@
+{
+  "name": "create-external-place-normal",
+  "description": "Kakao 장소와 선행 # 태그를 전달하면 opaque 내부 장소 ID와 canonical 태그를 반환한다.",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/visit-reviews",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture",
+      "Idempotency-Key": "00000000-0000-0000-0000-000000000643"
+    },
+    "body": {
+      "place": {
+        "provider": "KAKAO",
+        "externalId": "123456789",
+        "name": "대청댐",
+        "lat": 36.4952,
+        "lng": 127.4981
+      },
+      "text": "경치가 좋았어요.",
+      "mood": "한적",
+      "score": 4,
+      "tags": ["#힐링", "힐링", "#야경"]
+    }
+  },
+  "response": {
+    "status": 201,
+    "schema": "VisitReview",
+    "body": {
+      "id": "00000000-0000-0000-0000-000000000118",
+      "placeId": "p-ext-00000000000000000000000000000643",
+      "placeName": "대청댐",
+      "lat": 36.4952,
+      "lng": 127.4981,
+      "text": "경치가 좋았어요.",
+      "mood": "한적",
+      "score": 4,
+      "tags": ["힐링", "야경"],
+      "author": {
+        "displayName": "고요한 마루 0552",
+        "characterId": "CHARACTER_03",
+        "backgroundId": "BACKGROUND_07"
+      },
+      "visitorCount": null,
+      "createdAt": "2026-10-06T00:00:00Z",
+      "mine": true,
+      "likeCount": 0,
+      "likedByMe": false
+    }
+  }
+}

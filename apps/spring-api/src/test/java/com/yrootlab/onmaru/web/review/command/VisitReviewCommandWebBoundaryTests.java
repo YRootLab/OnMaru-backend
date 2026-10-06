@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Clock;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -113,6 +114,80 @@ class VisitReviewCommandWebBoundaryTests {
     }
 
     @Test
+    void createsExternalPlaceReviewAndReplaysCanonicalTagPayload() throws Exception {
+        var key = "00000000-0000-0000-0000-000000000643";
+        var response = createExternal(key, "kakao-643", 36.4952, 127.4981, "[\"#힐링\",\"힐링\",\"#야경\"]")
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, startsWith("/api/v1/visit-reviews/")))
+                .andExpect(jsonPath("$.placeId", startsWith("p-ext-")))
+                .andExpect(jsonPath("$.placeName").value("대청댐"))
+                .andExpect(jsonPath("$.lat").value(36.4952))
+                .andExpect(jsonPath("$.lng").value(127.4981))
+                .andExpect(jsonPath("$.tags[0]").value("힐링"))
+                .andExpect(jsonPath("$.tags[1]").value("야경"))
+                .andReturn().getResponse().getContentAsString();
+        var reviewId = response.replaceAll("(?s).*\"id\":\"([^\"]+)\".*", "$1");
+
+        createExternal(key, "kakao-643", 36.4952, 127.4981, "[\"힐링\",\"야경\"]")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(reviewId));
+
+        assertThat(visitReviewStore.findSnapshot()).hasSize(1);
+    }
+
+    @Test
+    void returnsTypedValidationAndPlaceErrors() throws Exception {
+        createExternal("00000000-0000-0000-0000-000000000644", "kakao-644", 36.5, 127.5,
+                "[\"####하이\"]")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details.field").value("tags[0]"))
+                .andExpect(jsonPath("$.details.reason").value("INVALID_TAG_FORMAT"));
+
+        createExternal("00000000-0000-0000-0000-000000000650", "kakao-650", 36.5, 127.5,
+                "[\"하나\",\"둘\",\"셋\",\"넷\",\"다섯\",\"여섯\"]")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.field").value("tags"))
+                .andExpect(jsonPath("$.details.reason").value("TOO_MANY_TAGS"));
+
+        createExternal("00000000-0000-0000-0000-000000000645", "kakao-645", 35.6, 139.7,
+                "[]")
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("PLACE_OUTSIDE_SERVICE_AREA"))
+                .andExpect(jsonPath("$.message").value("현재 대한민국 내 장소만 온기를 남길 수 있습니다."));
+
+        mockMvc.perform(post("/api/v1/visit-reviews")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"place\":{\"provider\":\"KAKAO\",\"name\":\"대청댐\",\"lat\":36.5,\"lng\":127.5},\"text\":\"좋아요\"}")
+                        .cookie(
+                                new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session"),
+                                new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", "00000000-0000-0000-0000-000000000646"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.field").value("place.externalId"))
+                .andExpect(jsonPath("$.details.reason").value("REQUIRED"));
+
+        createExternal("00000000-0000-0000-0000-000000000647", "kakao-conflict", 36.5, 127.5, "[]")
+                .andExpect(status().isCreated());
+        createExternal("00000000-0000-0000-0000-000000000648", "kakao-conflict", 37.5, 127.5, "[]")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PLACE_IDENTITY_CONFLICT"));
+    }
+
+    @Test
+    void externalPlaceReviewRequiresAuthentication() throws Exception {
+        mockMvc.perform(post("/api/v1/visit-reviews")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"place\":{\"provider\":\"KAKAO\",\"externalId\":\"123\",\"name\":\"장소\",\"lat\":37.0,\"lng\":127.0},\"text\":\"좋아요\"}")
+                        .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", "00000000-0000-0000-0000-000000000649"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
+    }
+
+    @Test
     void createValidatesTextAuthenticationAndPlaceEligibility() throws Exception {
         create("00000000-0000-0000-0000-000000000120", "   ")
                 .andExpect(status().isBadRequest())
@@ -184,6 +259,21 @@ class VisitReviewCommandWebBoundaryTests {
                 + (tags.length == 0 ? "" : ",\"tags\":[\"" + String.join("\",\"", tags) + "\"]")
                 + "}";
         return mockMvc.perform(post("/api/v1/places/p-jeonju-hanok-village/visit-reviews")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload)
+                .cookie(
+                        new jakarta.servlet.http.Cookie("__Host-onmaru-session", "member-session"),
+                        new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "csrf-token"))
+                .header("X-CSRF-TOKEN", "csrf-token")
+                .header("Idempotency-Key", key));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions createExternal(
+            String key, String externalId, double lat, double lng, String tags) throws Exception {
+        var payload = "{\"place\":{\"provider\":\"KAKAO\",\"externalId\":\"" + externalId
+                + "\",\"name\":\"대청댐\",\"lat\":" + lat + ",\"lng\":" + lng
+                + "},\"text\":\"경치가 좋았어요.\",\"mood\":\"한적\",\"score\":4,\"tags\":" + tags + "}";
+        return mockMvc.perform(post("/api/v1/visit-reviews")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload)
                 .cookie(

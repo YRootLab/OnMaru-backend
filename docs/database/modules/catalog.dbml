@@ -95,6 +95,29 @@ Table catalog_place_identity [headercolor: #59A14F] {
   created_at timestamptz [not null]
 }
 
+Table catalog_place_public_ids [headercolor: #59A14F] {
+  public_id varchar [pk, note: 'Stable FE-visible p-lowercase-kebab-case ID']
+  place_id uuid [not null, unique]
+  created_at timestamptz [not null]
+}
+
+Table catalog_external_places [headercolor: #59A14F] {
+  provider varchar [not null, note: 'MVP: KAKAO']
+  external_id varchar(128) [not null]
+  place_id uuid [not null, unique]
+  public_place_id varchar [not null, unique, note: 'Opaque p-ext-{32 lowercase hex}']
+  name varchar(100) [not null]
+  region_code varchar [not null, note: 'Canonical kr-* or kr-unassigned']
+  location geography [not null, note: 'PostGIS Point(4326)']
+  provenance varchar [not null, note: 'CLIENT_ASSERTED']
+  created_at timestamptz [not null]
+
+  Indexes {
+    (provider, external_id) [pk]
+    location [type: gist]
+  }
+}
+
 Table catalog_place_sources [headercolor: #59A14F] {
   id uuid [pk]
   place_id uuid [not null]
