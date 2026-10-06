@@ -1,0 +1,26 @@
+{
+  "name": "create-external-place-invalid-tag",
+  "description": "잘못된 태그는 원문을 echo하지 않고 위치와 reason만 반환한다.",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/visit-reviews",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-for-fixture",
+      "Idempotency-Key": "00000000-0000-0000-0000-000000000644"
+    }
+  },
+  "response": {
+    "status": 400,
+    "schema": "Error",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "VALIDATION_ERROR",
+      "message": "Request validation failed",
+      "requestId": "req-invalid-tag",
+      "details": {
+        "field": "tags[1]",
+        "reason": "INVALID_TAG_FORMAT"
+      }
+    }
+  }
+}
