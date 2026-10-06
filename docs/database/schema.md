@@ -68,6 +68,12 @@
 // V026은 V021 이전 VisitReview에 결정적 p-legacy-* 공개 ID를 등록하고 가능한 최신
 // published Catalog version의 장소명·지역·좌표 snapshot을 backfill해 JDBC 전환 시
 // 기존 후기가 조회에서 사라지지 않게 한다.
+// V042의 catalog_external_places는 FE가 Kakao 검색에서 선택한 CLIENT_ASSERTED 장소를
+// Catalog-owned identity/public ID에 연결한다. 이 row는 active dataset revision이나 지도
+// 공개 projection에 자동 게시하지 않고 VisitReview 생성의 장소 snapshot source로만 쓴다.
+// (provider, external_id)는 하나의 immutable place identity를 가리키며 public_place_id는
+// Kakao ID를 노출하지 않는 p-ext-{32 lowercase hex} 형식이다. region 경계 미해결 장소는
+// kr-unassigned로 보존하고 지역 집계에서 별도 관찰한다.
 // 한옥 수결첩의 실행 스키마는 V028을 기준으로 한다. stamp_definitions와
 // stamp_region_rules가 수결 표시 정보와 canonical 지역 조건을 소유하고,
 // stamp_check_ins는 회원·Catalog 장소·15분 bucket 관계와 서버 판정 거리/정확도만 저장하며,

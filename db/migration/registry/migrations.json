@@ -365,6 +365,15 @@
       "checksum": "map-region-display-names-v041-20261005",
       "sha256": "bb9d93741b12484252137f9739132bd8b2c314849a08b0dfd98e7222598d06ae",
       "description": "Korean viewport labels for TourAPI administrative region codes"
+    },
+    {
+      "version": "042",
+      "reservedFor": "EXTERNAL_PLACE_REGISTRY",
+      "issueNumber": 643,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V042__643_external_place_registry.sql",
+      "checksum": "external-place-registry-v042-20261006",
+      "sha256": "66583f1920f53f0729dbbec6556dc95533e75ad79e1c8b1a9c0603acbbc41725",
+      "description": "Client-asserted Kakao place identity and immutable VisitReview snapshot source"
     }
   ]
 }

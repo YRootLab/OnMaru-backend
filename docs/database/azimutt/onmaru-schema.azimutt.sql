@@ -184,6 +184,25 @@ CREATE TABLE "catalog_place_identity" (
   "created_at" timestamptz NOT NULL
 );
 
+CREATE TABLE "catalog_place_public_ids" (
+  "public_id" varchar PRIMARY KEY,
+  "place_id" uuid UNIQUE NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "catalog_external_places" (
+  "provider" varchar NOT NULL,
+  "external_id" varchar(128) NOT NULL,
+  "place_id" uuid UNIQUE NOT NULL,
+  "public_place_id" varchar UNIQUE NOT NULL,
+  "name" varchar(100) NOT NULL,
+  "region_code" varchar NOT NULL,
+  "location" geography NOT NULL,
+  "provenance" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  PRIMARY KEY ("provider", "external_id")
+);
+
 CREATE TABLE "catalog_place_sources" (
   "id" uuid PRIMARY KEY,
   "place_id" uuid NOT NULL,
@@ -876,6 +895,13 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
+
+
+
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -932,6 +958,12 @@ ALTER TABLE "insights_concentration_observations" ADD FOREIGN KEY ("target_id") 
 ALTER TABLE "operations_sync_runs" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
 
 ALTER TABLE "operations_sync_watermarks" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
+
+ALTER TABLE "catalog_place_public_ids" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
+
+ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
+
+ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERENCES "catalog_place_public_ids" ("public_id");
 
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id");
 
