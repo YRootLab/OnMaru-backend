@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.43...v0.4.0) (2026-10-06)
+
+
+### Features
+
+* **api:** Kakao 외부 장소 온기 생성 API 추가 ([f04e793](https://github.com/YRootLab/OnMaru-backend/commit/f04e7937c81777bd8dbb4e6701c7ff80c2c1fbef))
+* **identity:** 닉네임 중복 확인 API 추가 ([d01e5be](https://github.com/YRootLab/OnMaru-backend/commit/d01e5becf8c3e30b1e09bd6b1f614f683c2edddf))
+* **identity:** 닉네임 중복 확인 API 추가 ([840b361](https://github.com/YRootLab/OnMaru-backend/commit/840b36137a2783f4b2c9abb0bfa3d656f9daeaa9))
+
+
+### Bug Fixes
+
+* **db:** 복구 환경에서 닉네임 마이그레이션 실행 보장 ([ff1aef5](https://github.com/YRootLab/OnMaru-backend/commit/ff1aef5f7a413de9b52b081819ad4239421ec057))
+
 ## [0.3.43](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.42...v0.3.43) (2026-10-06)
 
 
