@@ -9,7 +9,6 @@ import com.yrootlab.onmaru.community.query.VisitReviewStatus;
 
 import java.text.Normalizer;
 import java.time.Clock;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +20,7 @@ public final class VisitReviewCommandService {
     private final VisitReviewPlaceLookup placeLookup;
     private final ReviewIdGenerator reviewIdGenerator;
     private final VisitReviewAuthorProfileLookup authorProfileLookup;
+    private final VisitReviewTagPolicy tagPolicy;
     private final Clock clock;
 
     public VisitReviewCommandService(
@@ -28,7 +28,7 @@ public final class VisitReviewCommandService {
             VisitReviewPlaceLookup placeLookup,
             ReviewIdGenerator reviewIdGenerator,
             Clock clock) {
-        this(store, placeLookup, reviewIdGenerator, ignored -> Map.of(), clock);
+        this(store, placeLookup, reviewIdGenerator, ignored -> Map.of(), new VisitReviewTagPolicy(), clock);
     }
 
     public VisitReviewCommandService(
@@ -37,10 +37,21 @@ public final class VisitReviewCommandService {
             ReviewIdGenerator reviewIdGenerator,
             VisitReviewAuthorProfileLookup authorProfileLookup,
             Clock clock) {
+        this(store, placeLookup, reviewIdGenerator, authorProfileLookup, new VisitReviewTagPolicy(), clock);
+    }
+
+    public VisitReviewCommandService(
+            MutableVisitReviewStore store,
+            VisitReviewPlaceLookup placeLookup,
+            ReviewIdGenerator reviewIdGenerator,
+            VisitReviewAuthorProfileLookup authorProfileLookup,
+            VisitReviewTagPolicy tagPolicy,
+            Clock clock) {
         this.store = store;
         this.placeLookup = placeLookup;
         this.reviewIdGenerator = reviewIdGenerator;
         this.authorProfileLookup = authorProfileLookup;
+        this.tagPolicy = tagPolicy;
         this.clock = clock;
     }
 
@@ -50,7 +61,7 @@ public final class VisitReviewCommandService {
         var text = normalizeText(command.text());
         var mood = normalizeMood(command.mood());
         var score = normalizeScore(command.score());
-        var tags = normalizeTags(command.tags());
+        var tags = tagPolicy.normalize(command.tags());
         var projection = new VisitReviewProjection(
                 reviewIdGenerator.generate(),
                 place.placeId(),
@@ -157,24 +168,4 @@ public final class VisitReviewCommandService {
         return score;
     }
 
-    private List<String> normalizeTags(List<String> rawTags) {
-        if (rawTags == null) {
-            return List.of();
-        }
-        if (rawTags.size() > 5) {
-            throw new VisitReviewWarmthInvalidException("tags");
-        }
-        var tags = new LinkedHashSet<String>();
-        for (var rawTag : rawTags) {
-            if (rawTag == null) {
-                throw new VisitReviewWarmthInvalidException("tags");
-            }
-            var tag = Normalizer.normalize(rawTag.trim(), Normalizer.Form.NFC);
-            if (tag.isBlank() || tag.codePointCount(0, tag.length()) > 20) {
-                throw new VisitReviewWarmthInvalidException("tags");
-            }
-            tags.add(tag);
-        }
-        return List.copyOf(tags);
-    }
 }
