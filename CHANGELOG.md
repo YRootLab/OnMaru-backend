@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.43](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.42...v0.3.43) (2026-10-06)
+
+
+### Bug Fixes
+
+* **cors:** 관리자 Bearer 인증 preflight 허용 ([6206324](https://github.com/YRootLab/OnMaru-backend/commit/6206324cb5849c17fa88281013995d3acd8c64f6))
+* **cors:** 관리자 Bearer 인증 preflight 허용 ([95ff115](https://github.com/YRootLab/OnMaru-backend/commit/95ff1157c6981c0a800a096c082f54e64305a385))
+
 ## [0.3.41](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.40...v0.3.41) (2026-10-05)
 
 
