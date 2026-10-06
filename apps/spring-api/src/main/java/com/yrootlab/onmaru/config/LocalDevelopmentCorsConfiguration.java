@@ -23,7 +23,7 @@ public class LocalDevelopmentCorsConfiguration implements WebMvcConfigurer {
     private void configure(CorsRegistration registration) {
         registration.allowedOrigins(corsOriginPolicy.allowedOrigins())
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("Content-Type", "Idempotency-Key", "X-CSRF-TOKEN", "X-Request-Id")
+                .allowedHeaders("Authorization", "Content-Type", "Idempotency-Key", "X-CSRF-TOKEN", "X-Request-Id")
                 .allowCredentials(true)
                 .maxAge(3600);
     }
