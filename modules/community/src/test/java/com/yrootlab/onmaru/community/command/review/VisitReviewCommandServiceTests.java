@@ -1,5 +1,9 @@
 package com.yrootlab.onmaru.community.command.review;
 
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlace;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceCandidate;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlacePolicy;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceProvider;
 import com.yrootlab.onmaru.community.query.InMemoryVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReviewQuery;
 import com.yrootlab.onmaru.community.query.VisitReviewQueryService;
@@ -11,7 +15,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -72,6 +79,69 @@ class VisitReviewCommandServiceTests {
         assertThat(queryPage.items()).isEmpty();
     }
 
+    @Test
+    void createsReviewFromResolvedExternalPlaceSnapshot() {
+        var store = new InMemoryVisitReviewStore();
+        var registryCalls = new AtomicInteger();
+        var transactionCalls = new AtomicInteger();
+        var service = externalService(store, registryCalls, transactionCalls);
+
+        var review = service.createExternal(MEMBER_ID, new CreateExternalPlaceVisitReviewCommand(
+                new ExternalPlaceCandidate(ExternalPlaceProvider.KAKAO, " 123456789 ", " 대청댐 ",
+                        36.4952, 127.4981),
+                " 경치가 좋았어요. ", "한적", 4, List.of("#힐링", "힐링", "#야경")));
+
+        assertThat(review.placeId()).isEqualTo("p-ext-00000000000000000000000000000643");
+        assertThat(review.placeName()).isEqualTo("대청댐");
+        assertThat(review.lat()).isEqualTo(36.4952);
+        assertThat(review.lng()).isEqualTo(127.4981);
+        assertThat(review.text()).isEqualTo("경치가 좋았어요.");
+        assertThat(review.tags()).containsExactly("힐링", "야경");
+        assertThat(store.findSnapshot()).singleElement()
+                .extracting(com.yrootlab.onmaru.community.query.VisitReviewProjection::regionCode)
+                .isEqualTo("kr-unassigned");
+        assertThat(registryCalls).hasValue(1);
+        assertThat(transactionCalls).hasValue(1);
+    }
+
+    @Test
+    void validatesContentBeforeMutatingExternalPlaceRegistry() {
+        var registryCalls = new AtomicInteger();
+        var transactionCalls = new AtomicInteger();
+        var service = externalService(new InMemoryVisitReviewStore(), registryCalls, transactionCalls);
+
+        assertThatThrownBy(() -> service.createExternal(MEMBER_ID, new CreateExternalPlaceVisitReviewCommand(
+                new ExternalPlaceCandidate(ExternalPlaceProvider.KAKAO, "123", "장소", 37.0, 127.0),
+                "좋았습니다.", null, null, List.of("####하이"))))
+                .isInstanceOf(VisitReviewWarmthInvalidException.class);
+
+        assertThat(registryCalls).hasValue(0);
+        assertThat(transactionCalls).hasValue(0);
+    }
+
+    @Test
+    void doesNotStoreReviewWhenExternalRegistryFails() {
+        var store = new InMemoryVisitReviewStore();
+        var service = new VisitReviewCommandService(
+                store,
+                placeId -> Optional.empty(),
+                new ExternalPlacePolicy(),
+                (candidate, regionCode) -> { throw new IllegalStateException("registry unavailable"); },
+                candidate -> "kr-unassigned",
+                directTransaction(),
+                () -> REVIEW_ID,
+                ignored -> java.util.Map.of(),
+                new VisitReviewTagPolicy(),
+                CLOCK);
+
+        assertThatThrownBy(() -> service.createExternal(MEMBER_ID, new CreateExternalPlaceVisitReviewCommand(
+                new ExternalPlaceCandidate(ExternalPlaceProvider.KAKAO, "123", "장소", 37.0, 127.0),
+                "좋았습니다.", null, null, List.of())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("registry unavailable");
+        assertThat(store.findSnapshot()).isEmpty();
+    }
+
     private VisitReviewCommandService service(InMemoryVisitReviewStore store) {
         return new VisitReviewCommandService(
                 store,
@@ -88,5 +158,48 @@ class VisitReviewCommandServiceTests {
                 memberIds -> java.util.Map.of(MEMBER_ID, new VisitReviewAuthor(
                         "고요한 마루 0552", "CHARACTER_03", "BACKGROUND_07")),
                 CLOCK);
+    }
+
+    private VisitReviewCommandService externalService(
+            InMemoryVisitReviewStore store,
+            AtomicInteger registryCalls,
+            AtomicInteger transactionCalls) {
+        return new VisitReviewCommandService(
+                store,
+                placeId -> Optional.empty(),
+                new ExternalPlacePolicy(),
+                (candidate, regionCode) -> {
+                    registryCalls.incrementAndGet();
+                    return new ExternalPlace(
+                            UUID.fromString("00000000-0000-0000-0000-000000000643"),
+                            "p-ext-00000000000000000000000000000643",
+                            candidate.name(),
+                            regionCode,
+                            candidate.lat(),
+                            candidate.lng(),
+                            true);
+                },
+                candidate -> "kr-unassigned",
+                new VisitReviewTransaction() {
+                    @Override
+                    public <T> T execute(Supplier<T> operation) {
+                        transactionCalls.incrementAndGet();
+                        return operation.get();
+                    }
+                },
+                () -> REVIEW_ID,
+                memberIds -> java.util.Map.of(MEMBER_ID, new VisitReviewAuthor(
+                        "고요한 마루 0552", "CHARACTER_03", "BACKGROUND_07")),
+                new VisitReviewTagPolicy(),
+                CLOCK);
+    }
+
+    private VisitReviewTransaction directTransaction() {
+        return new VisitReviewTransaction() {
+            @Override
+            public <T> T execute(Supplier<T> operation) {
+                return operation.get();
+            }
+        };
     }
 }

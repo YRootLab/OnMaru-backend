@@ -1,5 +1,8 @@
 package com.yrootlab.onmaru.community.command.review;
 
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlacePolicy;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceRegionResolver;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceRegistry;
 import com.yrootlab.onmaru.community.query.MutableVisitReviewStore;
 import com.yrootlab.onmaru.community.query.VisitReview;
 import com.yrootlab.onmaru.community.query.VisitReviewAuthor;
@@ -13,11 +16,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 public final class VisitReviewCommandService {
 
     private final MutableVisitReviewStore store;
     private final VisitReviewPlaceLookup placeLookup;
+    private final ExternalPlacePolicy externalPlacePolicy;
+    private final ExternalPlaceRegistry externalPlaceRegistry;
+    private final ExternalPlaceRegionResolver externalPlaceRegionResolver;
+    private final VisitReviewTransaction transaction;
     private final ReviewIdGenerator reviewIdGenerator;
     private final VisitReviewAuthorProfileLookup authorProfileLookup;
     private final VisitReviewTagPolicy tagPolicy;
@@ -47,8 +55,38 @@ public final class VisitReviewCommandService {
             VisitReviewAuthorProfileLookup authorProfileLookup,
             VisitReviewTagPolicy tagPolicy,
             Clock clock) {
+        this(
+                store,
+                placeLookup,
+                new ExternalPlacePolicy(),
+                (candidate, regionCode) -> {
+                    throw new UnsupportedOperationException("external place registry is not configured");
+                },
+                candidate -> "kr-unassigned",
+                directTransaction(),
+                reviewIdGenerator,
+                authorProfileLookup,
+                tagPolicy,
+                clock);
+    }
+
+    public VisitReviewCommandService(
+            MutableVisitReviewStore store,
+            VisitReviewPlaceLookup placeLookup,
+            ExternalPlacePolicy externalPlacePolicy,
+            ExternalPlaceRegistry externalPlaceRegistry,
+            ExternalPlaceRegionResolver externalPlaceRegionResolver,
+            VisitReviewTransaction transaction,
+            ReviewIdGenerator reviewIdGenerator,
+            VisitReviewAuthorProfileLookup authorProfileLookup,
+            VisitReviewTagPolicy tagPolicy,
+            Clock clock) {
         this.store = store;
         this.placeLookup = placeLookup;
+        this.externalPlacePolicy = externalPlacePolicy;
+        this.externalPlaceRegistry = externalPlaceRegistry;
+        this.externalPlaceRegionResolver = externalPlaceRegionResolver;
+        this.transaction = transaction;
         this.reviewIdGenerator = reviewIdGenerator;
         this.authorProfileLookup = authorProfileLookup;
         this.tagPolicy = tagPolicy;
@@ -62,13 +100,43 @@ public final class VisitReviewCommandService {
         var mood = normalizeMood(command.mood());
         var score = normalizeScore(command.score());
         var tags = tagPolicy.normalize(command.tags());
+        return createReview(memberId, place.placeId(), place.placeName(), place.regionCode(), place.lat(), place.lng(),
+                text, mood, score, tags);
+    }
+
+    public VisitReview createExternal(UUID memberId, CreateExternalPlaceVisitReviewCommand command) {
+        var candidate = externalPlacePolicy.validate(command.place());
+        var text = normalizeText(command.text());
+        var mood = normalizeMood(command.mood());
+        var score = normalizeScore(command.score());
+        var tags = tagPolicy.normalize(command.tags());
+
+        return transaction.execute(() -> {
+            var regionCode = externalPlaceRegionResolver.resolve(candidate);
+            var place = externalPlaceRegistry.resolveOrCreate(candidate, regionCode);
+            return createReview(memberId, place.publicPlaceId(), place.name(), place.regionCode(), place.lat(), place.lng(),
+                    text, mood, score, tags);
+        });
+    }
+
+    private VisitReview createReview(
+            UUID memberId,
+            String placeId,
+            String placeName,
+            String regionCode,
+            double lat,
+            double lng,
+            String text,
+            String mood,
+            Integer score,
+            List<String> tags) {
         var projection = new VisitReviewProjection(
                 reviewIdGenerator.generate(),
-                place.placeId(),
-                place.placeName(),
-                place.regionCode(),
-                place.lat(),
-                place.lng(),
+                placeId,
+                placeName,
+                regionCode,
+                lat,
+                lng,
                 text,
                 mood,
                 score,
@@ -79,6 +147,15 @@ public final class VisitReviewCommandService {
                 VisitReviewStatus.PUBLISHED);
         store.add(projection);
         return toReview(projection, memberId);
+    }
+
+    private static VisitReviewTransaction directTransaction() {
+        return new VisitReviewTransaction() {
+            @Override
+            public <T> T execute(Supplier<T> operation) {
+                return operation.get();
+            }
+        };
     }
 
     public void delete(UUID memberId, UUID reviewId) {
