@@ -10,6 +10,13 @@ import com.yrootlab.onmaru.admin.auth.AdminPasswordHasher;
 import com.yrootlab.onmaru.admin.auth.AdminPrincipal;
 import com.yrootlab.onmaru.admin.auth.AdminRole;
 import com.yrootlab.onmaru.admin.auth.InMemoryAdminAccountStore;
+import com.yrootlab.onmaru.admin.auth.AdminAuthenticator;
+import com.yrootlab.onmaru.admin.auth.AdminJtiRevocationStore;
+import com.yrootlab.onmaru.admin.auth.AdminLoginService;
+import com.yrootlab.onmaru.admin.auth.AdminSessionService;
+import com.yrootlab.onmaru.admin.auth.AdminTokenRevocationService;
+import com.yrootlab.onmaru.admin.auth.AdminTokenStoreException;
+import com.yrootlab.onmaru.admin.auth.InMemoryAdminSessionStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +26,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.UUID;
+import java.time.Clock;
+import java.time.Instant;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,6 +36,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(classes = OnMaruApplication.class, properties = "onmaru.secrets.source=fake")
 @AutoConfigureMockMvc
@@ -98,6 +108,9 @@ class AdminApiWebBoundaryTests {
                         .cookie(refreshCookie, csrf.cookie())
                         .header("X-CSRF-TOKEN", csrf.token()))
                 .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/auth/admin/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -111,6 +124,45 @@ class AdminApiWebBoundaryTests {
                         .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "cookie-token"))
                         .header("X-CSRF-TOKEN", "wrong-token"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminLogoutReturnsServiceUnavailableWithoutClearingCookieWhenRevocationWriteFails() {
+        AdminJtiRevocationStore failingStore = new AdminJtiRevocationStore() {
+            @Override
+            public void revoke(UUID adminId, String jti, Instant expiresAt) {
+                throw new AdminTokenStoreException("write unavailable", new IllegalStateException("database down"));
+            }
+
+            @Override
+            public boolean isRevoked(String jti, Instant now) {
+                return false;
+            }
+
+            @Override
+            public int deleteExpired(Instant now, int limit) {
+                return 0;
+            }
+        };
+        var principal = new AdminPrincipal(UUID.randomUUID(), "admin@onmaru.kr", AdminRole.ADMIN);
+        var codec = new AdminJwtTokenCodec(
+                name -> new com.yrootlab.onmaru.config.secrets.SecretBundle(name, "secret", java.util.Optional.empty()),
+                "admin.jwt-signing-key", "onmaru-admin", "onmaru-admin-web",
+                java.time.Duration.ofMinutes(15), Clock.systemUTC());
+        var accounts = new InMemoryAdminAccountStore(new AdminAccount(
+                principal.id(), principal.email(), "Admin", principal.role(), "hash", AdminAccountStatus.ACTIVE));
+        var sessions = new AdminSessionService(accounts, new InMemoryAdminSessionStore(), codec, Clock.systemUTC());
+        var controller = new AdminAuthController(
+                new AdminAuthenticator(codec),
+                new AdminLoginService(accounts, new AdminPasswordHasher(), sessions),
+                sessions,
+                new AdminTokenRevocationService(failingStore, Clock.systemUTC()));
+
+        var response = controller.logout(
+                "Bearer " + codec.issue(principal), "refresh", new org.springframework.mock.web.MockHttpServletRequest());
+
+        assertThat(response.getStatusCode().value()).isEqualTo(503);
+        assertThat(response.getHeaders().get("Set-Cookie")).isNull();
     }
 
     @Test
