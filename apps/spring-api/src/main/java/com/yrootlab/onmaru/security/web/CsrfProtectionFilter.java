@@ -44,8 +44,11 @@ public final class CsrfProtectionFilter extends OncePerRequestFilter {
     }
 
     private boolean requiresCsrf(HttpServletRequest request) {
-        return request.getRequestURI().startsWith("/api/")
-                && UNSAFE_METHODS.contains(request.getMethod());
+        // getServletPath()는 컨테이너가 정규화한 경로 — raw URI의 %2e, .. 우회 차단
+        var path = request.getServletPath();
+        return path.startsWith("/api/")
+                && UNSAFE_METHODS.contains(request.getMethod())
+                && !"/api/v1/realtime/warmth".equals(path);
     }
 
     private boolean isValid(HttpServletRequest request) {
