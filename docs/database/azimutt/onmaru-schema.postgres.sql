@@ -686,6 +686,26 @@ CREATE TABLE "operations_admission" (
   "active_count" int NOT NULL
 );
 
+CREATE TABLE "identity_admin_accounts" (
+  "id" uuid PRIMARY KEY,
+  "email" varchar NOT NULL,
+  "password_hash" varchar NOT NULL,
+  "nickname" varchar NOT NULL,
+  "role" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "last_login_at" timestamptz,
+  "tokens_valid_after" timestamptz NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "identity_admin_access_token_revocations" (
+  "jti_hash" varchar PRIMARY KEY,
+  "admin_id" uuid NOT NULL,
+  "expires_at" timestamptz NOT NULL,
+  "revoked_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "operations_admission_audit" (
   "id" uuid PRIMARY KEY,
   "scope_key" varchar NOT NULL,
@@ -1079,6 +1099,8 @@ ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("place_id") REFERENCES "c
 ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERENCES "catalog_place_public_ids" ("public_id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "identity_admin_access_token_revocations" ADD FOREIGN KEY ("admin_id") REFERENCES "identity_admin_accounts" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

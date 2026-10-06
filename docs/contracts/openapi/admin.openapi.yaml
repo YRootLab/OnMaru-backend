@@ -78,7 +78,7 @@ paths:
     post:
       tags: [AdminAuth]
       operationId: adminLogout
-      summary: 관리자 refresh session 폐기
+      summary: 관리자 access token과 refresh session 폐기
       security: [{adminBearer: []}]
       responses:
         '204':
@@ -87,6 +87,7 @@ paths:
             Set-Cookie: {$ref: '#/components/headers/ClearedRefreshCookie'}
             Cache-Control: {$ref: '#/components/headers/NoStore'}
         '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /auth/admin/me:
     get:
       tags: [AdminAuth]
@@ -100,6 +101,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/AdminPrincipal'}
         '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /admin/dashboard/summary:
     get:
       tags: [AdminDashboard]
