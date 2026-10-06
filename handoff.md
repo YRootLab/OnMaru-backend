@@ -1,17 +1,5 @@
 # handoff.md
 
-## 2026-10-06 Issue #643 외부 장소 VisitReview 구현
-
-- 브랜치: `docs/643-external-place-review-design`, 관련 Issue: #643.
-- 요청: FE Kakao 장소 검색 결과로 대한민국 내 모든 장소에 온기를 작성할 수 있도록 현재 API의 제약을 분석하고 장소·태그 validation 및 FE 오류 계약을 구체화한다.
-- 결정: 백엔드는 Kakao API를 재조회하지 않는 MVP로 시작한다. 신규 `POST /api/v1/visit-reviews`에서 외부 장소를 resolve-or-create하고, 대한민국 bbox 밖은 거절하며 bbox 안의 region 미해결 장소는 `kr-unassigned`로 허용한다. 태그는 선행 `#` 하나만 호환 정규화하고 canonical 값에는 `#`을 저장하지 않으며, 잘못된 태그가 하나라도 있으면 후기 전체를 거절한다. FE와 BE는 같은 OpenAPI 정책으로 각각 UX validation과 최종 validation을 수행한다.
-- 구현: 신규 `POST /api/v1/visit-reviews`, Catalog-owned `catalog_external_places`, opaque `p-ext-*`, `kr-unassigned`, 동일 외부 ID 1,000m 위치 충돌, 기존 AdmissionFilter의 IP당 30회/분 제한을 추가했다. 외부 장소 3개 row와 후기 row는 공유 `JdbcTransactionRunner`에서 함께 commit/rollback한다.
-- 태그: 선행 `#` 하나를 제거하고 NFC·trim·ASCII 공백 축약·영문 소문자화를 적용한다. 최대 5개, canonical 값 15 code points, 한글·영문·숫자와 단일 내부 공백만 허용하며 정규화 후 중복은 첫 항목만 유지한다. 거부 시 `field`, `reason`, 선택적 index만 반환하고 원문은 echo하지 않는다.
-- 오류 계약: 일반 validation 400, 동일 Kakao ID 원거리 충돌 409, 대한민국 bbox 밖 422, rate limit 429를 분리했다. FE 전달 문서는 `docs/toFE/external-place-visit-review-contract.md`, OpenAPI와 정상/invalid-tag fixture는 `docs/contracts`에 있다.
-- DB: migration `042`와 schema/DBML/Azimutt 산출물을 갱신했다. 외부 registry는 active dataset revision에 편입하지 않으며 TourAPI와 자동 병합하지 않는다.
-- 검증 통과: Catalog+Community 전체 테스트, `VisitReview`/`ExternalPlace`/migration 집중 Spring 테스트, `bash scripts/verify-contracts`, migration policy, contract validator 11개, PostgreSQL 원자성·동시 등록 수렴·rollback, `git diff --check`. 전체 `./gradlew check`는 572개 중 기존 3만 건 지도 성능 테스트가 전체 suite 부하에서 statement timeout으로 1건 실패했지만 동일 테스트 격리 재실행은 `BUILD SUCCESSFUL in 1m 37s`였다. 첫 전체 실행에서 드러난 staging fixture UTC 문자열 비교는 환경 독립적으로 수정했고 단독 테스트가 통과했다.
-- 남은 단계: PR은 `develop` 대상으로 만들고 Issue #643은 FE staging feature flag 연동과 400/409/422/429 확인 전까지 `Refs #643`으로 열어 둔다. 작업 브랜치는 아직 push/PR 생성하지 않았다.
-
 ## 2026-10-06 Issue #647 스테이징 공개 API fixture
 
 - 브랜치: `feature/647-staging-api-fixtures`, 관련 Issue: #647.
