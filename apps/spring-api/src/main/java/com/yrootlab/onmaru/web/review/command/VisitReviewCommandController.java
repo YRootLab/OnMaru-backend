@@ -1,5 +1,10 @@
 package com.yrootlab.onmaru.web.review.command;
 
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceCandidate;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceIdentityConflictException;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceProvider;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceValidationException;
+import com.yrootlab.onmaru.community.command.review.CreateExternalPlaceVisitReviewCommand;
 import com.yrootlab.onmaru.community.command.review.CreateVisitReviewCommand;
 import com.yrootlab.onmaru.community.command.review.VisitReviewCommandService;
 import com.yrootlab.onmaru.community.command.review.VisitReviewNotFoundException;
@@ -87,6 +92,22 @@ public final class VisitReviewCommandController {
     }
 
     @Operation(
+            summary = "외부 장소 방문 후기 작성 (멱등성 보장)",
+            description = "Kakao 장소 정보와 방문 후기를 함께 받아 내부 장소를 resolve-or-create한 뒤 후기를 작성합니다."
+    )
+    @PostMapping("/api/v1/visit-reviews")
+    ResponseEntity<?> createExternalPlaceReview(
+            @RequestBody CreateExternalPlaceReviewRequest body,
+            @RequestHeader(name = IdempotencyKey.HEADER, required = false) String idempotencyKey,
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            HttpServletRequest request) {
+        return memberLifecycleService.currentMember(sessionToken)
+                .<ResponseEntity<?>>map(member -> createExternalForMember(
+                        member.id(), body, idempotencyKey, request))
+                .orElseGet(() -> authRequired(request));
+    }
+
+    @Operation(
             summary = "방문 후기 삭제",
             description = "작성자 본인의 방문 후기를 삭제합니다."
     )
@@ -149,6 +170,59 @@ public final class VisitReviewCommandController {
         }
     }
 
+    private ResponseEntity<?> createExternalForMember(
+            UUID memberId,
+            CreateExternalPlaceReviewRequest body,
+            String idempotencyKey,
+            HttpServletRequest request) {
+        try {
+            var command = commandService.normalizeExternal(toCommand(body));
+            var path = request.getRequestURI();
+            var fingerprint = IdempotencyFingerprint.sha256(request.getMethod(), path, memberId.toString(), command);
+            var response = idempotencyService.execute(new IdempotencyCommand(
+                    IdempotencyKey.fromHeader(idempotencyKey).value(),
+                    memberId.toString(),
+                    request.getMethod(),
+                    path,
+                    fingerprint), () -> {
+                var created = commandService.createExternal(memberId, command);
+                return IdempotentResponse.created("/api/v1/visit-reviews/" + created.id(), created);
+            });
+            return toResponse(withCurrentAuthor(response, memberId));
+        } catch (VisitReviewTextInvalidException exception) {
+            return validationError(request, "text", "INVALID_TEXT", null);
+        } catch (VisitReviewWarmthInvalidException exception) {
+            return validationError(request, exception.field(), exception.reason(), exception.index());
+        } catch (ExternalPlaceValidationException exception) {
+            if ("OUTSIDE_SERVICE_AREA".equals(exception.reason())) {
+                return apiError(request, ApiErrorCode.PLACE_OUTSIDE_SERVICE_AREA,
+                        Map.of("field", exception.field(), "reason", exception.reason()));
+            }
+            return validationError(request, exception.field(), exception.reason(), null);
+        } catch (ExternalPlaceIdentityConflictException exception) {
+            return apiError(request, ApiErrorCode.PLACE_IDENTITY_CONFLICT, Map.of());
+        }
+    }
+
+    private CreateExternalPlaceVisitReviewCommand toCommand(CreateExternalPlaceReviewRequest body) {
+        if (body == null || body.place() == null) {
+            throw new ExternalPlaceValidationException("place", "REQUIRED");
+        }
+        var place = body.place();
+        if (place.lat() == null || place.lng() == null) {
+            throw new ExternalPlaceValidationException("place.location", "REQUIRED");
+        }
+        ExternalPlaceProvider provider;
+        try {
+            provider = place.provider() == null ? null : ExternalPlaceProvider.valueOf(place.provider().trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new ExternalPlaceValidationException("place.provider", "INVALID_PROVIDER");
+        }
+        return new CreateExternalPlaceVisitReviewCommand(
+                new ExternalPlaceCandidate(provider, place.externalId(), place.name(), place.lat(), place.lng()),
+                body.text(), body.mood(), body.score(), body.tags() == null ? List.of() : body.tags());
+    }
+
     private ResponseEntity<?> toResponse(IdempotentResponse response) {
         var builder = ResponseEntity.status(response.status())
                 .cacheControl(CacheControl.noStore());
@@ -185,6 +259,23 @@ public final class VisitReviewCommandController {
                 .body(ApiErrorResponse.of(ApiErrorCode.VALIDATION_ERROR, requestId(request), Map.of("field", field)));
     }
 
+    private ResponseEntity<ApiErrorResponse> validationError(
+            HttpServletRequest request, String field, String reason, Integer index) {
+        var details = new LinkedHashMap<String, Object>();
+        details.put("field", index == null ? field : field + "[" + index + "]");
+        details.put("reason", reason);
+        return ResponseEntity.badRequest()
+                .cacheControl(CacheControl.noStore())
+                .body(ApiErrorResponse.of(ApiErrorCode.VALIDATION_ERROR, requestId(request), details));
+    }
+
+    private ResponseEntity<ApiErrorResponse> apiError(
+            HttpServletRequest request, ApiErrorCode code, Map<String, Object> details) {
+        return ResponseEntity.status(code.status())
+                .cacheControl(CacheControl.noStore())
+                .body(ApiErrorResponse.of(code, requestId(request), details));
+    }
+
     private ResponseEntity<ApiErrorResponse> notFound(HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .cacheControl(CacheControl.noStore())
@@ -210,5 +301,21 @@ public final class VisitReviewCommandController {
             Integer score,
             @Schema(description = "감성 키워드. 최대 5개, 항목당 최대 20 code points", example = "[\"고즈넉함\", \"처마\"]")
             List<String> tags) {
+    }
+
+    record CreateExternalPlaceReviewRequest(
+            ExternalPlaceRequest place,
+            String text,
+            String mood,
+            Integer score,
+            List<String> tags) {
+    }
+
+    record ExternalPlaceRequest(
+            String provider,
+            String externalId,
+            String name,
+            Double lat,
+            Double lng) {
     }
 }

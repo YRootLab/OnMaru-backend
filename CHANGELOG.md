@@ -35,6 +35,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #643의 Kakao 외부 장소 온기 생성 API, 장소·좌표·태그 검증, typed error, 원자적 외부 장소 registry와 FE 연동 계약을 추가했다.
 - Issue #647의 온디맨드 스테이징 DB에 지도·장소 상세·후기·Odii 연결을 함께 검증하는 결정적 합성 fixture와 반복 seed 통합 검증을 추가했다.
 - Issue #638에서 검증된 workers 2 / Gradle build cache disabled profile을 Spring Docker build와 deploy/release migration rehearsal에 적용하고 dependency·BuildKit cache는 유지했다.
 - Issues #525와 #556의 실제 3+3 CI benchmark에서 2 workers/no-cache profile이 4 workers/cache baseline보다 중앙값 기준 약 23.35% 짧고 실패율 0%임을 검증해 shared Java CI 설정에 반영했다.

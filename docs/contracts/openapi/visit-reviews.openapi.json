@@ -208,6 +208,43 @@
           }
         ],
         "description": "ALL forbids regionCode; REGION requires regionCode. NEARBY, VIEWPORT, lat/lng, radius, and bbox are not part of 1.2. New filters reset cursor. All sorts createdAt DESC,id DESC. Cursor is opaque, expires after 10 minutes, and is scope/region/limit bound. See ../rest-api.md."
+      },
+      "post": {
+        "operationId": "createExternalPlaceVisitReview",
+        "description": "FE가 Kakao 장소 선택 결과를 전달한다. 서버는 대한민국 서비스 범위와 장소 식별 충돌을 검증하고 내부 opaque placeId를 생성 또는 재사용한다.",
+        "security": [{ "sessionCookie": [] }],
+        "parameters": [
+          { "name": "X-CSRF-TOKEN", "in": "header", "required": true, "schema": { "type": "string" } },
+          { "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateExternalPlaceVisitReview" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": { "schema": { "type": "string", "const": "no-store" } },
+              "Location": { "schema": { "type": "string" } }
+            },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VisitReview" } } }
+          },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Authentication required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Place identity or idempotency conflict", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "422": { "description": "Place outside Korea service area", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "429": {
+            "description": "Rate limited",
+            "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 }, "description": "seconds" } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "503": {
+            "description": "Database unavailable",
+            "headers": { "Retry-After": { "schema": { "type": "integer", "minimum": 1 }, "description": "seconds when available" } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
       }
     },
     "/places/{placeId}/visit-reviews": {
@@ -1176,10 +1213,12 @@
           "tags": {
             "type": "array",
             "maxItems": 5,
+            "uniqueItems": true,
             "items": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 20
+              "maxLength": 15,
+              "pattern": "^[가-힣a-z0-9]+(?: [가-힣a-z0-9]+)*$"
             }
           },
           "author": {
@@ -1243,14 +1282,51 @@
           "tags": {
             "type": "array",
             "maxItems": 5,
+            "uniqueItems": true,
             "items": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 20
+              "maxLength": 15,
+              "pattern": "^#?[가-힣A-Za-z0-9]+(?: [가-힣A-Za-z0-9]+)*$",
+              "description": "선행 # 하나는 호환 입력으로 허용하며 저장·응답에서는 제거한다. NFC, trim, ASCII 공백 축약, 영문 소문자화를 적용한다."
             }
           }
         },
         "required": ["text"]
+      },
+      "ExternalPlaceInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "provider": { "type": "string", "const": "KAKAO" },
+          "externalId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+          "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+        },
+        "required": ["provider", "externalId", "name", "lat", "lng"]
+      },
+      "CreateExternalPlaceVisitReview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "place": { "$ref": "#/components/schemas/ExternalPlaceInput" },
+          "text": { "type": "string", "minLength": 1, "maxLength": 300, "pattern": "^[^\\n]*(?:\\n[^\\n]*){0,4}$" },
+          "mood": { "type": ["string", "null"], "enum": ["북적", "한적", null] },
+          "score": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
+          "tags": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16,
+              "pattern": "^#?[가-힣A-Za-z0-9]+(?: [가-힣A-Za-z0-9]+)*$",
+              "description": "선행 # 하나는 허용한다. 정규화 후 중복은 첫 항목만 유지하고 canonical tag는 15 code points 이하이다."
+            }
+          }
+        },
+        "required": ["place", "text"]
       },
       "ReviewPage": {
         "type": "object",
