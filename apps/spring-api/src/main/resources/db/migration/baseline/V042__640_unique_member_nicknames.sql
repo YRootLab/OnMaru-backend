@@ -1,8 +1,6 @@
 -- onmaru-checksum: unique-member-nicknames-v042-20261006
 -- Issue: #640 Authenticated nickname availability and uniqueness.
 
-LOCK TABLE onmaru.identity_member_profiles IN SHARE ROW EXCLUSIVE MODE;
-
 DO $$
 DECLARE
     duplicate_profile record;
@@ -10,6 +8,8 @@ DECLARE
     candidate_attempt integer;
     repaired boolean;
 BEGIN
+    LOCK TABLE onmaru.identity_member_profiles IN SHARE ROW EXCLUSIVE MODE;
+
     FOR duplicate_profile IN
         SELECT member_id
         FROM (
