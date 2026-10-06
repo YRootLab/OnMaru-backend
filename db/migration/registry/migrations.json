@@ -392,6 +392,15 @@
       "checksum": "admin-jwt-revocation-v044-20261006",
       "sha256": "428fe94ccd759eaf6cbc10cfcffeaabdfa21fb95f4ec2f6cd2df110f1b0fea7e",
       "description": "Persist admin access-token revocations and account token validity boundary"
+    },
+    {
+      "version": "045",
+      "reservedFor": "ADMIN_PIPELINE_DETAILS",
+      "issueNumber": 668,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V045__668_admin_pipeline_details.sql",
+      "checksum": "admin-pipeline-details-v045-20261006",
+      "sha256": "8101c5478d417066e667ee2ce532b4b87ea140af8a3ec6eb4cf1b7388b62b870",
+      "description": "Admin pipeline run scope, progress snapshot, latest-run index and sanitized failures"
     }
   ]
 }

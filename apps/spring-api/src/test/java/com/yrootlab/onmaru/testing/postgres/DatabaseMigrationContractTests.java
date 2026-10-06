@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import com.yrootlab.onmaru.persistence.admin.JdbcAdminPipelinePort;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,6 +53,33 @@ class DatabaseMigrationContractTests {
     }
 
     @Test
+    void projectsScheduledRunFailureWithoutChangingTheCollectionPipeline() throws Exception {
+        resetAndMigrate();
+        UUID runId = UUID.fromString("00000000-0000-0000-0000-000000000668");
+        try (var connection = connect(); var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.operations_sync_runs (
+                        id, dataset, scheduled_for, attempt, status, started_at, finished_at, error_code, counts
+                    ) VALUES (
+                        '%s', 'kto-korean-tour', '2026-10-06T04:00:00Z', 1, 'FAILED',
+                        '2026-10-06T04:00:00Z', '2026-10-06T04:05:32Z', 'UPSTREAM_TIMEOUT', '{}'::jsonb
+                    )
+                    """.formatted(runId));
+        }
+        var port = new JdbcAdminPipelinePort(new DriverManagerDataSource(jdbcUrl(), USERNAME, PASSWORD));
+
+        var status = port.status("kto-korean-tour");
+        var failures = port.failures("kto-korean-tour", runId, 20, null);
+
+        assertThat(status.lastRun().status()).isEqualTo("FAILED");
+        assertThat(status.lastRun().durationSeconds()).isEqualTo(332);
+        assertThat(status.failureCount()).isEqualTo(1);
+        assertThat(failures.totalCount()).isEqualTo(1);
+        assertThat(failures.items().getFirst().errorCode()).isEqualTo("UPSTREAM_TIMEOUT");
+        assertThat(failures.items().getFirst().message()).isEqualTo("Pipeline run failed");
+    }
+
+    @Test
     void migratesEmptyDatabaseToLatestBaseline() throws Exception {
         resetAndMigrate();
 
@@ -62,7 +91,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("044");
+                    """)).isEqualTo("045");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM information_schema.tables
@@ -73,6 +102,7 @@ class DatabaseMigrationContractTests {
                         'identity_member_profiles',
                         'catalog_external_places',
                         'operations_sync_runs',
+                        'operations_sync_failures',
                         'discovery_runs',
                         'community_visit_reviews',
                         'audio_odii_spots',
@@ -80,7 +110,7 @@ class DatabaseMigrationContractTests {
                         'stamp_ranking_profiles',
                         'identity_admin_access_token_revocations'
                       )
-                    """)).isEqualTo(11);
+                    """)).isEqualTo(12);
         }
     }
 
@@ -108,7 +138,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("044");
+                    """)).isEqualTo("045");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM onmaru.community_visit_reviews
