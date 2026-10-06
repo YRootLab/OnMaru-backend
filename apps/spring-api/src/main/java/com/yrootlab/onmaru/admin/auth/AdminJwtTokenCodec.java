@@ -43,13 +43,18 @@ public final class AdminJwtTokenCodec {
             Clock clock) {
         this(secrets, secretName, issuer, audience, lifetime, clock, new AdminJtiRevocationStore() {
             @Override
-            public void revoke(String jti, Instant expiresAt) {
+            public void revoke(UUID adminId, String jti, Instant expiresAt) {
                 // Backward-compatible no-op until the application wiring opts in.
             }
 
             @Override
             public boolean isRevoked(String jti, Instant now) {
                 return false;
+            }
+
+            @Override
+            public int deleteExpired(Instant now, int limit) {
+                return 0;
             }
         });
     }

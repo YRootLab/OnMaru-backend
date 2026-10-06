@@ -15,11 +15,11 @@ public final class AdminTokenRevocationService {
     }
 
     public void revoke(AdminAccessToken token) {
-        store.revoke(token.jti(), token.expiresAt());
+        store.revoke(token.principal().id(), token.jti(), token.expiresAt());
     }
 
-    public void revoke(String jti, Instant expiresAt) {
-        store.revoke(jti, expiresAt);
+    public void revoke(java.util.UUID adminId, String jti, Instant expiresAt) {
+        store.revoke(adminId, jti, expiresAt);
     }
 
     public boolean isRevoked(String jti) {
