@@ -9,6 +9,8 @@ public enum ApiErrorCode {
     CSRF_INVALID(HttpStatus.FORBIDDEN, "CSRF token is missing or invalid"),
     NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found"),
     IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "Idempotency key conflicts with a previous request"),
+    PLACE_IDENTITY_CONFLICT(HttpStatus.CONFLICT, "External place identity conflicts with its stored location"),
+    PLACE_OUTSIDE_SERVICE_AREA(HttpStatus.UNPROCESSABLE_ENTITY, "현재 대한민국 내 장소만 온기를 남길 수 있습니다."),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "Too many requests"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected server error");
 

@@ -105,18 +105,23 @@ public final class VisitReviewCommandService {
     }
 
     public VisitReview createExternal(UUID memberId, CreateExternalPlaceVisitReviewCommand command) {
+        var normalized = normalizeExternal(command);
+
+        return transaction.execute(() -> {
+            var regionCode = externalPlaceRegionResolver.resolve(normalized.place());
+            var place = externalPlaceRegistry.resolveOrCreate(normalized.place(), regionCode);
+            return createReview(memberId, place.publicPlaceId(), place.name(), place.regionCode(), place.lat(), place.lng(),
+                    normalized.text(), normalized.mood(), normalized.score(), normalized.tags());
+        });
+    }
+
+    public CreateExternalPlaceVisitReviewCommand normalizeExternal(CreateExternalPlaceVisitReviewCommand command) {
         var candidate = externalPlacePolicy.validate(command.place());
         var text = normalizeText(command.text());
         var mood = normalizeMood(command.mood());
         var score = normalizeScore(command.score());
         var tags = tagPolicy.normalize(command.tags());
-
-        return transaction.execute(() -> {
-            var regionCode = externalPlaceRegionResolver.resolve(candidate);
-            var place = externalPlaceRegistry.resolveOrCreate(candidate, regionCode);
-            return createReview(memberId, place.publicPlaceId(), place.name(), place.regionCode(), place.lat(), place.lng(),
-                    text, mood, score, tags);
-        });
+        return new CreateExternalPlaceVisitReviewCommand(candidate, text, mood, score, tags);
     }
 
     private VisitReview createReview(
