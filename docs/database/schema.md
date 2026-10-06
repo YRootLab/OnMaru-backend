@@ -131,6 +131,11 @@
 // identity_admin_sessions에 저장하며, 후기/신고 변경은 기존 community moderation command와
 // 같은 transaction에서 audit row를 남긴다. curation override는 TourAPI 원천 행을 수정하지 않고
 // active Catalog projection에 별도로 적용한다.
+// V044는 관리자 access token의 logout 직후 폐기와 계정 단위 전체 폐기 경계를 추가한다.
+// identity_admin_access_token_revocations에는 token/JTI 원문이 아닌 SHA-256 JTI hash와 exp만
+// 저장하며, identity_admin_accounts.tokens_valid_after 이전 iat의 token은 거부한다.
+// production 인증은 두 값을 PostgreSQL에서 조회하고 장애 시 fail-closed 하며, 만료된 폐기 row는
+// 시간당 bounded cleanup으로 제거한다.
 // V037은 V036보다 먼저 게시된 활성 TourAPI revision의 지도 장소·카테고리·지역 집계
 // projection 및 publication을 원천 장소 변경 없이 채운다. 지역 코드가 없는 장소도
 // 위치와 공개 ID가 있으면 지도 목록에 포함하고 지역 집계에서는 제외한다.

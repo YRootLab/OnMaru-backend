@@ -383,6 +383,15 @@
       "checksum": "external-place-registry-v043-20261006",
       "sha256": "3bb0a7969e4295743c886c895664c351259e69e1995315a809072dccb2d14122",
       "description": "Client-asserted Kakao place identity and immutable VisitReview snapshot source"
+    },
+    {
+      "version": "044",
+      "reservedFor": "ADMIN_JWT_REVOCATION",
+      "issueNumber": 492,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V044__492_admin_jwt_revocation.sql",
+      "checksum": "admin-jwt-revocation-v044-20261006",
+      "sha256": "428fe94ccd759eaf6cbc10cfcffeaabdfa21fb95f4ec2f6cd2df110f1b0fea7e",
+      "description": "Persist admin access-token revocations and account token validity boundary"
     }
   ]
 }

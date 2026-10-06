@@ -77,6 +77,30 @@ Table identity_exploration_grants [headercolor: #4E79A7] {
   }
 }
 
+Table identity_admin_accounts [headercolor: #4E79A7] {
+  id uuid [pk]
+  email varchar [not null]
+  password_hash varchar [not null]
+  nickname varchar [not null]
+  role varchar [not null]
+  status varchar [not null]
+  last_login_at timestamptz
+  tokens_valid_after timestamptz [not null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+Table identity_admin_access_token_revocations [headercolor: #4E79A7] {
+  jti_hash varchar [pk, note: 'SHA-256 hash of the JWT ID; raw JTI values are never persisted']
+  admin_id uuid [not null]
+  expires_at timestamptz [not null]
+  revoked_at timestamptz [not null]
+
+  Indexes {
+    expires_at
+  }
+}
+
 TableGroup identity [color: #4E79A7, note: 'Member identity, external OAuth accounts, guest identity, sessions, and temporary exploration grants.'] {
   identity_members
   identity_external_accounts
@@ -84,9 +108,12 @@ TableGroup identity [color: #4E79A7, note: 'Member identity, external OAuth acco
   identity_guests
   identity_oauth_states
   identity_exploration_grants
+  identity_admin_accounts
+  identity_admin_access_token_revocations
 }
 
 Ref: identity_external_accounts.member_id > identity_members.id
 Ref: identity_sessions.member_id > identity_members.id
 Ref: identity_oauth_states.guest_id >? identity_guests.id
 Ref: identity_exploration_grants.member_id > identity_members.id
+Ref: identity_admin_access_token_revocations.admin_id > identity_admin_accounts.id

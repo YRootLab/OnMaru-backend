@@ -48,6 +48,26 @@ CREATE TABLE "identity_exploration_grants" (
   PRIMARY KEY ("member_id", "exploration_id")
 );
 
+CREATE TABLE "identity_admin_accounts" (
+  "id" varchar(36) PRIMARY KEY,
+  "email" varchar NOT NULL,
+  "password_hash" varchar NOT NULL,
+  "nickname" varchar NOT NULL,
+  "role" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "last_login_at" timestamp,
+  "tokens_valid_after" timestamp NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
+);
+
+CREATE TABLE "identity_admin_access_token_revocations" (
+  "jti_hash" varchar PRIMARY KEY,
+  "admin_id" varchar(36) NOT NULL,
+  "expires_at" timestamp NOT NULL,
+  "revoked_at" timestamp NOT NULL
+);
+
 CREATE TABLE "catalog_regions" (
   "id" varchar(36) PRIMARY KEY,
   "parent_id" varchar(36),
@@ -816,6 +836,8 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -886,6 +908,8 @@ ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identi
 ALTER TABLE "identity_oauth_states" ADD FOREIGN KEY ("guest_id") REFERENCES "identity_guests" ("id");
 
 ALTER TABLE "identity_exploration_grants" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id");
+
+ALTER TABLE "identity_admin_access_token_revocations" ADD FOREIGN KEY ("admin_id") REFERENCES "identity_admin_accounts" ("id");
 
 ALTER TABLE "catalog_regions" ADD FOREIGN KEY ("parent_id") REFERENCES "catalog_regions" ("id");
 
