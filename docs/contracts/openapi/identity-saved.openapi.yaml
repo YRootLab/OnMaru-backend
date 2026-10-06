@@ -139,6 +139,35 @@ paths:
                 type: string
         '403':
           $ref: '#/components/responses/Error'
+  /members/nickname/check:
+    get:
+      tags: [Member]
+      operationId: checkMemberNicknameAvailability
+      summary: Check whether a normalized nickname is available to the current member.
+      parameters:
+        - name: value
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 20
+      responses:
+        '200':
+          description: Nickname availability. The current member's own nickname is available.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NicknameAvailability'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
   /members/me:
     get:
       tags: [Member]
@@ -187,6 +216,8 @@ paths:
         '401':
           $ref: '#/components/responses/Error'
         '403':
+          $ref: '#/components/responses/Error'
+        '409':
           $ref: '#/components/responses/Error'
     delete:
       tags: [Member]
@@ -489,6 +520,13 @@ components:
           $ref: '#/components/schemas/CharacterId'
         backgroundId:
           $ref: '#/components/schemas/BackgroundId'
+    NicknameAvailability:
+      type: object
+      additionalProperties: false
+      required: [available]
+      properties:
+        available:
+          type: boolean
     MemberDeletingStatus:
       type: object
       additionalProperties: false

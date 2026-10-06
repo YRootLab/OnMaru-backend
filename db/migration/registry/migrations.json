@@ -365,6 +365,15 @@
       "checksum": "map-region-display-names-v041-20261005",
       "sha256": "bb9d93741b12484252137f9739132bd8b2c314849a08b0dfd98e7222598d06ae",
       "description": "Korean viewport labels for TourAPI administrative region codes"
+    },
+    {
+      "version": "042",
+      "reservedFor": "UNIQUE_MEMBER_NICKNAMES",
+      "issueNumber": 640,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V042__640_unique_member_nicknames.sql",
+      "checksum": "unique-member-nicknames-v042-20261006",
+      "sha256": "889def032e5e724f60daeb1a5b1ebc811ec3de750f547b2cb51f9946bc628251",
+      "description": "Unique member nicknames with deterministic repair of historical duplicates"
     }
   ]
 }

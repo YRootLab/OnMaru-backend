@@ -32,6 +32,9 @@ public final class MemberProfileService {
         var backgroundId = patch.backgroundId() == null
                 ? null
                 : parseBackground(patch.backgroundId());
+        if (displayName != null && store.existsByDisplayNameExcludingMember(displayName, memberId)) {
+            throw new MemberProfileDuplicateException();
+        }
         return store.updateActiveProfile(memberId, displayName, characterId, backgroundId, updatedAt);
     }
 
@@ -42,7 +45,15 @@ public final class MemberProfileService {
         return store.findByMemberIds(Set.copyOf(memberIds));
     }
 
+    public boolean isDisplayNameAvailable(UUID memberId, String rawDisplayName) {
+        var displayName = normalizeDisplayName(rawDisplayName);
+        return !store.existsByDisplayNameExcludingMember(displayName, memberId);
+    }
+
     private String normalizeDisplayName(String raw) {
+        if (raw == null) {
+            throw new MemberProfileInvalidException("displayName");
+        }
         var normalized = Normalizer.normalize(raw.strip(), Normalizer.Form.NFC);
         int length = normalized.codePointCount(0, normalized.length());
         if (length < 2
