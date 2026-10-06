@@ -1,5 +1,13 @@
 # handoff.md
 
+## 2026-10-06 Issue #643 외부 장소 VisitReview 설계
+
+- 브랜치: `docs/643-external-place-review-design`, 관련 Issue: #643.
+- 요청: FE Kakao 장소 검색 결과로 대한민국 내 모든 장소에 온기를 작성할 수 있도록 현재 API의 제약을 분석하고 장소·태그 validation 및 FE 오류 계약을 구체화한다.
+- 결정: 백엔드는 Kakao API를 재조회하지 않는 MVP로 시작한다. 신규 `POST /api/v1/visit-reviews`에서 외부 장소를 resolve-or-create하고, 대한민국 bbox 밖은 거절하며 bbox 안의 region 미해결 장소는 `kr-unassigned`로 허용한다. 태그는 선행 `#` 하나만 호환 정규화하고 canonical 값에는 `#`을 저장하지 않으며, 잘못된 태그가 하나라도 있으면 후기 전체를 거절한다. FE와 BE는 같은 OpenAPI 정책으로 각각 UX validation과 최종 validation을 수행한다.
+- 문서: `docs/superpowers/specs/2026-10-06-external-place-visit-review-design.md`.
+- 다음 결정: 기존 revision Catalog에 즉시 게시하지 않는 Catalog-owned 경량 external-place registry의 영속 모델과 ownership을 우선 설계한다. 이후 기존 TourAPI 장소 중복, `kr-unassigned` 표현, 위치 충돌 거리, public ID, rate limit, FE rollout을 확정한다.
+
 ## 2026-10-06 Issue #647 스테이징 공개 API fixture
 
 - 브랜치: `feature/647-staging-api-fixtures`, 관련 Issue: #647.
