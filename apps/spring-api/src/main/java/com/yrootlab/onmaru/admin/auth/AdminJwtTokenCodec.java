@@ -33,6 +33,7 @@ public final class AdminJwtTokenCodec {
     private final Duration lifetime;
     private final Clock clock;
     private final AdminJtiRevocationStore revokedJtis;
+    private final AdminTokenValidityStore tokenValidity;
 
     public AdminJwtTokenCodec(
             SecretProvider secrets,
@@ -56,7 +57,8 @@ public final class AdminJwtTokenCodec {
             public int deleteExpired(Instant now, int limit) {
                 return 0;
             }
-        });
+        }, adminId -> java.util.Optional.of(
+                new AdminTokenValidity(AdminAccountStatus.ACTIVE, Instant.MIN)));
     }
 
     public AdminJwtTokenCodec(
@@ -67,6 +69,20 @@ public final class AdminJwtTokenCodec {
             Duration lifetime,
             Clock clock,
             AdminJtiRevocationStore revokedJtis) {
+        this(secrets, secretName, issuer, audience, lifetime, clock, revokedJtis,
+                adminId -> java.util.Optional.of(
+                        new AdminTokenValidity(AdminAccountStatus.ACTIVE, Instant.MIN)));
+    }
+
+    public AdminJwtTokenCodec(
+            SecretProvider secrets,
+            String secretName,
+            String issuer,
+            String audience,
+            Duration lifetime,
+            Clock clock,
+            AdminJtiRevocationStore revokedJtis,
+            AdminTokenValidityStore tokenValidity) {
         this.secrets = secrets;
         this.secretName = secretName;
         this.issuer = issuer;
@@ -74,6 +90,7 @@ public final class AdminJwtTokenCodec {
         this.lifetime = lifetime;
         this.clock = clock;
         this.revokedJtis = revokedJtis;
+        this.tokenValidity = tokenValidity;
     }
 
     public String issue(AdminPrincipal principal) {
@@ -116,22 +133,31 @@ public final class AdminJwtTokenCodec {
             Map<String, Object> claims = readMap(parts[1]);
             long now = Instant.now(clock).getEpochSecond();
             long expiresAt = number(claims, "exp");
+            long issuedAt = number(claims, "iat");
             if (!issuer.equals(claims.get("iss"))
                     || !audience.equals(claims.get("aud"))
                     || expiresAt <= now
-                    || number(claims, "iat") > now + 30) {
+                    || issuedAt > now + 30) {
                 throw new AdminAuthenticationException();
             }
             AdminPrincipal principal = new AdminPrincipal(
                     UUID.fromString(string(claims, "sub")),
                     string(claims, "email"),
                     AdminRole.valueOf(string(claims, "role")));
+            AdminTokenValidity validity = tokenValidity.findByAdminId(principal.id())
+                    .orElseThrow(AdminAuthenticationException::new);
+            if (validity.status() != AdminAccountStatus.ACTIVE
+                    || Instant.ofEpochSecond(issuedAt).isBefore(validity.tokensValidAfter())) {
+                throw new AdminAuthenticationException();
+            }
             String jti = string(claims, "jti");
             if (revokedJtis.isRevoked(jti, Instant.ofEpochSecond(now))) {
                 throw new AdminAuthenticationException();
             }
             return new AdminAccessToken(principal, jti, Instant.ofEpochSecond(expiresAt));
-        } catch (AdminAuthenticationException exception) {
+        } catch (AdminTokenStoreException exception) {
+            throw new AdminAuthenticationUnavailableException(exception);
+        } catch (AdminAuthenticationException | AdminAuthenticationUnavailableException exception) {
             throw exception;
         } catch (RuntimeException | IOException exception) {
             throw new AdminAuthenticationException();

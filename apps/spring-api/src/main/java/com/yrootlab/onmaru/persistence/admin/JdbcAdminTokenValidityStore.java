@@ -3,6 +3,7 @@ package com.yrootlab.onmaru.persistence.admin;
 import com.yrootlab.onmaru.admin.auth.AdminAccountStatus;
 import com.yrootlab.onmaru.admin.auth.AdminTokenValidity;
 import com.yrootlab.onmaru.admin.auth.AdminTokenValidityStore;
+import com.yrootlab.onmaru.admin.auth.AdminTokenStoreException;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
@@ -39,7 +40,7 @@ public final class JdbcAdminTokenValidityStore implements AdminTokenValidityStor
                         timestamp == null ? Instant.MIN : timestamp.toInstant()));
             }
         } catch (SQLException exception) {
-            throw new IllegalStateException("Failed to load admin token validity", exception);
+            throw new AdminTokenStoreException("Failed to load admin token validity", exception);
         }
     }
 }
