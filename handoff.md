@@ -1,5 +1,23 @@
 # handoff.md
 
+## 2026-10-07 Issue #673 온마루 서비스 재평가·K-콘텐츠 사업화
+
+- 브랜치: `docs/673-onmaru-reevaluation`.
+- 요청: 개선된 공개 온마루를 공모전·VC 스킬 기준으로 다시 평가하고, 팀 제공 한옥 관련 원천 약 1만 건과 계획 중인 K-드라마/K-pop 라벨링을 반영해 보고서 두 편을 갱신한다.
+- 공개 근거: 2026-10-07 한옥 목록 API `totalCount: 1096`, `HANOK` 필터 208, `screen-hanok` 0. 첫 목록에 비관련 `HANOK_EXPERIENCE` 사례. FE 개발 브랜치의 빈 응답 fallback, BE의 출처 기반 자동 게시 ADR과 #603을 확인했다.
+- 변경: `docs/reports/2026-10-07-onmaru-tourism-contest-review.md`, `docs/reports/2026-10-07-onmaru-venture-review.md`. 공식 기준/실제 API/이전 화면 관찰/팀 제공치/추론을 구분했다. 공모전 63/100, VC 잠정 36/100 및 점수 변경 조건을 기록했다.
+- 검증: `git diff --cached --check`, 두 보고서의 로컬 링크 검사, 점수 산술(63·36), `node scripts/verify-planning-inputs.mjs`, `node scripts/validate-odii-fixtures.mjs` 통과.
+- 남은 한계: 2026-10-07 동적 화면은 재검증하지 못했다. 작품–장소 관계 검증률, 현장 전환, 결제·재계약, RAG 답변 정확도는 미확인이다.
+
+## 2026-10-02 Issue #567 온마루 서비스 평가
+
+- 브랜치: `docs/567-onmaru-service-evaluation`.
+- 사용자 요청: 공개 사이트를 한국관광공사 관광데이터 공모전과 VC 관점에서 각각 냉정하게 평가하고, 점수 근거·개선 우선순위·한옥/RAG의 킥·사업화 경로를 두 보고서로 남긴다.
+- 2026-10-07 방향 수정: 범용 여행 일정은 주력 가치에서 제외한다. TourAPI의 전체 레코드 수와 한옥 일정에 필요한 실제 장소·운영·예약 정보의 충족률을 구분하고, 검수된 장소별 현장 도슨트·RAG·3D·Odii 경험을 중심으로 두 보고서를 수정했다.
+- 변경: `docs/reports/2026-10-02-onmaru-tourism-contest-review.md`, `docs/reports/2026-10-02-onmaru-venture-review.md`. 공개 화면 표본, 2026 공식 공고·PDF, 내부 설계 문서를 구분했다.
+- 검증: `git diff --check`, Node 테스트 127개, `verify-planning-inputs`, `validate-odii-fixtures`, 두 보고서의 로컬 상대 링크 확인 통과.
+- 다음 단계: 보고서 공유·검토. 실제 RAG 답변 정확도, 여정 완료율, 매출·유지율은 미확인으로 남긴다.
+
 ## 2026-10-01 Issue #561 운영 온기 히트맵
 
 - 브랜치: `fix/561-warmth-heatmap`.
