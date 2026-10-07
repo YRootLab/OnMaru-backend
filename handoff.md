@@ -1,5 +1,13 @@
 # handoff.md
 
+## 2026-10-08 Issue #677 DBML 계약 검증 도구 고정
+
+- 브랜치: `fix/677-dbml-toolchain`, 관련 Issue: #677, 선행 PR: #676.
+- 요청: CI contract job의 DBML 전이 의존성 drift를 재현 가능한 toolchain 설치로 복구한다.
+- 구현: `scripts/dbml-toolchain`의 manifest·lock과 DBML 내부 패키지 override를 추가하고, wrapper가 매번 `npm ci` 이후 해당 로컬 CLI만 실행하도록 고정했다. 계약 테스트는 전체 lock, 경로·인수 전달, 설치 실패 시 stale CLI 실행 차단을 검증한다.
+- 검증: wrapper 계약 2개 red→green, parse lock 버전 drift mutation 실패→복구 green, Node v22.20.0 실제 변환·전체 `bash scripts/verify-contracts`·생성 SQL diff 일치, Python 3.12 contract 12개, Node 228개 및 hygiene 통과. 전체 Node 검증은 비어 있는 공유 `/tmp/onmaru-ci-toolkit-9c6f003/src`를 우회해 별도 임시 checkout의 고정 Toolkit SHA `7ecbb89aae771604d9c1c532cf123f239e279110`를 `ONMARU_TOOLKIT_SRC`로 지정했다.
+- 다음 단계: #677을 참조하는 develop 대상 PR 생성·리뷰, 필수 CI `verify` 확인 후 병합한다. PR #676의 실패한 contract 경로도 후속 CI에서 확인한다. npm 설치 단계는 CLI의 기존 전이 패키지 deprecation 경고를 출력하지만 검증은 성공한다.
+
 ## 2026-10-07 Issue #671 실시간 온기 CSRF 예외 및 MockMvc 호환성 수정
 
 - 브랜치: `fix/671-warmth-csrf-bypass`, 관련 Issue: #671, PR: #672.

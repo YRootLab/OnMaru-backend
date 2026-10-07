@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec npx \
-  --yes \
-  --package=@types/node@22.20.2 \
-  --package=@dbml/cli@10.1.1 \
-  -- \
-  dbml2sql "$@"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+toolchain_dir="$script_dir/dbml-toolchain"
+
+# Reinstall from the committed lock so cached/global CLI dependencies cannot drift.
+# Keep npm output on stderr because stdout is the generated SQL artifact.
+npm ci --prefix "$toolchain_dir" --ignore-scripts --no-audit --no-fund >&2
+
+exec "$toolchain_dir/node_modules/.bin/dbml2sql" "$@"
