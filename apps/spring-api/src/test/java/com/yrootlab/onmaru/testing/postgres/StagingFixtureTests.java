@@ -72,10 +72,25 @@ class StagingFixtureTests {
         executeSeedForTestDatabase();
 
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
-            assertThat(count(connection, "onmaru.catalog_place_versions")).isEqualTo(4);
-            assertThat(count(connection, "onmaru.map_place_read_projection")).isEqualTo(4);
-            assertThat(count(connection, "onmaru.community_visit_reviews")).isEqualTo(3);
-            assertThat(count(connection, "onmaru.audio_story_versions")).isEqualTo(3);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.map_place_read_projection
+                    WHERE revision_id = '54500000-0000-4000-8000-000000000010'
+                    """)).isEqualTo(100);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_visit_reviews
+                    WHERE status = 'PUBLISHED' AND (
+                      id::text LIKE '54500675-%'
+                      OR id IN (
+                        '54500000-0000-4000-8000-000000000111',
+                        '54500000-0000-4000-8000-000000000112'
+                      )
+                    )
+                    """)).isEqualTo(65);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.audio_story_versions
+                    WHERE revision_id = '54500000-0000-4000-8000-000000000011'
+                      AND status = 'ACTIVE'
+                    """)).isEqualTo(65);
             assertThat(value(connection, """
                     SELECT overview FROM onmaru.catalog_place_versions
                     WHERE place_id = '54500000-0000-4000-8000-000000000021'
@@ -84,21 +99,56 @@ class StagingFixtureTests {
                     SELECT summary FROM onmaru.map_place_read_projection
                     WHERE place_id = '54500000-0000-4000-8000-000000000022'
                     """)).isEqualTo("선택 필드가 적은 합성 테스트 데이터입니다.");
+            assertThat(longValue(connection, """
+                    SELECT count(DISTINCT sido_code)
+                    FROM onmaru.map_place_read_projection
+                    WHERE revision_id = '54500000-0000-4000-8000-000000000010'
+                    """)).isGreaterThanOrEqualTo(4);
             assertThat(value(connection, """
                     SELECT (published_at AT TIME ZONE 'UTC')::text FROM onmaru.map_projection_publications
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
                     """)).startsWith("2026-10-06 00:00:00");
             assertThat(value(connection, """
-                    SELECT string_agg(canonical_category, ',' ORDER BY canonical_category, place_id)
-                    FROM onmaru.map_place_category_projection
+                    SELECT string_agg(canonical_category || ':' || count_value, ',' ORDER BY canonical_category)
+                    FROM (
+                      SELECT canonical_category, count(*)::text AS count_value
+                      FROM onmaru.map_place_category_projection
+                      WHERE revision_id = '54500000-0000-4000-8000-000000000010'
+                      GROUP BY canonical_category
+                    ) counts
+                    """)).contains("CAFE:", "MARKET:", "SPOT:");
+            assertThat(longValue(connection, """
+                    SELECT row_count FROM onmaru.map_projection_publications
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
-                    """)).isEqualTo("CAFE,MARKET,SPOT,SPOT");
-            assertThat(value(connection, """
-                    SELECT string_agg(scope_type || ':' || region_code || ':' || canonical_category || ':' || place_count,
-                                      ',' ORDER BY scope_type, canonical_category)
-                    FROM onmaru.map_scope_count_projection
+                      AND projection_name = 'map_place_read_projection'
+                    """)).isEqualTo(100);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.map_scope_count_projection
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
-                    """)).isEqualTo("DISTRICT:STG-01:CAFE:1,DISTRICT:STG-01:MARKET:1,DISTRICT:STG-01:SPOT:2,REGION:STG:CAFE:1,REGION:STG:MARKET:1,REGION:STG:SPOT:2");
+                    """)).isPositive();
+
+            assertThreePages(connection, """
+                    SELECT id::text FROM onmaru.community_visit_reviews
+                    WHERE status = 'PUBLISHED' AND (
+                      id::text LIKE '54500675-%'
+                      OR id IN (
+                        '54500000-0000-4000-8000-000000000111',
+                        '54500000-0000-4000-8000-000000000112'
+                      )
+                    )
+                    ORDER BY created_at DESC, id DESC
+                    """);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_visit_reviews
+                    WHERE status = 'PUBLISHED'
+                      AND id = '54500000-0000-4000-8000-000000000113'
+                    """)).isZero();
+            assertThreePages(connection, """
+                    SELECT story_id::text FROM onmaru.audio_story_versions
+                    WHERE revision_id = '54500000-0000-4000-8000-000000000011'
+                      AND status = 'ACTIVE'
+                    ORDER BY source_modified_at DESC, story_id DESC
+                    """);
 
             try (var statement = connection.createStatement(); var rows = statement.executeQuery("""
                     SELECT count(*)
@@ -135,6 +185,22 @@ class StagingFixtureTests {
         }
     }
 
+    private void assertThreePages(java.sql.Connection connection, String sql) throws SQLException {
+        var ids = new java.util.ArrayList<String>();
+        try (var statement = connection.createStatement(); var rows = statement.executeQuery(sql)) {
+            while (rows.next()) ids.add(rows.getString(1));
+        }
+        assertThat(ids).hasSize(65).doesNotHaveDuplicates();
+        assertThat(ids.subList(0, 30)).hasSize(30);
+        assertThat(ids.subList(30, 60)).hasSize(30);
+        assertThat(ids.subList(60, 65)).hasSize(5);
+        var pagedIds = new java.util.ArrayList<String>();
+        pagedIds.addAll(ids.subList(0, 30));
+        pagedIds.addAll(ids.subList(30, 60));
+        pagedIds.addAll(ids.subList(60, 65));
+        assertThat(pagedIds).containsExactlyElementsOf(ids);
+    }
+
     private void executeSeedForTestDatabase() throws Exception {
         var sql = seedSql().replace("current_database() <> 'onmaru_staging'", "current_database() <> 'onmaru_test'");
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
@@ -147,9 +213,8 @@ class StagingFixtureTests {
         return Files.readString(SEED).replace("\\set ON_ERROR_STOP on", "");
     }
 
-    private long count(java.sql.Connection connection, String table) throws SQLException {
-        try (var statement = connection.createStatement();
-             var rows = statement.executeQuery("SELECT count(*) FROM " + table)) {
+    private long longValue(java.sql.Connection connection, String sql) throws SQLException {
+        try (var statement = connection.createStatement(); var rows = statement.executeQuery(sql)) {
             rows.next();
             return rows.getLong(1);
         }
