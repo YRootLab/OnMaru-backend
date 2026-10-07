@@ -68,8 +68,10 @@ docs/database/azimutt/onmaru-schema.azimutt-strict.sql
 DBML 문법과 import 해석이 깨지지 않았는지 확인하려면 PostgreSQL 변환 검증을 실행한다.
 
 ```bash
-npx -y -p @dbml/cli dbml2sql docs/database/schema.dbml --postgres
+scripts/dbml2sql docs/database/schema.dbml --postgres
 ```
+
+Node.js 22와 npm이 필요하다. 이 wrapper는 `scripts/dbml-toolchain/package-lock.json`을 기준으로 `npm ci`를 실행해 CLI와 전이 의존성을 함께 고정한다. 설치 로그는 stderr로 전달하고 stdout에는 변환된 SQL만 출력한다. CI의 `bash scripts/verify-contracts`도 같은 wrapper를 사용한다. 도구 버전을 바꿀 때는 이 디렉터리의 manifest와 lock 파일을 함께 갱신하고 계약 및 생성물 검증을 실행한다.
 
 `overview.dbml`은 Level 1 System Overview다. 핵심 anchor table과 cross-module FK만 보여준다.
 
