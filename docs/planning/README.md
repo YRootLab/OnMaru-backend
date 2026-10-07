@@ -18,7 +18,7 @@
 
 ## 읽는 순서
 
-**장소·작품 데이터 정책 검토안:** [TourAPI 선별 수집·K-Contents 연계 PRD](onmaru-place-kcontents-prd.md). 2026-10-07 실제 원천/API·운영 DB 관측치와 현재 FE 계약을 바탕으로, 기존 스크린 속 한옥 설계와 충돌하는 새 정책을 검토용으로 정리했다. 기존 ADR·Issue를 자동으로 대체하지 않는다.
+**장소·작품 데이터 정책 검토안:** [TourAPI 선별 수집·K-Contents 연계 기획](place-kcontents/README.md). 2026-10-07 실제 원천/API·운영 DB 관측치와 현재 FE 계약을 바탕으로, 기존 스크린 속 한옥 설계와 충돌하는 새 정책을 검토용으로 정리했다. 기존 ADR·Issue를 자동으로 대체하지 않는다.
 
 **추가 요청 반영:** [이야기길 확장 PRD·FE 감사·추천/AI·SSE·공모전 평가](journey-exploration/README.md). 주간 TOP5, 게시형 큐레이션, 실제 온기 API, 선택 보존형 탐색을 다룬다. 아래 최초 계획과 다른 부분은 확장안에서 변경 이유와 검토 상태를 명시했다.
 

@@ -206,6 +206,10 @@ erDiagram
     CREATIVE_PARTY ||--o{ CREATIVE_PARTY_ALIAS : named_as
     K_CONTENT ||--o{ WORK_METADATA_SOURCE : documented_by
     WORK_METADATA_SOURCE ||--o{ K_CONTENT_CREDIT : supports
+    TAG_DEFINITION ||--o{ TAG_ALIAS : named_as
+    TAG_DEFINITION o|--o{ TAG_CANDIDATE : resolved_as
+    WORK_METADATA_SOURCE o|--o{ TAG_CANDIDATE : proposes
+    RELATION_EVIDENCE o|--o{ TAG_CANDIDATE : proposes
     TAG_DEFINITION ||--o{ WORK_TAG : classifies
     TAG_DEFINITION ||--o{ RELATION_TAG : classifies
     K_CONTENT ||--o{ WORK_TAG : has
@@ -273,6 +277,24 @@ erDiagram
       string code UK
       string group_code
       string label_ko
+      string label_en
+      string status
+    }
+    TAG_ALIAS {
+      uuid id PK
+      uuid tag_id FK
+      string locale
+      string normalized_alias
+    }
+    TAG_CANDIDATE {
+      uuid id PK
+      uuid resolved_tag_id FK
+      uuid work_source_id FK
+      uuid relation_evidence_id FK
+      string raw_label
+      string normalized_label
+      string scope
+      string group_hint
       string status
     }
     WORK_TAG {
@@ -347,7 +369,7 @@ erDiagram
 
 ### 소재 태그와 화면 해시태그
 
-해시태그는 FE가 보여줄 **표현**이고, 저장할 데이터는 안정된 코드·대상·근거를 가진 **다중 태그 관계**다. 같은 단어라도 무엇을 설명하는지에 따라 달라진다.
+해시태그는 FE가 보여줄 **표현**이고, 저장할 데이터는 안정된 식별자·대상·근거를 가진 **다중 태그 관계**다. 태그 **값은 사전 정의한 enum/허용 목록으로 제한하지 않는다**. 새로운 장르·전통문화 소재·촬영 맥락을 근거 문서에서 자유롭게 제안할 수 있지만, 공개 필터에는 검증·정규화된 태그만 들어간다. 같은 단어라도 무엇을 설명하는지에 따라 달라진다.
 
 | 축 | 저장 대상·예시 | 판정 방식 |
 |---|---|---|
@@ -356,7 +378,13 @@ erDiagram
 | 장소 성격 | `고궁`, `고택`, `한옥 카페`, `전통시장` | K-Contents 태그로 복제하지 않고 Catalog의 검증된 장소 역할/신분류를 조합. |
 | 구조적 표시 태그 | `#K드라마`, `#영화촬영지`, `#미스터션샤인`, `#안동` 등 | 작품 타입·관계·정규화 작품명·지역에서 **표시 시점에 생성**. 별도 사실 라벨로 중복 저장하지 않음. |
 
-`TAG_DEFINITION`은 `code`, `group_code`, 한국어 표시명, 검색 동의어/해시태그 표기, 활성 상태, 정책 버전을 관리한다. `WORK_TAG`는 작품·태그, `RELATION_TAG`는 촬영 관계·태그 조합을 각각 유일하게 유지한다. 한 작품/관계에 태그를 여러 개 붙일 수 있지만, 각 태그는 무엇을 설명하는지와 대표 근거를 추적한다. LLM이 새로운 표현을 발견하면 **새 태그 제안**으로 격리해 registry 검토 후 추가한다. 자유 문자열 수천 개를 그대로 공개 태그로 만들지 않는다. 사람이 붙인 주관적 큐레이션 태그는 사실 태그와 섞지 않고 별도 후속 정책으로 다룬다.
+`TAG_DEFINITION`은 변경되지 않는 내부 ID/공개 코드, 제한된 대상·그룹(`WORK_GENRE`, `WORK_THEME`, `RELATION_CONTEXT`), 한국어·영어 표시명, 동의어/해시태그 표기, 활성 상태와 정책 버전을 관리한다. **그룹과 대상만 통제 어휘**이고 개별 태그 값은 실행 중 확장할 수 있다. `TAG_ALIAS`는 원문·띄어쓰기·한/영 표기 차이를 canonical 태그에 연결한다. `WORK_TAG`는 작품·태그, `RELATION_TAG`는 촬영 관계·태그 조합을 각각 유일하게 유지한다. 한 작품/관계에 여러 태그를 붙일 수 있지만 각 연결은 자신을 지지하는 작품 메타데이터 출처 또는 촬영 관계 근거를 가리킨다.
+
+LLM/검수자가 문서에서 찾은 표현은 `TAG_CANDIDATE`에 **원문, 정규화 문자열, 대상·그룹 제안, evidence ID·짧은 지지 문구, 추출 실행/모델 버전**과 함께 보존한다. 서버는 Unicode·공백·문장부호 같은 안전한 표기 정규화와 기존 정확 일치/alias 조회를 먼저 수행한다. 기존 canonical 태그와 명확히 일치하면 검증된 근거 아래 재사용한다. `사극`/`시대극`처럼 의미상 유사하지만 자동 병합이 불확실하거나, 처음 보는 개념이면 태그 후보만 `REVIEW_REQUIRED`로 둔다. 검토자는 기존 태그의 alias로 연결, 새 canonical 태그 승인, 거절 중 하나를 결정한다. 이 검토는 **새 어휘와 애매한 병합**에 집중하며, 이미 승인된 태그가 다른 작품에 쓰일 때마다 다시 검수하지 않는다. 번역만 다른 태그를 새 사실로 늘리지 않으며, 영문 표시명이 아직 검증되지 않았으면 억지 번역을 공개하지 않는다.
+
+`TAG_CANDIDATE`는 작품 메타데이터 출처 또는 촬영 관계 근거 중 **정확히 하나의 FK**를 가지며, 해당 대상과 `scope`가 일치해야 한다. 같은 대상·근거·정규화 표현의 재제출은 upsert로 멱등 처리한다. 태그 코드/ID는 서버가 승인 시 발급하고 alias의 정규화 키는 같은 대상·그룹 안에서 충돌 검사를 한다. 후보의 원문과 승인된 canonical 표시명을 분리해 두어 나중에 동의어 정책을 고쳐도 원래 근거를 잃지 않는다.
+
+태그 후보가 반려·보류되어도 유효한 장소–작품 촬영 관계 자체를 취소하지 않는다. 후보 원문과 근거는 조사 이력에 남지만 공개 해시태그·facet에는 올리지 않는다. canonical 태그의 병합/alias 변경 시에는 **태그 매핑과 read model만 재계산**하며, 동일 근거를 다시 검색하거나 LLM에 재질문하지 않는다. 자유 문자열 수천 개를 그대로 공개 필터로 만드는 것도, 신규 표현이 나올 때마다 코드 배포가 필요한 것도 피한다. 사람이 붙인 주관적 큐레이션 태그는 사실 태그와 섞지 않고 별도 후속 정책으로 다룬다.
 
 예를 들어 경복궁은 장소 역할 `고궁`, 작품 A는 근거가 확인한 `사극` 소재, 작품 A–경복궁 관계는 확인된 `FILMING_LOCATION`이다. **별도 문서가 장면을 확인할 때만** `궁궐 장면` 관계 태그를 붙인다. FE는 이를 `#사극촬영지`, `#고궁`, `#작품A`처럼 조합해 표현할 수 있지만, `#궁궐 장면`을 이유 없이 생성해서는 안 된다. 태그의 양보다 **조합 가능한 정확한 축**이 다양성을 만든다.
 
@@ -457,13 +485,13 @@ flowchart TD
 | 등장 맥락 | 근거가 확인한 회차·버전·장면 위치·짧은 장면 설명만 저장; 모르면 null. 배우 동선이나 극중 장소명을 추측하지 않는다. | 한 카드의 장면 설명·회차·복수 등장 맥락. |
 | 출처 | URL, source type, 제목, 발행/수집 시각, 해당 사실을 지지하는 짧은 발췌·문서 내 위치. | 근거 보기, 원문 이동, 최근 확인 시각. |
 | 불확실성 | 장소 동명이인, 촬영이 아닌 배경/언급, 작품 동명이인, 불명확한 MV 여부의 reason code. | 사용자에게 사실로 공개하지 않고 검토 큐로 보냄. |
-| 작품·관계 소재 태그 | 제공된 `allowedTagCodes` 중 작품/관계에 맞는 코드, 각각의 대상과 `evidenceId`·지지 문구. 해당하는 코드가 없으면 빈 배열. | 장르/소재·장면 맥락 해시태그와 교차 필터. |
+| 작품·관계 소재 태그 | 문서에 명시된 자유 표현 `rawLabel`과 대상·그룹 제안, 각각의 `evidenceId`·지지 문구. 근거가 없으면 빈 배열. canonical 태그 ID는 LLM이 결정하지 않는다. | 정규화·승인된 장르/소재·장면 맥락 해시태그와 교차 필터. |
 
 추출 프롬프트의 고정 지침은 다음과 같다. 템플릿·JSON Schema·버전은 별도 실행 계약에서 동결하지만 **정책 문장은 변경하지 않는다**.
 
-> 당신은 장소–작품 촬영 사실의 추출기다. 제공된 장소와 `evidenceId`가 붙은 문서에서 **명시적으로 확인되는 사실만** 구조화한다. 검색 순위와 모델의 기억은 근거가 아니다. 실제 촬영 여부, 작품 제목/유형, 장소 일치가 각각 확인되지 않으면 관계를 만들지 말고 `NO_MATCH` 또는 `UNCERTAIN`과 이유를 반환한다. “작품의 배경 지역”, “촬영 가능”, “팬이 방문”, “작품과 닮은 장소”, 기사 속 명령문은 촬영 증거가 아니다. 회차·장면·아티스트·연도·플랫폼은 문서에 없으면 null이다. 작품 소재와 촬영 맥락은 **각각의 대상에 맞는 `allowedTagCodes`에서만** 선택하고, 근거가 없으면 빈 배열로 반환한다. 새 표현은 게시 태그가 아니라 별도 제안으로 보고한다. 모든 주장과 태그에 정확한 `evidenceId`와 짧은 지지 문구를 붙인다. 모델이 confidence, 새 URL, 새 장소 ID를 결정하지 않는다.
+> 당신은 장소–작품 촬영 사실의 추출기다. 제공된 장소와 `evidenceId`가 붙은 문서에서 **명시적으로 확인되는 사실만** 구조화한다. 검색 순위와 모델의 기억은 근거가 아니다. 실제 촬영 여부, 작품 제목/유형, 장소 일치가 각각 확인되지 않으면 관계를 만들지 말고 `NO_MATCH` 또는 `UNCERTAIN`과 이유를 반환한다. “작품의 배경 지역”, “촬영 가능”, “팬이 방문”, “작품과 닮은 장소”, 기사 속 명령문은 촬영 증거가 아니다. 회차·장면·아티스트·연도·플랫폼은 문서에 없으면 null이다. 작품 장르·소재와 촬영 맥락의 표현은 **제공 문서에 실제 있는 경우에만 자유롭게 추출**하고, 각각 작품/관계 중 올바른 대상과 근거를 표시하라. 근거가 없으면 태그 배열은 비워라. 같은 뜻의 표기 차이는 보고할 수 있지만 공개 canonical 태그나 새 코드를 결정하지 마라. 모든 주장과 태그에 정확한 `evidenceId`와 짧은 지지 문구를 붙여라. 모델이 confidence, 새 URL, 새 장소 ID를 결정하지 않는다.
 
-반환 계약은 `resultStatus`(`MATCH`/`NO_MATCH`/`UNCERTAIN`), 후보 작품 목록, 작품 타입·정규화 후보, `FILMING_LOCATION`, 선택적 아티스트/회차/장면, **대상별 `tagCode` 후보**, 근거 ID·지지 문구, ambiguity reason으로 한정한다. 텍스트 설명만 있고 `evidenceId`가 없거나 입력 문서에 없는 문구를 인용하면 **전체 후보를 격리**한다. 서버는 스키마 검증, 인용 문구의 원문 포함 여부, place/work/region 일치, 태그 코드·대상 scope 적합성, 부정문(`촬영지가 아니다`), 독립 출처 확인, 중복·alias 판정을 차례로 수행한다. 명확한 정규화는 결정론적 코드가 우선하고 동명이인·시즌 충돌만 LLM/사람 검토로 넘긴다.
+반환 계약은 `resultStatus`(`MATCH`/`NO_MATCH`/`UNCERTAIN`), 후보 작품 목록, 작품 타입·정규화 후보, `FILMING_LOCATION`, 선택적 아티스트/회차/장면, **태그 후보별 `rawLabel`·`scope`·`groupHint`·`evidenceId`·지지 문구**, ambiguity reason으로 한정한다. 촬영 주장 자체의 근거 ID가 없거나 입력 문서에 없는 문구를 인용하면 **그 작품–장소 관계 후보를 격리**한다. 태그만 근거·대상 검증에 실패하면 **그 태그 후보만 격리**하고, 별도로 검증된 촬영 관계는 보존한다. 서버는 스키마 검증, 인용 문구의 원문 포함 여부, place/work/region 일치, 태그의 대상·그룹 적합성, 부정문(`촬영지가 아니다`), 독립 출처 확인, 작품/장소 중복·alias 판정을 차례로 수행한다. 명확한 표기 정규화는 결정론적 코드가 우선하고 의미 병합·동명이인·시즌 충돌만 LLM/사람 검토로 넘긴다.
 
 동일한 `placeId + evidence bundle hash + prompt/schema version + model version`의 성공 추출은 재사용한다. **근거가 바뀌거나 프롬프트가 바뀌면 재검증**하며, 한 건의 추출에 작품이 여러 개 나오더라도 작품–관계별로 독립 검증한다. FE용 제목·요약도 이미 검증된 사실에서 생성하고 사람이 수정한 문구는 자동 실행으로 덮어쓰지 않는다.
 
@@ -551,16 +579,16 @@ flowchart TD
 | 검색 API/CLI 비용·권한 | 무료/유료 quota 및 구독형 CLI 자동화 가능 여부 미확인 | 제공자 약관·호출량·검색 결과 이용권을 확인한 뒤 예산·TTL·일일 처리량을 확정한다. |
 | FE 미디어/섹션 계약 | 기존 endpoint 호환을 우선하되 새 UI는 데이터 모델과 품질을 확인한 **다음 단계** | 독립 페이지의 페이지네이션·예능·MV·facet·출처·연관성 UI를 별도 와이어프레임과 FE fixture로 확정한다. |
 | 작품 메타데이터 어휘 | 장르·시대 배경·아티스트/그룹·플랫폼을 어떤 출처와 통제 어휘로 공개할지 미확정 | 실제 문서 표본과 FE 사용처를 확인해 MVP 필드와 검수 정책을 정한다. 출처 없는 “유명함”은 LLM 라벨로 저장하지 않는다. |
-| 태그 registry | 장르·소재·촬영 맥락의 초기 코드와 한국어 동의어·해시태그 표시명을 아직 동결하지 않음 | 전수 조사 표본의 빈출 표현을 묶어 코드/동의어/대상 scope를 설계하고 FE와 검색 fixture로 검증한다. LLM의 새 태그 제안은 검토 후에만 활성화한다. |
+| 자유 태그 registry | 개별 태그 값은 사전 enum으로 동결하지 않음. 대상·그룹·canonical/alias·근거·게시 상태가 정책 경계 | 표본에서 정규화/동의어/한·영 표시 품질을 검증한다. 기존 태그 정확 일치는 근거 확인 후 재사용하고, 신규 개념·애매한 의미 병합만 검토 큐로 보낸다. |
 | RAG | 자료 품질 확보 후의 후보 | 장소 청킹/임베딩 기준과 갱신 트리거, 별도 FastAPI/Lightsail 비용은 다음 기획에서 결정한다. |
 
 ## 12. 근거 문서
 
-- [현재 스크린 속 한옥 API 계약](../contracts/screen-hanok-api.md): 기존 FE 필드와 호환 경계.
-- [기존 검색 하네스 설계](../superpowers/specs/2026-10-04-screen-hanok-research-harness-design.md): #603의 역사적 설계. 이 PRD와 충돌하는 자동 조사·주기·백필 범위는 현행 확정안으로 간주하지 않는다.
-- [TourAPI 국문 분석](../api/tour/tour_korean_info_api.md)과 [신분류 변환표](../api/tour/신분류체계정보_관광타입정보_연계_정의서.md): 원천 필드와 코드 의미.
-- [카탈로그 수집 설계](../spring/catalog-ingestion.md), [DB 설계](../database/schema.md), [FE–BE 추적표](../specs/traceability/fe-be-traceability-matrix.md): 현재 구현/계약과의 정합성 검토 기준.
-- [ADR-0010](../decisions/0010-screen-hanok-ai-auto-publish-without-review.md): 출처 기반 자동 게시의 역사적 출발점. 이 PRD는 발전안이며 후속 ADR 승인 전 기존 `accepted` 상태를 변경하지 않는다.
+- [현재 스크린 속 한옥 API 계약](../../contracts/screen-hanok-api.md): 기존 FE 필드와 호환 경계.
+- [기존 검색 하네스 설계](../../superpowers/specs/2026-10-04-screen-hanok-research-harness-design.md): #603의 역사적 설계. 이 PRD와 충돌하는 자동 조사·주기·백필 범위는 현행 확정안으로 간주하지 않는다.
+- [TourAPI 국문 분석](../../api/tour/tour_korean_info_api.md)과 [신분류 변환표](../../api/tour/신분류체계정보_관광타입정보_연계_정의서.md): 원천 필드와 코드 의미.
+- [카탈로그 수집 설계](../../spring/catalog-ingestion.md), [DB 설계](../../database/schema.md), [FE–BE 추적표](../../specs/traceability/fe-be-traceability-matrix.md): 현재 구현/계약과의 정합성 검토 기준.
+- [ADR-0010](../../decisions/0010-screen-hanok-ai-auto-publish-without-review.md): 출처 기반 자동 게시의 역사적 출발점. 이 PRD는 발전안이며 후속 ADR 승인 전 기존 `accepted` 상태를 변경하지 않는다.
 - [국문 TourAPI 공공데이터포털](https://www.data.go.kr/data/15101578/openapi.do): 장소·이미지 정보, `detailImage2`, 공공누리 1·3유형 및 사진 이용 제한.
 - [공공누리 이용 안내](https://www.kogl.or.kr/info/userGuide.do): 유형별 출처 표시·변경금지 조건. [한국저작권위원회 포스터 상담](https://www.copyright.or.kr/customer-center/faq/list.do?searchcounselfaqno=47299): 검색 가능한 포스터도 별도 이용허락이 필요할 수 있는 근거.
 
