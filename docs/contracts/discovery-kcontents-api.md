@@ -36,9 +36,10 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 
 - 모든 신규 경로의 기본값은 공개 GET이며 인증이 필요하지 않다. 회원 세션을 보낸 경우에도 저장 지원 여부는 응답의 `saveAvailable`이 결정한다. 새 경로는 기존 쓰기·CSRF 계약을 변경하지 않는다.
 - 기존 `ApiErrorResponse` 형식 `{"schemaVersion":"1.2","code":"...","message":"...","requestId":"...","details":{}}`을 사용한다. FE는 `message`가 아닌 `code`로 처리한다.
+- 회원별 `savedByMe`가 응답에 포함될 수 있으므로 신규 GET 응답은 `Cache-Control: no-store`로 반환한다. 세션이 없거나 만료된 경우 공개 GET은 `401` 대신 비회원 상태로 조회하고, 저장을 지원하는 장소의 `savedByMe`는 `false`다.
 - 목록 기본 `limit=20`, 범위 `1..50`. `cursor`는 opaque이며 동일 필터·정렬·limit·게시 revision에만 유효하다. 첫 페이지는 cursor 없이 요청한다. 응답은 `items`, `hasMore`, `nextCursor`(`null` 가능), `catalogRevision`, `countsAsOf`를 반환한다. 정렬 동점은 안정적인 ID로 해소한다. 게시본 교체 후에도 유효 기간 중 동일 cursor 체인은 한 revision을 읽는다. 유지 기간이 끝나면 `410 CURSOR_EXPIRED`를 반환하고 FE는 첫 페이지부터 재조회한다.
 - 목록·facet·주제 건수는 공개 승인된 동일 revision의 **고유 `placeId`/`workId`** 기준이다. 같은 장소에 작품이 여러 개여도 장소 카드·장소 건수는 중복되지 않는다. 검토 중·거절·근거 없는 관계는 공개 목록과 건수에서 제외한다.
-- 잘못된 enum·필터·limit은 `400 VALIDATION_ERROR`, 필터/정렬을 바꾼 cursor 또는 변조는 `400 CURSOR_INVALID`, 없는 공개 리소스는 `404 NOT_FOUND`, 신규 게시본을 읽을 수 없으면 `503 SERVICE_UNAVAILABLE`이다. 매칭이 없으면 `200`과 빈 `items`다.
+- 오류별 정확한 HTTP 상태·코드·FE 동작은 9절을 따른다. 매칭이 없으면 오류가 아니라 `200`과 빈 `items`다.
 - 필터를 여러 종류 함께 보내면 AND이다. `workTagCodes`와 `relationTagCodes`의 쉼표 구분 값은 **각 파라미터 내부 OR**, 두 파라미터 사이에는 AND이다. 태그는 게시 승인된 canonical code만 필터에 사용한다.
 - 공개된 `regionCode`, `placeRole`, 태그 코드는 목록의 facet 또는 게시 코드 registry에서 가져온다. 문법이 잘못된 코드는 `400`, 형식은 맞지만 매칭이 없는 값은 빈 결과다. 목록에서 존재하지 않는 `workId`도 빈 결과이고, 작품 단건 조회의 없는 `workId`는 `404`다.
 - 이미지의 `url`은 공개 표시 권한이 확인된 경우에만 non-null이다. 불명확한 포스터·스틸·검색 이미지 URL은 FE로 보내지 않는다. `sourcePageUrl`은 이미지 권한·출처 페이지이지 촬영 관계의 근거 URL이 아니다.
@@ -231,10 +232,38 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 
 이 JSON의 작품·장소·출처는 필드 형식을 설명하는 가상 예시이며, 실제 게시 관계나 외부 URL이 아니다.
 
-## 9. FE 전환·회귀 검증
+## 9. 오류 응답과 FE 복구 동작
+
+모든 신규 경로는 동일한 `ApiErrorResponse`를 사용한다. 아래의 상태·코드는 **신규 API 구현 목표 계약**이며, 현재 운영 중인 기존 API의 오류를 변경하지 않는다. 공개 GET이므로 `401 AUTH_REQUIRED`와 `403 CSRF_INVALID`는 발생시키지 않는다. 파라미터 없이 호출하는 주제 목록에는 `400`/커서 오류가 적용되지 않는다.
+
+| HTTP / `code` | 적용 경로·상황 | `details`와 FE 처리 |
+|---|---|---|
+| `400 VALIDATION_ERROR` | 목록의 잘못된 `topic`/`type`/`sort`/`limit`/태그 코드 형식, 작품 검색 `q` 길이 오류, 단건 경로 ID 형식 오류 | `fieldErrors`에 필드별 이유. FE는 해당 입력을 고치고 cursor 없이 다시 조회한다. 단순 0건과 구별한다. |
+| `400 CURSOR_INVALID` | 세 목록 경로(`discovery/places`, `k-contents/works`, `places/{placeId}/k-contents`)에서 변조된 cursor 또는 cursor 발급 때와 다른 필터·정렬·limit 사용 | FE는 cursor를 버리고 현재 조건으로 첫 페이지를 요청한다. |
+| `404 NOT_FOUND` | 새 탐색에 게시되지 않은 `placeId`의 장소 상세/관계 조회, 게시되지 않은 `workId`의 작품 상세 | `resourceType`은 `PLACE` 또는 `WORK`. FE는 잘못된/비공개 항목 안내 후 목록으로 이동한다. 목록 필터의 미일치 ID나 관계 0개에는 적용하지 않는다. |
+| `410 CURSOR_EXPIRED` | 세 목록 경로에서 고정 게시 revision의 보존 기간이 종료됨 | FE는 cursor와 기존 페이지 누적 결과를 버리고 첫 페이지부터 다시 읽는다. |
+| `429 RATE_LIMITED` | 신규 조회 경로에 요청 제한이 적용되어 한도를 넘김 | `Retry-After` 헤더(초)와 `details.retryAfterMs`를 제공한다. FE는 대기 후 재시도한다. 제한이 발동하지 않으면 이 응답은 없다. |
+| `500 INTERNAL_ERROR` | 예상하지 못한 서버 오류 | 내부 오류·SQL·비밀값은 응답에 넣지 않는다. FE는 일반 오류와 재시도 안내를 표시하고 `requestId`를 장애 제보에 사용한다. |
+| `503 SERVICE_UNAVAILABLE` | 신규 탐색 게시본이 준비되지 않았거나 읽기 저장소가 일시적으로 불가 | `details.retryAfterMs`와 `Retry-After`를 제공한다. FE는 신규 섹션만 오류/재시도 상태로 두고 기존 화면은 유지한다. |
+
+예를 들어 `limit=999` 요청은 다음과 같이 응답한다. `message`는 진단용이므로 FE 표시 문구의 기준은 `code`다.
+
+```json
+{
+  "schemaVersion": "1.2",
+  "code": "VALIDATION_ERROR",
+  "message": "Request validation failed",
+  "requestId": "req-example-001",
+  "details": {"fieldErrors": {"limit": "must be between 1 and 50"}}
+}
+```
+
+주제 0건, 장소·작품 검색 0건, 공개 장소의 촬영 관계 0건, 이미지·작품 요약 부재는 **오류가 아니다**. 각각 `200`과 빈 배열 또는 `null`로 반환한다. 외부 기사 링크/이미지 한 건이 깨졌다고 목록 전체를 `503`으로 만들지 않고, 해당 자산을 제외하거나 관계를 재검증한다. 오류 구현 시 공통 응답 형식과 각 상태별 FE fixture를 함께 검증한다.
+
+## 10. FE 전환·회귀 검증
 
 1. 기존 API golden fixture와 응답 코드·필드·기존 게시 ID 집합을 고정한다. 새 revision 게시 전후에 기존 홈·지도·한옥·상세·찜·스크린 속 한옥의 회귀 테스트를 통과해야 한다.
 2. 신규 API는 별도 feature flag/게시 revision 뒤에 활성화한다. 빈 신규 결과를 기존 API 데이터 삭제로 해석하지 않는다. 배포 중 신규 API 실패는 기존 endpoint로 전파하지 않는다.
 3. FE는 새 장소 카드에서 항상 신규 상세로 이동한다. `saveAvailable=true`인 항목만 기존 찜 동작을 연결한다. 작품 관계가 없는 전통 장소도 상세 페이지를 열 수 있어야 한다.
-4. 필터 조합, 동일 장소의 복수 작품, 빈 결과, 이미지 `null`, 관계 철회, cursor 만료, 신규-only 장소의 기존 상세 404를 fixture로 확인한다.
+4. 필터 조합, 동일 장소의 복수 작품, 빈 결과, 이미지 `null`, 관계 철회, cursor 변조·만료, 신규-only 장소의 기존 상세 404 및 9절의 HTTP 상태·오류 코드를 fixture로 확인한다.
 5. 이 문서는 FE 합의를 위한 계약 초안이다. 구현 전 OpenAPI/응답 fixture와 DB read model·스키마 변경을 별도로 검증한다. 심사 기간에 기존 공개 catalog 교체나 물리 삭제를 승인하는 문서가 아니다.
