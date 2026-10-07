@@ -27,10 +27,12 @@ ssh -i ~/.ssh/onmaru-staging onmaru-staging-operator@13.125.191.16 stop
 1. 위 SSH `start` 명령으로 온디맨드 스테이징을 기동한다.
 2. FE 코드 변경 없이 기존 FE staging mode에서 `https://staging-api.onmaru.site`를 사용한다.
 3. 지도를 이동해 권역을 바꾸고 줌을 변경하면서 place/cluster/district/region 응답을 확인한다. 안정 public ID `p-staging-hanok-a`는 기존 장소 상세·후기·오디오 연결 흐름 확인에 사용할 수 있다.
-4. 온기 후기 및 Odii story 목록을 `limit=30`으로 요청해 세 페이지를 순회한다. 기대 건수는 페이지별 30/30/5이며, 마지막 페이지에서 `hasMore=false` 등 더 불러올 항목이 없음을 확인한다. fixture에는 지도 장소 100건, 공개 온기 후기 65건, Odii story 65건이 있다.
+4. 온기 후기 및 Odii story 목록을 `limit=30`으로 요청하고, 응답의 `nextCursor`를 다음 요청에 그대로 전달해 마지막 `nextCursor=null`, `hasMore=false`까지 순회한다. fixture에는 지도 장소 100건, 공개 온기 후기 65건, Odii story 65건이 있다. 추가 공개 사용자 후기가 없는 기준 상태의 페이지별 기대 건수는 30/30/5다.
 5. 검증 후 위 SSH `stop` 명령으로 스테이징을 중지한다.
 
-모든 행은 합성 테스트 데이터이며, seed는 운영 회원·세션 데이터를 복사하지 않습니다. 같은 staging DB에 반복 기동해도 fixture 행 수가 늘어나지 않습니다. 장소 fixture는 `p-staging-generated-001`~`p-staging-generated-096`을 포함하고, 후기·story 페이지 검증은 고정된 전체 65건을 기준으로 한다.
+fixture의 모든 행은 합성 테스트 데이터이며, seed는 운영 회원·세션 데이터를 복사하지 않습니다. 같은 staging DB에 반복 기동해도 fixture 행 수가 늘어나지 않습니다. 장소 fixture는 `p-staging-generated-001`~`p-staging-generated-096`을 포함한다.
+
+사용자가 작성한 공개 후기는 seed 재실행 후에도 보존되므로 온기 API의 `totalCount`와 페이지 수가 증가할 수 있다. 이 경우 실제 cursor를 끝까지 순회하고, 공개 fixture 후기 65개 ID의 포함 여부와 중복 없음, 추가 사용자 후기의 ID·건수를 구분해 기록한다. fixture 후기 ID는 기존 `54500000-0000-4000-8000-000000000111`·`112`와 생성 `54500675-0000-4000-8600-000000000001`~`063`이다. 이전 생성 범위 밖의 합성 후기는 참조를 보존한 채 숨김 처리되며 공개 65건에 포함하지 않는다. 사용자 후기를 지워 기준 페이지 수에 맞추지 않는다.
 
 FE의 고정 스테이징 배포에서는 Vercel **Preview** 환경변수 `NEXT_PUBLIC_API_URL=https://staging-api.onmaru.site`를 사용한다. Vercel 환경변수 변경은 재배포 후 브라우저 번들에 반영된다. 운영 Vercel Production의 API URL은 그대로 둔다. Kakao 로그인은 스테이징 callback 등록이 끝난 뒤 테스트한다.
 

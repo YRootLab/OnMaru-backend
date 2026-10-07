@@ -11,12 +11,12 @@
 ## Global Constraints
 
 - Work is tracked by GitHub Issue #675 on branch `feature/675-staging-pagination-fixtures`.
-- The final staging fixture contains exactly 100 public map places, 65 public warmth reviews, and 65 public Odii stories.
-- `limit=30` pagination must produce page sizes 30, 30, and 5 with no duplicate or missing IDs and a terminal null cursor.
+- fixture 소유 공개 데이터는 지도 장소 100건, 온기 후기 65건, Odii story 65건이다. 사용자가 추가한 공개 후기는 보존되므로 온기 API 전체 합계와 페이지 수가 증가할 수 있다.
+- 추가 공개 사용자 후기가 없는 기준 상태에서 `limit=30`은 30/30/5와 중복·누락 없음, 마지막 null cursor를 반환한다. 사용자 후기가 있는 DB에서는 반환 cursor를 끝까지 순회하고 fixture 65개와 추가 사용자 데이터를 구분한다.
 - Generated places must span at least four regions, multiple coordinate clusters, and the `SPOT`, `CAFE`, and `MARKET` canonical categories while preserving the existing connected HANOK scenarios.
 - Existing public IDs such as `p-staging-hanok-a` remain stable.
 - The seed remains transactional, idempotent, and restricted to the `onmaru_staging` database.
-- Cleanup may delete only rows in the #675-owned synthetic ID namespace; it must not delete hand-written fixtures or user-created staging rows.
+- 정리는 #675 소유 합성 namespace의 projection·오디오 row에 한정한다. 후기와 장소 identity·public ID는 upsert하고 현재 생성 집합 밖의 합성 후기는 HIDDEN으로 전환해 좋아요·신고·audit 참조를 보존한다. 수작업 fixture와 사용자 데이터는 삭제하지 않는다.
 - Do not change frontend code, production data, production configuration, public cursor formats, or API default limits.
 
 ---
@@ -82,24 +82,15 @@ assertThat(longValue(connection, """
         """)).isEqualTo(100);
 ```
 
-- [ ] **Step 3: Add deterministic three-page keyset assertions**
+- [ ] **Step 3: 실제 공개 controller와 JDBC 경로의 cursor·지도 응답을 검증한다**
 
-Read ordered IDs with SQL matching each public store's ordering and slice them as `limit + 1` pages. The helper must assert page sizes `[30, 30, 5]`, unique IDs, and equality with the complete ordered set:
+seeded PostgreSQL에 실제 JDBC store/query service를 연결하고 MockMvc로 공개 controller를 호출한다. Odii는 production `OdiiStoryConfiguration`의 signed cursor와 staging `samplelib.com` 공개 host 정책을 사용한다. 응답 `nextCursor`를 다음 요청에 그대로 전달해 전역 후기와 story의 `[30, 30, 5]`, `totalCount=65`, `hasMore=[true,true,false]`, 마지막 null cursor, 공개 ID 집합 일치와 중복 없음을 확인한다. SQL로 cursor나 hasMore를 복제하지 않는다.
 
-```java
-private void assertThreePages(java.sql.Connection connection, String sql) throws SQLException {
-    var ids = new java.util.ArrayList<String>();
-    try (var statement = connection.createStatement(); var rows = statement.executeQuery(sql)) {
-        while (rows.next()) ids.add(rows.getString(1));
-    }
-    assertThat(ids).hasSize(65).doesNotHaveDuplicates();
-    assertThat(ids.subList(0, 30)).hasSize(30);
-    assertThat(ids.subList(30, 60)).hasSize(30);
-    assertThat(ids.subList(60, 65)).hasSize(5);
-}
-```
+기준 장소 `p-staging-hanok-a`의 후기 `[30,1]`과 숨김 제외를 확인한다. Odii의 실제 정렬은 `source_modified_at DESC, identity.public_id ASC`이며 동률 cursor는 public ID가 큰 다음 행을 읽는다. 같은 timestamp를 가진 62개 생성 story가 페이지 경계를 넘는 회귀 사례로 이 순서를 보호한다.
 
-Call it for published reviews ordered by `created_at DESC, id DESC` and active stories ordered by the same fields used by `JdbcOdiiStoryQuery` (`source_modified_at DESC, story_id DESC`). Also assert that the hidden review remains absent from the public review query.
+지도 목록은 SPOT/CAFE/MARKET별 34/33/33과 합계 100개 public ID를 검증한다. 각 카테고리의 전국 bbox·zoom 1/6/9/11로 PLACE/CLUSTER/DISTRICT/REGION 응답과 합산 count·COMPLETE coverage를 확인한다. 각 카테고리는 PLACE 기본 limit 60 이내이며, 전체 100개를 한 viewport에서 요청하면 CLUSTER fallback이 가능하다.
+
+범위 밖 PUBLISHED fixture 후기와 사용자 좋아요·신고·audit를 삽입한 뒤 반복 seed로 공개 fixture 65건에 수렴하고 참조가 보존되는지 확인한다. namespace 밖 공개 사용자 후기 26개가 있는 경우 공개 합계 91과 `[30,30,30,1]`을 확인하고 fixture 65개와 사용자 26개를 구분한다.
 
 - [ ] **Step 4: Add a numeric SQL helper and run the focused test to see the expected failure**
 
@@ -156,15 +147,19 @@ WITH regions(ord, sido_id, district_id, sido_code, district_code, sido_name, dis
 )
 ```
 
-- [ ] **Step 2: Delete only generated rows in dependency-safe order before regeneration**
+- [ ] **Step 2: 생성 projection을 정리하고 사용자 후기 참조를 보존한다**
 
-At the start of the generated-fixture section, delete `54500675-*` children before parents. Include audio links/tags/subtitles/story versions/stories/spots, review likes/reviews, map category/read projections, catalog images/tags/versions/public IDs/sources/identities, and generated regions. Do not match the existing `54500000-*` fixtures or arbitrary staging records.
-
-Example predicate:
+`54500675-*`의 audio links/tags/subtitles/versions/stories/spots, map category/read projection, catalog images/tags/versions/sources와 generated region만 자식부터 정리한다. 후기·좋아요·신고·audit, 장소 identity와 public ID는 삭제하지 않는다. 현재 생성 후기 집합을 만든 뒤 해당 집합 밖의 #675 소유 PUBLISHED 후기를 HIDDEN으로 전환하고 현재 집합은 upsert한다. `54500000-*`와 namespace 밖 사용자 후기에는 이 정리 predicate를 적용하지 않는다.
 
 ```sql
-DELETE FROM onmaru.community_visit_reviews
-WHERE id::text LIKE '54500675-%';
+UPDATE onmaru.community_visit_reviews existing
+SET status = 'HIDDEN'
+WHERE existing.id::text LIKE '54500675-%'
+  AND existing.status = 'PUBLISHED'
+  AND NOT EXISTS (
+    SELECT 1 FROM staging_fixture_reviews current_fixture
+    WHERE current_fixture.review_id = existing.id
+  );
 ```
 
 - [ ] **Step 3: Insert 96 generated catalog and map places**
@@ -338,7 +333,7 @@ git commit -m "docs(staging): fixture 확장 검증 기록"
 
 - [ ] **Step 4: Push and open a PR to develop**
 
-Before opening the PR, reconcile the Issue, touched files, work log, and verification results. The Korean PR body must reference `Closes #675` and must explicitly say that live Lightsail verification occurs after merge because staging deploy accepts a verified `develop` ref.
+PR 생성 직전에 Issue·변경 파일·work log·검증 결과를 대조한다. 한국어 PR 본문은 `Refs #675`를 사용하고 #675의 Closes/Fixes/Resolves 연결이 없는지 확인한다. 스테이징 배포는 검증된 병합 `develop` ref가 필요하므로 실제 Lightsail 검증은 병합 후 진행한다. 병합만으로 #675를 닫지 않고 실제 배포·공개 API·운영 health 전후·staging stop 증적과 acceptance criteria를 확인할 때까지 OPEN으로 유지한다.
 
 - [ ] **Step 5: Post-merge live verification**
 

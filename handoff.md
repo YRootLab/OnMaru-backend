@@ -5,18 +5,22 @@
 - 브랜치: `feature/675-staging-pagination-fixtures`, Issue: [#675](https://github.com/YRootLab/OnMaru-backend/issues/675) OPEN. controller 리뷰 후 `develop` 대상 PR을 생성하며 본문은 `Refs #675`를 사용한다. 실제 Lightsail 배포·공개 API 3페이지 검증까지 Issue를 닫지 않는다.
 - 변경 범위: `infra/lightsail/staging/seed.sql`, `StagingFixtureTests.java`, staging README·FE 안내, deploy pipeline 문서 계약 테스트와 `docs/superpowers/{specs,plans}/2026-10-07-staging-pagination-fixtures*.md`. 아래 로컬 검증 결과를 기준으로 PR CI `verify`에서 전체 hygiene 결과를 재확인한다.
 - 병합 후: `CI / verify`가 통과한 병합된 `develop` SHA를 확인하고 `gh workflow run deploy.yml --ref develop -f deploy_staging=true`를 실행한다. workflow URL·SHA·이미지 digest가 일치하고 staging deploy가 성공한 뒤 제한 SSH `start`로 기동한다.
-- 실검증: 운영 `/api/v1/health` 전후 확인 → staging `/api/v1/visit-reviews?scope=ALL&limit=30`, `/api/v1/odii/stories?language=ko-KR&limit=30`의 응답 cursor를 다음 요청에 그대로 전달해 30/30/5, 각 65개 unique ID, `totalCount=65`, 마지막 `hasMore=false`·`nextCursor=null` 확인 → `/api/v1/map/info/places` 전체 cursor 순회 100개 unique public ID 및 viewport 줌 1/6/9/11의 PLACE/CLUSTER/DISTRICT/REGION·SPOT/CAFE/MARKET 필터 확인 → 대표 장소 상세·후기·오디오 연결 확인 → SSH `stop`·`status` 및 운영 health 확인. workflow URL·병합 SHA·digest·각 응답 결과를 #675에 기록한 뒤 완료 조건을 대조해 종료한다. SSH·배포 절차는 [스테이징 README](infra/lightsail/staging/README.md)·[FE 안내](docs/operations/staging-fe-guide.md)를 따른다.
-- 열린 위험: 실제 공개 API signed cursor·지도 줌별 응답과 Lightsail 운영 health 보존은 병합 후 검증이 남았다. 사용자가 작성한 일반 후기를 보존하므로 API 전체 후기는 fixture 65개보다 늘어날 수 있다. 공개 65개 fixture ID 집합과 사용자 추가 데이터를 구분해 증적을 #675에 기록한다.
+- 실검증: 운영 `/api/v1/health` 전후 확인 → staging `/api/v1/visit-reviews?scope=ALL&limit=30`, `/api/v1/odii/stories?language=ko-KR&limit=30`의 응답 cursor를 다음 요청에 그대로 전달해 기준 상태의 30/30/5, fixture 65개 unique ID, 마지막 `hasMore=false`·`nextCursor=null` 확인(공개 사용자 후기가 있으면 실제 끝까지 순회하고 늘어난 합계·페이지 수와 추가 ID를 별도로 기록) → `/api/v1/map/info/places`의 SPOT/CAFE/MARKET별 전체 cursor 순회 34/33/33 및 합계 100개 unique public ID, viewport 줌 1/6/9/11의 PLACE/CLUSTER/DISTRICT/REGION 필터 확인 → 대표 장소 상세·후기·오디오 연결 확인 → SSH `stop`·`status` 및 운영 health 확인. workflow URL·병합 SHA·digest·각 응답 결과를 #675에 기록한 뒤 완료 조건을 대조해 종료한다. SSH·배포 절차는 [스테이징 README](infra/lightsail/staging/README.md)·[FE 안내](docs/operations/staging-fe-guide.md)를 따른다.
+- 최종 리뷰 수정: MockMvc 공개 controller·실제 JDBC 조회로 후기/Odii 30/30/5, 장소 후기 30/1·숨김 제외, Odii signed cursor와 동률 public ID ASC, 지도 4모드·카테고리별 ID를 자동 검증한다. 생성 집합 밖의 공개 #675 후기는 HIDDEN 처리하고 사용자 좋아요·신고·audit는 유지한다. 사용자 공개 후기 26개가 있는 DB는 fixture 65개를 보존하며 totalCount 91·30/30/30/1을 반환한다.
+- 열린 위험: 병합 후 실제 Lightsail의 배포 SHA/digest·공개 API·운영 health 전후·staging stop 증적 확인이 남았다. 로컬 공개 JDBC 통합 검증과 별도로 실서버 완료 기준을 충족하기 전에는 #675를 OPEN으로 유지한다.
 
 로컬 검증 재현 명령(저장소 루트에서 실행, 2026-10-07 결과):
 
 ```bash
-# Java CI 전체 명령·bootJar 성공: 946 tests, 실패 0·skip 2; StagingFixtureTests 4/4
+# Task 4 수정 전 전체 Java CI baseline·bootJar 성공: 946 tests, 실패 0·skip 2; 당시 StagingFixtureTests 4/4
 ./gradlew --init-script build-logic/ci-performance.gradle.kts :adapters:tourism-api:test :modules:insights:test :modules:catalog:test :modules:audio:test :modules:community:test :modules:identity:test :modules:journey:test :modules:operations:test :apps:spring-api:test :apps:spring-api:bootJar --no-daemon -Ponmaru.ci.performance.enabled=true
-# 전체 Node 205/229 통과: 로컬 /tmp/onmaru-ci-toolkit-9c6f003/src의 module_benchmark·experiments.collect 누락으로 24개 실패
-node --test scripts/test/*.test.mjs
-# checksum 검증된 committed upstream override로 release comparator 24/24 통과; offline API fixture 1개는 미확인
-ONMARU_TOOLKIT_SRC="$PWD/scripts/test/fixtures/release-module-comparison/upstream" node --test scripts/test/release-module-comparison.test.mjs
+# 최종 수정 관련 Java suite fresh 실행·bootJar 성공: 240 tests, 실패/오류/skip 0; StagingFixtureTests 8/8
+./gradlew --init-script build-logic/ci-performance.gradle.kts :modules:catalog:test :modules:audio:test :modules:community:test :modules:shared-web:test :apps:spring-api:test --tests '*StagingFixtureTests' --tests '*VisitReviewQueryWebBoundaryTests' --tests '*JdbcVisitReviewStoreTests' --tests '*JdbcOdiiStoryReadStoreIntegrationTests' --tests '*OdiiStory*WebBoundaryTests' --tests '*MapInfo*Tests' --tests '*MapViewport*Tests' :apps:spring-api:bootJar --no-daemon --rerun-tasks -Ponmaru.ci.performance.enabled=true
+# 최종 수정 전체 Node 229/229·skip 0: 불완전한 기존 로컬 Toolkit 대신 workflow 고정 SHA의 별도 checkout 사용
+taskToolkitDirectory="$(mktemp -d /tmp/onmaru-675-toolkit-XXXXXX)"
+git clone --quiet --no-checkout https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git "$taskToolkitDirectory/repo"
+git -C "$taskToolkitDirectory/repo" checkout --quiet --detach 7ecbb89aae771604d9c1c532cf123f239e279110
+ONMARU_TOOLKIT_SRC="$taskToolkitDirectory/repo/src" node --test --test-concurrency=1 scripts/test/*.test.mjs
 node --test scripts/test/deploy-pipeline.test.mjs # 7/7 통과
 python3 -m pytest scripts/test/test_contract_validation.py # 11/11 통과
 bash scripts/verify-contracts # 전체 계약·generated artifact 통과

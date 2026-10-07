@@ -376,6 +376,16 @@ SELECT n,
        END AS place_id,
        '2026-10-06T12:00:00Z'::timestamptz - (n - 1) * interval '1 minute' AS created_at
 FROM generate_series(1, 63) AS series(n);
+-- 현재 생성 집합 밖의 공개 합성 후기만 숨긴다. identity와 사용자 좋아요·신고·audit는 보존한다.
+-- namespace 밖 사용자 후기는 변경하지 않으며, 이미 숨김/삭제된 잔존 후기의 상태도 유지한다.
+UPDATE onmaru.community_visit_reviews existing
+SET status = 'HIDDEN'
+WHERE existing.id::text LIKE '54500675-%'
+  AND existing.status = 'PUBLISHED'
+  AND NOT EXISTS (
+    SELECT 1 FROM staging_fixture_reviews current_fixture
+    WHERE current_fixture.review_id = existing.id
+  );
 INSERT INTO onmaru.identity_members (id, status, created_at)
 SELECT member_id, 'ACTIVE', '2026-10-01T00:00:00Z' FROM staging_fixture_reviews
 ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, created_at = EXCLUDED.created_at;

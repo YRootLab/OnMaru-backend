@@ -1,27 +1,60 @@
 package com.yrootlab.onmaru.testing.postgres;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yrootlab.onmaru.audio.query.InMemoryOdiiStoryPopularityCounter;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoQueryService;
+import com.yrootlab.onmaru.catalog.application.query.mapinfo.MapInfoViewportQueryService;
+import com.yrootlab.onmaru.community.query.VisitReviewQueryService;
+import com.yrootlab.onmaru.config.secrets.FakeSecretProvider;
+import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
+import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
+import com.yrootlab.onmaru.identity.oauth.TokenHasher;
+import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPublicPlaceIdStore;
+import com.yrootlab.onmaru.persistence.catalog.JdbcMapInfoQueryRepository;
+import com.yrootlab.onmaru.persistence.catalog.JdbcMapViewportQueryRepository;
+import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewStore;
+import com.yrootlab.onmaru.tourism.audio.JdbcAudioRevisionStore;
+import com.yrootlab.onmaru.web.audio.OdiiStoryConfiguration;
+import com.yrootlab.onmaru.web.audio.OdiiStoryController;
+import com.yrootlab.onmaru.web.map.MapInfoRequestExecutor;
+import com.yrootlab.onmaru.web.map.place.MapInfoController;
+import com.yrootlab.onmaru.web.map.viewport.MapInfoViewportController;
+import com.yrootlab.onmaru.web.review.query.VisitReviewQueryController;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.mock.web.MockServletContext;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.PreparedStatement;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Types;
-import java.time.OffsetDateTime;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class StagingFixtureTests {
 
@@ -34,6 +67,15 @@ class StagingFixtureTests {
             .waitingFor(Wait.forLogMessage(".*database system is ready to accept connections.*\\n", 2));
 
     private static final Path SEED = Path.of("../../infra/lightsail/staging/seed.sql");
+    private static final String HIDDEN_REVIEW_ID = "54500000-0000-4000-8000-000000000113";
+    private static final String USER_REVIEW_ID = "12340000-0000-4000-8000-000000000101";
+    private AnnotationConfigWebApplicationContext publicApiContext;
+    private MockMvc publicApi;
+
+    @AfterEach
+    void closePublicApiContext() {
+        if (publicApiContext != null) publicApiContext.close();
+    }
 
     @BeforeAll
     static void startPostgres() {
@@ -133,25 +175,11 @@ class StagingFixtureTests {
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
                     """)).isPositive();
 
-            assertThreeKeysetPages(connection,
-                    "onmaru.community_visit_reviews",
-                    "status = 'PUBLISHED' AND public_place_id IS NOT NULL AND latitude IS NOT NULL " +
-                            "AND longitude IS NOT NULL AND (id::text LIKE '54500675-%' OR id IN (" +
-                            "'54500000-0000-4000-8000-000000000111', " +
-                            "'54500000-0000-4000-8000-000000000112'))",
-                    "created_at",
-                    "id");
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.community_visit_reviews
                     WHERE status = 'PUBLISHED'
                       AND id = '54500000-0000-4000-8000-000000000113'
                     """)).isZero();
-            assertThreeKeysetPages(connection,
-                    "onmaru.audio_story_versions",
-                    "revision_id = '54500000-0000-4000-8000-000000000011' AND status = 'ACTIVE'",
-                    "source_modified_at",
-                    "story_id");
-
             try (var statement = connection.createStatement(); var rows = statement.executeQuery("""
                     SELECT count(*)
                     FROM onmaru.catalog_active_datasets active
@@ -173,6 +201,91 @@ class StagingFixtureTests {
                 rows.next();
                 assertThat(rows.getInt(1)).isGreaterThan(0);
             }
+        }
+    }
+
+    @Test
+    void publicControllersPageTheSeededReviewsAndStoriesWithReturnedCursors() throws Exception {
+        executeSeedForTestDatabase();
+        executeSeedForTestDatabase();
+
+        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 65);
+        assertThat(reviews.sizes()).containsExactly(30, 30, 5);
+        assertThat(reviews.hasMore()).containsExactly(true, true, false);
+        assertThat(reviews.ids()).containsExactlyInAnyOrderElementsOf(fixtureReviewIds())
+                .doesNotContain(HIDDEN_REVIEW_ID);
+
+        var placeReviews = readPublicPages("/api/v1/places/p-staging-hanok-a/visit-reviews", Map.of(), "id", 31);
+        assertThat(placeReviews.sizes()).containsExactly(30, 1);
+        assertThat(placeReviews.hasMore()).containsExactly(true, false);
+        assertThat(placeReviews.ids()).doesNotContain(HIDDEN_REVIEW_ID);
+        var hiddenPlace = publicGet("/api/v1/places/p-staging-palace-c/visit-reviews", Map.of("limit", "30"));
+        assertThat(hiddenPlace.path("items")).isEmpty();
+        assertThat(hiddenPlace.path("totalCount").asLong()).isZero();
+
+        var stories = readPublicPages("/api/v1/odii/stories", Map.of("language", "ko-KR"), "storyId", 65);
+        assertThat(stories.sizes()).containsExactly(30, 30, 5);
+        assertThat(stories.hasMore()).containsExactly(true, true, false);
+        assertThat(stories.ids()).containsExactlyInAnyOrderElementsOf(fixtureStoryIds());
+    }
+
+    @Test
+    void publicOdiiCursorOrdersEqualTimestampsByAscendingPublicIdentity() throws Exception {
+        executeSeedForTestDatabase();
+        List<String> tiedPublicIds;
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    UPDATE onmaru.audio_story_versions SET source_modified_at = '2026-10-06T12:00:00Z'
+                    WHERE story_id::text LIKE '54500675-%'
+                    """);
+            tiedPublicIds = readIds(connection, """
+                    SELECT 'odii-story-' || public_id::text FROM onmaru.audio_odii_stories
+                    WHERE id::text LIKE '54500675-%'
+                    """).stream().sorted().toList();
+        }
+
+        var stories = readPublicPages("/api/v1/odii/stories", Map.of("language", "ko-KR"), "storyId", 65);
+        assertThat(stories.sizes()).containsExactly(30, 30, 5);
+        assertThat(stories.ids().subList(0, 62)).containsExactlyElementsOf(tiedPublicIds);
+        assertThat(stories.ids()).containsExactlyInAnyOrderElementsOf(fixtureStoryIds());
+    }
+
+    @Test
+    void publicMapControllersReturnAllFixtureIdsAndFourFilteredRenderModes() throws Exception {
+        executeSeedForTestDatabase();
+        var allPlaceIds = new ArrayList<String>();
+        var categories = List.of("SPOT", "CAFE", "MARKET");
+        var counts = List.of(34, 33, 33);
+        for (int i = 0; i < categories.size(); i++) {
+            String category = categories.get(i);
+            var places = readPublicPages("/api/v1/map/info/places", Map.of("category", category), "placeId", counts.get(i));
+            assertThat(places.sizes()).containsExactly(30, counts.get(i) - 30);
+            assertThat(places.ids()).containsExactlyInAnyOrderElementsOf(fixtureMapIds(category));
+            allPlaceIds.addAll(places.ids());
+            for (int zoom : List.of(1, 6, 9, 11)) {
+                var viewport = publicGet("/api/v1/map/info/viewport", Map.of(
+                        "bbox", "124,33,132,39", "zoomLevel", Integer.toString(zoom), "category", category));
+                String mode = switch (zoom) {
+                    case 1 -> "PLACE";
+                    case 6 -> "CLUSTER";
+                    case 9 -> "DISTRICT";
+                    default -> "REGION";
+                };
+                assertThat(viewport.path("renderMode").asText()).isEqualTo(mode);
+                assertThat(viewport.path("totalCountInViewport").asLong()).isEqualTo(counts.get(i).longValue());
+                assertThat(viewport.path("coverage").asText()).isEqualTo("COMPLETE");
+                long represented = 0;
+                for (var item : viewport.path("items")) represented += item.path("count").asLong();
+                assertThat(represented).isEqualTo(counts.get(i).longValue());
+            }
+        }
+        assertThat(allPlaceIds).hasSize(100).doesNotHaveDuplicates();
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            assertThat(allPlaceIds).containsExactlyInAnyOrderElementsOf(readIds(connection, """
+                    SELECT public_id FROM onmaru.map_place_read_projection
+                    WHERE revision_id = '54500000-0000-4000-8000-000000000010'
+                    """));
         }
     }
 
@@ -247,6 +360,83 @@ class StagingFixtureTests {
     }
 
     @Test
+    void retiresOutOfRangeFixtureReviewsWithoutDeletingTheirUserReferences() throws Exception {
+        executeSeedForTestDatabase();
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.community_visit_reviews
+                      (id, member_id, place_id, text, status, created_at, mood, score, tags,
+                       public_place_id, place_name, region_code, latitude, longitude)
+                    SELECT '54500675-0000-4000-8600-000000000064', member_id, place_id,
+                           '이전 fixture 범위의 후기', 'PUBLISHED', '2026-10-07T00:00:00Z', mood, score, tags,
+                           public_place_id, place_name, region_code, latitude, longitude
+                    FROM onmaru.community_visit_reviews
+                    WHERE id = '54500675-0000-4000-8600-000000000001'
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.community_review_likes (review_id, member_id, created_at)
+                    VALUES ('54500675-0000-4000-8600-000000000064',
+                            '54500000-0000-4000-8000-000000000101', '2026-10-07T01:00:00Z')
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.community_review_reports
+                      (id, review_id, reporter_member_id, reason, detail, status, created_at)
+                    VALUES ('12340000-0000-4000-8000-000000000301',
+                            '54500675-0000-4000-8600-000000000064',
+                            '54500000-0000-4000-8000-000000000101',
+                            'OTHER', '잔존 fixture에 작성한 사용자 신고', 'OPEN', '2026-10-07T02:00:00Z')
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.community_review_moderation_actions
+                      (id, review_id, actor_type, actor_ref, previous_status, next_status, reason, created_at)
+                    VALUES ('12340000-0000-4000-8000-000000000302',
+                            '54500675-0000-4000-8600-000000000064',
+                            'OPERATOR', 'staging-test-operator', 'PUBLISHED', 'HIDDEN',
+                            '잔존 fixture에 남긴 검수 이력', '2026-10-07T03:00:00Z')
+                    """);
+        }
+
+        executeSeedForTestDatabase();
+        executeSeedForTestDatabase();
+
+        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 65);
+        assertThat(reviews.sizes()).containsExactly(30, 30, 5);
+        assertThat(reviews.ids()).containsExactlyInAnyOrderElementsOf(fixtureReviewIds())
+                .doesNotContain("54500675-0000-4000-8600-000000000064");
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_visit_reviews
+                    WHERE id = '54500675-0000-4000-8600-000000000064'
+                      AND status = 'HIDDEN' AND text = '이전 fixture 범위의 후기'
+                    """)).isEqualTo(1);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_review_likes
+                    WHERE review_id = '54500675-0000-4000-8600-000000000064'
+                      AND member_id = '54500000-0000-4000-8000-000000000101'
+                      AND created_at = '2026-10-07T01:00:00Z'
+                    """)).isEqualTo(1);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_review_reports
+                    WHERE id = '12340000-0000-4000-8000-000000000301'
+                      AND review_id = '54500675-0000-4000-8600-000000000064'
+                      AND reporter_member_id = '54500000-0000-4000-8000-000000000101'
+                      AND reason = 'OTHER' AND detail = '잔존 fixture에 작성한 사용자 신고'
+                      AND status = 'OPEN' AND created_at = '2026-10-07T02:00:00Z'
+                      AND resolved_at IS NULL
+                    """)).isEqualTo(1);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_review_moderation_actions
+                    WHERE id = '12340000-0000-4000-8000-000000000302'
+                      AND review_id = '54500675-0000-4000-8600-000000000064'
+                      AND actor_type = 'OPERATOR' AND actor_ref = 'staging-test-operator'
+                      AND previous_status = 'PUBLISHED' AND next_status = 'HIDDEN'
+                      AND reason = '잔존 fixture에 남긴 검수 이력' AND created_at = '2026-10-07T03:00:00Z'
+                    """)).isEqualTo(1);
+        }
+    }
+
+    @Test
     void reseedsGeneratedPlacesWhilePreservingUserReviews() throws Exception {
         executeSeedForTestDatabase();
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
@@ -263,12 +453,29 @@ class StagingFixtureTests {
                             '합성 서울지구 장소 001', 'STG-SEOUL-01', 37.5665, 126.9780)
                     """);
             statement.executeUpdate("""
+                    INSERT INTO onmaru.community_visit_reviews
+                      (id, member_id, place_id, text, status, created_at, mood, score, tags,
+                       public_place_id, place_name, region_code, latitude, longitude)
+                    SELECT ('12340000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+                           member_id, place_id, text, status, created_at, mood, score, tags,
+                           public_place_id, place_name, region_code, latitude, longitude
+                    FROM onmaru.community_visit_reviews CROSS JOIN generate_series(102, 126) AS series(n)
+                    WHERE id = '12340000-0000-4000-8000-000000000101'
+                    """);
+            statement.executeUpdate("""
                     UPDATE onmaru.catalog_place_identity SET created_at = '2026-10-01T00:00:00Z'
                     WHERE id = '54500675-0000-4000-8300-000000000001'
                     """);
         }
 
         executeSeedForTestDatabase();
+
+        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 91);
+        assertThat(reviews.sizes()).containsExactly(30, 30, 30, 1);
+        assertThat(reviews.hasMore()).containsExactly(true, true, true, false);
+        assertThat(reviews.ids()).contains(USER_REVIEW_ID).containsAll(fixtureReviewIds());
+        assertThat(reviews.ids().stream().filter(id -> id.startsWith("12340000-")).toList()).hasSize(26);
+        assertThat(reviews.ids().stream().filter(fixtureReviewIds()::contains).toList()).hasSize(65);
 
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
             assertThat(longValue(connection, """
@@ -306,71 +513,124 @@ class StagingFixtureTests {
         }
     }
 
-    private void assertThreeKeysetPages(
-            java.sql.Connection connection,
-            String table,
-            String predicate,
-            String timestampColumn,
-            String idColumn) throws SQLException {
-        var completeOrderedIds = readIds(connection, """
-                SELECT %1$s::text FROM %2$s
-                WHERE %3$s
-                ORDER BY %4$s DESC, %1$s DESC
-                """.formatted(idColumn, table, predicate, timestampColumn));
+    private PublicPages readPublicPages(String path, Map<String, String> params, String idField, int total) throws Exception {
         var pagedIds = new ArrayList<String>();
         var pageSizes = new ArrayList<Integer>();
         var hasMoreByPage = new ArrayList<Boolean>();
-        OffsetDateTime cursorTimestamp = null;
-        UUID cursorId = null;
-        boolean hasMore;
-
+        String cursor = null;
         do {
-            var sql = """
-                    SELECT %1$s::text AS fixture_id, %2$s, %1$s AS cursor_id
-                    FROM %3$s
-                    WHERE %4$s
-                      AND (? = false OR (%2$s, %1$s) < (?::timestamptz, ?::uuid))
-                    ORDER BY %2$s DESC, %1$s DESC
-                    LIMIT ?
-                    """.formatted(idColumn, timestampColumn, table, predicate);
-            var candidates = new ArrayList<FixtureRow>();
-            try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setBoolean(1, cursorId != null);
-                if (cursorId == null) {
-                    statement.setNull(2, Types.TIMESTAMP_WITH_TIMEZONE);
-                    statement.setNull(3, Types.OTHER);
-                } else {
-                    statement.setObject(2, cursorTimestamp);
-                    statement.setObject(3, cursorId);
-                }
-                statement.setInt(4, 31);
-                try (var rows = statement.executeQuery()) {
-                    while (rows.next()) {
-                        candidates.add(new FixtureRow(
-                                rows.getString(1),
-                                rows.getObject(2, OffsetDateTime.class),
-                                rows.getObject(3, UUID.class)));
-                    }
-                }
+            var requestParams = new java.util.HashMap<>(params);
+            requestParams.put("limit", "30");
+            if (cursor != null) requestParams.put("cursor", cursor);
+            var page = publicGet(path, requestParams);
+            assertThat(page.path("totalCount").asLong()).as(path).isEqualTo(total);
+            pageSizes.add(page.path("items").size());
+            for (var item : page.path("items")) {
+                assertThat(item.path(idField).asText()).isNotBlank();
+                pagedIds.add(item.path(idField).asText());
             }
-
-            hasMore = candidates.size() > 30;
-            var pageRows = hasMore ? candidates.subList(0, 30) : candidates;
-            pageSizes.add(pageRows.size());
+            boolean hasMore = !page.path("nextCursor").isNull();
+            if (page.has("hasMore")) assertThat(page.path("hasMore").asBoolean()).isEqualTo(hasMore);
             hasMoreByPage.add(hasMore);
-            for (var row : pageRows) pagedIds.add(row.id());
-            if (hasMore) {
-                var lastVisible = pageRows.getLast();
-                cursorTimestamp = lastVisible.timestamp();
-                cursorId = lastVisible.cursorId();
+            cursor = hasMore ? page.path("nextCursor").asText() : null;
+            if (hasMore) assertThat(cursor).isNotBlank();
+            else {
+                assertThat(page.has("nextCursor")).isTrue();
+                assertThat(page.get("nextCursor").isNull()).isTrue();
             }
-        } while (hasMore);
+            assertThat(pageSizes.size()).isLessThan(10);
+        } while (cursor != null);
 
-        assertThat(pageSizes).containsExactly(30, 30, 5);
-        assertThat(hasMoreByPage).containsExactly(true, true, false);
-        assertThat(pagedIds).hasSize(65).doesNotHaveDuplicates();
-        assertThat(pagedIds).containsExactlyElementsOf(completeOrderedIds);
+        assertThat(pagedIds).hasSize(total).doesNotHaveDuplicates();
+        return new PublicPages(pagedIds, pageSizes, hasMoreByPage);
     }
+
+    private JsonNode publicGet(String path, Map<String, String> params) throws Exception {
+        if (publicApi == null) initializePublicApi();
+        var request = get(path);
+        params.forEach(request::param);
+        var response = publicApi.perform(request).andExpect(status().isOk()).andReturn().getResponse();
+        return new ObjectMapper().readTree(response.getContentAsString());
+    }
+
+    private void initializePublicApi() {
+        var dataSource = new DriverManagerDataSource(jdbcUrl(), "onmaru_test", "onmaru_test");
+        var clock = Clock.fixed(Instant.parse("2026-10-07T05:00:00Z"), ZoneOffset.UTC);
+        publicApiContext = new AnnotationConfigWebApplicationContext();
+        publicApiContext.setServletContext(new MockServletContext());
+        publicApiContext.getEnvironment().setActiveProfiles("production");
+        // This is the public audio host configured by staging/compose.yaml.
+        publicApiContext.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
+                "staging-fixture", Map.of("onmaru.audio.public-hosts", "samplelib.com")));
+        publicApiContext.addBeanFactoryPostProcessor(beans -> {
+            beans.registerSingleton("dataSource", dataSource);
+            beans.registerSingleton("clock", clock);
+            beans.registerSingleton("secretProvider", new FakeSecretProvider());
+            beans.registerSingleton("memberLifecycleService", new MemberLifecycleService(
+                    new InMemoryIdentityStore(), new TokenHasher("staging-fixture-test-secret"), clock));
+            beans.registerSingleton("visitReviewQueryService", new VisitReviewQueryService(
+                    new JdbcVisitReviewStore(dataSource, new JdbcCatalogPublicPlaceIdStore(dataSource)), clock));
+            beans.registerSingleton("mapInfoQueryService", new MapInfoQueryService(new JdbcMapInfoQueryRepository(dataSource)));
+            beans.registerSingleton("mapInfoViewportQueryService", new MapInfoViewportQueryService(new JdbcMapViewportQueryRepository(dataSource)));
+            beans.registerSingleton("mapInfoRequestExecutor", new MapInfoRequestExecutor(Duration.ofSeconds(2)));
+            beans.registerSingleton("audioRevisionStore", new JdbcAudioRevisionStore(dataSource));
+            beans.registerSingleton("odiiStoryPopularityPort", new InMemoryOdiiStoryPopularityCounter());
+        });
+        publicApiContext.register(PublicMvcConfiguration.class, OdiiStoryConfiguration.class,
+                VisitReviewQueryController.class, OdiiStoryController.class,
+                MapInfoController.class, MapInfoViewportController.class);
+        publicApiContext.refresh();
+        publicApi = MockMvcBuilders.webAppContextSetup(publicApiContext).build();
+    }
+
+    private List<String> fixtureReviewIds() {
+        var ids = new ArrayList<String>();
+        ids.add("54500000-0000-4000-8000-000000000111");
+        ids.add("54500000-0000-4000-8000-000000000112");
+        for (int n = 1; n <= 63; n++) ids.add("54500675-0000-4000-8600-%012d".formatted(n));
+        return ids;
+    }
+
+    private List<String> fixtureMapIds(String category) {
+        var ids = new ArrayList<String>();
+        int firstGeneratedIndex = switch (category) {
+            case "SPOT" -> {
+                ids.add("p-staging-hanok-a");
+                ids.add("p-staging-palace-c");
+                yield 1;
+            }
+            case "CAFE" -> {
+                ids.add("p-staging-hanok-b");
+                yield 2;
+            }
+            case "MARKET" -> {
+                ids.add("p-staging-market-d");
+                yield 3;
+            }
+            default -> throw new IllegalArgumentException(category);
+        };
+        for (int n = firstGeneratedIndex; n <= 96; n += 3) ids.add("p-staging-generated-%03d".formatted(n));
+        return ids;
+    }
+
+    private List<String> fixtureStoryIds() throws SQLException {
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            // Identity selection only; eligibility, ordering and cursor processing run through the public API.
+            return readIds(connection, """
+                    SELECT 'odii-story-' || public_id::text FROM onmaru.audio_odii_stories
+                    WHERE id::text LIKE '54500675-%' OR id IN (
+                      '54500000-0000-4000-8000-000000000211',
+                      '54500000-0000-4000-8000-000000000212',
+                      '54500000-0000-4000-8000-000000000213')
+                    """);
+        }
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    @EnableWebMvc
+    static class PublicMvcConfiguration { }
+
+    private record PublicPages(List<String> ids, List<Integer> sizes, List<Boolean> hasMore) { }
 
     private List<String> readIds(java.sql.Connection connection, String sql) throws SQLException {
         var ids = new ArrayList<String>();
@@ -379,8 +639,6 @@ class StagingFixtureTests {
         }
         return ids;
     }
-
-    private record FixtureRow(String id, OffsetDateTime timestamp, UUID cursorId) { }
 
     private void executeSeedForTestDatabase() throws Exception {
         var sql = seedSql().replace("current_database() <> 'onmaru_staging'", "current_database() <> 'onmaru_test'");
