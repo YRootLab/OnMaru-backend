@@ -2,6 +2,9 @@ package com.yrootlab.onmaru.security.oauth.kakao;
 
 import com.yrootlab.onmaru.OnMaruApplication;
 import com.yrootlab.onmaru.identity.oauth.ExternalIdentity;
+import com.yrootlab.onmaru.identity.oauth.InMemoryIdentityStore;
+import com.yrootlab.onmaru.identity.lifecycle.MemberLifecycleService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,6 +36,17 @@ class KakaoOAuthWebBoundaryTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private InMemoryIdentityStore identityStore;
+
+    @Autowired
+    private MemberLifecycleService memberLifecycleService;
+
+    @BeforeEach
+    void clearIdentityStore() {
+        identityStore.clear();
+    }
 
     @Test
     void loginRedirectIssuesOpaqueStateAndNonceCookie() throws Exception {
@@ -80,6 +94,34 @@ class KakaoOAuthWebBoundaryTests {
                         .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-guest", "guest-token")))
                 .andExpect(status().isSeeOther())
                 .andExpect(header().string("Location", "https://www.onmaru.site/discover?auth=failed"));
+    }
+
+    @Test
+    void callbackAfterDeletionReturnsNewMemberSession() throws Exception {
+        var firstSession = completeLogin("fixture-code");
+        var firstMember = memberLifecycleService.currentMember(firstSession).orElseThrow();
+        memberLifecycleService.requestDeletion(firstSession);
+
+        var secondSession = completeLogin("fixture-code");
+        var secondMember = memberLifecycleService.currentMember(secondSession).orElseThrow();
+
+        assertThat(secondMember.id()).isNotEqualTo(firstMember.id());
+        assertThat(memberLifecycleService.currentMember(firstSession)).isEmpty();
+    }
+
+    private String completeLogin(String code) throws Exception {
+        var login = mockMvc.perform(get("/auth/kakao/login")).andReturn();
+        var location = login.getResponse().getHeader("Location");
+        var state = location.substring(location.indexOf("state=") + "state=".length()).split("&")[0];
+        var callback = mockMvc.perform(get("/auth/kakao/callback")
+                        .queryParam("code", code)
+                        .queryParam("state", state)
+                        .cookie(login.getResponse().getCookie("__Host-onmaru-oauth-nonce"),
+                                login.getResponse().getCookie("__Host-onmaru-oauth-verifier")))
+                .andExpect(status().isSeeOther())
+                .andExpect(header().string("Location", "https://www.onmaru.site/discover?auth=success"))
+                .andReturn();
+        return callback.getResponse().getCookie("__Host-onmaru-session").getValue();
     }
 
     @TestConfiguration

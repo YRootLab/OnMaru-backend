@@ -3,7 +3,7 @@
 ## Release 3회 비교의 운영 경계 (#543)
 
 Release Benchmark Gate의 정본은 `benchmark/reports/release-module-comparison.json`이며,
-수치 판정은 Toolkit PR #130의 comparator를 포함하고 outage smoke race를 수정한 PR #134 병합 commit `d5b7892875000afc2deba6e6873717974d558ee5`가 소유한다.
+수치 판정은 Toolkit PR #130의 comparator를 포함하고 outage smoke race를 수정한 PR #134 병합 commit `7ecbb89aae771604d9c1c532cf123f239e279110`가 소유한다.
 baseline/candidate Release asset `release-module-evidence.json`의 사전 선택된 서로 다른
 성공 run 각 3개를 비교한다. [입력 필드와 실패 모델](../../benchmark/contracts.md)을 따른다.
 asset이 없으면 `inconclusive`로 기록한다. 일반 tag push 직후에는 아직 candidate asset이
@@ -20,7 +20,13 @@ manifest artifact link, 제외 사유가 남는다. 기존 GitHub Release가 있
 Release asset에도 보관한다. 원시 입력의 추가 필드나 오류 원문은 게시하지 않는다.
 Release asset의 작성 권한을 신뢰하는 입력 계약이며 source URL의 진위나 artifact checksum을
 Actions API로 재검증하는 collector는 아직 없다. 원본 manifest가 만료되기 전에 선택 근거를
-보존해야 한다. 이 작업에서는 실제 Actions 실행이나 release 변경을 수행하지 않았다.
+보존해야 한다.
+
+2026-10-05에는 v0.3.38과 v0.3.39에서 같은 `spring-api-postgres-other` module을 각각
+서로 다른 성공 run 3회로 측정했다. 중앙값은 394.40초와 457.93초, relative delta는
+`+0.16108012170385397`로 15%를 초과해 `approval_hold`가 됐다. 원본 run, artifact,
+개별 값과 환경 경계는 [실측 보고서](../../reports/2026-10-05-release-module-benchmark.md)에,
+검토된 입력과 정본 결과는 각 GitHub Release asset에 보존한다.
 
 W4의 5% latency 비교와 `trend-comparison`은 진단 전용이다. 아래 W4 문단과 fixture는
 이전 evidence 형식을 설명하며 새 release approval의 판정 근거가 아니다.
@@ -119,6 +125,10 @@ redacted stderr만 남긴다.
   않는다.
 
 ## 재현 명령
+
+실제 release asset 다운로드와 고정 Toolkit 비교 명령은
+[실측 보고서](../../reports/2026-10-05-release-module-benchmark.md#재현)를 따른다. 임의의 최신
+Toolkit 대신 이 저장소 adapter의 `TOOLKIT_REF`와 같은 commit을 사용한다.
 
 ```bash
 node --test scripts/test/benchmark-contract.test.mjs

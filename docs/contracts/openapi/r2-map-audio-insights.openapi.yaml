@@ -221,6 +221,11 @@ paths:
         - name: category
           in: query
           required: false
+          description: >-
+            Omit for all stories. Sorimaru themes use stable codes
+            HANOK_HERITAGE, TRADITIONAL_MARKET, VILLAGE_STREETS,
+            PALACE_HISTORY, SOUND_CULTURE, NATURE_TRAILS. Existing Korean
+            category aliases remain accepted during the frontend transition.
           schema:
             type: string
             minLength: 1

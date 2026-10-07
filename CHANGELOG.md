@@ -1,9 +1,53 @@
 # Changelog
 
+## Unreleased
+
+- Issue #668의 관리자 데이터 파이프라인 최근 scheduler 실행 상세, 실행 단건 조회, sanitized 실패 로그 cursor API와 실행별 `failureCount` 계약을 추가했다. 관리자 POST는 수집을 시작하지 않고 501을 반환한다.
+
+## [0.3.41](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.40...v0.3.41) (2026-10-05)
+
+
+### Performance Improvements
+
+* **cd:** apply verified Gradle profile ([fa990fb](https://github.com/YRootLab/OnMaru-backend/commit/fa990fb89fccf9726b8336436ca5d3b364d96004))
+* **cd:** apply verified Gradle profile to delivery builds ([f9f0c1c](https://github.com/YRootLab/OnMaru-backend/commit/f9f0c1c090bc0fbfd4faa99c41b51dd82b9503fc))
+
+## [0.3.40](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.39...v0.3.40) (2026-10-04)
+
+
+### Bug Fixes
+
+* **map:** 정보지도 집계의 한국어 지역명 복구 ([43b2a74](https://github.com/YRootLab/OnMaru-backend/commit/43b2a74acce733fa7d3252decee3892160a978c3))
+* **map:** 정보지도 집계의 한국어 지역명 복구 ([#630](https://github.com/YRootLab/OnMaru-backend/issues/630)) ([19bc9f6](https://github.com/YRootLab/OnMaru-backend/commit/19bc9f6a6ed9dbb87cb00f84e7e6a0b46621c61a))
+
+
+### Performance Improvements
+
+* **ci:** adopt verified two-worker Gradle profile ([648d3bd](https://github.com/YRootLab/OnMaru-backend/commit/648d3bde9527c1be2cfaaf1aab1d6a20bcd5eff1))
+
+## [0.3.39](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.38...v0.3.39) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ci:** Cloud 관측과 benchmark 실통합 준비 ([db2474e](https://github.com/YRootLab/OnMaru-backend/commit/db2474e46d1d95ae6f05240630b2968b782d7969))
+* **ci:** Cloud 호환 Toolkit pin과 bootstrap 연동 ([#555](https://github.com/YRootLab/OnMaru-backend/issues/555) [#556](https://github.com/YRootLab/OnMaru-backend/issues/556)) ([bb83e76](https://github.com/YRootLab/OnMaru-backend/commit/bb83e7633384fb11cbc3afaf3598f4e3a6cf839b))
+
+## Changelog
+
 This project uses semantic version tags from `master`. Release notes should be generated from Conventional Commits through Release Please once releasable backend changes exist.
 
 ## Unreleased
 
+- Issue #492의 관리자 access token JTI 폐기 상태와 계정별 `tokens_valid_after` 경계를 PostgreSQL에 영속화하고, logout 즉시 폐기·production fail-closed·만료 row cleanup과 관측 지표를 추가했다.
+- Issue #643의 Kakao 외부 장소 온기 생성 API, 장소·좌표·태그 검증, typed error, 원자적 외부 장소 registry와 FE 연동 계약을 추가했다.
+- Issue #647의 온디맨드 스테이징 DB에 지도·장소 상세·후기·Odii 연결을 함께 검증하는 결정적 합성 fixture와 반복 seed 통합 검증을 추가했다.
+- Issue #638에서 검증된 workers 2 / Gradle build cache disabled profile을 Spring Docker build와 deploy/release migration rehearsal에 적용하고 dependency·BuildKit cache는 유지했다.
+- Issues #525와 #556의 실제 3+3 CI benchmark에서 2 workers/no-cache profile이 4 workers/cache baseline보다 중앙값 기준 약 23.35% 짧고 실패율 0%임을 검증해 shared Java CI 설정에 반영했다.
+- Issue #543의 실제 v0.3.38/v0.3.39 release module 3+3 증적을 Release asset으로 보존하고, 중앙값 +16.108%를 15% 초과 회귀인 `approval_hold`로 검증했다.
+- Issue #617의 카카오 탈퇴 회원 재로그인을 새 회원 가입으로 처리하고, 이전 기록·세션 분리와 유효한 관리자 제재 우회를 방지했다.
+- Issue #586의 Lightsail Spring 운영 배포에 build 전 no-op preflight, 제한된 Blue-Green rollback과 재배포 hold, webhook 알림, Docker image 정리 및 GitHub Action SHA pinning을 추가했다.
+- Issue #604의 지도 원거리 집계를 행정경계 필수 JOIN에서 장소 projection 행정코드 기반으로 전환해 빈 DISTRICT/REGION 응답을 복구하고, 중복 전체 count 쿼리를 제거해 줌아웃 timeout 위험을 낮췄다. level 6의 단일 장소 cell은 category PLACE marker로 반환해 기존 혼합 marker/cluster 계약도 복구했다.
 - Issue #552의 카카오 비의존 익명 회원 프로필, 마이페이지 부분 수정 API, 온기 후기 최신 작성자 프로필과 FE 자산 ID 계약을 추가했다.
 - Issue #573의 관리자 cursor 목록 응답에 필터 기준 `totalCount`를 추가하고, 서명 cursor에서 최초 전체 건수를 유지하며 PostgreSQL count query index를 보강했다.
 - Issue #592의 운영 관리자 로그인 세션이 PostgreSQL JDBC의 `Instant` 타입 추론 오류로 저장되지 않던 문제를 수정하고, 생성·회전·폐기 통합 회귀 테스트를 추가했다.

@@ -259,6 +259,58 @@ class IdentityMigrationTests {
         }
     }
 
+    @Test
+    void memberProfileNicknamesBecomeUniqueWithoutFailingOnExistingDuplicates() throws Exception {
+        resetAndMigrateThrough("041");
+        var first = UUID.fromString("64000000-0000-0000-0000-000000000001");
+        var second = UUID.fromString("64000000-0000-0000-0000-000000000002");
+        var existingLegacyFallback = UUID.fromString("64000000-0000-0000-0000-000000000003");
+        var existingFirstCandidate = UUID.fromString("64000000-0000-0000-0000-000000000004");
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            insertMember(statement, first);
+            insertMember(statement, second);
+            insertMember(statement, existingLegacyFallback);
+            insertMember(statement, existingFirstCandidate);
+            statement.execute("""
+                    INSERT INTO onmaru.identity_member_profiles
+                        (member_id, display_name, character_id, background_id, created_at, updated_at)
+                    VALUES
+                        ('%s', '같은 닉네임', 'CHARACTER_01', 'BACKGROUND_01', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                        ('%s', '같은 닉네임', 'CHARACTER_02', 'BACKGROUND_02', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                        ('%s', '익명-' || substring(md5('%s'), 1, 17),
+                         'CHARACTER_03', 'BACKGROUND_03', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                        ('%s', '익명-' || substring(md5('%s:0'), 1, 17),
+                         'CHARACTER_04', 'BACKGROUND_04', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """.formatted(
+                            first,
+                            second,
+                            existingLegacyFallback,
+                            second,
+                            existingFirstCandidate,
+                            second));
+        }
+
+        migrateThrough("042");
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), USERNAME, PASSWORD);
+             var statement = connection.createStatement()) {
+            assertThat(countRows(statement, """
+                    SELECT COUNT(DISTINCT display_name)
+                    FROM onmaru.identity_member_profiles
+                    WHERE member_id IN ('%s', '%s', '%s', '%s')
+                    """.formatted(first, second, existingLegacyFallback, existingFirstCandidate))).isEqualTo(4);
+            assertThatThrownBy(() -> statement.execute("""
+                    UPDATE onmaru.identity_member_profiles
+                    SET display_name = '같은 닉네임'
+                    WHERE member_id = '%s'
+                    """.formatted(second)))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("identity_member_profiles_display_name_uq");
+        }
+    }
+
     private static void insertMember(java.sql.Statement statement, UUID memberId) throws Exception {
         statement.execute("""
                 INSERT INTO onmaru.identity_members (id, status, created_at)

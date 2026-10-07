@@ -86,4 +86,53 @@ class AdminJwtTokenCodecTests {
         assertThatThrownBy(() -> revocableCodec.verify(token))
                 .isInstanceOf(AdminAuthenticationException.class);
     }
+
+    @Test
+    void acceptsTokenAtBoundaryAndRejectsTokenIssuedBeforeBoundary() {
+        UUID adminId = UUID.randomUUID();
+        var atBoundary = codecWithValidity(adminId,
+                new AdminTokenValidity(AdminAccountStatus.ACTIVE, NOW));
+        var afterBoundary = codecWithValidity(adminId,
+                new AdminTokenValidity(AdminAccountStatus.ACTIVE, NOW.plusSeconds(1)));
+        String token = atBoundary.issue(new AdminPrincipal(adminId, "admin@onmaru.kr", AdminRole.ADMIN));
+
+        assertThat(atBoundary.verify(token).id()).isEqualTo(adminId);
+        assertThatThrownBy(() -> afterBoundary.verify(token))
+                .isInstanceOf(AdminAuthenticationException.class);
+    }
+
+    @Test
+    void rejectsTokenForInactiveAdminAccount() {
+        UUID adminId = UUID.randomUUID();
+        var inactive = codecWithValidity(adminId,
+                new AdminTokenValidity(AdminAccountStatus.DISABLED, Instant.MIN));
+        String token = inactive.issue(new AdminPrincipal(adminId, "admin@onmaru.kr", AdminRole.ADMIN));
+
+        assertThatThrownBy(() -> inactive.verify(token))
+                .isInstanceOf(AdminAuthenticationException.class);
+    }
+
+    @Test
+    void preservesTokenStoreOutageAsAuthenticationUnavailable() {
+        AdminTokenValidityStore failing = adminId -> {
+            throw new AdminTokenStoreException("unavailable", new IllegalStateException("database down"));
+        };
+        var unavailable = new AdminJwtTokenCodec(
+                secrets, "admin.jwt-signing-key", "onmaru-admin", "onmaru-admin-web",
+                java.time.Duration.ofMinutes(15), CLOCK, new InMemoryAdminJtiRevocationStore(), failing);
+        String token = unavailable.issue(new AdminPrincipal(
+                UUID.randomUUID(), "admin@onmaru.kr", AdminRole.ADMIN));
+
+        assertThatThrownBy(() -> unavailable.verify(token))
+                .isInstanceOf(AdminAuthenticationUnavailableException.class);
+    }
+
+    private AdminJwtTokenCodec codecWithValidity(UUID adminId, AdminTokenValidity validity) {
+        AdminTokenValidityStore store = requestedId -> requestedId.equals(adminId)
+                ? Optional.of(validity)
+                : Optional.empty();
+        return new AdminJwtTokenCodec(
+                secrets, "admin.jwt-signing-key", "onmaru-admin", "onmaru-admin-web",
+                java.time.Duration.ofMinutes(15), CLOCK, new InMemoryAdminJtiRevocationStore(), store);
+    }
 }

@@ -7,6 +7,8 @@ import com.yrootlab.onmaru.admin.auth.AdminRole;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,7 +23,9 @@ public final class JdbcAdminAccountStore implements AdminAccountStore {
     @Override
     public Optional<AdminAccount> findByEmail(String normalizedEmail) {
         String sql = """
-                SELECT id, email, nickname, role::text, password_hash, status::text
+                SELECT id, email, nickname, role::text, password_hash, status::text,
+                       CASE WHEN tokens_valid_after = '-infinity'::timestamptz
+                            THEN NULL ELSE tokens_valid_after END AS tokens_valid_after
                 FROM onmaru.identity_admin_accounts
                 WHERE email = ?
                 """;
@@ -37,7 +41,8 @@ public final class JdbcAdminAccountStore implements AdminAccountStore {
                         result.getString("nickname"),
                         AdminRole.valueOf(result.getString("role")),
                         result.getString("password_hash"),
-                        AdminAccountStatus.valueOf(result.getString("status"))));
+                        AdminAccountStatus.valueOf(result.getString("status")),
+                        instantOrMinimum(result.getTimestamp("tokens_valid_after"))));
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Failed to load admin account", exception);
@@ -47,7 +52,9 @@ public final class JdbcAdminAccountStore implements AdminAccountStore {
     @Override
     public Optional<AdminAccount> findById(UUID id) {
         String sql = """
-                SELECT id, email, nickname, role::text, password_hash, status::text
+                SELECT id, email, nickname, role::text, password_hash, status::text,
+                       CASE WHEN tokens_valid_after = '-infinity'::timestamptz
+                            THEN NULL ELSE tokens_valid_after END AS tokens_valid_after
                 FROM onmaru.identity_admin_accounts
                 WHERE id = ?
                 """;
@@ -63,7 +70,8 @@ public final class JdbcAdminAccountStore implements AdminAccountStore {
                         result.getString("nickname"),
                         AdminRole.valueOf(result.getString("role")),
                         result.getString("password_hash"),
-                        AdminAccountStatus.valueOf(result.getString("status"))));
+                        AdminAccountStatus.valueOf(result.getString("status")),
+                        instantOrMinimum(result.getTimestamp("tokens_valid_after"))));
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Failed to load admin account", exception);
@@ -82,5 +90,44 @@ public final class JdbcAdminAccountStore implements AdminAccountStore {
         } catch (SQLException exception) {
             throw new IllegalStateException("Failed to update admin last login", exception);
         }
+    }
+
+    @Override
+    public void changeStatus(UUID adminId, AdminAccountStatus status, Instant changedAt) {
+        String sql = status == AdminAccountStatus.ACTIVE
+                ? """
+                  UPDATE onmaru.identity_admin_accounts
+                  SET status = ?::onmaru.identity_admin_account_status,
+                      updated_at = ?
+                  WHERE id = ?
+                  """
+                : """
+                  UPDATE onmaru.identity_admin_accounts
+                  SET status = ?::onmaru.identity_admin_account_status,
+                      tokens_valid_after = greatest(
+                          tokens_valid_after,
+                          date_trunc('second', ?::timestamptz) + interval '1 second'),
+                      updated_at = ?
+                  WHERE id = ?
+                  """;
+        try (var connection = dataSource.getConnection(); var statement = connection.prepareStatement(sql)) {
+            statement.setString(1, status.name());
+            statement.setTimestamp(2, Timestamp.from(changedAt));
+            if (status == AdminAccountStatus.ACTIVE) {
+                statement.setObject(3, adminId);
+            } else {
+                statement.setTimestamp(3, Timestamp.from(changedAt));
+                statement.setObject(4, adminId);
+            }
+            if (statement.executeUpdate() != 1) {
+                throw new IllegalArgumentException("admin account not found");
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Failed to change admin status", exception);
+        }
+    }
+
+    private static Instant instantOrMinimum(Timestamp timestamp) {
+        return timestamp == null ? Instant.MIN : timestamp.toInstant();
     }
 }

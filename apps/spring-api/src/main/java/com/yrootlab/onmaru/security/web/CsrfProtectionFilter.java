@@ -44,8 +44,19 @@ public final class CsrfProtectionFilter extends OncePerRequestFilter {
     }
 
     private boolean requiresCsrf(HttpServletRequest request) {
-        return request.getRequestURI().startsWith("/api/")
-                && UNSAFE_METHODS.contains(request.getMethod());
+        var path = resolvePath(request);
+        return path.startsWith("/api/")
+                && UNSAFE_METHODS.contains(request.getMethod())
+                && !"/api/v1/realtime/warmth".equals(path);
+    }
+
+    private String resolvePath(HttpServletRequest request) {
+        var servletPath = request.getServletPath();
+        if (servletPath != null && !servletPath.isBlank()) {
+            return servletPath;
+        }
+        var uri = request.getRequestURI();
+        return uri != null ? uri : "";
     }
 
     private boolean isValid(HttpServletRequest request) {
@@ -85,7 +96,7 @@ public final class CsrfProtectionFilter extends OncePerRequestFilter {
     }
 
     private String schemaVersion(HttpServletRequest request) {
-        var path = request.getRequestURI();
+        var path = resolvePath(request);
         return path.equals("/api/v1/me/stamp-ranking")
                 || path.matches("/api/v1/places/[^/]+/check-ins")
                 ? StampApiContract.SCHEMA_VERSION : "1.2";

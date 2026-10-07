@@ -5,6 +5,10 @@ import com.yrootlab.onmaru.admin.auth.AdminLoginResult;
 import com.yrootlab.onmaru.admin.auth.AdminLoginService;
 import com.yrootlab.onmaru.admin.auth.AdminPrincipal;
 import com.yrootlab.onmaru.admin.auth.AdminSessionService;
+import com.yrootlab.onmaru.admin.auth.AdminAccessToken;
+import com.yrootlab.onmaru.admin.auth.AdminAuthenticationUnavailableException;
+import com.yrootlab.onmaru.admin.auth.AdminTokenRevocationService;
+import com.yrootlab.onmaru.admin.auth.AdminTokenStoreException;
 import com.yrootlab.onmaru.web.common.error.ApiErrorResponse;
 import com.yrootlab.onmaru.web.common.error.RequestIdFilter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,14 +38,17 @@ public final class AdminAuthController {
     private final AdminAuthenticator authenticator;
     private final AdminLoginService loginService;
     private final AdminSessionService sessionService;
+    private final AdminTokenRevocationService tokenRevocationService;
 
     public AdminAuthController(
             AdminAuthenticator authenticator,
             AdminLoginService loginService,
-            AdminSessionService sessionService) {
+            AdminSessionService sessionService,
+            AdminTokenRevocationService tokenRevocationService) {
         this.authenticator = authenticator;
         this.loginService = loginService;
         this.sessionService = sessionService;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @Operation(summary = "관리자 로그인")
@@ -107,12 +114,15 @@ public final class AdminAuthController {
             @org.springframework.web.bind.annotation.CookieValue(name = REFRESH_COOKIE, required = false) String refreshToken,
             HttpServletRequest request) {
         try {
-            authenticator.authenticate(authorization);
+            AdminAccessToken accessToken = authenticator.authenticateToken(authorization);
+            tokenRevocationService.revoke(accessToken);
             sessionService.revoke(refreshToken);
             return ResponseEntity.noContent()
                     .cacheControl(CacheControl.noStore())
                     .header("Set-Cookie", clearRefreshCookie().toString())
                     .build();
+        } catch (AdminAuthenticationUnavailableException | AdminTokenStoreException exception) {
+            return unavailable(request);
         } catch (RuntimeException exception) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .cacheControl(CacheControl.noStore())
@@ -135,6 +145,8 @@ public final class AdminAuthController {
                     .cacheControl(CacheControl.noStore())
                     .body(new AdminPrincipalResponse(
                             principal.id(), principal.email(), principal.role().name()));
+        } catch (AdminAuthenticationUnavailableException exception) {
+            return unavailable(request);
         } catch (RuntimeException exception) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .cacheControl(CacheControl.noStore())
@@ -154,6 +166,12 @@ public final class AdminAuthController {
 
     private ApiErrorResponse error(String code, String message, HttpServletRequest request) {
         return new ApiErrorResponse("1.2", code, message, requestId(request), Map.of());
+    }
+
+    private ResponseEntity<ApiErrorResponse> unavailable(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .cacheControl(CacheControl.noStore())
+                .body(error("AUTH_UNAVAILABLE", "Admin authentication is temporarily unavailable.", request));
     }
 
     private ResponseCookie refreshCookie(String value) {

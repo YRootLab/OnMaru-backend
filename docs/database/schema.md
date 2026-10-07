@@ -12,6 +12,11 @@
 // ./overview.dbml
 // V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
 // failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
+// V045는 관리자 파이프라인 상세 조회를 위해 operations_sync_runs에 scope,
+// requested_at, nullable progress snapshot을 추가한다. operations_sync_failures에는
+// 실행별 sanitized 오류 코드·메시지·endpoint·content ID만 저장하며 credential,
+// Authorization header, 개인정보와 전체 upstream payload는 저장하지 않는다.
+// 최신 실행 조회와 실패 cursor page는 각각 dataset/latest, run/time/id index를 사용한다.
 // V039는 관리자 cursor 목록의 필터 전체 건수와 keyset page 조회를 위해
 // identity_members(status, created_at, id), 좌표 snapshot이 완전한
 // community_visit_reviews(status, created_at, id), OPEN community_review_reports
@@ -68,6 +73,12 @@
 // V026은 V021 이전 VisitReview에 결정적 p-legacy-* 공개 ID를 등록하고 가능한 최신
 // published Catalog version의 장소명·지역·좌표 snapshot을 backfill해 JDBC 전환 시
 // 기존 후기가 조회에서 사라지지 않게 한다.
+// V043의 catalog_external_places는 FE가 Kakao 검색에서 선택한 CLIENT_ASSERTED 장소를
+// Catalog-owned identity/public ID에 연결한다. 이 row는 active dataset revision이나 지도
+// 공개 projection에 자동 게시하지 않고 VisitReview 생성의 장소 snapshot source로만 쓴다.
+// (provider, external_id)는 하나의 immutable place identity를 가리키며 public_place_id는
+// Kakao ID를 노출하지 않는 p-ext-{32 lowercase hex} 형식이다. region 경계 미해결 장소는
+// kr-unassigned로 보존하고 지역 집계에서 별도 관찰한다.
 // 한옥 수결첩의 실행 스키마는 V028을 기준으로 한다. stamp_definitions와
 // stamp_region_rules가 수결 표시 정보와 canonical 지역 조건을 소유하고,
 // stamp_check_ins는 회원·Catalog 장소·15분 bucket 관계와 서버 판정 거리/정확도만 저장하며,
@@ -89,6 +100,10 @@
 // 식별해 개인정보를 복제하지 않고 deletion ledger에 기록하며, 모든 대상이 사라진 뒤에만
 // 회원 deletion ledger를 COMPLETED로 전환한다. DELETING tombstone은
 // cleanup과 경합한 체크인 또는 랭킹 참여가 개인정보 row를 다시 만들지 못하게 한다.
+// 탈퇴 후 동일 외부 계정으로 재로그인하면 DELETING 회원의 external account 연결을
+// 원자적으로 해제하고 새 ACTIVE 회원·프로필에 연결한다. 이전 회원의 deletion ledger,
+// 폐기된 세션과 데이터는 새 회원 ID로 이전하지 않으며 기존 cleanup 대상에 남는다.
+// 기존 연결의 회원 ID에 유효한 관리자 제재가 있으면 연결을 해제하기 전에 로그인을 거부한다.
 // V031은 TourAPI 국문 v4.4에서 기존 areaCode/sigunguCode를 대체한 법정동 코드
 // lDongRegnCd/lDongSignguCd를 catalog_kto_korean_content_versions에 보존한다.
 // 최초 areaBasedList2 전 페이지는 적격성 판정과 무관하게 원천 version에 저장하고,
@@ -99,6 +114,11 @@
 // catalog_region_source_codes, catalog_datalab_region_mappings에 등록한다.
 // 매핑은 공식 data.go.kr URL과 검증 시각을 보존하며, API의 약 35일 제공 지연을 고려한
 // 일별 방문자 동기화와 DB 기반 행정구역 원형 히트맵의 지역 레지스트리로 사용한다.
+// V041은 정보지도 viewport의 TourAPI 법정동 시도/시군구 원본 코드를 한국어로 표시하기 위한
+// map_region_display_names(provider_code PK, name, level) 조회표를 추가한다.
+// 285개 이름은 V032에서 검증한 provider code snapshot을 사용하되 활성 dataset 생성 시점과
+// 독립적으로 저장한다. viewport regionCode는 기존 필터 계약을 위해 그대로 유지하고,
+// 사용자 표시용 name만 이 표에서 조회한다. 매핑되지 않은 값은 내부 코드 대신 '이 지역'으로 표시한다.
 // V033은 ODII 공개 조회를 활성 revision 전체 Java snapshot 복원에서 PostgreSQL read model로
 // 전환한다. audio_odii_spots.public_id와 audio_odii_stories.public_id는 기존 Java
 // UUID.nameUUIDFromBytes 공개 ID와 동일한 generated stored UUID이며 (public_id, lang_code)
@@ -116,11 +136,17 @@
 // identity_admin_sessions에 저장하며, 후기/신고 변경은 기존 community moderation command와
 // 같은 transaction에서 audit row를 남긴다. curation override는 TourAPI 원천 행을 수정하지 않고
 // active Catalog projection에 별도로 적용한다.
+// V044는 관리자 access token의 logout 직후 폐기와 계정 단위 전체 폐기 경계를 추가한다.
+// identity_admin_access_token_revocations에는 token/JTI 원문이 아닌 SHA-256 JTI hash와 exp만
+// 저장하며, identity_admin_accounts.tokens_valid_after 이전 iat의 token은 거부한다.
+// production 인증은 두 값을 PostgreSQL에서 조회하고 장애 시 fail-closed 하며, 만료된 폐기 row는
+// 시간당 bounded cleanup으로 제거한다.
 // V037은 V036보다 먼저 게시된 활성 TourAPI revision의 지도 장소·카테고리·지역 집계
 // projection 및 publication을 원천 장소 변경 없이 채운다. 지역 코드가 없는 장소도
 // 위치와 공개 ID가 있으면 지도 목록에 포함하고 지역 집계에서는 제외한다.
 // V040부터 identity_member_profiles가 OnMaru 회원의 현재 공개 프로필을 소유한다.
-// display_name은 trim된 2~20자 익명 이름이며 중복을 허용한다. character_id는
+// display_name은 trim/NFC 처리된 2~20자 익명 이름이며 V042부터 유일하다.
+// migration은 기존 중복 프로필의 첫 row를 유지하고 나머지를 결정적 익명 이름으로 복구한다. character_id는
 // CHARACTER_01..10, background_id는 BACKGROUND_01..10의 고정 FE 자산 슬롯만 저장한다.
 // 실제 캐릭터 이미지와 배경 HEX는 FE가 관리하며 DB에는 URL이나 HEX를 저장하지 않는다.
 // migration은 기존 회원 UUID hash로 프로필을 결정적으로 backfill한다. 신규 회원은 OAuth

@@ -47,10 +47,7 @@ public final class MapInfoCategoryMapping {
         if (category == null || category == MapInfoCategory.ALL) {
             return List.of();
         }
-        if (category == MapInfoCategory.HANOK) {
-            return MAPPING.get(category);
-        }
-        return List.of(category.name());
+        return applied(category);
     }
 
 }

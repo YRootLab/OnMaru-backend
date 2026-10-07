@@ -106,7 +106,7 @@ macOS에서는 Docker Desktop 하나가 Engine과 Compose v2를 함께 제공한
 
 ```bash
 git clone https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git ../OnMaru-backend-ci-toolkit
-git -C ../OnMaru-backend-ci-toolkit checkout d5b7892875000afc2deba6e6873717974d558ee5
+git -C ../OnMaru-backend-ci-toolkit checkout 7ecbb89aae771604d9c1c532cf123f239e279110
 cd ../OnMaru-backend-ci-toolkit
 
 bash scripts/verify_toolkit.sh
@@ -142,9 +142,9 @@ Toolkit CLI는 실행 파일의 설치 출처와 commit까지 검사하므로 �
 ```bash
 python3 -m venv /tmp/onmaru-pipeline-toolkit
 /tmp/onmaru-pipeline-toolkit/bin/pip install \
-  'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@d5b7892875000afc2deba6e6873717974d558ee5'
+  'git+https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git@7ecbb89aae771604d9c1c532cf123f239e279110'
 export ONMARU_PIPELINE_TOOLKIT_BIN=/tmp/onmaru-pipeline-toolkit/bin/pipeline-toolkit
-export ONMARU_PIPELINE_TOOLKIT_REF=d5b7892875000afc2deba6e6873717974d558ee5
+export ONMARU_PIPELINE_TOOLKIT_REF=7ecbb89aae771604d9c1c532cf123f239e279110
 ```
 
 이제 OnMaruBE 저장소 루트로 돌아와 먼저 dry-run한다. 인자를 생략해도 dry-run이 기본이다.
@@ -182,7 +182,20 @@ Dispatch 응답이 유실되거나 상태가 모호하면 이미 실행됐을 �
 
 `개선율 = (baseline 중앙값 - candidate 중앙값) / baseline 중앙값 × 100`
 
-양수면 단축, 음수면 회귀다. 중앙값만 쓰지 말고 여섯 개의 개별 값, 범위, 실패율, queue 조건도 함께 남긴다. 과거 serial whole-workflow 470초와 critical-path 411.62초처럼 측정 경계가 다른 값은 12.42% 개선으로 주장하지 않는다. 상세 보안·증적 계약은 [`docs/benchmark/README.md`](docs/benchmark/README.md), 대시보드와 Cloud 운영 절차는 [`docs/operations/release-evidence/ci-observability.md`](docs/operations/release-evidence/ci-observability.md)를 참고한다.
+위 사람이 읽는 개선율은 양수면 단축, 음수면 회귀다. Toolkit JSON의 `relative_delta`는 반대로 `(candidate - baseline) / baseline`이므로 음수면 단축이다. 중앙값만 쓰지 말고 여섯 개의 개별 값, 범위, 실패율, queue 조건도 함께 남긴다. 과거 serial whole-workflow 470초와 critical-path 411.62초처럼 측정 경계가 다른 값은 12.42% 개선으로 주장하지 않는다. 2026-10-05의 실제 3+3 결과는 [`CI Gradle profile 3+3 실측`](docs/reports/2026-10-05-ci-performance-measurement.md)에 있다. 상세 보안·증적 계약은 [`docs/benchmark/README.md`](docs/benchmark/README.md), 대시보드와 Cloud 운영 절차는 [`docs/operations/release-evidence/ci-observability.md`](docs/operations/release-evidence/ci-observability.md)를 참고한다.
+
+Release 사이의 module 성능은 일반 PR 실험과 분리한다. 각 tag에서 `Module Benchmark`를
+서로 다른 run으로 3회씩 실행하고 검토된 `release-module-evidence.json`을 각 Release에
+올린 다음, 고정 Toolkit adapter로 비교한다. 15% 초과 회귀는 자동 통과하지 않고
+`benchmark-promotion` 승인 검토로 보낸다. v0.3.38 → v0.3.39 실제 결과와 복사 가능한 명령은
+[`release module 3+3 실측`](docs/reports/2026-10-05-release-module-benchmark.md)에 있다.
+
+채택한 `2 workers / Gradle build cache disabled` profile은 required Java CI뿐 아니라 Spring
+Docker `bootJar`와 deploy/release migration rehearsal에도 opt-in으로 적용한다. 이때
+`actions/setup-java` dependency cache, Docker의 Gradle cache mount와 GHA BuildKit layer cache는
+유지된다. 즉 모든 cache를 끄는 구성이 아니며, task output을 재사용하는 Gradle build cache만
+disabled다. 이번 3+3은 worker와 task-output cache를 동시에 바꾼 실험이므로 CD 단독 개선율을
+주장하지 않고, 다음 측정에서는 두 축을 분리한다.
 
 ## 환경 분리 및 프로파일 전환 가이드 (Local, Develop, Production)
 
@@ -193,8 +206,8 @@ Dispatch 응답이 유실되거나 상태가 모호하면 이미 실행됐을 �
 | 환경 (Stage) | Spring Profile | Secrets Source | DB / 외부 API 동작 | 용도 |
 |---|---|---|---|---|
 | **Local (기본)** | `local` (default) | `fake` (Mock) | 인메모리 DB, 가짜 외부 API 키로도 오프라인 빌드/테스트 100% 통과 | 로컬 빠른 개발 및 단위/통합 테스트 |
-| **Develop** | `develop` | `ENVIRONMENT` | 개발용 PostgreSQL (Neon 구성은 deprecated; 현재 개발 DB 호스팅 확인 필요), 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
-| **Production** | `production` | `ENVIRONMENT` | AWS PostgreSQL (PostGIS), 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 |
+| **Develop** | `develop` | `ENVIRONMENT` | 온디맨드 Lightsail 스테이징 DB, 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
+| **Production** | `production` | `ENVIRONMENT` | AWS Lightsail PostgreSQL/PostGIS, 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 (Lightsail) |
 
 ### 1. 프로파일별 실행 방법
 
@@ -205,11 +218,13 @@ Dispatch 응답이 유실되거나 상태가 모호하면 이미 실행됐을 �
 # 2) 개발/스테이징 환경 실행 (로컬 환경변수 또는 .env.local 주입)
 SPRING_PROFILES_ACTIVE=develop ./gradlew :apps:spring-api:bootRun
 
-# 3) 프로덕션 환경 실행 (Render 등의 컨테이너 환경)
+# 3) 프로덕션 환경 실행 (AWS Lightsail 컨테이너 환경)
 SPRING_PROFILES_ACTIVE=production \
 ONMARU_SECRETS_SOURCE=ENVIRONMENT \
 ./gradlew :apps:spring-api:bootRun
 ```
+
+Render와 Neon을 운영 환경으로 설명하는 이전 문서는 마이그레이션 이력 보존용 deprecated 자료다. 현재 배포·복구 절차는 [`infra/lightsail/README.md`](infra/lightsail/README.md)를 기준으로 한다.
 
 ### 2. 필수 환경변수 목록 (Production / Develop)
 

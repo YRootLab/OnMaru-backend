@@ -70,6 +70,9 @@ public final class AdmissionFilter extends OncePerRequestFilter {
         if ("POST".equals(request.getMethod()) && "/api/admission/login".equals(request.getRequestURI())) {
             return "login.start";
         }
+        if ("POST".equals(request.getMethod()) && "/api/v1/visit-reviews".equals(request.getRequestURI())) {
+            return "review.create.external";
+        }
         return null;
     }
 

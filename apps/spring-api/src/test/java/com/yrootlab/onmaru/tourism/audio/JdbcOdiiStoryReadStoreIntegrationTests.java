@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.tourism.audio;
 
 import com.yrootlab.onmaru.audio.query.OdiiProjectionMetadata;
 import com.yrootlab.onmaru.audio.query.OdiiRegionRef;
+import com.yrootlab.onmaru.audio.query.OdiiStoryTheme;
 import com.yrootlab.onmaru.testing.postgres.PostgresTestDatabase;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
@@ -103,6 +104,28 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
     }
 
     @Test
+    void filtersAllSixSorimaruThemesInSqlAndCountsEachStoryOncePerTheme() {
+        var store = readStore();
+
+        for (var theme : OdiiStoryTheme.values()) {
+            var page = store.listTheme("ko-KR", theme, 20, null, null);
+            int expected = theme == OdiiStoryTheme.HANOK_HERITAGE ? 2 : 1;
+            assertThat(page.totalCount()).as(theme.name()).isEqualTo(expected);
+            assertThat(page.stories()).as(theme.name()).hasSize(expected);
+            assertThat(page.hasMore()).isFalse();
+        }
+        var first = store.listTheme("ko-KR", OdiiStoryTheme.HANOK_HERITAGE, 1, null, null);
+        var second = store.listTheme("ko-KR", OdiiStoryTheme.HANOK_HERITAGE, 1,
+                first.stories().getFirst().publishedAt(), first.stories().getFirst().storyId());
+        assertThat(first.totalCount()).isEqualTo(2);
+        assertThat(first.hasMore()).isTrue();
+        assertThat(second.totalCount()).isEqualTo(2);
+        assertThat(second.hasMore()).isFalse();
+        assertThat(second.stories().getFirst().storyId()).isNotEqualTo(first.stories().getFirst().storyId());
+        assertThat(store.list("ko-KR", 20, null, null).totalCount()).isEqualTo(3);
+    }
+
+    @Test
     void filtersSearchAndNearbyCandidatesInsidePostgres() {
         var store = readStore();
 
@@ -179,7 +202,13 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
                     INSERT INTO onmaru.audio_spot_versions (
                         revision_id, spot_id, title, location, status, hash, source_modified_at
                     )
-                    SELECT '%s', md5('read-spot-' || value)::uuid, '장소 ' || value,
+                    SELECT '%s', md5('read-spot-' || value)::uuid,
+                           CASE value
+                               WHEN 1 THEN '전주 한옥마을'
+                               WHEN 2 THEN '전통시장과 궁궐 역사'
+                               WHEN 3 THEN '숲길'
+                               ELSE '장소 ' || value
+                           END,
                            ST_SetSRID(ST_MakePoint(127.0 + value / 100.0, 37.0), 4326)::geography,
                            'ACTIVE', 'spot-hash-' || value,
                            '2026-09-27T00:00:00Z'::timestamptz + value * INTERVAL '1 minute'
@@ -216,6 +245,18 @@ class JdbcOdiiStoryReadStoreIntegrationTests {
                            '2026-09-27T00:00:00Z'::timestamptz + value * INTERVAL '1 minute'
                     FROM generate_series(1, 6) AS value
                     """.formatted(REVISION_ID));
+            statement.execute("""
+                    INSERT INTO onmaru.audio_story_content_tag_versions (
+                        revision_id, story_id, position, label, score, source,
+                        algorithm_version, source_hash, generated_at
+                    ) VALUES (
+                        '%s', md5('read-story-3')::uuid, 0, '국악 연주', 1,
+                        'GENERATED', 'theme-test-v1', 'theme-test-hash', CURRENT_TIMESTAMP
+                    ), (
+                        '%s', md5('read-story-2')::uuid, 0, '한옥', 1,
+                        'GENERATED', 'theme-test-v1', 'theme-test-hash-2', CURRENT_TIMESTAMP
+                    )
+                    """.formatted(REVISION_ID, REVISION_ID));
             statement.execute("""
                     INSERT INTO onmaru.audio_subtitle_lines (
                         revision_id, story_id, position, text, start_seconds, timing_mode

@@ -65,6 +65,13 @@ describe('container and staging release pipeline', () => {
     assert.ok(plan.smoke.endpoints.includes('/ready'));
   });
 
+  it('keeps staging fixtures deterministic by disabling startup source sync', () => {
+    const compose = read('infra/lightsail/staging/compose.yaml');
+
+    assert.match(compose, /ONMARU_TOURAPI_SYNC_ON_STARTUP:\s*["']false["']/);
+    assert.match(compose, /ONMARU_ODII_SYNC_ON_STARTUP:\s*["']false["']/);
+  });
+
   it('publishes a manual staging workflow with image build scan smoke and rollback jobs', () => {
     const workflow = read('.github/workflows/deploy.yml');
 
@@ -73,8 +80,8 @@ describe('container and staging release pipeline', () => {
     assert.doesNotMatch(workflow, /branches:\n(?:\s+- .+\n)*\s+- main/);
     assert.match(workflow, /permissions:\n\s+contents: read\n\s+packages: write\n\s+security-events: write/);
     assert.match(workflow, /concurrency:/);
-    assert.match(workflow, /docker\/build-push-action@v6/);
-    assert.match(workflow, /aquasecurity\/trivy-action@v0\.36\.0/);
+    assert.match(workflow, /docker\/build-push-action@[0-9a-f]{40} # v6/);
+    assert.match(workflow, /aquasecurity\/trivy-action@[0-9a-f]{40} # v0\.36\.0/);
     assert.equal(
       workflow.match(/limit-severities-for-sarif:\s+true/g)?.length,
       2,
@@ -87,7 +94,7 @@ describe('container and staging release pipeline', () => {
       workflow.indexOf('  migration-gate:'),
       workflow.indexOf('  staging-smoke:'),
     );
-    assert.match(migrationGate, /actions\/setup-python@v5/);
+    assert.match(migrationGate, /actions\/setup-python@[0-9a-f]{40} # v5/);
     assert.match(migrationGate, /python-version:\s*["']?3\.12["']?/);
     assert.match(migrationGate, /pip install -r scripts\/test\/requirements-contract\.txt/);
     assert.ok(
@@ -112,5 +119,26 @@ describe('container and staging release pipeline', () => {
       assert.match(workflow, /branches:\n(?:\s+- develop\n)?\s+- master/);
       assert.doesNotMatch(workflow, /branches:\n(?:\s+- .+\n)*\s+- main/);
     }
+  });
+
+  it('applies the verified Gradle profile to Spring image and migration builds without dropping outer caches', () => {
+    const dockerfile = read('Dockerfile');
+    const workflow = read('.github/workflows/deploy.yml');
+    const migrationGate = workflow.slice(
+      workflow.indexOf('  migration-gate:'),
+      workflow.indexOf('  staging-deploy:'),
+    );
+
+    assert.match(dockerfile, /RUN --mount=type=cache,target=\/root\/\.gradle/);
+    assert.match(dockerfile, /--init-script build-logic\/ci-performance\.gradle\.kts/);
+    assert.match(dockerfile, /:apps:spring-api:bootJar -x test/);
+    assert.match(dockerfile, /-Ponmaru\.ci\.performance\.enabled=true/);
+    assert.match(workflow, /cache-from: type=gha,scope=spring-api/);
+    assert.match(workflow, /cache-to: type=gha,mode=max,scope=spring-api/);
+
+    assert.match(migrationGate, /cache: gradle/);
+    assert.match(migrationGate, /--init-script build-logic\/ci-performance\.gradle\.kts/);
+    assert.match(migrationGate, /:apps:spring-api:test --tests '\*Migration\*'/);
+    assert.match(migrationGate, /-Ponmaru\.ci\.performance\.enabled=true/);
   });
 });

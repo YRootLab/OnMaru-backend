@@ -356,6 +356,51 @@
       "checksum": "member-profiles-v040-20261004",
       "sha256": "05fb2860d47177f1556f08c5f69daf72416d5a2727e4246b48e19ab37b333ae2",
       "description": "Privacy-first member display names and FE-owned character/background selections"
+    },
+    {
+      "version": "041",
+      "reservedFor": "MAP_REGION_DISPLAY_NAMES",
+      "issueNumber": 630,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V041__630_map_region_display_names.sql",
+      "checksum": "map-region-display-names-v041-20261005",
+      "sha256": "bb9d93741b12484252137f9739132bd8b2c314849a08b0dfd98e7222598d06ae",
+      "description": "Korean viewport labels for TourAPI administrative region codes"
+    },
+    {
+      "version": "042",
+      "reservedFor": "UNIQUE_MEMBER_NICKNAMES",
+      "issueNumber": 640,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V042__640_unique_member_nicknames.sql",
+      "checksum": "unique-member-nicknames-v042-20261006",
+      "sha256": "e8ac9d2ac86838641a5b71791a00bde17252689bd432c380b97661a0a87d0c7d",
+      "description": "Unique member nicknames with deterministic repair of historical duplicates"
+    },
+    {
+      "version": "043",
+      "reservedFor": "EXTERNAL_PLACE_REGISTRY",
+      "issueNumber": 643,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V043__643_external_place_registry.sql",
+      "checksum": "external-place-registry-v043-20261006",
+      "sha256": "3bb0a7969e4295743c886c895664c351259e69e1995315a809072dccb2d14122",
+      "description": "Client-asserted Kakao place identity and immutable VisitReview snapshot source"
+    },
+    {
+      "version": "044",
+      "reservedFor": "ADMIN_JWT_REVOCATION",
+      "issueNumber": 492,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V044__492_admin_jwt_revocation.sql",
+      "checksum": "admin-jwt-revocation-v044-20261006",
+      "sha256": "428fe94ccd759eaf6cbc10cfcffeaabdfa21fb95f4ec2f6cd2df110f1b0fea7e",
+      "description": "Persist admin access-token revocations and account token validity boundary"
+    },
+    {
+      "version": "045",
+      "reservedFor": "ADMIN_PIPELINE_DETAILS",
+      "issueNumber": 668,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V045__668_admin_pipeline_details.sql",
+      "checksum": "admin-pipeline-details-v045-20261006",
+      "sha256": "8101c5478d417066e667ee2ce532b4b87ea140af8a3ec6eb4cf1b7388b62b870",
+      "description": "Admin pipeline run scope, progress snapshot, latest-run index and sanitized failures"
     }
   ]
 }

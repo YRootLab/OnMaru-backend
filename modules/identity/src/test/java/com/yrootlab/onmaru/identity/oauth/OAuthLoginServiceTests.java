@@ -103,6 +103,31 @@ class OAuthLoginServiceTests {
     }
 
     @Test
+    void loginAfterDeletionCreatesNewMemberAndDoesNotRestoreOldSession() {
+        var store = new InMemoryIdentityStore();
+        var hasher = new TokenHasher("test-pepper");
+        var service = new OAuthLoginService(store, hasher, CLOCK);
+        var identity = new ExternalIdentity("KAKAO", KAKAO.issuer(), "rejoin-subject");
+        var firstState = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser-1", "pkce-1", null, "/discover"));
+        var first = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, firstState.state(), "browser-1", "pkce-1", identity));
+        assertThat(store.requestDeletion(hasher.hash(first.sessionToken()), CLOCK.instant())).isPresent();
+
+        var secondState = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser-2", "pkce-2", null, "/discover"));
+        var second = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, secondState.state(), "browser-2", "pkce-2", identity));
+
+        assertThat(second.memberId()).isNotEqualTo(first.memberId());
+        assertThat(store.findActiveMemberBySessionHash(hasher.hash(first.sessionToken()), CLOCK.instant())).isEmpty();
+        assertThat(store.findActiveMemberBySessionHash(hasher.hash(second.sessionToken()), CLOCK.instant()))
+                .get().extracting("id").isEqualTo(second.memberId());
+        assertThat(store.memberCount()).isEqualTo(2);
+        assertThat(store.externalAccountCount()).isEqualTo(1);
+    }
+
+    @Test
     void firstLoginCreatesProfileAndReloginKeepsTheMemberEdit() {
         var store = new InMemoryIdentityStore();
         var generator = new MemberProfileGenerator(bound -> bound == 10_000 ? 42 : 0);
@@ -146,6 +171,52 @@ class OAuthLoginServiceTests {
                         com.yrootlab.onmaru.identity.profile.MemberProfileCharacter.CHARACTER_10,
                         com.yrootlab.onmaru.identity.profile.MemberProfileBackground.BACKGROUND_10);
         assertThat(store.profileCount()).isEqualTo(1);
+    }
+
+    @Test
+    void generatedNicknameCollisionRetriesSevenTimesBeforeUsingTheLastGeneratedCandidate() {
+        var store = new InMemoryIdentityStore();
+        store.createMember(CLOCK.instant(), new com.yrootlab.onmaru.identity.profile.NewMemberProfile(
+                "고요한 마루 0000",
+                com.yrootlab.onmaru.identity.profile.MemberProfileCharacter.CHARACTER_01,
+                com.yrootlab.onmaru.identity.profile.MemberProfileBackground.BACKGROUND_01));
+        var generatedNames = new java.util.concurrent.atomic.AtomicInteger();
+        var generator = new MemberProfileGenerator(bound ->
+                bound == 10_000 && generatedNames.getAndIncrement() == 7 ? 1 : 0);
+        var service = new OAuthLoginService(store, new TokenHasher("test-pepper"), CLOCK, generator);
+
+        var state = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser", "pkce", null, "/discover"));
+        var result = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, state.state(), "browser", "pkce",
+                new ExternalIdentity("KAKAO", KAKAO.issuer(), "collision")));
+
+        assertThat(store.findByMemberId(result.memberId()).orElseThrow().displayName())
+                .isEqualTo("고요한 마루 0001");
+    }
+
+    @Test
+    void generatedNicknameFallsBackToTwentyCharacterAnonymousIdAfterSevenRetries() {
+        var store = new InMemoryIdentityStore();
+        store.createMember(CLOCK.instant(), new com.yrootlab.onmaru.identity.profile.NewMemberProfile(
+                "고요한 마루 0000",
+                com.yrootlab.onmaru.identity.profile.MemberProfileCharacter.CHARACTER_01,
+                com.yrootlab.onmaru.identity.profile.MemberProfileBackground.BACKGROUND_01));
+        var service = new OAuthLoginService(
+                store,
+                new TokenHasher("test-pepper"),
+                CLOCK,
+                new MemberProfileGenerator(bound -> 0));
+        var state = service.startLogin(new StartOAuthLoginCommand(
+                KAKAO, "browser", "pkce", null, "/discover"));
+
+        var result = service.completeLogin(new CompleteOAuthLoginCommand(
+                KAKAO, state.state(), "browser", "pkce",
+                new ExternalIdentity("KAKAO", KAKAO.issuer(), "fallback")));
+
+        var displayName = store.findByMemberId(result.memberId()).orElseThrow().displayName();
+        assertThat(displayName).matches("익명-[0-9A-HJKMNP-TV-Z]{17}");
+        assertThat(displayName.codePointCount(0, displayName.length())).isEqualTo(20);
     }
 
     @Test

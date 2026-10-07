@@ -3,7 +3,7 @@
 ## 계약 상태
 
 Release promotion의 정본은 `release-module-comparison.json`이다. Toolkit PR #130 병합 commit
-`d5b7892875000afc2deba6e6873717974d558ee5`의 Python API
+`7ecbb89aae771604d9c1c532cf123f239e279110`의 Python API
 `compare_module_benchmarks(target=EvaluationTarget.RELEASE)`가 수치 정책을 소유한다.
 현재 pin에는 이 module 비교를 노출하는 CLI가 없으므로
 `scripts/benchmark/release-module-comparison.py`가 고정 checkout의 API를 직접 호출한다.

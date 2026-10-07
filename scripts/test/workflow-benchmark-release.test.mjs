@@ -107,7 +107,7 @@ test('workflow YAML structure preserves ordering, least privilege and fork guard
 test('workflow preserves reusable trend evidence through a pinned toolkit contract', async () => {
   const fs = await import('node:fs/promises');
   const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
-  const pinnedRef = 'd5b7892875000afc2deba6e6873717974d558ee5';
+  const pinnedRef = '7ecbb89aae771604d9c1c532cf123f239e279110';
   assert.match(yaml, /trend-manifest\.json/);
   assert.match(yaml, /trend-manifest-\$\{\{ needs\.build-and-scan\.outputs\.release-tag \}\}/);
   assert.match(yaml, new RegExp(`YRootLab/OnMaru-backend-ci-toolkit/.github/workflows/reusable-benchmark.yml@${pinnedRef}`));
@@ -127,7 +127,7 @@ test('only the canonical module result owns release approval and W4 remains diag
   const approval = yaml.split('\n  regression-approval:')[1];
   assert.match(comparison, /release-module-comparison\.py/);
   assert.match(comparison, /release-module-evidence\.json/);
-  assert.match(comparison, /ref: d5b7892875000afc2deba6e6873717974d558ee5/);
+  assert.match(comparison, /ref: 7ecbb89aae771604d9c1c532cf123f239e279110/);
   assert.match(comparison, /gate: \$\{\{ steps\.module-comparison\.outputs\.gate \}\}/);
   assert.match(approval, /needs\.comparison\.outputs\.gate == 'approval_hold'/);
   assert.match(approval, /environment: benchmark-promotion/);
@@ -138,6 +138,17 @@ test('only the canonical module result owns release approval and W4 remains diag
   const diagnosticPublish = comparison.split('- name: Attach diagnostic trend')[1];
   assert.ok(diagnosticPublish, 'diagnostic trend publication must have its own failure boundary');
   assert.match(diagnosticPublish, /continue-on-error: true/);
+});
+
+test('release migration rehearsal consumes the verified Gradle profile while retaining dependency caching', async () => {
+  const fs = await import('node:fs/promises');
+  const yaml = await fs.readFile('.github/workflows/benchmark-release.yml', 'utf8');
+  const migration = yaml.split('\n  migration-gate:')[1].split('\n  staging-readiness:')[0];
+
+  assert.match(migration, /cache: gradle/);
+  assert.match(migration, /--init-script build-logic\/ci-performance\.gradle\.kts/);
+  assert.match(migration, /:apps:spring-api:test --tests '\*Migration\*'/);
+  assert.match(migration, /-Ponmaru\.ci\.performance\.enabled=true/);
 });
 
 test('promotion shell blocks unsuccessful prerequisites even with an approved regression', async () => {

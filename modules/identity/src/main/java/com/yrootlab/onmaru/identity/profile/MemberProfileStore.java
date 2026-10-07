@@ -12,6 +12,8 @@ public interface MemberProfileStore {
 
     Map<UUID, MemberProfile> findByMemberIds(Set<UUID> memberIds);
 
+    boolean existsByDisplayNameExcludingMember(String displayName, UUID excludedMemberId);
+
     Optional<MemberProfile> updateActiveProfile(
             UUID memberId,
             String displayName,

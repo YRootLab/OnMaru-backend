@@ -134,6 +134,26 @@ CREATE TABLE "identity_exploration_grants" (
   PRIMARY KEY ("member_id", "exploration_id")
 );
 
+CREATE TABLE "identity_admin_accounts" (
+  "id" uuid PRIMARY KEY,
+  "email" varchar NOT NULL,
+  "password_hash" varchar NOT NULL,
+  "nickname" varchar NOT NULL,
+  "role" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "last_login_at" timestamptz,
+  "tokens_valid_after" timestamptz NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "identity_admin_access_token_revocations" (
+  "jti_hash" varchar PRIMARY KEY,
+  "admin_id" uuid NOT NULL,
+  "expires_at" timestamptz NOT NULL,
+  "revoked_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "catalog_regions" (
   "id" uuid PRIMARY KEY,
   "parent_id" uuid,
@@ -182,6 +202,25 @@ CREATE TABLE "catalog_active_datasets" (
 CREATE TABLE "catalog_place_identity" (
   "id" uuid PRIMARY KEY,
   "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "catalog_place_public_ids" (
+  "public_id" varchar PRIMARY KEY,
+  "place_id" uuid UNIQUE NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "catalog_external_places" (
+  "provider" varchar NOT NULL,
+  "external_id" varchar(128) NOT NULL,
+  "place_id" uuid UNIQUE NOT NULL,
+  "public_place_id" varchar UNIQUE NOT NULL,
+  "name" varchar(100) NOT NULL,
+  "region_code" varchar NOT NULL,
+  "location" geography NOT NULL,
+  "provenance" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  PRIMARY KEY ("provider", "external_id")
 );
 
 CREATE TABLE "catalog_place_sources" (
@@ -693,6 +732,8 @@ CREATE TABLE "operations_sync_schedules" (
 CREATE TABLE "operations_sync_runs" (
   "id" uuid PRIMARY KEY,
   "dataset" varchar NOT NULL,
+  "scope" varchar NOT NULL DEFAULT 'ALL',
+  "requested_at" timestamptz,
   "scheduled_for" timestamptz NOT NULL,
   "attempt" int NOT NULL,
   "status" operations_sync_run_status NOT NULL,
@@ -701,7 +742,21 @@ CREATE TABLE "operations_sync_runs" (
   "finished_at" timestamptz,
   "next_attempt_at" timestamptz,
   "error_code" varchar,
-  "counts" jsonb
+  "counts" jsonb,
+  "current_stage" varchar,
+  "progress_completed" bigint,
+  "progress_total" bigint
+);
+
+CREATE TABLE "operations_sync_failures" (
+  "id" uuid PRIMARY KEY,
+  "run_id" uuid NOT NULL,
+  "occurred_at" timestamptz NOT NULL,
+  "endpoint" varchar,
+  "content_id" varchar,
+  "error_code" varchar NOT NULL,
+  "message" varchar NOT NULL,
+  "retryable" boolean NOT NULL
 );
 
 CREATE TABLE "operations_sync_checkpoints" (
@@ -876,6 +931,16 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
+
+
+
+
+
+
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -886,6 +951,9 @@ COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The execu
 
 
 
+
+
+COMMENT ON TABLE "operations_sync_runs" IS 'Latest-run migration index uses (dataset, COALESCE(started_at, scheduled_for) DESC, id DESC).';
 
 
 
@@ -933,6 +1001,12 @@ ALTER TABLE "operations_sync_runs" ADD FOREIGN KEY ("revision_id") REFERENCES "c
 
 ALTER TABLE "operations_sync_watermarks" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
 
+ALTER TABLE "catalog_place_public_ids" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
+
+ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
+
+ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERENCES "catalog_place_public_ids" ("public_id");
+
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id");
 
 ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id");
@@ -940,6 +1014,8 @@ ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identi
 ALTER TABLE "identity_oauth_states" ADD FOREIGN KEY ("guest_id") REFERENCES "identity_guests" ("id");
 
 ALTER TABLE "identity_exploration_grants" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id");
+
+ALTER TABLE "identity_admin_access_token_revocations" ADD FOREIGN KEY ("admin_id") REFERENCES "identity_admin_accounts" ("id");
 
 ALTER TABLE "catalog_regions" ADD FOREIGN KEY ("parent_id") REFERENCES "catalog_regions" ("id");
 
@@ -1030,6 +1106,8 @@ ALTER TABLE "community_review_moderation_actions" ADD FOREIGN KEY ("review_id") 
 ALTER TABLE "operations_sync_checkpoints" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id");
 
 ALTER TABLE "operations_sync_quarantine" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id");
+
+ALTER TABLE "operations_sync_failures" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id");
 
 ALTER TABLE "ai_chunks" ADD FOREIGN KEY ("document_id", "revision") REFERENCES "ai_documents" ("document_id", "revision");
 

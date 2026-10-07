@@ -3,6 +3,9 @@ package com.yrootlab.onmaru.admin.auth;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.admin.pagination.AdminCursorCodec;
 import com.yrootlab.onmaru.persistence.admin.JdbcAdminAccountStore;
+import com.yrootlab.onmaru.persistence.admin.JdbcAdminJtiRevocationStore;
+import com.yrootlab.onmaru.persistence.admin.JdbcAdminTokenValidityStore;
+import com.yrootlab.onmaru.scheduling.admin.AdminJtiRevocationCleanupJob;
 import com.yrootlab.onmaru.admin.users.AdminMemberStore;
 import com.yrootlab.onmaru.admin.users.InMemoryAdminMemberStore;
 import com.yrootlab.onmaru.persistence.admin.JdbcAdminMemberStore;
@@ -31,6 +34,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.annotation.Primary;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 import javax.sql.DataSource;
@@ -56,14 +63,17 @@ public class AdminAuthConfiguration {
 
     @Bean
     AdminJwtTokenCodec adminJwtTokenCodec(
-            SecretProvider secrets, Clock clock, AdminJtiRevocationStore revokedJtis) {
+            SecretProvider secrets,
+            Clock clock,
+            AdminJtiRevocationStore revokedJtis,
+            AdminTokenValidityStore tokenValidity) {
         return new AdminJwtTokenCodec(
                 secrets,
                 "admin.jwt-signing-key",
                 "onmaru-admin",
                 "onmaru-admin-web",
                 Duration.ofMinutes(15),
-                clock, revokedJtis);
+                clock, revokedJtis, tokenValidity);
     }
 
     @Bean
@@ -72,8 +82,57 @@ public class AdminAuthConfiguration {
     }
 
     @Bean
-    AdminJtiRevocationStore adminJtiRevocationStore() {
+    @Profile("!production")
+    InMemoryAdminJtiRevocationStore inMemoryAdminJtiRevocationStore() {
         return new InMemoryAdminJtiRevocationStore();
+    }
+
+    @Bean
+    @Profile("production")
+    JdbcAdminJtiRevocationStore jdbcAdminJtiRevocationStore(DataSource dataSource) {
+        return new JdbcAdminJtiRevocationStore(dataSource, new AdminJtiHasher());
+    }
+
+    @Bean
+    @Primary
+    AdminJtiRevocationStore adminJtiRevocationStore(
+            ObjectProvider<JdbcAdminJtiRevocationStore> jdbc,
+            ObjectProvider<InMemoryAdminJtiRevocationStore> memory,
+            ObjectProvider<MeterRegistry> registry) {
+        AdminJtiRevocationStore delegate = jdbc.getIfAvailable();
+        if (delegate == null) {
+            delegate = memory.getObject();
+        }
+        MeterRegistry meterRegistry = registry.getIfAvailable();
+        return meterRegistry == null ? delegate : new ObservedAdminJtiRevocationStore(delegate, meterRegistry);
+    }
+
+    @Bean
+    @Profile("!production")
+    AdminTokenValidityStore inMemoryAdminTokenValidityStore(AdminAccountStore accounts) {
+        return adminId -> accounts.findById(adminId)
+                .map(account -> new AdminTokenValidity(account.status(), account.tokensValidAfter()));
+    }
+
+    @Bean
+    @Profile("production")
+    AdminTokenValidityStore jdbcAdminTokenValidityStore(DataSource dataSource) {
+        return new JdbcAdminTokenValidityStore(dataSource);
+    }
+
+    @Bean(initMethod = "validate")
+    @Profile("production")
+    AdminRevocationStoreStartupValidator adminRevocationStoreStartupValidator(AdminJtiRevocationStore store) {
+        return new AdminRevocationStoreStartupValidator(store);
+    }
+
+    @Bean
+    AdminJtiRevocationCleanupJob adminJtiRevocationCleanupJob(
+            AdminJtiRevocationStore store,
+            Clock clock,
+            @Value("${onmaru.admin.jwt-revocation.cleanup-batch-size:500}") int batchSize,
+            @Value("${onmaru.admin.jwt-revocation.cleanup-max-batches:10}") int maxBatches) {
+        return new AdminJtiRevocationCleanupJob(store, clock, batchSize, maxBatches);
     }
 
     @Bean

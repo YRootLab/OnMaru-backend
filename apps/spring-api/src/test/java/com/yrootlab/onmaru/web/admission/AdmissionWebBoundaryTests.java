@@ -98,6 +98,25 @@ class AdmissionWebBoundaryTests {
                 .andExpect(status().isNoContent());
     }
 
+    @Test
+    void externalReviewCreationUsesAdmissionBudgetAndRetryAfter() throws Exception {
+        var request = post("/api/v1/visit-reviews")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .cookie(new jakarta.servlet.http.Cookie("__Host-onmaru-csrf", "same-token"))
+                .header("X-CSRF-TOKEN", "same-token")
+                .with(candidate -> {
+                    candidate.setRemoteAddr("203.0.113.20");
+                    return candidate;
+                });
+
+        mockMvc.perform(request).andExpect(status().isUnauthorized());
+        mockMvc.perform(request)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "55"))
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+    }
+
     @TestConfiguration
     static class AdmissionWebTestConfig {
 
@@ -105,7 +124,8 @@ class AdmissionWebBoundaryTests {
         @Primary
         AdmissionPolicy testAdmissionPolicy() {
             return new AdmissionPolicy(Duration.ofMinutes(1), List.of(
-                    new OperationBudget("login.start", SubjectType.IP, 1)
+                    new OperationBudget("login.start", SubjectType.IP, 1),
+                    new OperationBudget("review.create.external", SubjectType.IP, 1)
             ));
         }
 

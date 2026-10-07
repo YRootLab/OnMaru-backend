@@ -1,10 +1,17 @@
 package com.yrootlab.onmaru.web.review.query;
 
 import com.yrootlab.onmaru.catalog.publicid.CatalogPublicPlaceIdStore;
+import com.yrootlab.onmaru.catalog.application.regionboundary.RegionBoundaryStore;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlacePolicy;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceRegionResolver;
+import com.yrootlab.onmaru.catalog.externalplace.ExternalPlaceRegistry;
+import com.yrootlab.onmaru.catalog.externalplace.InMemoryExternalPlaceRegistry;
 import com.yrootlab.onmaru.community.command.review.ReviewIdGenerator;
 import com.yrootlab.onmaru.community.command.review.VisitReviewCommandService;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlace;
 import com.yrootlab.onmaru.community.command.review.VisitReviewPlaceLookup;
+import com.yrootlab.onmaru.community.command.review.VisitReviewTagPolicy;
+import com.yrootlab.onmaru.community.command.review.VisitReviewTransaction;
 import com.yrootlab.onmaru.community.like.VisitReviewLikeService;
 import com.yrootlab.onmaru.community.moderation.InMemoryReviewReportStore;
 import com.yrootlab.onmaru.community.moderation.ModerationQueueService;
@@ -27,6 +34,7 @@ import com.yrootlab.onmaru.web.common.idempotency.IdempotencyService;
 import com.yrootlab.onmaru.web.common.idempotency.InMemoryIdempotencyStore;
 import com.yrootlab.onmaru.identity.profile.MemberProfileService;
 import com.yrootlab.onmaru.persistence.catalog.JdbcCatalogPublicPlaceIdStore;
+import com.yrootlab.onmaru.persistence.catalog.JdbcExternalPlaceRegistry;
 import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewPlaceLookup;
 import com.yrootlab.onmaru.persistence.community.JdbcVisitReviewStore;
 import com.yrootlab.onmaru.persistence.community.JdbcReviewReportStore;
@@ -35,6 +43,7 @@ import com.yrootlab.onmaru.persistence.admin.JdbcAdminDashboardReadStore;
 import com.yrootlab.onmaru.persistence.web.JdbcIdempotencyStore;
 import com.yrootlab.onmaru.persistence.insights.JdbcVisitorObservationStore;
 import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
+import com.yrootlab.onmaru.web.review.command.CatalogExternalPlaceRegionResolver;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.ObjectProvider;
@@ -79,8 +88,9 @@ class VisitReviewQueryConfiguration {
     @Bean
     @Profile("production")
     @ConditionalOnMissingBean(CatalogPublicPlaceIdStore.class)
-    CatalogPublicPlaceIdStore catalogPublicPlaceIdStore(DataSource dataSource) {
-        return new JdbcCatalogPublicPlaceIdStore(dataSource);
+    CatalogPublicPlaceIdStore catalogPublicPlaceIdStore(
+            DataSource dataSource, JdbcTransactionRunner jdbcTransactionRunner) {
+        return new JdbcCatalogPublicPlaceIdStore(dataSource, jdbcTransactionRunner);
     }
 
     @Bean
@@ -203,10 +213,76 @@ class VisitReviewQueryConfiguration {
     VisitReviewCommandService visitReviewCommandService(
             MutableVisitReviewStore store,
             VisitReviewPlaceLookup placeLookup,
+            ExternalPlacePolicy externalPlacePolicy,
+            ExternalPlaceRegistry externalPlaceRegistry,
+            ExternalPlaceRegionResolver externalPlaceRegionResolver,
+            VisitReviewTransaction visitReviewTransaction,
             ReviewIdGenerator reviewIdGenerator,
             VisitReviewAuthorProfileLookup authorProfileLookup,
+            VisitReviewTagPolicy tagPolicy,
             Clock clock) {
-        return new VisitReviewCommandService(store, placeLookup, reviewIdGenerator, authorProfileLookup, clock);
+        return new VisitReviewCommandService(
+                store,
+                placeLookup,
+                externalPlacePolicy,
+                externalPlaceRegistry,
+                externalPlaceRegionResolver,
+                visitReviewTransaction,
+                reviewIdGenerator,
+                authorProfileLookup,
+                tagPolicy,
+                clock);
+    }
+
+    @Bean
+    ExternalPlacePolicy externalPlacePolicy() {
+        return new ExternalPlacePolicy();
+    }
+
+    @Bean
+    VisitReviewTagPolicy visitReviewTagPolicy() {
+        return new VisitReviewTagPolicy();
+    }
+
+    @Bean
+    ExternalPlaceRegionResolver externalPlaceRegionResolver(RegionBoundaryStore store) {
+        return new CatalogExternalPlaceRegionResolver(store);
+    }
+
+    @Bean
+    @Profile("!production")
+    ExternalPlaceRegistry inMemoryExternalPlaceRegistry(ExternalPlacePolicy policy) {
+        return new InMemoryExternalPlaceRegistry(policy, UUID::randomUUID);
+    }
+
+    @Bean
+    @Profile("production")
+    ExternalPlaceRegistry jdbcExternalPlaceRegistry(
+            JdbcTransactionRunner transactions,
+            ExternalPlacePolicy policy) {
+        return new JdbcExternalPlaceRegistry(transactions, policy, UUID::randomUUID);
+    }
+
+    @Bean
+    @Profile("!production")
+    VisitReviewTransaction inMemoryVisitReviewTransaction() {
+        return new VisitReviewTransaction() {
+            @Override
+            public <T> T execute(java.util.function.Supplier<T> operation) {
+                return operation.get();
+            }
+        };
+    }
+
+    @Bean
+    @Profile("production")
+    VisitReviewTransaction jdbcVisitReviewTransaction(JdbcTransactionRunner transactions) {
+        return new VisitReviewTransaction() {
+            @Override
+            public <T> T execute(java.util.function.Supplier<T> operation) {
+                return transactions.execute(ignored -> operation.get());
+            }
+        };
     }
 
     @Bean

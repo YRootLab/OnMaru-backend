@@ -10,77 +10,55 @@
 - 다음 단계: PR #679의 CI·리뷰를 확인하고, 사용자가 graph를 승인하면 #603 갱신 및 native Sub-Issue/blocked-by 관계를 발행한다. 실제 구현은 각 Child별 별도 branch/PR로 수행한다.
 
 ## 2026-10-03 Issue #552 회원 익명 프로필·온기 후기 작성자
+## 2026-10-08 Issue #677 DBML 계약 검증 도구 고정
 
-- 브랜치: `feature/552-member-profile` (branch parser #552).
-- 사용자 결정: 카카오 닉네임·프로필 이미지는 사용하지 않는다. 가입 시 익명 이름과 `CHARACTER_01~10`, `BACKGROUND_01~10` 조합을 자동 배정하고, 마이페이지에서 세 값을 수정한다.
-- FE는 캐릭터 정적 자산 10개와 배경 HEX 10개를 소유한다. BE는 고정 ID와 회원 선택만 저장한다.
-- 온기모드 방문 후기는 작성자의 최신 프로필을 반환한다. 프로필을 바꾸면 기존 게시글에도 즉시 반영하며 내부 회원 ID는 공개하지 않는다.
-- DB: V040 `identity_member_profiles`를 추가하고 기존 회원을 안정적인 익명 이름·캐릭터·배경으로 backfill한다. 회원 삭제 시 cascade하고, 이름과 정확한 `01..10` ID 범위를 CHECK로 제한한다.
-- API: `GET /api/v1/members/me`가 non-null 프로필 세 값을 반환하고, `PATCH /api/v1/members/me`가 CSRF를 요구하는 부분 수정을 제공한다. 명시적 null, 빈 요청, 알 수 없는 필드와 범위 밖 ID는 `400 VALIDATION_ERROR`다.
-- 후기: 생성·목록 `VisitReview.author`는 `{displayName,characterId,backgroundId}`만 제공한다. 페이지 작성자 ID를 deduplicate해 한 번에 조회하고 프로필 누락 시 `탈퇴한 여행자`/01/01로 대체한다.
-- 계약: Identity·VisitReview OpenAPI, fixture, Kakao 가이드와 [FE 전달서](docs/toFE/member-profile-api-handoff-2026-10-03.md)를 갱신했다. [OnMaru-Frontend #292 최종 명세 댓글](https://github.com/YRootLab/OnMaru-Frontend/issues/292#issuecomment-5969189832)과 [Backend #552](https://github.com/YRootLab/OnMaru-backend/issues/552)에 최종 방향과 상호 링크를 기록했다.
-- 검증: 관련 identity/community/JDBC/Spring 집중 회귀 `BUILD SUCCESSFUL`(2m 13s), `DatabaseMigrationContractTests` 수정 후 단독 `BUILD SUCCESSFUL`, contract/R1/R2/Journey gate 통과, Node 127개 통과, AI 304개 통과·1개 skip, `git diff --check`와 branch parser #552 통과.
-- 전체 `./gradlew test --no-daemon`: 523개 중 최초 3개 실패·2개 skip. 프로필 migration 최신 버전 기대값 누락 2건(`DatabaseMigrationContractTests.migratesEmptyDatabaseToLatestBaseline`, `upgradesPreviousBaselineToLatestWithoutLosingRows`)은 수정 후 통과했다. 남은 1건은 작업 전 baseline에서도 재현된 ARM64 호스트의 amd64 PostGIS 에뮬레이션 성능 예산 실패 `JdbcTourApiCatalogPublisherTests.thirtyThousandPublishedPlacesStayWithinMapInfoLatencyBudgets`다. 기능 정확성 검증과 CI `verify`는 별도로 확인한다.
-- 남은 위험: 실제 운영 DB에서 V040 migration/backfill과 잠금 시간을 staging에서 확인하고, FE의 10개 캐릭터·10개 색상 및 100개 조합 대비/unknown-ID fallback을 통합 smoke해야 한다.
-- 다음 단계: work-log cleanup 후 `develop` 대상 PR을 만들고 CI `verify`를 확인한다. 배포 뒤 기존 후기의 최신 프로필 반영과 프로필 PATCH를 staging에서 smoke한다.
+- 브랜치: `fix/677-dbml-toolchain`, 관련 Issue: #677, 선행 PR: #676.
+- 요청: CI contract job의 DBML 전이 의존성 drift를 재현 가능한 toolchain 설치로 복구한다.
+- 구현: `scripts/dbml-toolchain`의 manifest·lock과 DBML 내부 패키지 override를 추가하고, wrapper가 매번 `npm ci` 이후 해당 로컬 CLI만 실행하도록 고정했다. 계약 테스트는 전체 lock, 경로·인수 전달, 설치 실패 시 stale CLI 실행 차단을 검증한다.
+- 검증: wrapper 계약 2개 red→green, parse lock 버전 drift mutation 실패→복구 green, Node v22.20.0 실제 변환·전체 `bash scripts/verify-contracts`·생성 SQL diff 일치, Python 3.12 contract 12개, Node 228개 및 hygiene 통과. 전체 Node 검증은 비어 있는 공유 `/tmp/onmaru-ci-toolkit-9c6f003/src`를 우회해 별도 임시 checkout의 고정 Toolkit SHA `7ecbb89aae771604d9c1c532cf123f239e279110`를 `ONMARU_TOOLKIT_SRC`로 지정했다.
+- 다음 단계: #677을 참조하는 develop 대상 PR 생성·리뷰, 필수 CI `verify` 확인 후 병합한다. PR #676의 실패한 contract 경로도 후속 CI에서 확인한다. npm 설치 단계는 CLI의 기존 전이 패키지 deprecation 경고를 출력하지만 검증은 성공한다.
 
-## 2026-10-03 Issue #592 운영 관리자 로그인 세션 저장 수정
+## 2026-10-07 Issue #671 실시간 온기 CSRF 예외 및 MockMvc 호환성 수정
 
-- 브랜치: `fix/592-admin-session-timestamp` (최신 `origin/develop` 기준, branch parser #592).
-- 운영 증거: 올바른 관리자 로그인 요청에서 `last_login_at`은 갱신되지만 `identity_admin_sessions`는 0건이고 HTTP 401이 반환됐다. FE는 실제 `/auth/csrf`와 `/api/v1/auth/admin/login`을 호출하고 있었다.
-- 원인: PostgreSQL JDBC 42.7.13은 `PreparedStatement.setObject(java.time.Instant)`의 SQL 타입을 추론하지 못한다. `JdbcAdminSessionStore`의 생성·회전·폐기 시간 파라미터를 UTC `OffsetDateTime`으로 변환한다.
-- TDD: 실제 PostgreSQL 회귀 테스트에서 기존 구현의 `Can't infer the SQL type ... java.time.Instant` 실패를 확인한 뒤, 세션 생성·회전·폐기 3개 테스트가 통과하도록 수정했다.
-- 전체 Java 검증: 522개 중 521개 통과, 2개 skip. 유일한 실패는 ARM64 호스트에서 amd64 PostGIS 이미지를 에뮬레이션한 기존 3만 건 map-info p95 테스트(381.03ms > 200ms)이며 단독 재실행도 같은 환경 경고와 함께 실패했다. 관리자 세션 대상 테스트와 `bootJar`는 통과했다. amd64 GitHub Actions `verify`를 병합 gate로 사용한다.
-- 다음 단계: PR을 `develop`에 병합하고 Issue 상태를 정리한 뒤 다음 patch release branch로 `master`에 승격한다. 새 이미지 배포 후 운영 관리자 로그인 200, refresh session 생성, 컨테이너 health를 확인한다.
+- 브랜치: `fix/671-warmth-csrf-bypass`, 관련 Issue: #671, PR: #672.
+- 문제 원인: `CsrfProtectionFilter`에서 `request.getServletPath()`를 직접 사용하여 MockMvc 테스트 환경(기본 `servletPath=""`)에서 모든 요청의 CSRF 검증이 누락되어 11개의 WebBoundary 테스트가 실패함.
+- 해결 내용:
+  - `resolvePath(request)` 헬퍼를 추가하여 `request.getServletPath()`가 비어있는 경우 `request.getRequestURI()`로 fallback 하도록 처리하여 MockMvc 및 서블릿 컨테이너(Tomcat) 환경 모두에서 정상 동작 보장.
+  - `schemaVersion(request)`도 `resolvePath(request)`를 사용하도록 일관성 개선.
+  - `SecurityWebBoundaryTests`에 `POST /api/v1/realtime/warmth` 요청이 CSRF 토큰 없이도 204 No Content로 허용되는지 검증하는 `warmthBroadcastEndpointBypassesCsrf()` 테스트 케이스 추가.
+- 다음 단계: PR #672 CI `verify` 통과 확인 후 PR 리뷰 및 merge.
 
-## 2026-10-02 Issue #568 OnMaru pipeline benchmark Skill
+## 2026-10-06 Issue #492 관리자 JWT JTI PostgreSQL 폐기
 
-- 브랜치: `feature/554-monitoring-related`; 정본은 `skills/onmaru-ci-benchmark-experiment/` 하나이며 `.agents/skills` 복사본을 만들지 않는다.
-- 기본 동작은 dry-run이다. 실제 dispatch는 현재 대화에서 명시적으로 요청된 경우에만 helper의 `--authorize-dispatch`를 사용하며, 응답 유실·모호 상태에서는 절대 재시도하지 않는다.
-- 고정 Toolkit ref: `d5b7892875000afc2deba6e6873717974d558ee5`. 실제 #555/#556 dispatch·attestation 연동은 아직 실행하지 않았다.
-- 2026-10-03 CI hygiene 보완([#554](https://github.com/YRootLab/OnMaru-backend/issues/554), [#555](https://github.com/YRootLab/OnMaru-backend/issues/555), 브랜치 `feature/554-monitoring-related`): 암묵적 `/tmp` Toolkit 선택을 제거하자 저장소 offline 스텁에서 16개 중 5개가 실패했다. 스텁의 replay schema·endpoint 검증·시각과 무관한 중복 identity·`ci_job=other`를 pin의 소비 계약과 맞췄다. 기본 경로 contract를 추가하고 기존 replay 테스트를 시각 변경으로 강화했다. 기본 clean-env 집중 17/17, 명시적 pinned-source 집중 17/17, 기본 전체 Node 213/213, contracts·Python compile·diff check가 통과했다. 보고서: `.superpowers/sdd/2026-10-02-ci-observability-benchmark-skill/ci-hygiene-fix-report.md`.
-- 이전 세션에서 로컬 Toolkit의 성공/실패 synthetic round-trip과 dashboard query를 확인했고, outage range race는 Toolkit #133 / PR #134로 수정·병합됐다. 이번 최종 수정에서는 실제 stack·Cloud를 다시 검증하지 않았다.
-- 2026-10-03 최종 수정(#554/#555/#568): replay checkpoint는 동일 저장소의 default branch에서 실행된 `workflow_run`/수동 replay와 검증된 default-branch SHA 이력만 신뢰한다. checkpoint가 없거나 손상된 최근 diagnostic은 건너뛰어 이전 유효 상태를 복원하거나 새 상태로 export한다. Skill 설치 확인은 consumer cwd package를 실행하지 않으며 Basic/Bearer payload를 전체 마스킹한다. 문서의 job query는 실제 `ci_job="other"` label과 맞췄다.
-- 최신 검증: 고정 Toolkit `d5b7892875000afc2deba6e6873717974d558ee5` checkout을 `ONMARU_TOOLKIT_SRC`로 지정해 집중 Node 36/36, 전체 Node 212/212가 통과했다. `bash scripts/verify-contracts`, Skill quick validation, 두 Python helper syntax, `git diff --check`, branch parser(`#554`)도 통과했다. 동시에 수행한 초기 실행의 타이밍 민감 테스트 실패와 단독 재실행 결과는 `.superpowers/sdd/2026-10-02-ci-observability-benchmark-skill/final-fix-report.md`에 기록했다. Java 전체 module test/`bootJar`와 workflow lint는 이번 최종 수정에서 별도 재실행하지 않았다.
-- 외부 gate: 실제 Grafana Cloud round trip·outage/replay·series/span/retention/cost, release baseline/candidate 3+3 Actions 검증, 실제 pipeline dispatch·signed attestation, default-branch workflow 가용성 및 #555/#556 gate 순환 정리는 아직 `pending`이다. Fixture 통과로 이를 완료 처리하지 않으며 실제 dispatch는 명시적인 현재 대화 요청 전까지 실행하지 않는다.
-- 새 개선율은 아직 확정하지 않았다. 기존 470초 serial과 411.62초 critical-path는 경계가 달라 12.42% 전체 CI 개선으로 주장하지 않는다. workflow가 기본 브랜치에 존재하고 #555/#556 gate 순환을 정리한 뒤 동일 조건 baseline/candidate 3회씩의 whole-workflow 중앙값·범위·실패율을 기록한다.
-- Toolkit #115/#122 및 Agent Toolkit #58 ownership 링크 변경은 OnMaruBE Skill PR merge 뒤의 후속 작업이다.
-- 메인 `README.md`에 일상 CI 관측과 수동 3+3 benchmark 흐름, Docker의 역할과 설치 경계, 로컬 dashboard 실행·정리, Skill dry-run/dispatch/wait/compare, 개선율 해석을 추가했다.
-## 2026-10-03 Issue #572 페이지네이션 totalCount
+- 브랜치: `SHcommit/feat-security-jwt-jti-postgresql`, 관련 Issue: #492.
+- 설계: 개별 logout은 SHA-256 JTI hash row, 계정 비활성화는 `tokens_valid_after` 경계로 분리했다.
+- 구현: V044 migration, JDBC JTI/계정 경계 저장소, logout 즉시 access token 폐기, DB 장애 `503 AUTH_UNAVAILABLE`, production JDBC startup 검증, bounded cleanup, Micrometer 관측을 추가했다.
+- 보안: token/JTI 원문과 signing secret은 저장·로그·metric tag에 포함하지 않는다. production에는 메모리 fallback이 없다.
+- 검증: 관리자·migration 집중 Gradle suite 통과, Node/hygiene 228개 통과, 계약·fixture 검증 통과, AI 304개 통과·live smoke 1개 skip, `git diff --check` 통과. 전체 `./gradlew test`는 변경 범위와 무관한 `JdbcIdentityStampFlowTests.concurrentPartialProfileUpdatesPreserveBothFields`에서 로컬 PostgreSQL 연결을 6분 이상 대기해 thread dump 확인 후 중단했다. JTI hash, 별도 store 조회, 동시 upsert, expiry/cleanup, 계정 상태·iat 경계, logout 직후 401, 폐기 기록 장애 503은 집중 suite에서 모두 검증됐다.
+- 다음 단계: 전체 검증, PR diff cleanup, `Closes #492`로 develop 대상 PR 생성. develop 병합 후 Issue reconcile 전에는 #492를 닫지 않는다.
 
-- 브랜치: `fix/572-paginated-total-count` (branch parser #572).
-- 현상: 운영 `GET /api/v1/odii/stories?language=ko-KR&limit=20`은 20개와 `hasMore:true`를 반환하지만 필터 적용 후 전체 건수 필드가 없어 FE가 전체 조회·지역별 조회 규모를 표시할 수 없다.
-- 변경: Odii, 한옥/장소, 방문 후기, 저장 리소스·여정, Journey thread·timeline의 cursor/limit 응답에 `totalCount`를 추가한다. 값은 cursor 적용 전, 현재 필터와 공개/가용성 조건을 적용한 전체 건수다. OpenAPI·fixture·FE 문서를 함께 갱신한다.
-- DB 경로: Odii JDBC adapter는 동일한 repeatable-read transaction에서 실제 선택 언어의 활성·공개·재생 가능 story count를 조회한다.
-- 관리자 `AdminPage` 계열은 별도 count query와 운영 성능 검증이 필요해 Issue #573으로 분리했다.
-- 검증: 서비스 단위 테스트와 Spring API 대상 경계/JDBC 테스트, 전체 contract/R1/R2/Journey E2E fixture 검사, `git diff --check`, branch parser가 통과했다. 전체 `./gradlew test`는 다른 작업공간의 PostgreSQL 테스트와 경합해 기존 `JdbcTourApiCatalogPublisherTests.thirtyThousandPublishedPlacesStayWithinMapInfoLatencyBudgets`에서 DB 예외가 발생했다. 경합 종료 후 해당 테스트를 단독 재실행하자 DB 예외는 사라졌지만 ARM64 호스트의 amd64 PostGIS 에뮬레이션 환경에서 viewport p95가 `822.919333ms`로 `500ms` 기준을 초과했다. 변경 범위 대상 테스트는 모두 통과했다.
-- 사용자 승인: ARM64 로컬의 amd64 PostGIS 에뮬레이션 성능 실패를 PR에 명시하고, amd64 GitHub Actions의 `verify` 통과를 병합 조건으로 PR을 생성한다.
-- 최신 `origin/develop` 병합 후 audio/catalog/community/journey 모듈 테스트, Odii JDBC·웹 경계 테스트, 전체 contract/R1/R2/Journey E2E fixture 검사, `git diff --check`, branch parser가 통과했다.
-- 다음 단계: PR `verify` 확인과 배포 후 운영 API smoke를 수행한다.
+## 2026-10-06 Issue #647 스테이징 공개 API fixture
 
-## 2026-10-02 Backend 병렬 정리 (#256 외 12건)
+- 브랜치: `feature/647-staging-api-fixtures`, 관련 Issue: #647.
+- 요청: 소리마루 한 기능이 아니라 로컬/스테이징 FE가 호출하는 공개 API 흐름에 응답할 합성 fixture를 스테이징 DB에 제공한다.
+- 구현: 기존 장소 2건 seed를 장소 4건, 후기 3건(공개 2·숨김 1), Odii story 3건으로 확장하고 지도 projection·장소 상세 이미지/태그·후기·장소↔오디오 연결을 고정 ID로 구성했다. `p-staging-hanok-a`가 대표 cross-surface fixture다.
+- 안전: `onmaru_staging` DB 이름 guard와 운영 데이터 미사용 원칙을 유지하고, 모든 insert는 재실행 가능하도록 conflict 처리를 둔다. 스테이징 Odii 공개 host는 fixture 음원용 `samplelib.com`만 추가했다.
+- 검증: `:apps:spring-api:compileTestJava`와 `git diff --check` 통과. PostGIS에서 seed 두 번 실행·연결 row·비-staging 거부를 검증하는 `StagingFixtureTests`를 추가했다. 로컬 디스크 full 당시 Docker VM 로그 쓰기가 실패한 뒤 engine socket이 timeout 상태여서 Testcontainers 실행은 GitHub CI 게이트에서 확인한다.
+- 다음 단계: 코드 리뷰 반영, PR CI `verify` 통과 후 develop 병합, Issue reconcile, 검증된 develop image 스테이징 반영과 실제 공개 API smoke를 수행한다.
 
-- 브랜치: `feature/256-backend-batch` (`origin/develop` 최신 기준, branch parser #256).
-- 요청 범위: #256, #265, #375, #382, #392, #486, #500, #509, #518, #519, #520, #521, #545.
-- 구현 커밋: `9618d5d` quota anchor, `5191eff`/`698a5f1`/`1b72e26` FastAPI narration stream·보안 경계, `4058a3c` #382 Odii 이력, `aff90cf` #486 목록→상세 계약, `37aa390` #518/#520 quota·SSE 계약, `8c9e982` Spring stream relay.
-- #382: lifecycle/phase와 `fetched/mapped/staged/published/tombstones`를 DB·안전 로그에 남기고 production profile + JDBC + HTTP fixture와 AWS runbook을 추가했다. 로컬 AC와 교차 리뷰는 통과했으며 실제 Lightsail 로그·readonly SQL·공개 `trending-sounds` smoke는 배포 후 gate다.
-- #486: 목록에 노출되는 category/name/overview 기반 한옥은 `/api/v1/hanoks/{id}` 상세에서도 조회되며 원 category를 보존한다. production 경로 리뷰는 통과했다. 기존 demo seed의 목록/상세 불일치는 비차단 후속이다.
-- #518/#520: 2026-10 KST 회원 quota 2회, guest AI 401, exempt total bypass+active 1, Journey 전용 429 alias, FastAPI Gemini SSE → Spring → browser `run.text.delta`, candidate allowlist·timeout·fallback·cancel 경계를 구현했다. 실제 Gemini tier, first-delta latency, proxy buffering, 배포 설정과 snapshot smoke는 staging gate다.
-- 이미 구현되어 운영 검증 중심인 항목: #256, #265, #375, #509, #519, #521 일부, #545 일부. #392는 staging secret·실제 수집/ACTIVE revision/API 증거가 필요하다. #545는 로그인·쓰기·SSE와 workflow 실제 rollback이 남아 있다.
-- #500은 `develop`에는 이미 fail-closed지만 현재 `master`에만 Trivy `continue-on-error` 두 곳이 남아 있다. Git Flow상 이 브랜치에서 고치지 않고 `master` 대상 별도 hotfix/보호 PR로 처리해야 한다.
-- 최종 로컬 검증: Admission/Exploration/Journey Gradle 회귀 `BUILD SUCCESSFUL`(3m 5s), AI `304 passed, 1 skipped`, ruff/mypy PASS, 전체 contract와 R1/R2/Journey E2E fixture PASS, `git diff --check` PASS.
-- 다음 단계: PR 전 work-log cleanup, PR `verify`, staging 운영 gate를 수행한다. Issue는 실제 운영 AC를 충족하기 전 닫지 않는다.
-- 로컬 미추적 `.agents/`, `.claude/`, `skills-lock.json`은 기존 사용자 작업물이며 이번 변경에 포함하지 않는다.
-## 2026-10-03 Issue #566 지도 정보모드 cursor·한옥 필터 수정
+## 2026-10-05 Release v0.3.41 (#641)
+## 2026-10-05 FE 실시간 온기 요청 사전 검토
 
-- 브랜치: `fix/566-map-info-cursor-hanok`.
-- 운영 `/map`은 신규 `/api/v1/map/info/*` 대신 2026-10-02 FE 커밋 `8468e52`에서 복구된 구형 `useMapData → /api/map/places` 경로를 사용한다. BE legacy adapter가 100건으로 제한한 뒤 FE가 거리·카테고리로 재필터링해 화면에는 100건 이하만 보인다.
-- map-info cursor는 마지막 `.`만 서명 경계로 분리해 거리값 `0.0`이 있는 정상 cursor의 두 번째 page 400을 수정했다.
-- 지도 public category에 `HANOK`을 추가했다. 목록·viewport 모두 `HANOK/HANOK_STAY/HANOK_CAFE/HANOK_EXPERIENCE` 원천 category만 union하며, 원거리 DISTRICT·REGION도 같은 조건으로 직접 집계한다.
-- controller·service·실제 PostgreSQL/PostGIS 통합 테스트에서 목록, PLACE, DISTRICT, REGION과 비한옥 제외를 검증했다. OpenAPI와 fixture도 갱신했다.
-- 상세 재현·코드 맥락·해결 결과는 `troubleshooting-worklog/26.10.03 map-info-100-item-and-hanok-filter-regression.md`에 기록했다.
-- FE 파일별 변경사항, 목표 API 계약, 필수 테스트와 BE 준비 완료 조건은 `docs/toFE/map-info-regression-fix-handoff-2026-10-03.md`에 전달 문서로 분리했다.
-- 다음 단계: PR·staging 배포 후 실제 두 번째 cursor 200과 `category=HANOK` list·viewport 응답을 확인하고, FE 신규 경로 전환 뒤 운영 검증한다.
+- 현재 워크스페이스 브랜치: `feature/realtime-related-fe-requests`. 다른 개발자가 이 브랜치에서 후속 구현을 이어갈 예정이므로 현재 이름을 유지한다. 다만 저장소의 branch parser 규칙상 Issue 번호가 없는 브랜치이므로 PR 생성 전에는 적절한 GitHub Issue를 연결하고 브랜치 정책 충족 방법을 정리해야 한다.
+- 요청 원문: `/Users/yangseunghyeon/Downloads/onmaru-backend-request.md`. 이번 세션에서는 요청서를 읽고 현재 Spring·Lightsail·Nginx·CSRF·CORS 구성과 대조했으며, 애플리케이션 코드·인프라 설정·요청 원문은 변경하지 않았다.
+- 검토 결론: Live Presence는 AI 기능이 아니고 기존 비즈니스 API 및 SSE 경계와 맞으므로 FastAPI가 아니라 Spring MVC `SseEmitter`로 구현하는 안을 권장한다. 저장소에도 Journey SSE의 `SseEmitter`, heartbeat, 종료 콜백 구현이 이미 있다.
+- 문서 정정 필요: `SseEmitter`가 열린 연결마다 요청 스레드를 계속 점유한다는 설명은 부정확하다. Servlet async가 요청 스레드를 반환하지만 `send()`는 블로킹될 수 있으므로 작은 bounded 전송 executor, 유한 큐, 전송 timeout 및 느린 연결 제거가 필요하다.
+- 인스턴스 제약: 운영 Lightsail은 약 909 MiB RAM이고 Compose 제한은 Spring 448 MiB, PostgreSQL 320 MiB, Nginx 64 MiB다. JVM은 Spring 컨테이너 RAM의 60%를 최대 heap 기준으로 사용한다. 전체 SSE 상한 200개는 확정 용량이 아니라 검증 목표로 취급하고, 초기에는 50~100개 상한으로 시작해 heap·CPU·executor queue·기존 API latency를 부하 테스트한 뒤 조정한다.
+- Nginx 현황: 운영과 스테이징의 일반 `location /`에 이미 HTTP/1.1, 빈 `Connection`, `proxy_buffering off`, `proxy_request_buffering off`, `proxy_read_timeout 130s`가 적용돼 있다. 구현 시 `/api/v1/realtime/` 전용 `location`을 추가해 `proxy_cache off`, `gzip off`, 긴 read timeout과 동일한 신뢰 프록시 헤더 정책을 명시적으로 적용하는 안을 권장한다.
+- CSRF 현황: 이 저장소는 Spring Security의 `SecurityFilterChain`이 아니라 자체 `CsrfProtectionFilter`로 `/api/**`의 unsafe method를 검사한다. 익명이고 쿠키 인증이나 사용자 상태 변경이 없는 `POST /api/v1/realtime/warmth`만 정확히 예외 처리할 수 있으며, `permitAll` 표현 대신 자체 필터 예외라고 문서화해야 한다. CORS는 abuse 방어가 아니므로 clientId/IP/room/전체 rate limit은 별도로 필요하다.
+- CORS 현황: `/api/**`는 환경변수 기반 exact-origin allowlist와 `GET`, `POST`, `OPTIONS`를 이미 지원하지만 전역 `allowCredentials(true)`를 사용한다. 실시간 경로는 credentials 없이 운영 FE origin을 허용하고, `localhost:3000`은 운영 allowlist가 아니라 local 또는 staging 환경에서만 허용하는 방안을 권장한다.
+- 관련 Issue 조회: #519는 Lightsail 배포·운영 검증, #520은 기존 FE→BE 전달사항이며 이번 Live Presence 구현 전체를 직접 추적하지 않는다. 실제 구현 전에 중복 Issue를 다시 확인하고, 없으면 API 계약·Spring 구현·Nginx·보안 경계·부하 검증 acceptance criteria를 포함한 Issue를 생성한다.
+- 다음 단계: Issue/브랜치 정리 → 요청 계약 확정(`roomId` allowlist, 오늘 방문자 정의 포함) → Spring SSE/POST 및 bounded resource 구현 → CSRF/CORS 경계 테스트 → 운영·스테이징 Nginx 전용 경로 추가 → 로컬/스테이징 부하 및 curl 인수 테스트 순서로 진행한다.
 
 ## 2026-10-01 Issue #561 운영 온기 히트맵
 
@@ -183,3 +161,30 @@
 - 사용자 제공 TourAPI 신분류-관광타입 연계 XLSX를 원본 보존한 채 계층형 Markdown/JSON으로 변환했다. 전체 240개 소분류 행과 `contentTypeId` 연결을 옮겼다. OnMaru 적용 범위는 해당 Markdown에 기록: HS01·EX01·EX04·한옥스테이·VE04 일부 우선 후보, HS02/HS03/VE07/VE09/FD05/전통주/공예·시장/자연·랜드마크·산업관광 관련 항목은 선별 후보, C01 코스·EV 행사·대부분 LS 및 범용 업종은 초기 공개에서 제외한다. 중분류는 후보군, 소분류/장소 관련성은 세부 판정이며 작품 라벨은 별도 근거 기반이다.
 - 사용자가 현재 운영 DB가 AWS PostgreSQL이며 TourAPI 데이터를 적재해 사용 중이라고 확인했다. Neon 운영 구성과 Neon을 현재 원본으로 취급하는 문서는 deprecated 처리 대상으로 분류한다. 중분류 선택 정책에 따른 실제 장소 건수는 AWS 활성 catalog revision에서 `lcls_systm2/lcls_systm3`별 distinct `contentid`를 read-only 집계해야 한다. 현재 실행 환경에는 AWS CLI/접속 세션이 없어 아직 SQL을 실행하지 않았다. 운영 DB 변경은 금지한다.
 - 다음 단계: 사용자 문서 검토 후 구현 계획을 작성한다.
+
+## 2026-10-04 Spring 운영 Blue-Green CD 준비 (#586)
+
+- 브랜치/worktree: `feature/586-lightsail-blue-green-cd`, `.worktrees/feature-586-lightsail-blue-green-cd`. 사용자 요청에 따라 GitHub Issue에는 이번 내용을 작성하지 않았다.
+- 기준: 최신 `origin/develop`에서 작업했다. `develop`은 자동 운영 배포하지 않으며, release 흐름을 거쳐 `master`에 반영된 Spring image만 운영 CD 대상으로 삼는다. FastAPI는 별도 Lightsail 배포 대상으로 남겨 두었다.
+- 구현: Blue/Green Spring slot, Nginx runtime upstream, 1GB 호스트용 메모리·swap·OOM gate, 제한 SSH deployer, immutable digest 배포, 공개 smoke·70초 drain·비정상 종료 rollback, `master` 전용 production job을 추가했다. 스테이징이 실행 중이면 운영 배포와 rollback은 fail-closed로 중단한다.
+- CD 보강: Repository Variable 활성화 gate, build 전 `status <sha>` no-op preflight, 성공 후 수동 rollback, 첫 전환의 legacy slot 복귀, 거부 SHA hold, 성공·실패·no-op webhook, 168시간 경과 dangling image 정리, 제3자 Action full commit SHA pinning을 추가했다. DB migration은 자동으로 되돌리지 않는다.
+- PR 전 독립 리뷰 보강: runner image에 build SHA를 보존하고, traffic 전환 뒤 drain 전체 구간의 health·OOM·memory·swap을 재검사한다. 배포 상태는 generation directory와 `current` symlink의 단일 원자 교체로 확정하며, 이전 slot 중지 성공 뒤에만 commit한다. 실패 복구에서는 이전 slot health가 확인된 경우에만 route·env를 되돌려 정상 후보를 잘못 중지하지 않는다. webhook은 build와 migration 실패 단계도 구분한다.
+- 시작 부하: Blue/Green 후보의 TourAPI·Odii `ApplicationReadyEvent` 동기화를 끌 수 있는 설정과 회귀 테스트를 추가했다. 정기 cron과 기존 DB lease/fence 정책은 유지한다.
+- 실서버 리허설: 운영 route를 바꾸지 않고 동일 image의 Green을 384MB 제한으로 약 60초 겹쳤다. 약 30초 후 healthy, Green 약 212MB, swap 약 114MB 증가, 최저 `MemAvailable` 약 156MB, 기존 운영 health 200, OOM 없음이었다. 이는 무부하 중첩 증거이며 실제 새 image 전환이나 부하 상태 검증은 아니다. 리허설 컨테이너는 제거했고 운영은 healthy 상태를 확인했다.
+- 블로그 초안: `docs/drafts/2026-10-04-lightsail-blue-green-cd.md`. Render+Neon에서 Lightsail로 옮긴 배경, Render 재활용의 DB/네트워크 문제, virtual memory와 thrashing, 측정 결과에 더해 GitHub variable 평가 시점, 두 종류 rollback, 예약 재배포를 막는 hold, image reference 기반 보존, Action supply-chain 경계를 서사로 정리했다. `blog-tone`과 `writing-rule`을 적용했다.
+- 검증: 전체 Node 223/223, production/staging 배포 계약 14/14, startup-sync·Odii PostgreSQL 집중 Spring 테스트 `BUILD SUCCESSFUL`, Compose config, workflow YAML parse, production shell `sh -n`, 두 skill quick validation, 문서 계약, `git diff --check`가 통과했다. 현재 환경에 ShellCheck와 Actionlint 실행 파일이 없어 이번 보강 뒤에는 재실행하지 못했으며 PR의 CI `verify`를 최종 gate로 사용한다.
+- 아직 활성화하지 않음: 운영 서버의 최초 `bootstrap-blue-green.sh`, production 전용 Ed25519 key 설치, Repository Variable `PRODUCTION_DEPLOY_ENABLED`, production environment의 `PRODUCTION_DEPLOY_SSH_KEY`/`PRODUCTION_DEPLOY_WEBHOOK_URL` secret과 `PRODUCTION_SSH_KNOWN_HOSTS` variable 설정, 실제 `master` 배포는 남아 있다. 첫 merge가 준비 없이 배포되지 않도록 활성화 flag 기본값은 false다.
+- 배포 시점 변경: `master` push는 build·scan·migration 검증까지만 수행한다. 실제 운영 배포는 매일 `03:17 KST` schedule 또는 `deploy_production=true`인 명시적 `workflow_dispatch`에서만 실행한다. 예약·수동 실행은 먼저 server SHA·clean master·public health를 검사하고 같으면 build 전 no-op 처리한다.
+- 서비스 범위: `master` 운영 경로는 Spring image만 build·scan·배포한다. FastAPI image 단계는 `develop` 스테이징 실행에만 두고, 별도 Lightsail CD 설계 전까지 운영 경로에서 제외한다.
+- 프로젝트 skill: `skills/onmaru-production-deploy/SKILL.md`이며 로컬 discoverability용 사본은 `~/.codex/skills/onmaru-production-deploy`에 있다. “온마루/AWS/Lightsail 운영 배포해줘” 또는 `$onmaru-production-deploy` 직접 호출에서 `deploy.yml`을 `master`/`deploy_production=true`로 한 번 dispatch하고 결과를 관찰한다. `develop`의 release/master 승격은 사용자가 함께 명시했을 때만 선행한다. 설명·상태·스테이징 요청은 배포 권한으로 해석하지 않는다.
+- Issue 상태: #586은 이번 CD 보강 외에도 SSH 22 `/32` 제한, 실제 backup 격리 restore, rollback 기간과 Render·Neon 정리 결과를 완료 기준으로 가지므로 이 PR에는 `Refs #586`을 사용하고 merge 뒤에도 해당 운영 증거가 생길 때까지 열어 둔다.
+- release 전 staging 재검증에서 production preflight의 의도된 `skipped`가 간접 의존성으로 전파되어 migration/staging deploy까지 skip되는 현상을 재현했다. `migration-gate`가 image build 성공을 명시적으로 판정하도록 `always()` 조건을 추가하고 회귀 계약 테스트를 남겼다.
+- 후속 Actions run `37178635461`에서 image build와 migration gate는 성공했지만 같은 skip 전파가 `staging-deploy`에도 남아 있음을 확인했다. staging deploy/smoke가 `always()`에서 직접 build·migration 성공을 판정하도록 보강하고 두 job의 회귀 계약을 추가했다.
+
+## 2026-10-05 Issue #543 release module benchmark evidence
+
+- 브랜치: `docs/543-release-benchmark-evidence`; 기준: PR #633 merge commit `648d3bd`가 반영된 최신 `origin/develop`.
+- 범위: v0.3.38/v0.3.39의 `Module Benchmark`를 각각 서로 다른 3회 실행하고, 같은 `spring-api-postgres-other` module의 검토된 evidence를 Release asset으로 보존한 뒤 고정 Toolkit comparator로 release 판정을 재현한다.
+- 관련 이슈: [#543](https://github.com/YRootLab/OnMaru-backend/issues/543). 완료 조건은 3+3 중앙값 비교, 15% 초과 회귀의 승인 보류, 원본 run/artifact link 보존, 단일 정본 판정 및 계약 테스트 통과다.
+- 현재 증적: 여섯 실행이 모두 성공했다. v0.3.38 값은 467.05/341.36/394.40초, v0.3.39 값은 471.61/411.86/457.93초다. 중앙값 delta는 +16.108%로 `approval_hold`이며 자동 통과시키지 않는다.
+- 상태: 두 Release asset과 v0.3.39 비교 asset 업로드, README/운영 보고서 반영, 정본 comparator 재실행과 계약 테스트 35개 통과. 이 문서 PR 병합 후 #543과 Toolkit #115를 종료한다.

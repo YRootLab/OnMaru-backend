@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.persistence.catalog;
 
 import com.yrootlab.onmaru.catalog.publicid.CatalogPublicPlaceIdConflictException;
 import com.yrootlab.onmaru.catalog.publicid.CatalogPublicPlaceIdStore;
+import com.yrootlab.onmaru.persistence.jdbc.JdbcTransactionRunner;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
@@ -14,28 +15,34 @@ public final class JdbcCatalogPublicPlaceIdStore implements CatalogPublicPlaceId
 
     private static final Pattern PUBLIC_PLACE_ID = Pattern.compile("p-[a-z0-9]+(?:-[a-z0-9]+)*");
 
-    private final DataSource dataSource;
+    private final JdbcTransactionRunner transactions;
 
     public JdbcCatalogPublicPlaceIdStore(DataSource dataSource) {
-        this.dataSource = dataSource;
+        this(dataSource, new JdbcTransactionRunner(dataSource));
+    }
+
+    public JdbcCatalogPublicPlaceIdStore(DataSource dataSource, JdbcTransactionRunner transactions) {
+        java.util.Objects.requireNonNull(dataSource, "dataSource");
+        this.transactions = java.util.Objects.requireNonNull(transactions, "transactions");
     }
 
     @Override
     public Optional<UUID> findPlaceId(String publicPlaceId) {
         var normalizedPublicPlaceId = requirePublicPlaceId(publicPlaceId);
-        try (var connection = dataSource.getConnection();
-             var statement = connection.prepareStatement("""
-                     SELECT place_id
-                     FROM onmaru.catalog_place_public_ids
-                     WHERE public_id = ?
-                     """)) {
-            statement.setString(1, normalizedPublicPlaceId);
-            try (var result = statement.executeQuery()) {
-                return result.next() ? Optional.of(result.getObject("place_id", UUID.class)) : Optional.empty();
+        return transactions.execute(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    SELECT place_id
+                    FROM onmaru.catalog_place_public_ids
+                    WHERE public_id = ?
+                    """)) {
+                statement.setString(1, normalizedPublicPlaceId);
+                try (var result = statement.executeQuery()) {
+                    return result.next() ? Optional.of(result.getObject("place_id", UUID.class)) : Optional.empty();
+                }
+            } catch (SQLException exception) {
+                throw databaseFailure(exception);
             }
-        } catch (SQLException exception) {
-            throw databaseFailure(exception);
-        }
+        });
     }
 
     @Override
@@ -44,7 +51,7 @@ public final class JdbcCatalogPublicPlaceIdStore implements CatalogPublicPlaceId
         if (placeId == null) {
             throw new IllegalArgumentException("placeId is required");
         }
-        try (var connection = dataSource.getConnection()) {
+        transactions.execute(connection -> {
             try (var insert = connection.prepareStatement("""
                     INSERT INTO onmaru.catalog_place_public_ids (public_id, place_id)
                     VALUES (?, ?)
@@ -53,21 +60,17 @@ public final class JdbcCatalogPublicPlaceIdStore implements CatalogPublicPlaceId
                 insert.setString(1, normalizedPublicPlaceId);
                 insert.setObject(2, placeId);
                 if (insert.executeUpdate() == 1) {
-                    return;
+                    return null;
                 }
+            } catch (SQLException exception) {
+                throw new CatalogPublicPlaceIdConflictException(
+                        "public place ID or Catalog place is already mapped", exception);
             }
             if (!findPlaceId(normalizedPublicPlaceId).filter(placeId::equals).isPresent()) {
                 throw new CatalogPublicPlaceIdConflictException("public place ID is already mapped to another Catalog place");
             }
-        } catch (CatalogPublicPlaceIdConflictException exception) {
-            throw exception;
-        } catch (SQLException exception) {
-            if (findPlaceId(normalizedPublicPlaceId).filter(placeId::equals).isPresent()) {
-                return;
-            }
-            throw new CatalogPublicPlaceIdConflictException(
-                    "public place ID or Catalog place is already mapped", exception);
-        }
+            return null;
+        });
     }
 
     private String requirePublicPlaceId(String rawPublicPlaceId) {
