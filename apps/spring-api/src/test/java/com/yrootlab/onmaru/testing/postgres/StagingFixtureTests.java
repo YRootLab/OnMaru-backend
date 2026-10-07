@@ -11,8 +11,14 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.PreparedStatement;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -127,28 +133,24 @@ class StagingFixtureTests {
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
                     """)).isPositive();
 
-            assertThreePages(connection, """
-                    SELECT id::text FROM onmaru.community_visit_reviews
-                    WHERE status = 'PUBLISHED' AND (
-                      id::text LIKE '54500675-%'
-                      OR id IN (
-                        '54500000-0000-4000-8000-000000000111',
-                        '54500000-0000-4000-8000-000000000112'
-                      )
-                    )
-                    ORDER BY created_at DESC, id DESC
-                    """);
+            assertThreeKeysetPages(connection,
+                    "onmaru.community_visit_reviews",
+                    "status = 'PUBLISHED' AND public_place_id IS NOT NULL AND latitude IS NOT NULL " +
+                            "AND longitude IS NOT NULL AND (id::text LIKE '54500675-%' OR id IN (" +
+                            "'54500000-0000-4000-8000-000000000111', " +
+                            "'54500000-0000-4000-8000-000000000112'))",
+                    "created_at",
+                    "id");
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.community_visit_reviews
                     WHERE status = 'PUBLISHED'
                       AND id = '54500000-0000-4000-8000-000000000113'
                     """)).isZero();
-            assertThreePages(connection, """
-                    SELECT story_id::text FROM onmaru.audio_story_versions
-                    WHERE revision_id = '54500000-0000-4000-8000-000000000011'
-                      AND status = 'ACTIVE'
-                    ORDER BY source_modified_at DESC, story_id DESC
-                    """);
+            assertThreeKeysetPages(connection,
+                    "onmaru.audio_story_versions",
+                    "revision_id = '54500000-0000-4000-8000-000000000011' AND status = 'ACTIVE'",
+                    "source_modified_at",
+                    "story_id");
 
             try (var statement = connection.createStatement(); var rows = statement.executeQuery("""
                     SELECT count(*)
@@ -185,21 +187,81 @@ class StagingFixtureTests {
         }
     }
 
-    private void assertThreePages(java.sql.Connection connection, String sql) throws SQLException {
-        var ids = new java.util.ArrayList<String>();
+    private void assertThreeKeysetPages(
+            java.sql.Connection connection,
+            String table,
+            String predicate,
+            String timestampColumn,
+            String idColumn) throws SQLException {
+        var completeOrderedIds = readIds(connection, """
+                SELECT %1$s::text FROM %2$s
+                WHERE %3$s
+                ORDER BY %4$s DESC, %1$s DESC
+                """.formatted(idColumn, table, predicate, timestampColumn));
+        var pagedIds = new ArrayList<String>();
+        var pageSizes = new ArrayList<Integer>();
+        var hasMoreByPage = new ArrayList<Boolean>();
+        OffsetDateTime cursorTimestamp = null;
+        UUID cursorId = null;
+        boolean hasMore;
+
+        do {
+            var sql = """
+                    SELECT %1$s::text, %2$s, %1$s
+                    FROM %3$s
+                    WHERE %4$s
+                      AND (? = false OR (%2$s, %1$s) < (?::timestamptz, ?::uuid))
+                    ORDER BY %2$s DESC, %1$s DESC
+                    LIMIT ?
+                    """.formatted(idColumn, timestampColumn, table, predicate);
+            var candidates = new ArrayList<FixtureRow>();
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setBoolean(1, cursorId != null);
+                if (cursorId == null) {
+                    statement.setNull(2, Types.TIMESTAMP_WITH_TIMEZONE);
+                    statement.setNull(3, Types.OTHER);
+                } else {
+                    statement.setObject(2, cursorTimestamp);
+                    statement.setObject(3, cursorId);
+                }
+                statement.setInt(4, 31);
+                try (var rows = statement.executeQuery()) {
+                    while (rows.next()) {
+                        candidates.add(new FixtureRow(
+                                rows.getString(1),
+                                rows.getObject(2, OffsetDateTime.class),
+                                rows.getObject(3, UUID.class)));
+                    }
+                }
+            }
+
+            hasMore = candidates.size() > 30;
+            var pageRows = hasMore ? candidates.subList(0, 30) : candidates;
+            pageSizes.add(pageRows.size());
+            hasMoreByPage.add(hasMore);
+            for (var row : pageRows) pagedIds.add(row.id());
+            if (hasMore) {
+                var lastVisible = pageRows.getLast();
+                cursorTimestamp = lastVisible.timestamp();
+                cursorId = lastVisible.cursorId();
+            }
+        } while (hasMore);
+
+        assertThat(pageSizes).containsExactly(30, 30, 5);
+        assertThat(hasMoreByPage).containsExactly(true, true, false);
+        assertThat(pagedIds).hasSize(65).doesNotHaveDuplicates();
+        assertThat(pagedIds).containsExactlyElementsOf(completeOrderedIds);
+    }
+
+    private List<String> readIds(java.sql.Connection connection, String sql) throws SQLException {
+        var ids = new ArrayList<String>();
         try (var statement = connection.createStatement(); var rows = statement.executeQuery(sql)) {
             while (rows.next()) ids.add(rows.getString(1));
         }
-        assertThat(ids).hasSize(65).doesNotHaveDuplicates();
-        assertThat(ids.subList(0, 30)).hasSize(30);
-        assertThat(ids.subList(30, 60)).hasSize(30);
-        assertThat(ids.subList(60, 65)).hasSize(5);
-        var pagedIds = new java.util.ArrayList<String>();
-        pagedIds.addAll(ids.subList(0, 30));
-        pagedIds.addAll(ids.subList(30, 60));
-        pagedIds.addAll(ids.subList(60, 65));
-        assertThat(pagedIds).containsExactlyElementsOf(ids);
+        return ids;
     }
+
+    private record FixtureRow(String id, OffsetDateTime timestamp, UUID cursorId) { }
 
     private void executeSeedForTestDatabase() throws Exception {
         var sql = seedSql().replace("current_database() <> 'onmaru_staging'", "current_database() <> 'onmaru_test'");
