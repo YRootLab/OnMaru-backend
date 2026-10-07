@@ -8,7 +8,7 @@
 - [DataLab 지역 원천 코드](datalab-region-source-codes.md): 공식 코드 검증·registry 상태·staging smoke와 복구 절차
 - [Secret loading runbook](runbooks/secrets.md): server-only secret loading, rotation overlap, log redaction drill
 - [PostgreSQL restore runbook](runbooks/restore.md): encrypted full backup, isolated restore, deletion ledger replay, RPO/RTO evidence
-- [Lightsail 배포 및 Render 앱·Neon DB 전환 runbook](runbooks/lightsail-render-cutover.md): Lightsail 단일 서버 준비, DB 이전, DNS/HTTPS cutover, rollback, Render 자원 종료 순서
+- [Lightsail 배포 및 Render 앱·Neon DB 전환 runbook](runbooks/lightsail-render-cutover.md): **deprecated 과거 이관 기록**. 현재 운영 절차로 사용하지 않는다.
 - [Lightsail Compose 배포 구성](../../infra/lightsail/README.md): 수동 Compose 배포, 분리된 DB 역할, TLS bootstrap/갱신, backup 절차
 
 구현 전 게이트: hosting, secret manager, scheduler, 실제 rate limit, restore drill, alert/trace 보존 정책을 확정한다.

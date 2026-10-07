@@ -1,4 +1,6 @@
-# Lightsail 배포 및 Render 앱·Neon DB 전환 runbook
+# [Deprecated] Lightsail 배포 및 Render 앱·Neon DB 전환 기록
+
+> 이 문서는 2026-10-01 기준의 계획/이관 기록이며 현재 운영 절차가 아니다. Neon 원본 DB를 사용하고 AWS DB가 미구축이라는 전제는 deprecated다. 사용자가 확인한 현재 상태는 AWS PostgreSQL에 TourAPI 데이터를 적재해 운영 중인 것이다. 아래 Neon 복원·rollback-to-Neon 및 미배포 상태 안내를 현재 운영 지침으로 실행하지 않는다.
 
 상태: **부분 실행 중**. Issue #519의 전환 절차와 수동 Compose 배포 구성이며 완료된 배포 기록은 아니다. 2026-10-01 서울 리전에 Ubuntu 24.04 LTS, $7 번들 Lightsail 인스턴스 `onmaru-prod-seoul`을 만들고 `onmaru-prod-seoul-ip` 고정 IP를 연결했다. 인스턴스 방화벽에는 HTTP 80, SSH 22, HTTPS 443(모든 IPv4)을 허용했다. 사용자가 브라우저 SSH 접속을 확인했고 Ubuntu 패키지 업데이트/재부팅 뒤 Docker Engine과 Compose plugin 설치 및 Docker 서비스 `active` 상태를 확인했다. `/opt/onmaru`도 만들고 `ubuntu` 소유권을 설정했다. SSH 22는 관리자 IP 제한이 아직 안 되어 있으므로 production 서비스 전 제한해야 한다. DNS, TLS 인증서, Compose 컨테이너, Spring, PostgreSQL/PostGIS 데이터는 아직 구성하지 않았다. 자동 스냅샷도 현재 비활성 상태다.
 

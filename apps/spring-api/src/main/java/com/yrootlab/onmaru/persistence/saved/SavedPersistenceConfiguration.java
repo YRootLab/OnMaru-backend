@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Profile;
 import javax.sql.DataSource;
 
 /**
- * 운영(DataSource 존재)에서 찜·인기 신호를 Neon DB로 영속화한다.
+ * 운영(DataSource 존재)에서 찜·인기 신호를 PostgreSQL로 영속화한다.
  * 로컬/테스트는 인메모리 구현이 그대로 사용된다.
  */
 @Configuration

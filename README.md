@@ -193,8 +193,8 @@ Dispatch 응답이 유실되거나 상태가 모호하면 이미 실행됐을 �
 | 환경 (Stage) | Spring Profile | Secrets Source | DB / 외부 API 동작 | 용도 |
 |---|---|---|---|---|
 | **Local (기본)** | `local` (default) | `fake` (Mock) | 인메모리 DB, 가짜 외부 API 키로도 오프라인 빌드/테스트 100% 통과 | 로컬 빠른 개발 및 단위/통합 테스트 |
-| **Develop** | `develop` | `ENVIRONMENT` | Neon 개발용 DB, 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
-| **Production** | `production` | `ENVIRONMENT` | Neon Production DB (PostGIS), 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 (Render) |
+| **Develop** | `develop` | `ENVIRONMENT` | 개발용 PostgreSQL (Neon 구성은 deprecated; 현재 개발 DB 호스팅 확인 필요), 한국관광공사/Odii/Gemini 테스트 키 연동 | PR 검증 및 개발 서버 |
+| **Production** | `production` | `ENVIRONMENT` | AWS PostgreSQL (PostGIS), 실전 공공데이터/Gemini API, 자동 동기화 활성화 | 실제 서비스 운영 배포 |
 
 ### 1. 프로파일별 실행 방법
 
@@ -223,7 +223,7 @@ ONMARU_SECRETS_SOURCE=ENVIRONMENT \
 | `ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT` | 쿠키 세션 및 카카오 OAuth 서명 비밀키 |
 | `ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT` | 관측성(OTel) 메트릭 전송 토큰 |
 | `ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT` | 관리자/운영자 API 인증 토큰 (`Bearer` 방식) |
-| `ONMARU_DB_URL` | Neon PostgreSQL 접속 JDBC URL |
+| `ONMARU_DB_URL` | 환경별 PostgreSQL 접속 JDBC URL |
 | `ONMARU_DB_RUNTIME_USER` / `PASSWORD` | DB 접속 계정 및 비밀번호 |
 
 ## 문서

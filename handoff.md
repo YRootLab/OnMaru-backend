@@ -135,7 +135,9 @@
 - runner 구조와 Java job 표시 개선은 #525로 기록했다. CI job 표시 이름을 `Java 모듈 및 Spring API 전체 테스트`로 구체화했다. 기존 모듈별 matrix 측정은 전체 workflow 소요 시간이 더 길었고, GitHub-hosted runner는 job마다 종료된다. 병렬 실행 방식은 사용자 선택 후 별도로 결정한다.
 - 실제 Lightsail Nginx/TLS, Render DB 복원, FE 로그인·쿠키·CORS, 운영 트래픽 전환은 아직 검증하지 않았다.
 
-### AWS 진행 상태
+### AWS 진행 상태 (2026-10-01 기록, deprecated)
+
+> 아래 Lightsail bootstrap/migration 진행 기록은 과거 snapshot이다. 사용자 확인 기준 현재 운영 중이며 TourAPI 데이터가 적재된 원본은 AWS PostgreSQL이다. 아래 “DB 아직 없음/Neon 원본” 전제와 남은 작업 목록은 현재 상태로 사용하지 않는다.
 
 - 인스턴스: `onmaru-prod-seoul`, Seoul `ap-northeast-2a`, Ubuntu 24.04, $7/월 번들(1 GB RAM, 2 vCPU, 40 GB SSD).
 - 고정 IP 리소스: `onmaru-prod-seoul-ip` 연결 완료. 숫자 IP는 사용자가 콘솔에서 확인해야 하며 아직 DNS에 등록하지 않았다.
@@ -169,4 +171,6 @@
 - 초기 backfill은 기존 active catalog에서 일일 예산으로 처리하고, 정상 운영은 TourAPI 증분 동기화와 작품 리서치를 14일 통합 run으로 실행한다. evidence URL은 30일 주기로 확인한다.
 - 기존 장소는 목록 hash와 상세 hash를 분리한다. 목록이 변경된 장소만 즉시 상세 갱신하고, 변경 없는 장소는 중요도에 따라 30/60/180일 TTL로 quota 안에서 순환 재검증하며 기존 정상값을 보존한다.
 - 설계 문서: `docs/superpowers/specs/2026-10-04-screen-hanok-research-harness-design.md`.
+- 사용자 제공 TourAPI 신분류-관광타입 연계 XLSX를 원본 보존한 채 계층형 Markdown/JSON으로 변환했다. 전체 240개 소분류 행과 `contentTypeId` 연결을 옮겼다. OnMaru 적용 범위는 해당 Markdown에 기록: HS01·EX01·EX04·한옥스테이·VE04 일부 우선 후보, HS02/HS03/VE07/VE09/FD05/전통주/공예·시장/자연·랜드마크·산업관광 관련 항목은 선별 후보, C01 코스·EV 행사·대부분 LS 및 범용 업종은 초기 공개에서 제외한다. 중분류는 후보군, 소분류/장소 관련성은 세부 판정이며 작품 라벨은 별도 근거 기반이다.
+- 사용자가 현재 운영 DB가 AWS PostgreSQL이며 TourAPI 데이터를 적재해 사용 중이라고 확인했다. Neon 운영 구성과 Neon을 현재 원본으로 취급하는 문서는 deprecated 처리 대상으로 분류한다. 중분류 선택 정책에 따른 실제 장소 건수는 AWS 활성 catalog revision에서 `lcls_systm2/lcls_systm3`별 distinct `contentid`를 read-only 집계해야 한다. 현재 실행 환경에는 AWS CLI/접속 세션이 없어 아직 SQL을 실행하지 않았다. 운영 DB 변경은 금지한다.
 - 다음 단계: 사용자 문서 검토 후 구현 계획을 작성한다.

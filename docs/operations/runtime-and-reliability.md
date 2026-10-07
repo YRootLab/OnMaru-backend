@@ -4,7 +4,7 @@
 
 로그에서 `ODII_SYNC_STARTED`의 `runId`를 찾고 같은 ID의 `ODII_SYNC_PHASE` 및 `ODII_SYNC_TERMINAL`을 확인한다. `reason=MISSING_COMPONENT`이면 로그의 boolean으로 누락된 wiring을 확인하고, `reason=LEASE_NOT_ACQUIRED`이면 다른 owner의 lease 만료 시각을 확인한다. 실패 로그에는 upstream 예외 메시지를 기록하지 않으며 `phase`와 exception type만 남긴다.
 
-Neon에서 최근 실행 이력과 게시 revision을 읽을 때는 다음 read-only SQL을 사용한다.
+현재 운영 원본은 AWS PostgreSQL이다. 승인된 read-only DB 세션에서 최근 실행 이력과 게시 revision을 확인할 때 다음 SQL을 사용할 수 있다.
 
 ```sql
 SELECT id, dataset, status, revision_id, started_at, finished_at, error_code, counts
