@@ -177,6 +177,125 @@ class StagingFixtureTests {
     }
 
     @Test
+    void reseedsGeneratedReviewsWhilePreservingLikesReportsAndModerationHistory() throws Exception {
+        executeSeedForTestDatabase();
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.community_review_likes (review_id, member_id, created_at)
+                    VALUES ('54500675-0000-4000-8600-000000000001',
+                            '54500000-0000-4000-8000-000000000101', '2026-10-07T01:00:00Z')
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.community_review_reports
+                      (id, review_id, reporter_member_id, reason, detail, status, created_at)
+                    VALUES ('12340000-0000-4000-8000-000000000201',
+                            '54500675-0000-4000-8600-000000000001',
+                            '54500000-0000-4000-8000-000000000101',
+                            'OTHER', '사용자가 남긴 신고 내용', 'OPEN', '2026-10-07T02:00:00Z')
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.community_review_moderation_actions
+                      (id, review_id, actor_type, actor_ref, previous_status, next_status, reason, created_at)
+                    VALUES ('12340000-0000-4000-8000-000000000202',
+                            '54500675-0000-4000-8600-000000000001',
+                            'OPERATOR', 'staging-test-operator', 'PUBLISHED', 'HIDDEN',
+                            '사용자가 남긴 검수 이력', '2026-10-07T03:00:00Z')
+                    """);
+            statement.executeUpdate("""
+                    UPDATE onmaru.community_visit_reviews
+                    SET status = 'HIDDEN', text = 'drifted generated review'
+                    WHERE id = '54500675-0000-4000-8600-000000000001'
+                    """);
+        }
+
+        executeSeedForTestDatabase();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_review_likes
+                    WHERE review_id = '54500675-0000-4000-8600-000000000001'
+                      AND member_id = '54500000-0000-4000-8000-000000000101'
+                      AND created_at = '2026-10-07T01:00:00Z'
+                    """)).isEqualTo(1);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_review_reports
+                    WHERE id = '12340000-0000-4000-8000-000000000201'
+                      AND review_id = '54500675-0000-4000-8600-000000000001'
+                      AND reporter_member_id = '54500000-0000-4000-8000-000000000101'
+                      AND reason = 'OTHER' AND detail = '사용자가 남긴 신고 내용'
+                      AND status = 'OPEN' AND created_at = '2026-10-07T02:00:00Z'
+                      AND resolved_at IS NULL
+                    """)).isEqualTo(1);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_review_moderation_actions
+                    WHERE id = '12340000-0000-4000-8000-000000000202'
+                      AND review_id = '54500675-0000-4000-8600-000000000001'
+                      AND actor_type = 'OPERATOR' AND actor_ref = 'staging-test-operator'
+                      AND previous_status = 'PUBLISHED' AND next_status = 'HIDDEN'
+                      AND reason = '사용자가 남긴 검수 이력' AND created_at = '2026-10-07T03:00:00Z'
+                    """)).isEqualTo(1);
+            assertThat(value(connection, """
+                    SELECT text FROM onmaru.community_visit_reviews
+                    WHERE id = '54500675-0000-4000-8600-000000000001'
+                    """)).isEqualTo("페이지네이션을 확인하는 합성 방문 후기 001입니다.");
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_visit_reviews
+                    WHERE id::text LIKE '54500675-%' AND status = 'PUBLISHED'
+                    """)).isEqualTo(63);
+        }
+    }
+
+    @Test
+    void reseedsGeneratedPlacesWhilePreservingUserReviews() throws Exception {
+        executeSeedForTestDatabase();
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.community_visit_reviews
+                      (id, member_id, place_id, text, status, created_at, mood, score, tags,
+                       public_place_id, place_name, region_code, latitude, longitude)
+                    VALUES ('12340000-0000-4000-8000-000000000101',
+                            '54500000-0000-4000-8000-000000000101',
+                            '54500675-0000-4000-8300-000000000001',
+                            '일반 사용자가 생성 장소에 작성한 후기', 'PUBLISHED', '2026-10-07T04:00:00Z',
+                            '북적', 4, '["사용자후기"]', 'p-staging-generated-001',
+                            '합성 서울지구 장소 001', 'STG-SEOUL-01', 37.5665, 126.9780)
+                    """);
+            statement.executeUpdate("""
+                    UPDATE onmaru.catalog_place_identity SET created_at = '2026-10-01T00:00:00Z'
+                    WHERE id = '54500675-0000-4000-8300-000000000001'
+                    """);
+        }
+
+        executeSeedForTestDatabase();
+
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.community_visit_reviews
+                    WHERE id = '12340000-0000-4000-8000-000000000101'
+                      AND member_id = '54500000-0000-4000-8000-000000000101'
+                      AND place_id = '54500675-0000-4000-8300-000000000001'
+                      AND text = '일반 사용자가 생성 장소에 작성한 후기'
+                      AND status = 'PUBLISHED' AND created_at = '2026-10-07T04:00:00Z'
+                      AND mood = '북적' AND score = 4 AND tags = '["사용자후기"]'::jsonb
+                      AND public_place_id = 'p-staging-generated-001'
+                      AND place_name = '합성 서울지구 장소 001' AND region_code = 'STG-SEOUL-01'
+                      AND latitude = 37.5665 AND longitude = 126.9780 AND deleted_at IS NULL
+                    """)).isEqualTo(1);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.catalog_place_identity
+                    WHERE id = '54500675-0000-4000-8300-000000000001'
+                      AND created_at = '2026-10-06T00:00:00Z'
+                    """)).isEqualTo(1);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.map_place_read_projection
+                    WHERE revision_id = '54500000-0000-4000-8000-000000000010'
+                    """)).isEqualTo(100);
+        }
+    }
+
+    @Test
     void refusesToSeedAnyDatabaseExceptStaging() throws Exception {
         var sql = seedSql();
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");

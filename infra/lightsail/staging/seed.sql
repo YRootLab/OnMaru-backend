@@ -226,6 +226,7 @@ ON CONFLICT (place_id, spot_id) DO NOTHING;
 
 -- Issue #675 exclusively owns UUIDs with the 54500675-* prefix.
 -- Regenerate only that range, children first, while preserving the connected 54500000-* fixtures.
+-- 생성 후기·장소 identity·public ID는 upsert하여 사용자 후기와 좋아요·신고·검수 이력의 참조를 유지한다.
 DELETE FROM onmaru.audio_place_odii_links
 WHERE place_id::text LIKE '54500675-%' OR spot_id::text LIKE '54500675-%';
 DELETE FROM onmaru.audio_story_content_tag_versions WHERE story_id::text LIKE '54500675-%';
@@ -234,20 +235,16 @@ DELETE FROM onmaru.audio_story_versions WHERE story_id::text LIKE '54500675-%';
 DELETE FROM onmaru.audio_odii_stories WHERE id::text LIKE '54500675-%';
 DELETE FROM onmaru.audio_spot_versions WHERE spot_id::text LIKE '54500675-%';
 DELETE FROM onmaru.audio_odii_spots WHERE id::text LIKE '54500675-%';
-DELETE FROM onmaru.community_review_likes WHERE review_id::text LIKE '54500675-%';
-DELETE FROM onmaru.community_visit_reviews WHERE id::text LIKE '54500675-%';
 DELETE FROM onmaru.map_place_category_projection WHERE place_id::text LIKE '54500675-%';
 DELETE FROM onmaru.map_place_read_projection WHERE place_id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_place_image_versions WHERE place_id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_place_content_tag_versions WHERE place_id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_hanok_detail_versions WHERE place_id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_place_versions WHERE place_id::text LIKE '54500675-%';
-DELETE FROM onmaru.catalog_place_public_ids WHERE place_id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_kto_korean_info_versions WHERE source_ref_id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_kto_korean_intro_versions WHERE source_ref_id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_kto_korean_content_versions WHERE source_ref_id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_place_sources WHERE id::text LIKE '54500675-%';
-DELETE FROM onmaru.catalog_place_identity WHERE id::text LIKE '54500675-%';
 DELETE FROM onmaru.catalog_regions WHERE id::text LIKE '54500675-%' AND parent_id IS NOT NULL;
 DELETE FROM onmaru.catalog_regions WHERE id::text LIKE '54500675-%';
 
@@ -299,14 +296,16 @@ FROM generate_series(1, 96) AS series(n)
 JOIN staging_fixture_regions region ON region.ord = (n - 1) % 4;
 
 INSERT INTO onmaru.catalog_place_identity (id, created_at)
-SELECT place_id, '2026-10-06T00:00:00Z' FROM staging_fixture_places;
+SELECT place_id, '2026-10-06T00:00:00Z' FROM staging_fixture_places
+ON CONFLICT (id) DO UPDATE SET created_at = EXCLUDED.created_at;
 INSERT INTO onmaru.catalog_place_sources
   (id, place_id, provider, dataset, external_id, language, fetched_at)
 SELECT source_id, place_id, 'STAGING', 'synthetic', 'generated-' || lpad(n::text, 3, '0'),
        'ko', '2026-10-06T00:00:00Z'
 FROM staging_fixture_places;
 INSERT INTO onmaru.catalog_place_public_ids (public_id, place_id)
-SELECT public_id, place_id FROM staging_fixture_places;
+SELECT public_id, place_id FROM staging_fixture_places
+ON CONFLICT (public_id) DO UPDATE SET place_id = EXCLUDED.place_id;
 INSERT INTO onmaru.catalog_place_versions
   (revision_id, place_id, source_ref_id, region_id, name, category, address,
    location, overview, visit_review_eligible, status, normalized_hash)
@@ -390,7 +389,22 @@ SELECT review.review_id, review.member_id, review.place_id,
        ST_Y(place.location_geom), ST_X(place.location_geom)
 FROM staging_fixture_reviews review
 JOIN onmaru.map_place_read_projection place
-  ON place.place_id = review.place_id AND place.revision_id = '54500000-0000-4000-8000-000000000010';
+  ON place.place_id = review.place_id AND place.revision_id = '54500000-0000-4000-8000-000000000010'
+ON CONFLICT (id) DO UPDATE SET
+  member_id = EXCLUDED.member_id,
+  place_id = EXCLUDED.place_id,
+  text = EXCLUDED.text,
+  status = EXCLUDED.status,
+  created_at = EXCLUDED.created_at,
+  deleted_at = EXCLUDED.deleted_at,
+  mood = EXCLUDED.mood,
+  score = EXCLUDED.score,
+  tags = EXCLUDED.tags,
+  public_place_id = EXCLUDED.public_place_id,
+  place_name = EXCLUDED.place_name,
+  region_code = EXCLUDED.region_code,
+  latitude = EXCLUDED.latitude,
+  longitude = EXCLUDED.longitude;
 
 CREATE TEMP TABLE staging_fixture_stories ON COMMIT DROP AS
 SELECT place.*,
