@@ -32,7 +32,9 @@ ssh -i ~/.ssh/onmaru-staging onmaru-staging-operator@13.125.191.16 status
 ssh -i ~/.ssh/onmaru-staging onmaru-staging-operator@13.125.191.16 stop
 ```
 
-`start`는 운영 PostgreSQL health를 먼저 확인하고, 스테이징 DB→Flyway→Spring 순서로 기동한다. Flyway가 schema를 만든 후 `seed.sql`에 고정된 합성 fixture를 넣는다. fixture에는 공개 장소 4건, 공개·숨김 후기 3건, Odii story 3건과 지도 projection·이미지·태그·장소 연결이 포함된다. 지도에서 얻은 `p-staging-hanok-a`로 장소 상세, 공개 후기, 연결 오디오 흐름을 이어서 확인할 수 있다. seed는 같은 DB에 반복 적용해도 중복되지 않는다. 실패하면 스테이징 컨테이너를 중지한다. 사용 중에도 2시간 뒤 자동 중지되므로 더 필요하면 `start`를 다시 실행해 timer를 갱신한다. `status`는 컨테이너 상태와 자동 중지 예정 시각을 출력한다. 스테이징 인증키와 DB는 운영과 별도다.
+`start`는 운영 PostgreSQL health를 먼저 확인하고, 스테이징 DB→Flyway→Spring 순서로 기동한다. Flyway가 schema를 만든 후 `seed.sql`에 고정된 합성 fixture를 넣는다. 지도 장소 100건, 공개 온기 후기 65건, Odii story 65건과 지도 projection·지역 집계·이미지·태그·장소 연결을 제공한다. 모든 행은 합성 테스트 데이터이며, seed는 운영 회원·세션 데이터를 복사하지 않습니다. 같은 staging DB에 반복 기동해도 fixture 행 수가 늘어나지 않습니다. 지도에서 얻은 안정 public ID `p-staging-hanok-a`로 기존 장소 상세·후기·오디오 연결 흐름을 확인하고, `p-staging-generated-001` 등 생성 장소로 지도 페이지 결과를 확인할 수 있다.
+
+FE 검증은 다음 순서로 진행한다. 기존 FE staging mode에서 `staging-api.onmaru.site`를 사용하고, 지도 권역 이동과 줌 변경으로 place/cluster/district/region 응답을 확인한다. 온기 후기 및 Odii story 목록은 `limit=30`으로 세 페이지를 순회해 페이지별 30/30/5건과 마지막 페이지의 종료 상태(`hasMore=false`)를 확인한다. 검증이 끝나면 SSH `stop`으로 스테이징을 중지한다. 실패하면 스테이징 컨테이너를 중지한다. 사용 중에도 2시간 뒤 자동 중지되므로 더 필요하면 `start`를 다시 실행해 timer를 갱신한다. `status`는 컨테이너 상태와 자동 중지 예정 시각을 출력한다. 스테이징 인증키와 DB는 운영과 별도다.
 
 fixture의 이미지와 짧은 오디오 샘플은 각각 `picsum.photos`, `samplelib.com`의 공개 테스트 자원을 사용한다. 이 host들은 fixture 렌더링 확인 용도이며 운영 데이터나 회원·세션 정보는 포함하지 않는다.
 
