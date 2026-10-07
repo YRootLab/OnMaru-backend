@@ -207,7 +207,7 @@ class StagingFixtureTests {
 
         do {
             var sql = """
-                    SELECT %1$s::text, %2$s, %1$s
+                    SELECT %1$s::text AS fixture_id, %2$s, %1$s AS cursor_id
                     FROM %3$s
                     WHERE %4$s
                       AND (? = false OR (%2$s, %1$s) < (?::timestamptz, ?::uuid))
