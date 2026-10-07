@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -402,23 +403,66 @@ def test_verify_contracts_supports_negative_fixture_mode(tmp_path: Path) -> None
     )
 
 
-def test_dbml2sql_wrapper_pins_toolchain_and_forwards_arguments(tmp_path: Path) -> None:
+def test_dbml2sql_toolchain_locks_compatible_transitive_dependencies() -> None:
+    toolchain = ROOT / "scripts/dbml-toolchain"
+    assert (toolchain / "package.json").is_file(), "DBML toolchain needs a repository-owned manifest"
+    assert (toolchain / "package-lock.json").is_file(), "DBML transitive dependencies need a committed lock"
+    manifest = json.loads((toolchain / "package.json").read_text(encoding="utf-8"))
+    lock = json.loads((toolchain / "package-lock.json").read_text(encoding="utf-8"))
+
+    assert manifest["private"] is True
+    assert manifest["dependencies"]["@dbml/cli"] == "10.1.1"
+    assert manifest["dependencies"]["@types/node"] == "22.20.2"
+    assert lock["packages"][""]["dependencies"] == manifest["dependencies"]
+    for name in ("core", "parse", "connector"):
+        assert manifest["overrides"][f"@dbml/{name}"] == "10.1.1"
+    for path, package in lock["packages"].items():
+        if not path:
+            continue
+        assert package["version"]
+        assert package["resolved"].startswith("https://registry.npmjs.org/")
+        assert package["integrity"].startswith("sha512-")
+        if "/@dbml/" in path:
+            assert package["version"] == "10.1.1", f"incompatible DBML package: {path}"
+    for name in ("cli", "core", "parse", "connector"):
+        assert lock["packages"][f"node_modules/@dbml/{name}"]["version"] == "10.1.1"
+
+
+def test_dbml2sql_wrapper_installs_locked_toolchain_and_forwards_arguments(tmp_path: Path) -> None:
+    scripts_dir = tmp_path / "repo with spaces/scripts"
+    scripts_dir.mkdir(parents=True)
+    wrapper = scripts_dir / "dbml2sql"
+    shutil.copy2(ROOT / "scripts/dbml2sql", wrapper)
+    toolchain = scripts_dir / "dbml-toolchain"
+    toolchain.mkdir()
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    capture_path = tmp_path / "npx-arguments.txt"
-    fake_npx = bin_dir / "npx"
-    fake_npx.write_text(
-        '#!/usr/bin/env bash\nprintf "%s\\n" "$@" >"$NPX_CAPTURE_PATH"\nprintf "compiled sql\\n"\n',
+    capture_path = tmp_path / "npm-arguments.txt"
+    cli_capture_path = tmp_path / "cli-arguments.txt"
+    fake_npm = bin_dir / "npm"
+    fake_npm.write_text(
+        '#!/usr/bin/env bash\n'
+        'printf "%s\\n" "$@" >"$NPM_CAPTURE_PATH"\n'
+        'printf "install diagnostic\\n"\n'
+        'exit "${NPM_EXIT_CODE:-0}"\n',
         encoding="utf-8",
     )
-    fake_npx.chmod(0o755)
+    fake_npm.chmod(0o755)
+    local_cli = toolchain / "node_modules/.bin/dbml2sql"
+    local_cli.parent.mkdir(parents=True)
+    local_cli.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$@" >"$CLI_CAPTURE_PATH"\nprintf "compiled sql\\n"\n',
+        encoding="utf-8",
+    )
+    local_cli.chmod(0o755)
 
     env = os.environ.copy()
     env["PATH"] = f"{bin_dir}:{env['PATH']}"
-    env["NPX_CAPTURE_PATH"] = str(capture_path)
+    env["NPM_CAPTURE_PATH"] = str(capture_path)
+    env["CLI_CAPTURE_PATH"] = str(cli_capture_path)
     result = subprocess.run(
-        [str(ROOT / "scripts/dbml2sql"), "schema.dbml", "--postgres"],
-        cwd=ROOT,
+        [str(wrapper), "schema with spaces.dbml", "--postgres"],
+        cwd=tmp_path,
         env=env,
         text=True,
         capture_output=True,
@@ -427,12 +471,29 @@ def test_dbml2sql_wrapper_pins_toolchain_and_forwards_arguments(tmp_path: Path) 
 
     assert result.returncode == 0
     assert result.stdout == "compiled sql\n"
+    assert "install diagnostic" in result.stderr
     assert capture_path.read_text(encoding="utf-8").splitlines() == [
-        "--yes",
-        "--package=@types/node@22.20.2",
-        "--package=@dbml/cli@10.1.1",
-        "--",
-        "dbml2sql",
-        "schema.dbml",
+        "ci",
+        "--prefix",
+        str(toolchain),
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+    ]
+    assert cli_capture_path.read_text(encoding="utf-8").splitlines() == [
+        "schema with spaces.dbml",
         "--postgres",
     ]
+
+    cli_capture_path.unlink()
+    env["NPM_EXIT_CODE"] = "42"
+    result = subprocess.run(
+        [str(wrapper), "schema.dbml", "--postgres"],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 42
+    assert not cli_capture_path.exists(), "a failed locked install must not execute a stale CLI"
