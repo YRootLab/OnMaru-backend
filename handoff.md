@@ -1,5 +1,13 @@
 # handoff.md
 
+## 다음 작업: Issue #675 스테이징 pagination 실검증
+
+- 브랜치: `feature/675-staging-pagination-fixtures`, Issue: [#675](https://github.com/YRootLab/OnMaru-backend/issues/675) OPEN. controller 리뷰 후 `develop` 대상 PR을 생성하며 본문은 `Refs #675`를 사용한다. 실제 Lightsail 배포·공개 API 3페이지 검증까지 Issue를 닫지 않는다.
+- 변경 범위: `infra/lightsail/staging/seed.sql`, `StagingFixtureTests.java`, staging README·FE 안내, deploy pipeline 문서 계약 테스트와 `docs/superpowers/{specs,plans}/2026-10-07-staging-pagination-fixtures*.md`. 검증: CI와 동일한 전체 Java 명령·bootJar 성공(946 tests, 실패 0·skip 2; staging fixture 4/4), deploy pipeline 7개, 계약 validator 11개·`bash scripts/verify-contracts`, Compose config, planning/Odii fixture, AI 304개(1 skip)·eval·ruff·mypy 통과. 전체 Node 205/229 통과·24개 로컬 Toolkit 모듈 누락 실패; committed upstream 경로로 release comparator 24/24 별도 통과. PR CI `verify`에서 전체 hygiene 결과를 재확인한다.
+- 병합 후: `CI / verify`가 통과한 병합된 `develop` SHA를 확인하고 `gh workflow run deploy.yml --ref develop -f deploy_staging=true`를 실행한다. workflow URL·SHA·이미지 digest가 일치하고 staging deploy가 성공한 뒤 제한 SSH `start`로 기동한다.
+- 실검증: 운영 `/api/v1/health` 전후 확인 → staging `/api/v1/visit-reviews?scope=ALL&limit=30`, `/api/v1/odii/stories?language=ko-KR&limit=30`의 응답 cursor를 다음 요청에 그대로 전달해 30/30/5, 각 65개 unique ID, `totalCount=65`, 마지막 `hasMore=false`·`nextCursor=null` 확인 → `/api/v1/map/info/places` 전체 cursor 순회 100개 unique public ID 및 viewport 줌 1/6/9/11의 PLACE/CLUSTER/DISTRICT/REGION·SPOT/CAFE/MARKET 필터 확인 → 대표 장소 상세·후기·오디오 연결 확인 → SSH `stop`·`status` 및 운영 health 확인. workflow URL·병합 SHA·digest·각 응답 결과를 #675에 기록한 뒤 완료 조건을 대조해 종료한다. SSH·배포 절차는 [스테이징 README](infra/lightsail/staging/README.md)·[FE 안내](docs/operations/staging-fe-guide.md)를 따른다.
+- 열린 위험: 실제 공개 API signed cursor·지도 줌별 응답과 Lightsail 운영 health 보존은 병합 후 검증이 남았다. 사용자가 작성한 일반 후기를 보존하므로 API 전체 후기는 fixture 65개보다 늘어날 수 있다. 공개 65개 fixture ID 집합과 사용자 추가 데이터를 구분해 증적을 #675에 기록한다.
+
 ## 2026-10-07 Issue #671 실시간 온기 CSRF 예외 및 MockMvc 호환성 수정
 
 - 브랜치: `fix/671-warmth-csrf-bypass`, 관련 Issue: #671, PR: #672.
