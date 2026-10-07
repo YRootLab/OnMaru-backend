@@ -1,5 +1,13 @@
 # handoff.md
 
+## 2026-10-08 Issue #603 장소 선별·K-Contents 구현 작업 분해
+
+- 브랜치: `feature/603-screen-hanok-research-harness` (branch parser #603). 사용자 요청은 통합 PRD와 신규 FE 계약을 백엔드 독립 Issue Graph로 분해하고 현 브랜치의 `develop` 대상 PR을 여는 것이다.
+- `docs/planning/place-kcontents/work-graph.json`과 `backend-implementation-issues.md`에 기존 #603을 Root로 재사용하는 Child 후보 11개, Wave 0~5, 선행 관계·파일 소유권·객관적 인수 기준과 통합 gate를 기록했다. `README.md`에 탐색 링크를 추가했다.
+- `spec-to-issues` 규칙상 실제 GitHub Child Issue 발행과 #603 본문 개정은 사용자에게 graph 전체를 보여주고 승인받은 뒤 수행한다. #569는 신규 분류 정책만으로 닫지 않고 기존 지도 회귀를 별도로 검증한다.
+- 검증: skill의 `validate_work_graph.py`에서 11개 오류/경고 0개, `compute_waves.py`로 Wave 0~5 계산, `git diff --check` 통과. PR의 CI `verify`는 별도 확인 대상이다.
+- 다음 단계: 이번 문서 PR의 CI·리뷰를 확인하고, 사용자가 graph를 승인하면 #603 갱신 및 native Sub-Issue/blocked-by 관계를 발행한다. 실제 구현은 각 Child별 별도 branch/PR로 수행한다.
+
 ## 2026-10-03 Issue #552 회원 익명 프로필·온기 후기 작성자
 
 - 브랜치: `feature/552-member-profile` (branch parser #552).
