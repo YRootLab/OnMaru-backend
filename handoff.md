@@ -7,6 +7,7 @@
 - 공개 근거: 2026-10-07 한옥 목록 API `totalCount: 1096`, `HANOK` 필터 208, `screen-hanok` 0. 첫 목록에 비관련 `HANOK_EXPERIENCE` 사례. FE 개발 브랜치의 빈 응답 fallback, BE의 출처 기반 자동 게시 ADR과 #603을 확인했다.
 - 변경: `docs/reports/2026-10-07-onmaru-tourism-contest-review.md`, `docs/reports/2026-10-07-onmaru-venture-review.md`. 공식 기준/실제 API/이전 화면 관찰/팀 제공치/추론을 구분했다. 공모전 63/100, VC 잠정 36/100 및 점수 변경 조건을 기록했다.
 - 검증: `git diff --cached --check`, 두 보고서의 로컬 링크 검사, 점수 산술(63·36), `node scripts/verify-planning-inputs.mjs`, `node scripts/validate-odii-fixtures.mjs` 통과.
+- 검토: Draft PR [#674](https://github.com/YRootLab/OnMaru-backend/pull/674)를 `develop` 대상으로 열었다. 다음 단계는 보고서 내용 검토와 PR의 `verify` CI 확인이다. Issue #673은 병합·인수 조건 확인 전까지 열어 둔다.
 - 남은 한계: 2026-10-07 동적 화면은 재검증하지 못했다. 작품–장소 관계 검증률, 현장 전환, 결제·재계약, RAG 답변 정확도는 미확인이다.
 
 ## 2026-10-02 Issue #567 온마루 서비스 평가
