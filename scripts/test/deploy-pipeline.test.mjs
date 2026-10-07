@@ -72,6 +72,22 @@ describe('container and staging release pipeline', () => {
     assert.match(compose, /ONMARU_ODII_SYNC_ON_STARTUP:\s*["']false["']/);
   });
 
+  it('documents pagination-sized staging fixtures for FE verification', () => {
+    const readme = read('infra/lightsail/staging/README.md');
+    const feGuide = read('docs/operations/staging-fe-guide.md');
+
+    for (const document of [readme, feGuide]) {
+      assert.match(document, /지도 장소 100건/);
+      assert.match(document, /공개 온기 후기 65건/);
+      assert.match(document, /Odii story 65건/);
+      assert.match(document, /limit=30/);
+      assert.match(document, /모든 행은 합성/);
+      assert.match(document, /운영 회원·세션 데이터를 복사하지 않/);
+      assert.match(document, /반복 기동.*fixture.*늘어나지 않/);
+    }
+    assert.match(feGuide, /onmaru-staging-operator@13\.125\.191\.16 start/);
+  });
+
   it('publishes a manual staging workflow with image build scan smoke and rollback jobs', () => {
     const workflow = read('.github/workflows/deploy.yml');
 
