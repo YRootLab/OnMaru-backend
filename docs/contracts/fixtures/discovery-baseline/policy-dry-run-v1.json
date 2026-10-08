@@ -1,0 +1,548 @@
+{
+  "policyVersion": "discovery-candidate-v1.0.0",
+  "capturedAt": "2026-10-08T13:39:17.950986+00:00",
+  "candidateCount": 9858,
+  "counts": {
+    "INCLUDE": 1983,
+    "REVIEW": 4463,
+    "EXCLUDE": 3412
+  },
+  "reasons": {
+    "STRONG_TAXONOMY_PENDING_DETAIL_GATE": 1819,
+    "CONDITIONAL_NEEDS_CONTEXT": 4387,
+    "CONDITIONAL_TITLE_SIGNAL_PENDING_DETAIL_GATE": 164,
+    "SOURCE_INVALID": 3,
+    "UNRELATED_FACILITY": 2,
+    "BROAD_CLASS_NO_TRADITION_SIGNAL": 3396,
+    "BROAD_CLASS_TITLE_SIGNAL_NEEDS_EVIDENCE": 30,
+    "KEYWORD_RESCUE_NEEDS_EVIDENCE": 46,
+    "RESCUE_NO_PLACE_EVIDENCE": 11
+  },
+  "oldPublicIntersection": {
+    "INCLUDE": 1532,
+    "REVIEW": 3809,
+    "EXCLUDE": 2134
+  },
+  "oldPublicOutsideCandidate": 16162,
+  "newIncludeOutsideOldPublic": 451,
+  "bySourceCode": {
+    "AC010100": {
+      "REVIEW": 6
+    },
+    "AC030100": {
+      "REVIEW": 4
+    },
+    "AC030200": {
+      "INCLUDE": 498
+    },
+    "AC030300": {
+      "REVIEW": 3
+    },
+    "AC040100": {
+      "REVIEW": 1
+    },
+    "AC060200": {
+      "REVIEW": 5
+    },
+    "C01120001": {
+      "EXCLUDE": 2
+    },
+    "C01130001": {
+      "EXCLUDE": 2
+    },
+    "C01140001": {
+      "EXCLUDE": 1
+    },
+    "C01150001": {
+      "EXCLUDE": 2
+    },
+    "EV020100": {
+      "EXCLUDE": 1
+    },
+    "EV030400": {
+      "EXCLUDE": 1
+    },
+    "EX010100": {
+      "INCLUDE": 63
+    },
+    "EX030100": {
+      "EXCLUDE": 440,
+      "REVIEW": 4
+    },
+    "EX040200": {
+      "REVIEW": 3
+    },
+    "EX060100": {
+      "REVIEW": 2
+    },
+    "EX060300": {
+      "REVIEW": 2
+    },
+    "EX070200": {
+      "REVIEW": 1
+    },
+    "FD010100": {
+      "REVIEW": 11
+    },
+    "FD020100": {
+      "REVIEW": 1
+    },
+    "FD020300": {
+      "REVIEW": 2
+    },
+    "FD040400": {
+      "REVIEW": 2
+    },
+    "FD050100": {
+      "EXCLUDE": 2957,
+      "REVIEW": 26
+    },
+    "FD050200": {
+      "REVIEW": 46,
+      "INCLUDE": 4
+    },
+    "HS010100": {
+      "INCLUDE": 73
+    },
+    "HS010200": {
+      "INCLUDE": 185
+    },
+    "HS010300": {
+      "INCLUDE": 36
+    },
+    "HS010400": {
+      "INCLUDE": 208
+    },
+    "HS010500": {
+      "INCLUDE": 78
+    },
+    "HS010600": {
+      "INCLUDE": 111
+    },
+    "HS010700": {
+      "REVIEW": 51,
+      "INCLUDE": 1
+    },
+    "HS011100": {
+      "REVIEW": 65
+    },
+    "HS011200": {
+      "REVIEW": 391,
+      "EXCLUDE": 1,
+      "INCLUDE": 1
+    },
+    "HS020100": {
+      "REVIEW": 248,
+      "INCLUDE": 2
+    },
+    "HS020300": {
+      "REVIEW": 117
+    },
+    "HS030100": {
+      "REVIEW": 1004,
+      "EXCLUDE": 1
+    },
+    "LS011900": {
+      "EXCLUDE": 1
+    },
+    "LS020700": {
+      "EXCLUDE": 1
+    },
+    "NA040700": {
+      "REVIEW": 208,
+      "INCLUDE": 1
+    },
+    "SH040300": {
+      "REVIEW": 3
+    },
+    "SH050100": {
+      "REVIEW": 48,
+      "INCLUDE": 4
+    },
+    "SH060100": {
+      "REVIEW": 205,
+      "INCLUDE": 47
+    },
+    "SH060200": {
+      "REVIEW": 538,
+      "INCLUDE": 38
+    },
+    "SH070100": {
+      "REVIEW": 1
+    },
+    "VE010100": {
+      "REVIEW": 20
+    },
+    "VE010900": {
+      "REVIEW": 7
+    },
+    "VE040100": {
+      "INCLUDE": 311
+    },
+    "VE040200": {
+      "INCLUDE": 256
+    },
+    "VE040300": {
+      "REVIEW": 1
+    },
+    "VE070100": {
+      "REVIEW": 555,
+      "INCLUDE": 39,
+      "EXCLUDE": 2
+    },
+    "VE070200": {
+      "REVIEW": 157
+    },
+    "VE070300": {
+      "INCLUDE": 18,
+      "REVIEW": 510
+    },
+    "VE070600": {
+      "REVIEW": 1
+    },
+    "VE090100": {
+      "REVIEW": 176
+    },
+    "VE090300": {
+      "REVIEW": 3
+    },
+    "VE090400": {
+      "REVIEW": 32,
+      "INCLUDE": 9
+    },
+    "VE090600": {
+      "REVIEW": 1
+    },
+    "VE120300": {
+      "REVIEW": 2
+    }
+  },
+  "samples": {
+    "INCLUDE": [
+      {
+        "contentId": "2605187",
+        "title": "강릉 대도호부 관아",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "125788",
+        "title": "강릉 임영관 삼문",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "127110",
+        "title": "강진 전라병영성",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "1614793",
+        "title": "강화유수부 동헌",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "1615571",
+        "title": "강화유수부이방청",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "128033",
+        "title": "거제현 관아",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "1627302",
+        "title": "결성동헌",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "126508",
+        "title": "경복궁",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "129631",
+        "title": "경상좌수영성지",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "128526",
+        "title": "경주 동궁과 월지",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "126484",
+        "title": "경희궁",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "1606042",
+        "title": "경희궁 숭정전",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "126460",
+        "title": "관덕정(제주)",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "793086",
+        "title": "괴산 청안 안민헌",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      },
+      {
+        "contentId": "1433438",
+        "title": "괴산동헌",
+        "sourceCode": "HS010100",
+        "reason": "STRONG_TAXONOMY_PENDING_DETAIL_GATE",
+        "role": "CORE_TRADITIONAL_PLACE"
+      }
+    ],
+    "REVIEW": [
+      {
+        "contentId": "125769",
+        "title": "강릉 굴산사지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "250304",
+        "title": "강화 선원사지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "128637",
+        "title": "경주 감은사지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "250267",
+        "title": "경주 동방동 와요지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "319572",
+        "title": "경주 동부 사적지대",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "129524",
+        "title": "경주 망덕사지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "250281",
+        "title": "경주 인왕동 사지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "127985",
+        "title": "경주 황룡사지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "127184",
+        "title": "고려궁지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "3008310",
+        "title": "고소대",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "125549",
+        "title": "고양 벽제관지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "128113",
+        "title": "공주 우금치 전적",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "231955",
+        "title": "공주서혈사지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "1942348",
+        "title": "관수옥과 초량왜관 터",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      },
+      {
+        "contentId": "1623771",
+        "title": "광양 옥룡사지",
+        "sourceCode": "HS010700",
+        "reason": "CONDITIONAL_NEEDS_CONTEXT",
+        "role": null
+      }
+    ],
+    "EXCLUDE": [
+      {
+        "contentId": "125793",
+        "title": "만경대",
+        "sourceCode": "HS011200",
+        "reason": "SOURCE_INVALID",
+        "role": null
+      },
+      {
+        "contentId": "486625",
+        "title": "호국지장사(서울)",
+        "sourceCode": "HS030100",
+        "reason": "SOURCE_INVALID",
+        "role": null
+      },
+      {
+        "contentId": "2649844",
+        "title": "서해수호관",
+        "sourceCode": "VE070100",
+        "reason": "SOURCE_INVALID",
+        "role": null
+      },
+      {
+        "contentId": "1911506",
+        "title": "세계골프역사박물관",
+        "sourceCode": "VE070100",
+        "reason": "UNRELATED_FACILITY",
+        "role": null
+      },
+      {
+        "contentId": "2850913",
+        "title": "가는곶 세화",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2846052",
+        "title": "가드너스",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2860348",
+        "title": "가든포레스트",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2640274",
+        "title": "가랑드",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2893649",
+        "title": "가마등",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2782537",
+        "title": "가방속커피향기",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2859186",
+        "title": "가배당",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2869971",
+        "title": "가배서림",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "3033063",
+        "title": "가배원",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2838704",
+        "title": "가봉반과",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      },
+      {
+        "contentId": "2922967",
+        "title": "가비가배",
+        "sourceCode": "FD050100",
+        "reason": "BROAD_CLASS_NO_TRADITION_SIGNAL",
+        "role": null
+      }
+    ]
+  },
+  "decisionSetSha256": {
+    "INCLUDE": "e10e26b4c922b18a34e901fafb1ea8e92bdf778c9908a5347de54b066076c68e",
+    "REVIEW": "7d56521b787c49be9522302ccf347d0282ca778225b4b5da0dc1ead8f06dce59",
+    "EXCLUDE": "11dc39e3ffe7761ba94bff774eaea0ee4885fc75c33845cb313ba150fed2e256"
+  }
+}
