@@ -238,7 +238,7 @@ Render와 Neon을 운영 환경으로 설명하는 이전 문서는 마이그레
 | `ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT` | 쿠키 세션 및 카카오 OAuth 서명 비밀키 |
 | `ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT` | 관측성(OTel) 메트릭 전송 토큰 |
 | `ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT` | 관리자/운영자 API 인증 토큰 (`Bearer` 방식) |
-| `ONMARU_DB_URL` | Neon PostgreSQL 접속 JDBC URL |
+| `ONMARU_DB_URL` | 환경별 PostgreSQL 접속 JDBC URL |
 | `ONMARU_DB_RUNTIME_USER` / `PASSWORD` | DB 접속 계정 및 비밀번호 |
 
 ## 문서

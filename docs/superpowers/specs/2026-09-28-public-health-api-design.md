@@ -9,7 +9,7 @@
 - `GET /api/v1/health`를 인증 없이 제공한다.
 - 정상 기동된 애플리케이션은 HTTP 200과 `{"status":"UP"}`를 반환한다.
 - OpenAPI 문서와 Swagger UI에서 엔드포인트 및 응답 schema를 확인할 수 있게 한다.
-- 응답 과정에서 PostgreSQL, Neon, TourAPI 등 외부 의존성을 호출하지 않는다.
+- 응답 과정에서 PostgreSQL, TourAPI 등 외부 의존성을 호출하지 않는다.
 
 DB 연결 상태까지 검사하는 readiness API, 주기적인 외부 ping, Render sleep 방지 인프라는 이번 범위에 포함하지 않는다. Render가 sleep 상태라면 최초 요청이 wake-up을 시작하며 cold start 지연은 피할 수 없다.
 

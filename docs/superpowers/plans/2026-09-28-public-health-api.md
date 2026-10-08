@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- 응답 과정에서 PostgreSQL, Neon, TourAPI를 호출하지 않는다.
+- 응답 과정에서 PostgreSQL, TourAPI를 호출하지 않는다.
 - `GET /api/v1/health`는 HTTP 200과 `{"status":"UP"}`만 공개한다.
 - 기존 `/actuator/health`는 변경하지 않는다.
 - Render sleep 상태의 첫 요청에는 cold start 지연이 발생할 수 있다.
