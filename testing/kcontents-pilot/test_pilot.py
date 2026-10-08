@@ -66,6 +66,31 @@ class PilotTests(unittest.TestCase):
                        "https://staging-api.onmaru.site/#fragment"):
             with self.assertRaises(ValueError): golden.allowed_base(unsafe)
 
+    def test_golden_ignores_only_volatile_time_and_cursor_expiry(self):
+        import base64
+        import json
+        def cursor(expiry, place):
+            payload = {"scope": "odii-stories:v1", "expiresAt": expiry,
+                       "claims": {"revisionId": "r1", "storyId": place, "limit": 20}}
+            encoded = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+            return encoded + ".signature"
+
+        def row(item_id, body):
+            return {"id": item_id, "path": "/api/v1/" + item_id, "status": 200,
+                    "sha256": "old-capture-hash", "body": body}
+
+        before = {"kind": "LEGACY_STAGING_GOLDEN", "requests": [
+            row("home", {"countsAsOf": "t1", "items": [{"placeId": "p-1"}]}),
+            row("odii", {"items": [{"storyId": "s-1"}], "nextCursor": cursor("t1", "s-1")})]}
+        after = {"kind": before["kind"], "requests": [
+            row("home", {"countsAsOf": "t2", "items": [{"placeId": "p-1"}]}),
+            row("odii", {"items": [{"storyId": "s-1"}], "nextCursor": cursor("t2", "s-1")})]}
+        self.assertEqual(golden.compare(before, after), [])
+        after["requests"][1]["body"]["nextCursor"] = cursor("t2", "s-2")
+        self.assertEqual(golden.compare(before, after), ["odii"])
+        after["requests"][0]["body"]["items"][0]["placeId"] = "p-2"
+        self.assertEqual(golden.compare(before, after), ["home", "odii"])
+
     def test_authenticated_golden_refuses_redirect(self):
         def redirect(request, timeout):
             self.assertEqual(request.get_header("Cookie"), "__Host-onmaru-session=secret")
