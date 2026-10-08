@@ -1,0 +1,8 @@
+{
+  "stage": 100,
+  "expectedJobs": 100,
+  "pilotReason": "PILOT_691_100_YYYYMMDD",
+  "providerMode": "fixture",
+  "environment": "local",
+  "minimumPrecision": 0.95
+}

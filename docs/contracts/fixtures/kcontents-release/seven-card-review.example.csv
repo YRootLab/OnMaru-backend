@@ -1,0 +1,8 @@
+card_slot,fe_fallback_id,fe_display_place,fe_display_work,legacy_public_place_id,canonical_work_id,place_id,relation_id,evidence_url,quote_checked,place_region_checked,rights_checked,decision,reviewer,reviewed_at,preliminary_source_url,preliminary_note
+1,sh-001,안동 만휴정,미스터 션샤인,,,,,,,,,UNVERIFIED,,,https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=d4594ee6-ca20-4083-87fa-f22670b1c5f2,관광공사 예비 근거: 미스터 션샤인 명시. 원문 quote·장소·권리 검수 전.
+2,sh-002,서천 이하복 고택,미스터 션샤인·옷소매 붉은 끝동,,,,,,,,,UNVERIFIED,,,,정확한 두 작품 촬영 근거 미확인.
+3,sh-003,남원 광한루원,슈룹·구르미 그린 달빛,,,,,,,,,UNVERIFIED,,,https://www.ajunews.com/view/20221225172824964,남원시 인용 기사에서 슈룹 예비 확인. 구르미 직접 자료 미확인. 관광공사 광한루원 페이지의 옷소매 붉은 끝동은 FE 주장과 다름.
+4,sh-004,안동 하회마을 양진당,관상,,,,,,,,,UNVERIFIED,,,,관상 정확한 촬영 근거 미확인.
+5,sh-005,담양 명옥헌원림,음란서생·취화선,,,,,,,,,UNVERIFIED,,,,두 작품 정확한 촬영 근거 미확인.
+6,sh-006,완주 아원고택,BTS 썸머 패키지 (화보),,,,,,,,,UNVERIFIED,,,https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=4c91565e-c29a-4c83-9c54-ac76d11b5e4b,관광공사 예비 근거: BTS 썸머 패키지 화보. MV 관계로 등록 금지.
+7,sh-007,강릉 선교장,IU 화보·사임당 (혼합),,,,,,,,,UNVERIFIED,,,https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=50441e4a-309d-4fcc-bcbd-81cb2affcef6,관광공사 예비 근거: 사임당 드라마. IU 화보는 별도 미확인.

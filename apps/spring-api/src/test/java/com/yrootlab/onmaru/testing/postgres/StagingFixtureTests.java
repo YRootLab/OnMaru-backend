@@ -67,6 +67,7 @@ class StagingFixtureTests {
             .waitingFor(Wait.forLogMessage(".*database system is ready to accept connections.*\\n", 2));
 
     private static final Path SEED = Path.of("../../infra/lightsail/staging/seed.sql");
+    private static final Path PILOT_SQL = Path.of("../../testing/kcontents-pilot");
     private static final String HIDDEN_REVIEW_ID = "54500000-0000-4000-8000-000000000113";
     private static final String USER_REVIEW_ID = "12340000-0000-4000-8000-000000000101";
     private AnnotationConfigWebApplicationContext publicApiContext;
@@ -642,6 +643,60 @@ class StagingFixtureTests {
 
     private void executeSeedForTestDatabase() throws Exception {
         var sql = seedSql().replace("current_database() <> 'onmaru_staging'", "current_database() <> 'onmaru_test'");
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
+             var statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+
+    @Test
+    void syntheticDiscoveryRevisionsSupportRetainedVisibilityRollbackAndCleanup() throws Exception {
+        executeSeedForTestDatabase();
+        executePilotSql("staging-discovery-fixture.sql");
+        executePilotSql("staging-discovery-fixture.sql"); // idempotent staging restart
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            assertThat(longValue(connection, "SELECT count(*) FROM onmaru.selected_discovery_public_visible")).isEqualTo(3);
+            assertThat(longValue(connection, """
+                    SELECT count(*) FROM onmaru.selected_discovery_public_items p
+                    JOIN onmaru.selected_discovery_candidates c USING (revision_id,content_id)
+                    JOIN onmaru.selected_discovery_approvals a USING (content_id)
+                    WHERE p.revision_id='69100000-0000-4000-8000-000000000001'
+                      AND c.list_hash=a.list_hash AND c.detail_hash=a.detail_hash
+                    """)).isEqualTo(2);
+            assertThat(value(connection, "SELECT revision_id::text FROM onmaru.selected_discovery_active"))
+                    .isEqualTo("69100000-0000-4000-8000-000000000002");
+            assertThat(value(connection, "SELECT revision_id::text FROM onmaru.catalog_active_datasets WHERE dataset='kto-korean-tour'"))
+                    .isEqualTo("54500000-0000-4000-8000-000000000010");
+            try (var statement = connection.createStatement()) {
+                statement.execute("DELETE FROM onmaru.selected_discovery_approvals WHERE content_id='staging-691-3'");
+            }
+            assertThat(longValue(connection, "SELECT count(*) FROM onmaru.selected_discovery_public_visible")).isEqualTo(2);
+        }
+        var rollback = Files.readString(PILOT_SQL.resolve("rollback-discovery.sql"))
+                .replace(":'expected_active'", "'69100000-0000-4000-8000-000000000002'")
+                .replace(":'target_revision'", "'69100000-0000-4000-8000-000000000001'");
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
+             var statement = connection.createStatement()) {
+            statement.execute(rollback);
+        }
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            assertThat(value(connection, "SELECT revision_id::text FROM onmaru.selected_discovery_active"))
+                    .isEqualTo("69100000-0000-4000-8000-000000000001");
+            assertThat(longValue(connection, "SELECT count(*) FROM onmaru.selected_discovery_public_visible")).isEqualTo(2);
+        }
+        executePilotSql("remove-staging-discovery-fixture.sql");
+        try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
+            assertThat(longValue(connection, "SELECT count(*) FROM onmaru.selected_discovery_revisions")).isZero();
+            assertThat(longValue(connection, "SELECT count(*) FROM onmaru.selected_discovery_active")).isZero();
+            assertThat(value(connection, "SELECT revision_id::text FROM onmaru.catalog_active_datasets WHERE dataset='kto-korean-tour'"))
+                    .isEqualTo("54500000-0000-4000-8000-000000000010");
+        }
+    }
+
+    private void executePilotSql(String file) throws Exception {
+        var sql = Files.readString(PILOT_SQL.resolve(file))
+                .replace("\\set ON_ERROR_STOP on", "")
+                .replace("current_database() <> 'onmaru_staging'", "current_database() <> 'onmaru_test'");
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test");
              var statement = connection.createStatement()) {
             statement.execute(sql);
