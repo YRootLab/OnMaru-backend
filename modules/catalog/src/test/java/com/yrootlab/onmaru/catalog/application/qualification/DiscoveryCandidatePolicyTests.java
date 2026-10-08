@@ -17,15 +17,21 @@ class DiscoveryCandidatePolicyTests {
         assertCase(row("6", "전통 사찰", "HS020100"), Status.INCLUDE, Role.CORE_TRADITIONAL_PLACE, "CONDITIONAL_TITLE_SIGNAL_PENDING_DETAIL_GATE");
         assertCase(row("7", "서원", "HS020300"), Status.INCLUDE, Role.CORE_TRADITIONAL_PLACE, "CONDITIONAL_TITLE_SIGNAL_PENDING_DETAIL_GATE");
         assertCase(row("8", "사찰", "HS020100"), Status.REVIEW, null, "CONDITIONAL_NEEDS_CONTEXT");
-        assertCase(row("9", "락고재 서울 북촌 한옥호텔", "AC010100"), Status.REVIEW, null, "KEYWORD_RESCUE_NEEDS_EVIDENCE");
+        assertThat(policy.qualify(row("9", "락고재 서울 북촌 한옥호텔", "AC010100"), null, false, true).reasonCode()).isEqualTo("KEYWORD_RESCUE_NEEDS_EVIDENCE");
         assertCase(row("10", "한양도성 안 궁궐과 학교이야기", "C01150001"), Status.EXCLUDE, null, "RESCUE_NO_PLACE_EVIDENCE");
-        assertCase(row("11", "한옥", "ZZ999999"), Status.REVIEW, null, "KEYWORD_RESCUE_NEEDS_EVIDENCE");
+        assertCase(row("11", "한옥", "ZZ999999"), Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
+        assertCase(row("12", "새 분류 일반 장소", "ZZ999999"), Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
+        assertThat(policy.qualify(row("13", "일반 장소", "AC010100"), null, false, true).reasonCode()).isEqualTo("RESCUE_NO_PLACE_EVIDENCE");
     }
 
     @Test void invalidCoordinatesAndDuplicateAreConservative() {
         SourceRecord invalid = new SourceRecord("tourapi", "list", Map.of("contentid", "1", "title", "경복궁", "lclsSystm3", "HS010100", "mapx", "NaN", "mapy", "37.5"));
         assertThat(policy.qualify(invalid).reasonCode()).isEqualTo("SOURCE_INVALID");
         assertThat(policy.qualify(row("1", "경복궁", "HS010100"), null, true).reasonCode()).isEqualTo("DUPLICATE_IDENTITY");
+        HumanDecision confirmed = new HumanDecision(Status.INCLUDE, Role.CORE_TRADITIONAL_PLACE, fingerprint(invalid));
+        assertThat(policy.qualify(invalid, confirmed, false).status()).isEqualTo(Status.EXCLUDE);
+        SourceRecord duplicate = row("1", "경복궁", "HS010100");
+        assertThat(policy.qualify(duplicate, new HumanDecision(Status.INCLUDE, Role.CORE_TRADITIONAL_PLACE, fingerprint(duplicate)), true).status()).isEqualTo(Status.REVIEW);
         assertThat(policy.qualify(row("1", "경복궁", "HS010100"))).isEqualTo(policy.qualify(row("1", "경복궁", "HS010100")));
     }
 

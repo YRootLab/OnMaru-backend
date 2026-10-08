@@ -12,7 +12,13 @@ public final class DiscoveryCandidatePolicy {
     private static final Pattern NEGATIVE = Pattern.compile("드론|케이블카|카지노|골프|워터파크|키즈카페|복합쇼핑몰");
 
     public Decision qualify(SourceRecord row, HumanDecision human, boolean duplicate) {
-        Decision automatic = automatic(row, duplicate);
+        return qualify(row, human, duplicate, false);
+    }
+
+    /** knownSourceCode must come from the official TourAPI taxonomy registry, not a code-format guess. */
+    public Decision qualify(SourceRecord row, HumanDecision human, boolean duplicate, boolean knownSourceCode) {
+        Decision automatic = automatic(row, duplicate, knownSourceCode);
+        if (automatic.reasonCode().equals("SOURCE_INVALID") || automatic.reasonCode().equals("DUPLICATE_IDENTITY")) return automatic;
         if (human == null) return automatic;
         // A human's confirmed result is retained; a changed semantic result is queued for review.
         if (human.sourceFingerprint().equals(fingerprint(row))) {
@@ -26,7 +32,7 @@ public final class DiscoveryCandidatePolicy {
 
     public Decision qualify(SourceRecord row) { return qualify(row, null, false); }
 
-    private Decision automatic(SourceRecord row, boolean duplicate) {
+    private Decision automatic(SourceRecord row, boolean duplicate, boolean knownSourceCode) {
         String id = value(row.field("contentid"));
         String title = value(row.field("title"));
         Double x = coordinate(row.field("mapx"));
@@ -51,6 +57,7 @@ public final class DiscoveryCandidatePolicy {
             return decision(Status.EXCLUDE, null, "RESCUE_NO_PLACE_EVIDENCE");
         if (code.isEmpty() || !code.matches("[A-Z]{2}[0-9]{6}"))
             return decision(Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
+        if (!knownSourceCode) return decision(Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
         return signal ? decision(Status.REVIEW, null, "KEYWORD_RESCUE_NEEDS_EVIDENCE")
                 : decision(Status.EXCLUDE, null, "RESCUE_NO_PLACE_EVIDENCE");
     }
