@@ -95,4 +95,4 @@ sudo /opt/onmaru/staging-repo/infra/lightsail/staging/rollback-discovery.sh '<�
 
 [FE 인계 템플릿](../../contracts/fixtures/kcontents-release/fe-handoff.md)에 실행 SHA, staging base URL, 신규 API 계약/fixture, 실제 revision·커서, 7개 카드 판정, 100/1000 보고서, golden diff, 장애·rollback 결과와 미해결 제약을 채워 FE #366에 전달한다. 이 PR의 템플릿 상태는 `BLOCKED`; 원격 staging 결과가 없는 동안 #691은 열린 상태로 둔다.
 
-7개 카드 원본 표시값은 FE commit `577f484e94a662e863b2333fab65192487fdfda6`의 `src/features/hanok-archive/data/screenHanokFallback.ts`에서 [검수 CSV](../../contracts/fixtures/kcontents-release/seven-card-review.example.csv)에 사전 기입했다. 전부 `UNVERIFIED`이며 generic 도메인 홈 `sourceUrl`은 촬영 증거로 쓰지 않는다. 특히 BTS 썸머 패키지와 IU 화보를 MV 촬영으로 판정하지 않는다.
+7개 카드 원본 표시값은 FE commit `577f484e94a662e863b2333fab65192487fdfda6`의 `src/features/hanok-archive/data/screenHanokFallback.ts`에서 [검수 CSV](../../contracts/fixtures/kcontents-release/seven-card-review.example.csv)에 사전 기입했다. 관광공사·지역 기사 URL은 개별 주장에 대한 **예비 조사 메모**로만 적었다. 카드 전체는 `UNVERIFIED`이며 generic 도메인 홈 `sourceUrl`은 촬영 증거로 쓰지 않는다. 특히 BTS 썸머 패키지와 IU 화보를 MV 촬영으로 판정하지 않는다.

@@ -28,7 +28,7 @@ INSERT INTO onmaru.selected_discovery_approvals
  (content_id,list_hash,detail_hash,role,source_fingerprint,detail_reviewed,rights_reviewed,evidence_ref,approved_by,approved_at)
 SELECT 'staging-691-' || n, repeat('a',64),repeat('b',64),'CORE_TRADITIONAL_PLACE',
        'staging-fixture-' || n,true,true,'staging-fixture','staging-fixture',now()
-FROM generate_series(1,3) n ON CONFLICT (content_id) DO NOTHING;
+FROM generate_series(1,3) n WHERE true ON CONFLICT (content_id) DO NOTHING;
 INSERT INTO onmaru.selected_discovery_candidates
  (revision_id,content_id,raw,list_hash,detail_hash,hash_schema_version,policy_version,decision,role,reason_code,diff_status)
 SELECT revision_id,'staging-691-' || n,
@@ -39,6 +39,7 @@ SELECT revision_id,'staging-691-' || n,
 FROM (VALUES ('69100000-0000-4000-8000-000000000001'::uuid,2),
              ('69100000-0000-4000-8000-000000000002'::uuid,3)) revision(revision_id,max_n)
 CROSS JOIN LATERAL generate_series(1,max_n) n
+WHERE true
 ON CONFLICT (revision_id,content_id) DO NOTHING;
 INSERT INTO onmaru.selected_discovery_public_items(revision_id,content_id,place_id,role,region_code,raw)
 SELECT c.revision_id,c.content_id,
