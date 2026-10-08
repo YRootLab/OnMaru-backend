@@ -38,6 +38,14 @@ sudo /opt/onmaru/staging-repo/infra/lightsail/staging/selected-operator.sh statu
 
 `role`은 preview에서 확인한 실제 정책 역할을 쓴다. 승인 후 **다른 due-at**으로 다시 `run`하고 `result=PUBLISHED`와 `status`의 active UUID를 확인한다. 다음 due-at의 재실행이 두 번째 PUBLISHED revision을 만들 때만 retained cursor와 CAS rollback 대상으로 사용한다. 원천 변경·권리 철회·detail budget 초과로 STAGED/FAILED가 되면 강제 게시하지 않는다. 각 run은 선정 100/1000개만 읽는 작업이 아니라 W3의 34개 코드 전체 TourAPI snapshot(약 9,858 후보)과 detail cap 3000을 처리한다. staging의 1 GB 메모리/시간·실제 key 예산을 확인하고 실패 시 리허설은 미검증으로 기록한다. 완료 후 `start.sh`로 Spring을 재기동한다.
 
+**합성 cursor/rollback 전용 대안:** W3 전체 snapshot이 staging 자원·외부 key 때문에 불가능할 때만, 별도의 `discovery-fixture.sh install`을 관리 SSH에서 실행한다. 이 명령은 기존 staging seed의 세 장소 identity를 참조하는 고정 합성 revision 2개와 승인 행을 만들고 active를 두 번째 revision으로 설정한다. 이미 실제 active revision이 있으면 거절한다. 이를 사용한 cursor/철회/rollback 결과에는 `SYNTHETIC_STAGING_REHEARSAL`이라고 표시하고 100/1000 live pilot이나 실제 게시 증거로 합산하지 않는다. 실제 W3 pilot 전에 `discovery-fixture.sh remove`로 고정 fixture만 지운다. 다른 revision이 fixture를 참조하거나 실제 active가 있으면 정리를 거절한다. 설치·정리는 staging PostgreSQL healthy 상태에서만 가능하며 기존 seed·legacy dataset pointer는 변경하지 않는다.
+
+```sh
+sudo /opt/onmaru/staging-repo/infra/lightsail/staging/discovery-fixture.sh install
+# 합성 retained cursor·승인 철회·CAS rollback 리허설 후
+sudo /opt/onmaru/staging-repo/infra/lightsail/staging/discovery-fixture.sh remove
+```
+
 ## 기준선과 단계별 측정
 
 다음 명령은 repo root에서 실행한다. `PILOT_LEGACY_PLACE_ID`에는 staging seed의 안정적인 상세 ID를 넣고, 저장 목록을 검사할 staging 전용 세션 cookie를 설정한다. 출력에는 공개 응답이 들어갈 수 있으므로 접근 제한된 작업 디렉터리에 둔다. 인증 응답은 hash만 보관한다.
@@ -50,7 +58,7 @@ python3 testing/kcontents-pilot/legacy_golden.py capture --base-url https://stag
 
 100건의 reason은 `PILOT_691_100_YYYYMMDD`, 1000건은 `PILOT_691_1000_YYYYMMDD`처럼 고유하게 잡는다. 관리자 JWT로 [작업 API 계약](../../contracts/kcontents-research-worker-api.md)의 `POST /api/v1/internal/kcontents/research/admin/jobs`에 검토한 장소 UUID, 입력 JSON, source fingerprint와 reason을 등록한다. `enqueue.py`는 100/1000개 고유 장소와 JSON을 먼저 검증하고 `--execute`에서만 staging에 등록한다. 전용 JSONL의 각 행은 `placeId`, `sourceFingerprint`, 문자열 `inputJson`을 포함한다. 응답 job ID와 중복/실패를 보관하고 정확히 100/1000개인지 확인한다. 각 worker 실행의 `--max-jobs`는 최대 100이다. 여러 회차 실행 시 metrics JSONL을 한 파일에 누적하고 **하루 전체 searchCalls·estimatedCost**를 매 회차 더해 승인 예산 전에 중단한다. worker는 job·근거·추출을 같은 lease에서 최종 제출한다. fixture 옵션을 실측 실행에 사용하지 않는다.
 
-W5 재큐잉은 FAILED/QUARANTINED만 허용한다. SUCCEEDED/NO_MATCH가 TTL 만료 후 같은 reason·source fingerprint로 재조사되는 경로는 현재 없다. 100→1000 단계에서 같은 장소를 포함하더라도 새 단계 reason과 실제 원천 변경에서 나온 fingerprint를 사용한다. 재실행만을 위해 가짜 fingerprint를 만들지 않는다. 이 제약 때문에 필요한 재조사가 막히면 별도 수정과 검증 전에는 확대를 멈춘다.
+W5 재큐잉은 FAILED/QUARANTINED만 허용한다. SUCCEEDED/NO_MATCH가 TTL 만료 후 같은 reason·source fingerprint로 재조사되는 경로는 현재 없다. 100→1000 단계에서 같은 장소를 포함하더라도 새 단계 reason을 사용하고 source fingerprint는 실제 원천 상태에서 계산한다. 이유 없이 가짜 fingerprint를 만들지 않는다. 이 제약 때문에 필요한 재조사가 막히면 별도 수정과 검증 전에는 확대를 멈춘다.
 
 ```sh
 python3 testing/kcontents-pilot/enqueue.py --input pilot-private/places-100.jsonl --stage 100 --reason PILOT_691_100_YYYYMMDD
@@ -86,3 +94,5 @@ sudo /opt/onmaru/staging-repo/infra/lightsail/staging/rollback-discovery.sh '<�
 ## FE 인계와 종료 조건
 
 [FE 인계 템플릿](../../contracts/fixtures/kcontents-release/fe-handoff.md)에 실행 SHA, staging base URL, 신규 API 계약/fixture, 실제 revision·커서, 7개 카드 판정, 100/1000 보고서, golden diff, 장애·rollback 결과와 미해결 제약을 채워 FE #366에 전달한다. 이 PR의 템플릿 상태는 `BLOCKED`; 원격 staging 결과가 없는 동안 #691은 열린 상태로 둔다.
+
+7개 카드 원본 표시값은 FE commit `577f484e94a662e863b2333fab65192487fdfda6`의 `src/features/hanok-archive/data/screenHanokFallback.ts`에서 [검수 CSV](../../contracts/fixtures/kcontents-release/seven-card-review.example.csv)에 사전 기입했다. 전부 `UNVERIFIED`이며 generic 도메인 홈 `sourceUrl`은 촬영 증거로 쓰지 않는다. 특히 BTS 썸머 패키지와 IU 화보를 MV 촬영으로 판정하지 않는다.
