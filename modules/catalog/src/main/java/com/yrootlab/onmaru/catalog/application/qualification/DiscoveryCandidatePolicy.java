@@ -10,6 +10,7 @@ public final class DiscoveryCandidatePolicy {
     private static final Set<String> CONDITIONAL = Set.of("HS010700", "HS011100", "HS011200", "EX040200", "HS020100", "HS020300", "HS030100", "VE070100", "VE070200", "VE070300", "VE090100", "VE090400", "FD040400", "FD050200", "SH050100", "SH060100", "SH060200", "NA040700", "VE010100", "VE010900", "EX060100", "EX060300");
     private static final Pattern SIGNAL = Pattern.compile("한옥|고택|궁궐|고궁|민속|전통|향교|서원|국악|한복|한지|다도|차문화|문화재|왕릉|종택|초가|돌담|옛길|한과|떡만들기|전통주");
     private static final Pattern NEGATIVE = Pattern.compile("드론|케이블카|카지노|골프|워터파크|키즈카페|복합쇼핑몰");
+    private static final Pattern DETAIL_CONFLICT = Pattern.compile("한옥 아님|전통문화와 무관|현대식 건물|프랜차이즈 카페");
 
     public Decision qualify(SourceRecord row, HumanDecision human, boolean duplicate) {
         return qualify(row, human, duplicate, false);
@@ -43,15 +44,20 @@ public final class DiscoveryCandidatePolicy {
         if (NEGATIVE.matcher(title).find()) return decision(Status.EXCLUDE, null, "UNRELATED_FACILITY");
         String code = value(row.field("lclsSystm3"));
         boolean signal = SIGNAL.matcher(title).find();
+        String context = value(row.field("overview")) + " " + value(row.field("detail"));
+        boolean detailSignal = SIGNAL.matcher(context).find();
+        if (DETAIL_CONFLICT.matcher(context).find() && (STRONG.contains(code) || signal || detailSignal))
+            return decision(Status.REVIEW, null, "DETAIL_CONTEXT_CONFLICT");
         if (STRONG.contains(code)) {
             Role role = code.startsWith("HS") || code.equals("AC030200") ? Role.CORE_TRADITIONAL_PLACE : Role.TRADITIONAL_EXPERIENCE;
             return decision(Status.INCLUDE, role, "STRONG_TAXONOMY_PENDING_DETAIL_GATE");
         }
         if (CONDITIONAL.contains(code))
             return signal ? decision(Status.INCLUDE, code.startsWith("HS") ? Role.CORE_TRADITIONAL_PLACE : Role.SURROUNDING_CULTURE, "CONDITIONAL_TITLE_SIGNAL_PENDING_DETAIL_GATE")
-                    : decision(Status.REVIEW, null, "CONDITIONAL_NEEDS_CONTEXT");
+                    : decision(Status.REVIEW, null, detailSignal ? "DETAIL_CONTEXT_NEEDS_EVIDENCE" : "CONDITIONAL_NEEDS_CONTEXT");
         if (code.equals("FD050100") || code.equals("EX030100"))
             return signal ? decision(Status.REVIEW, null, "BROAD_CLASS_TITLE_SIGNAL_NEEDS_EVIDENCE")
+                    : detailSignal ? decision(Status.REVIEW, null, "DETAIL_CONTEXT_NEEDS_EVIDENCE")
                     : decision(Status.EXCLUDE, null, "BROAD_CLASS_NO_TRADITION_SIGNAL");
         if (!knownSourceCode) return decision(Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
         if (code.isEmpty() || (!code.matches("[A-Z]{2}[0-9]{6}") && !code.startsWith("C01")))

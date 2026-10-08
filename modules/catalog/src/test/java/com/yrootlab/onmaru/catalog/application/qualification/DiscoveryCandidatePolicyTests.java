@@ -49,6 +49,19 @@ class DiscoveryCandidatePolicyTests {
         assertThat(changed.reasonCode()).isEqualTo("HUMAN_DECISION_CONFLICT");
     }
 
+    @Test void detailContextAddsReviewEvidenceWithoutAutomaticPublication() {
+        SourceRecord temple = withContext(row("20", "사찰", "HS020100"), "조선시대 전통문화 공간", "");
+        assertThat(policy.qualify(temple).reasonCode()).isEqualTo("DETAIL_CONTEXT_NEEDS_EVIDENCE");
+        SourceRecord cafe = withContext(row("21", "동네 카페", "FD050100"), "", "고택을 개조한 한옥 공간");
+        assertThat(policy.qualify(cafe).status()).isEqualTo(Status.REVIEW);
+        assertThat(policy.qualify(cafe).reasonCode()).isEqualTo("DETAIL_CONTEXT_NEEDS_EVIDENCE");
+        assertThat(policy.qualify(cafe).publicationApproved()).isFalse();
+        SourceRecord conflicting = withContext(row("22", "전통 사찰", "HS020100"), "현대식 건물", "전통문화와 무관");
+        assertThat(policy.qualify(conflicting).reasonCode()).isEqualTo("DETAIL_CONTEXT_CONFLICT");
+        SourceRecord clear = row("23", "한옥 카페", "FD050100");
+        assertThat(policy.qualify(clear).reasonCode()).isEqualTo("BROAD_CLASS_TITLE_SIGNAL_NEEDS_EVIDENCE");
+    }
+
     private void assertCase(SourceRecord row, Status status, Role role, String reason) {
         Decision decision = policy.qualify(row);
         assertThat(decision.status()).isEqualTo(status);
@@ -60,5 +73,12 @@ class DiscoveryCandidatePolicyTests {
 
     private SourceRecord row(String id, String title, String code) {
         return new SourceRecord("tourapi", "list", Map.of("contentid", id, "title", title, "lclsSystm3", code, "mapx", "126.97", "mapy", "37.58"));
+    }
+
+    private SourceRecord withContext(SourceRecord row, String overview, String detail) {
+        java.util.Map<String, String> fields = new java.util.HashMap<>(row.fields());
+        fields.put("overview", overview);
+        fields.put("detail", detail);
+        return new SourceRecord(row.provider(), row.operation(), fields);
     }
 }
