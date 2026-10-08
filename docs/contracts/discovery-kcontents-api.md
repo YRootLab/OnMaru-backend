@@ -248,6 +248,8 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 | `500 INTERNAL_ERROR` | 예상하지 못한 서버 오류 | 내부 오류·SQL·비밀값은 응답에 넣지 않는다. FE는 일반 오류와 재시도 안내를 표시하고 `requestId`를 장애 제보에 사용한다. |
 | `503 SERVICE_UNAVAILABLE` | 신규 탐색 게시본이 준비되지 않았거나 읽기 저장소가 일시적으로 불가 | `details.retryAfterMs`와 `Retry-After`를 제공한다. FE는 신규 섹션만 오류/재시도 상태로 두고 기존 화면은 유지한다. |
 
+신규 GET 6개 경로는 하나의 IP 예산을 공유한다. 초기 설정은 애플리케이션 인스턴스당 IP별 1분에 120회이며 `onmaru.discovery.api.rate-limit-per-minute`로 조정한다. 신뢰 프록시에서 전달한 첫 IP만 인정하고, flag가 꺼진 동안 신규 경로 요청은 예산을 소비하지 않는다. 기존 공개 API에는 이 예산을 적용하지 않는다.
+
 예를 들어 `limit=999` 요청은 다음과 같이 응답한다. `message`는 진단용이므로 FE 표시 문구의 기준은 `code`다.
 
 ```json
