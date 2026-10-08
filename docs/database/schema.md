@@ -218,3 +218,8 @@ Table audio_guides {
 
 // 관계 (Relationships)
 Ref: audio_guides.(tid, tlid) > tour_spots.(tid, tlid)
+# K-Contents 조사 작업 경계 (V048, #686)
+
+`k_content_research_jobs`는 장소별 조사 이유와 원천 fingerprint를 유일하게 보관한다. `QUEUED` 작업은 PostgreSQL `FOR UPDATE SKIP LOCKED`로 한 워커에게 15분 lease를 부여하며, 만료된 lease는 재시도 횟수 안에서 다시 가져갈 수 있다. 각 시도는 `k_content_research_runs`에 worker·시작/종료·결과로 기록한다.
+
+`k_content_research_evidence`의 ID는 서버가 발급한다. 제출 시 `k_content_research_receipts`의 `(job_id, idempotency_key)`가 중복 확정을 막고, 같은 lease token·worker·payload의 재생만 같은 결과를 돌려준다. 제출 JSON의 모든 `evidenceId`/`evidenceIds`는 최상위 목록과 정확히 일치하고 모두 해당 job 소속이어야 한다. `SUCCEEDED`는 원시 조사 결과 접수 상태이며 공개 촬영 관계의 검증·게시는 별도 단계다. `k_content_research_events`는 lease·근거·제출·실패·운영 재큐잉 이력을 남긴다.

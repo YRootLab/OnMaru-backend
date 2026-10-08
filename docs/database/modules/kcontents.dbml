@@ -192,6 +192,11 @@ Table k_content_relation_summary_points [headercolor: #B07AA1] {
   Indexes { (relation_id, position) [unique] }
 }
 TableGroup kcontents [color: #B07AA1] {
+  k_content_research_jobs
+  k_content_research_runs
+  k_content_research_evidence
+  k_content_research_receipts
+  k_content_research_events
   k_contents
   k_content_aliases
   k_content_metadata_sources
@@ -210,6 +215,74 @@ TableGroup kcontents [color: #B07AA1] {
   k_content_work_summary_points
   k_content_relation_summary_points
 }
+// Issue #686. Worker completion is not public relation verification.
+Table k_content_research_jobs [headercolor: #B07AA1] {
+  id uuid [pk]
+  place_id uuid [not null]
+  reason varchar [not null]
+  source_fingerprint varchar [not null]
+  input_json jsonb [not null]
+  status varchar [not null]
+  attempts integer [not null]
+  requeue_epoch integer [not null]
+  max_attempts integer [not null]
+  available_at timestamptz [not null]
+  lease_owner varchar
+  lease_token_hash varchar
+  lease_expires_at timestamptz
+  result_status varchar
+  result_json jsonb
+  completed_at timestamptz
+  last_failure_code varchar
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes { (place_id, reason, source_fingerprint) [unique] }
+}
+Table k_content_research_runs [headercolor: #B07AA1] {
+  id uuid [pk]
+  job_id uuid [not null]
+  requeue_epoch integer [not null]
+  attempt integer [not null]
+  worker_id varchar [not null]
+  started_at timestamptz [not null]
+  finished_at timestamptz
+  outcome varchar
+  failure_code varchar
+  Indexes { (job_id, requeue_epoch, attempt) [unique] }
+}
+Table k_content_research_evidence [headercolor: #B07AA1] {
+  id uuid [pk]
+  job_id uuid [not null]
+  canonical_url text [not null]
+  title text [not null]
+  publisher varchar
+  excerpt varchar [not null]
+  observed_at timestamptz [not null]
+  Indexes { (job_id, canonical_url) [unique] }
+}
+Table k_content_research_receipts [headercolor: #B07AA1] {
+  id uuid [pk]
+  job_id uuid [not null]
+  idempotency_key varchar [not null]
+  request_hash varchar [not null]
+  outcome varchar [not null]
+  worker_id varchar [not null]
+  lease_token_hash varchar [not null]
+  created_at timestamptz [not null]
+  Indexes { (job_id, idempotency_key) [unique] }
+}
+Table k_content_research_events [headercolor: #B07AA1] {
+  id uuid [pk]
+  job_id uuid [not null]
+  event_type varchar [not null]
+  actor varchar [not null]
+  detail_code varchar
+  created_at timestamptz [not null]
+}
+Ref: k_content_research_runs.job_id > k_content_research_jobs.id
+Ref: k_content_research_evidence.job_id > k_content_research_jobs.id
+Ref: k_content_research_receipts.job_id > k_content_research_jobs.id
+Ref: k_content_research_events.job_id > k_content_research_jobs.id
 Ref: k_content_aliases.k_content_id > k_contents.id
 Ref: k_content_metadata_sources.k_content_id > k_contents.id
 Ref: k_content_units.k_content_id > k_contents.id

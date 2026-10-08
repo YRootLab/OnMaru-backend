@@ -601,6 +601,70 @@ CREATE TABLE "k_content_relation_summary_points" (
   "edited_by" varchar
 );
 
+CREATE TABLE "k_content_research_jobs" (
+  "id" uuid PRIMARY KEY,
+  "place_id" uuid NOT NULL,
+  "reason" varchar NOT NULL,
+  "source_fingerprint" varchar NOT NULL,
+  "input_json" jsonb NOT NULL,
+  "status" varchar NOT NULL,
+  "attempts" integer NOT NULL,
+  "requeue_epoch" integer NOT NULL,
+  "max_attempts" integer NOT NULL,
+  "available_at" timestamptz NOT NULL,
+  "lease_owner" varchar,
+  "lease_token_hash" varchar,
+  "lease_expires_at" timestamptz,
+  "result_status" varchar,
+  "result_json" jsonb,
+  "completed_at" timestamptz,
+  "last_failure_code" varchar,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_research_runs" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "requeue_epoch" integer NOT NULL,
+  "attempt" integer NOT NULL,
+  "worker_id" varchar NOT NULL,
+  "started_at" timestamptz NOT NULL,
+  "finished_at" timestamptz,
+  "outcome" varchar,
+  "failure_code" varchar
+);
+
+CREATE TABLE "k_content_research_evidence" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "canonical_url" text NOT NULL,
+  "title" text NOT NULL,
+  "publisher" varchar,
+  "excerpt" varchar NOT NULL,
+  "observed_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_research_receipts" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "idempotency_key" varchar NOT NULL,
+  "request_hash" varchar NOT NULL,
+  "outcome" varchar NOT NULL,
+  "worker_id" varchar NOT NULL,
+  "lease_token_hash" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_research_events" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "event_type" varchar NOT NULL,
+  "actor" varchar NOT NULL,
+  "detail_code" varchar,
+  "created_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "audio_odii_spots" (
   "id" uuid PRIMARY KEY,
   "provider" varchar NOT NULL,
@@ -1152,6 +1216,10 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -1220,6 +1288,8 @@ ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERE
 
 ALTER TABLE "k_content_place_relations" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
 
+ALTER TABLE "k_content_research_jobs" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id");
+
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id");
 
 ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id");
@@ -1283,6 +1353,14 @@ ALTER TABLE "map_place_category_projection" ADD FOREIGN KEY ("revision_id", "pla
 ALTER TABLE "map_scope_count_projection" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
 
 ALTER TABLE "map_projection_publications" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id");
+
+ALTER TABLE "k_content_research_runs" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id");
+
+ALTER TABLE "k_content_research_evidence" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id");
+
+ALTER TABLE "k_content_research_receipts" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id");
+
+ALTER TABLE "k_content_research_events" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id");
 
 ALTER TABLE "k_content_aliases" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id");
 
