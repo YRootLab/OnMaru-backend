@@ -74,6 +74,13 @@ class JdbcExtractionValidationTests {
         assertThat(count("k_content_relation_evidence")).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT status FROM onmaru.k_content_place_relations",String.class)).isEqualTo("HUMAN_VERIFIED");
         assertThat(jdbc.queryForObject("SELECT verified_by FROM onmaru.k_content_place_relations",String.class)).isEqualTo("reviewer");
+        UUID third=submit("REFRESH","source-c","https://visitkorea.go.kr/filming-2",true,false);
+        assertThat(validation.process(third)).isTrue();
+        assertThat(count("k_contents")).isEqualTo(1);
+        assertThat(count("k_content_place_relations")).isEqualTo(1);
+        assertThat(count("k_content_relation_evidence")).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT status FROM onmaru.k_content_place_relations",String.class)).isEqualTo("HUMAN_VERIFIED");
+        assertThat(jdbc.queryForObject("SELECT verified_by FROM onmaru.k_content_place_relations",String.class)).isEqualTo("reviewer");
         jdbc.update("UPDATE onmaru.k_content_relation_evidence SET status='WITHDRAWN'");
         assertThat(count("k_content_public_relations")).isZero();
     }
