@@ -131,6 +131,21 @@ class JdbcResearchJobStoreTests {
         assertThat(controller.lease("Bearer secret","worker").getStatusCode().value()).isEqualTo(204);
     }
 
+    @Test void upgradesV047ToV048WithoutChangingExistingPlaceIdentity() throws Exception {
+        String url="jdbc:postgresql://"+POSTGRES.getHost()+":"+POSTGRES.getMappedPort(5432)+"/onmaru_test";
+        try(var connection=DriverManager.getConnection(url,"onmaru_test","onmaru_test")){PostgresTestDatabase.reset(connection);}
+        Flyway.configure().dataSource(url,"onmaru_test","onmaru_test").locations("classpath:db/migration/baseline")
+                .target("47").baselineOnMigrate(true).baselineVersion("0").load().migrate();
+        UUID existing=UUID.randomUUID();
+        var db=new JdbcTemplate(new DriverManagerDataSource(url,"onmaru_test","onmaru_test"));
+        db.update("INSERT INTO onmaru.catalog_place_identity(id,created_at) VALUES (?,now())",existing);
+        Flyway.configure().dataSource(url,"onmaru_test","onmaru_test").locations("classpath:db/migration/baseline")
+                .baselineOnMigrate(true).baselineVersion("0").load().migrate();
+        assertThat(db.queryForObject("SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",String.class)).isEqualTo("048");
+        assertThat(db.queryForObject("SELECT count(*) FROM onmaru.catalog_place_identity WHERE id=?",Integer.class,existing)).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema='onmaru' AND table_name='k_content_research_jobs'",Integer.class)).isEqualTo(1);
+    }
+
     @Test void apiRejectsMissingWorkerTokenAdminEscalationAndForeignEvidence() throws Exception {
         AdminAuthenticator admins=mock(AdminAuthenticator.class);
         when(admins.authenticate("Bearer secret")).thenThrow(new AdminAuthenticationException());
