@@ -50,10 +50,12 @@ public class AdmissionWebConfiguration {
     }
 
     @Bean
-    AdmissionPolicy admissionPolicy() {
+    AdmissionPolicy admissionPolicy(
+            @Value("${onmaru.discovery.api.rate-limit-per-minute:120}") int discoveryReadPerMinute) {
         return new AdmissionPolicy(Duration.ofMinutes(1), List.of(
                 new OperationBudget("login.start", SubjectType.IP, 20),
                 new OperationBudget("review.create.external", SubjectType.IP, 30),
+                new OperationBudget("discovery.read", SubjectType.IP, discoveryReadPerMinute),
                 new OperationBudget("journey.ai", SubjectType.GUEST, 2, Duration.ofDays(1), 1),
                 new OperationBudget("journey.ai", SubjectType.MEMBER, 5, Duration.ofDays(1), 1),
                 new OperationBudget("presence.warmth", SubjectType.CLIENT_ID, 3, Duration.ofSeconds(1)),
@@ -88,7 +90,8 @@ public class AdmissionWebConfiguration {
     AdmissionFilter admissionFilter(
             AdmissionService admissionService,
             AdmissionPolicy admissionPolicy,
-            ClientIdentityResolver clientIdentityResolver) {
-        return new AdmissionFilter(admissionService, admissionPolicy, clientIdentityResolver);
+            ClientIdentityResolver clientIdentityResolver,
+            @Value("${onmaru.discovery.api.enabled:false}") boolean discoveryEnabled) {
+        return new AdmissionFilter(admissionService, admissionPolicy, clientIdentityResolver, discoveryEnabled);
     }
 }
