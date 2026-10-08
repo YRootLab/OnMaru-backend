@@ -1,0 +1,240 @@
+// Issue #684. Physical schema: Flyway V046; all ids are internal UUIDs.
+Table k_contents [headercolor: #B07AA1] {
+  id uuid [pk]
+  title varchar [not null]
+  normalized_title varchar [not null]
+  work_type varchar [not null, note: 'DRAMA/MOVIE/VARIETY/MUSIC_VIDEO']
+  release_year smallint
+  season_key varchar
+  status varchar [not null]
+  verified_by varchar
+  verified_at timestamptz
+  rule_version varchar
+  model_version varchar
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Indexes { (work_type, normalized_title, release_year, season_key) }
+}
+Table k_content_aliases [headercolor: #B07AA1] {
+  id uuid [pk]
+  k_content_id uuid [not null]
+  alias_text varchar [not null]
+  normalized_alias varchar [not null]
+  created_at timestamptz [not null]
+  Indexes { (k_content_id, normalized_alias) [unique]
+    normalized_alias }
+}
+Table k_content_metadata_sources [headercolor: #B07AA1] {
+  id uuid [pk]
+  k_content_id uuid [not null]
+  canonical_url text [not null]
+  source_type varchar [not null]
+  title text [not null]
+  publisher varchar
+  excerpt text
+  document_location text
+  published_at timestamptz
+  observed_at timestamptz [not null]
+  status varchar [not null]
+  verified_by varchar
+  verified_at timestamptz
+  rule_version varchar
+  model_version varchar
+  Indexes { (k_content_id, canonical_url) [unique] }
+}
+Table k_content_units [headercolor: #B07AA1] {
+  id uuid [pk]
+  k_content_id uuid [not null]
+  unit_type varchar [not null]
+  unit_key varchar [not null]
+  title varchar
+  Indexes { (k_content_id, unit_type, unit_key) [unique] }
+}
+Table k_content_creative_parties [headercolor: #B07AA1] {
+  id uuid [pk]
+  name varchar [not null]
+  normalized_name varchar [not null]
+  party_type varchar [not null]
+  status varchar [not null]
+}
+Table k_content_party_aliases [headercolor: #B07AA1] {
+  id uuid [pk]
+  party_id uuid [not null]
+  alias_text varchar [not null]
+  normalized_alias varchar [not null]
+  Indexes { (party_id, normalized_alias) [unique] }
+}
+Table k_content_credits [headercolor: #B07AA1] {
+  id uuid [pk]
+  k_content_id uuid [not null]
+  party_id uuid [not null]
+  source_id uuid [not null]
+  role varchar [not null]
+  Indexes { (k_content_id, party_id, role, source_id) [unique] }
+}
+Table k_content_place_relations [headercolor: #B07AA1] {
+  id uuid [pk]
+  place_id uuid [not null]
+  k_content_id uuid [not null]
+  relation_type varchar [not null, note: 'FILMING_LOCATION']
+  status varchar [not null]
+  confidence decimal
+  verified_by varchar
+  verified_at timestamptz
+  rule_version varchar
+  model_version varchar
+  review_reason varchar
+  Indexes { (place_id, k_content_id, relation_type) [unique]
+    (place_id, status, k_content_id, id)
+    (k_content_id, status, place_id, id) }
+}
+Table k_content_relation_evidence [headercolor: #B07AA1] {
+  id uuid [pk]
+  relation_id uuid [not null]
+  canonical_url text [not null]
+  source_type varchar [not null]
+  title text [not null]
+  publisher varchar
+  filming_excerpt text [not null]
+  document_location text
+  published_at timestamptz
+  observed_at timestamptz [not null]
+  status varchar [not null]
+  verified_by varchar
+  verified_at timestamptz
+  rule_version varchar
+  model_version varchar
+  Indexes { (relation_id, canonical_url) [unique]
+    (relation_id, status) }
+}
+Table k_content_appearance_contexts [headercolor: #B07AA1] {
+  id uuid [pk]
+  relation_id uuid [not null]
+  k_content_id uuid [not null]
+  unit_id uuid
+  evidence_id uuid [not null]
+  scene_description text
+  document_location text
+}
+Table k_content_tags [headercolor: #B07AA1] {
+  id uuid [pk]
+  code varchar [not null, unique]
+  scope varchar [not null]
+  group_code varchar [not null]
+  label_ko varchar [not null]
+  label_en varchar
+  active boolean [not null]
+  policy_version varchar [not null]
+}
+Table k_content_tag_aliases [headercolor: #B07AA1] {
+  id uuid [pk]
+  tag_id uuid [not null]
+  scope varchar [not null]
+  group_code varchar [not null]
+  alias_text varchar [not null]
+  normalized_alias varchar [not null]
+  Indexes { (scope, group_code, normalized_alias) [unique] }
+}
+Table k_content_work_tags [headercolor: #B07AA1] {
+  k_content_id uuid [not null]
+  tag_id uuid [not null]
+  source_id uuid [not null]
+  status varchar [not null]
+  Indexes { (k_content_id, tag_id) [pk] }
+}
+Table k_content_relation_tags [headercolor: #B07AA1] {
+  relation_id uuid [not null]
+  tag_id uuid [not null]
+  evidence_id uuid [not null]
+  status varchar [not null]
+  Indexes { (relation_id, tag_id) [pk] }
+}
+Table k_content_tag_candidates [headercolor: #B07AA1] {
+  id uuid [pk]
+  scope varchar [not null]
+  k_content_id uuid
+  relation_id uuid
+  source_id uuid
+  evidence_id uuid
+  raw_label varchar [not null]
+  normalized_label varchar [not null]
+  group_hint varchar [not null]
+  supporting_quote text [not null]
+  extraction_run_id uuid
+  model_version varchar
+  status varchar [not null]
+  resolved_tag_id uuid
+}
+Table k_content_work_summary_points [headercolor: #B07AA1] {
+  id uuid [pk]
+  k_content_id uuid [not null]
+  position smallint [not null]
+  summary_text varchar [not null]
+  source_id uuid [not null]
+  status varchar [not null]
+  generated_at timestamptz
+  prompt_version varchar
+  source_fingerprint varchar
+  edited_by varchar
+  Indexes { (k_content_id, position) [unique] }
+}
+Table k_content_relation_summary_points [headercolor: #B07AA1] {
+  id uuid [pk]
+  relation_id uuid [not null]
+  position smallint [not null]
+  summary_text varchar [not null]
+  evidence_id uuid [not null]
+  status varchar [not null]
+  generated_at timestamptz
+  prompt_version varchar
+  source_fingerprint varchar
+  edited_by varchar
+  Indexes { (relation_id, position) [unique] }
+}
+TableGroup kcontents [color: #B07AA1] {
+  k_contents
+  k_content_aliases
+  k_content_metadata_sources
+  k_content_units
+  k_content_creative_parties
+  k_content_party_aliases
+  k_content_credits
+  k_content_place_relations
+  k_content_relation_evidence
+  k_content_appearance_contexts
+  k_content_tags
+  k_content_tag_aliases
+  k_content_work_tags
+  k_content_relation_tags
+  k_content_tag_candidates
+  k_content_work_summary_points
+  k_content_relation_summary_points
+}
+Ref: k_content_aliases.k_content_id > k_contents.id
+Ref: k_content_metadata_sources.k_content_id > k_contents.id
+Ref: k_content_units.k_content_id > k_contents.id
+Ref: k_content_party_aliases.party_id > k_content_creative_parties.id
+Ref: k_content_credits.k_content_id > k_contents.id
+Ref: k_content_credits.party_id > k_content_creative_parties.id
+Ref: k_content_credits.source_id > k_content_metadata_sources.id
+Ref: k_content_place_relations.k_content_id > k_contents.id
+Ref: k_content_relation_evidence.relation_id > k_content_place_relations.id
+Ref: k_content_appearance_contexts.relation_id > k_content_place_relations.id
+Ref: k_content_appearance_contexts.unit_id >? k_content_units.id
+Ref: k_content_appearance_contexts.evidence_id > k_content_relation_evidence.id
+Ref: k_content_tag_aliases.tag_id > k_content_tags.id
+Ref: k_content_work_tags.k_content_id > k_contents.id
+Ref: k_content_work_tags.tag_id > k_content_tags.id
+Ref: k_content_work_tags.source_id > k_content_metadata_sources.id
+Ref: k_content_relation_tags.relation_id > k_content_place_relations.id
+Ref: k_content_relation_tags.tag_id > k_content_tags.id
+Ref: k_content_relation_tags.evidence_id > k_content_relation_evidence.id
+Ref: k_content_tag_candidates.k_content_id >? k_contents.id
+Ref: k_content_tag_candidates.relation_id >? k_content_place_relations.id
+Ref: k_content_tag_candidates.source_id >? k_content_metadata_sources.id
+Ref: k_content_tag_candidates.evidence_id >? k_content_relation_evidence.id
+Ref: k_content_tag_candidates.resolved_tag_id >? k_content_tags.id
+Ref: k_content_work_summary_points.k_content_id > k_contents.id
+Ref: k_content_work_summary_points.source_id > k_content_metadata_sources.id
+Ref: k_content_relation_summary_points.relation_id > k_content_place_relations.id
+Ref: k_content_relation_summary_points.evidence_id > k_content_relation_evidence.id

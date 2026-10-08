@@ -407,6 +407,200 @@ CREATE TABLE "content_tag_overrides" (
   "expires_at" timestamptz
 );
 
+CREATE TABLE "k_contents" (
+  "id" uuid PRIMARY KEY,
+  "title" varchar NOT NULL,
+  "normalized_title" varchar NOT NULL,
+  "work_type" varchar NOT NULL,
+  "release_year" smallint,
+  "season_key" varchar,
+  "status" varchar NOT NULL,
+  "verified_by" varchar,
+  "verified_at" timestamptz,
+  "rule_version" varchar,
+  "model_version" varchar,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_aliases" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "alias_text" varchar NOT NULL,
+  "normalized_alias" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_metadata_sources" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "canonical_url" text NOT NULL,
+  "source_type" varchar NOT NULL,
+  "title" text NOT NULL,
+  "publisher" varchar,
+  "excerpt" text,
+  "document_location" text,
+  "published_at" timestamptz,
+  "observed_at" timestamptz NOT NULL,
+  "status" varchar NOT NULL,
+  "verified_by" varchar,
+  "verified_at" timestamptz,
+  "rule_version" varchar,
+  "model_version" varchar
+);
+
+CREATE TABLE "k_content_units" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "unit_type" varchar NOT NULL,
+  "unit_key" varchar NOT NULL,
+  "title" varchar
+);
+
+CREATE TABLE "k_content_creative_parties" (
+  "id" uuid PRIMARY KEY,
+  "name" varchar NOT NULL,
+  "normalized_name" varchar NOT NULL,
+  "party_type" varchar NOT NULL,
+  "status" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_party_aliases" (
+  "id" uuid PRIMARY KEY,
+  "party_id" uuid NOT NULL,
+  "alias_text" varchar NOT NULL,
+  "normalized_alias" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_credits" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "party_id" uuid NOT NULL,
+  "source_id" uuid NOT NULL,
+  "role" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_place_relations" (
+  "id" uuid PRIMARY KEY,
+  "place_id" uuid NOT NULL,
+  "k_content_id" uuid NOT NULL,
+  "relation_type" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "confidence" decimal,
+  "verified_by" varchar,
+  "verified_at" timestamptz,
+  "rule_version" varchar,
+  "model_version" varchar,
+  "review_reason" varchar
+);
+
+CREATE TABLE "k_content_relation_evidence" (
+  "id" uuid PRIMARY KEY,
+  "relation_id" uuid NOT NULL,
+  "canonical_url" text NOT NULL,
+  "source_type" varchar NOT NULL,
+  "title" text NOT NULL,
+  "publisher" varchar,
+  "filming_excerpt" text NOT NULL,
+  "document_location" text,
+  "published_at" timestamptz,
+  "observed_at" timestamptz NOT NULL,
+  "status" varchar NOT NULL,
+  "verified_by" varchar,
+  "verified_at" timestamptz,
+  "rule_version" varchar,
+  "model_version" varchar
+);
+
+CREATE TABLE "k_content_appearance_contexts" (
+  "id" uuid PRIMARY KEY,
+  "relation_id" uuid NOT NULL,
+  "k_content_id" uuid NOT NULL,
+  "unit_id" uuid,
+  "evidence_id" uuid NOT NULL,
+  "scene_description" text,
+  "document_location" text
+);
+
+CREATE TABLE "k_content_tags" (
+  "id" uuid PRIMARY KEY,
+  "code" varchar UNIQUE NOT NULL,
+  "scope" varchar NOT NULL,
+  "group_code" varchar NOT NULL,
+  "label_ko" varchar NOT NULL,
+  "label_en" varchar,
+  "active" boolean NOT NULL,
+  "policy_version" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_tag_aliases" (
+  "id" uuid PRIMARY KEY,
+  "tag_id" uuid NOT NULL,
+  "scope" varchar NOT NULL,
+  "group_code" varchar NOT NULL,
+  "alias_text" varchar NOT NULL,
+  "normalized_alias" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_work_tags" (
+  "k_content_id" uuid NOT NULL,
+  "tag_id" uuid NOT NULL,
+  "source_id" uuid NOT NULL,
+  "status" varchar NOT NULL,
+  PRIMARY KEY ("k_content_id", "tag_id")
+);
+
+CREATE TABLE "k_content_relation_tags" (
+  "relation_id" uuid NOT NULL,
+  "tag_id" uuid NOT NULL,
+  "evidence_id" uuid NOT NULL,
+  "status" varchar NOT NULL,
+  PRIMARY KEY ("relation_id", "tag_id")
+);
+
+CREATE TABLE "k_content_tag_candidates" (
+  "id" uuid PRIMARY KEY,
+  "scope" varchar NOT NULL,
+  "k_content_id" uuid,
+  "relation_id" uuid,
+  "source_id" uuid,
+  "evidence_id" uuid,
+  "raw_label" varchar NOT NULL,
+  "normalized_label" varchar NOT NULL,
+  "group_hint" varchar NOT NULL,
+  "supporting_quote" text NOT NULL,
+  "extraction_run_id" uuid,
+  "model_version" varchar,
+  "status" varchar NOT NULL,
+  "resolved_tag_id" uuid
+);
+
+CREATE TABLE "k_content_work_summary_points" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "position" smallint NOT NULL,
+  "summary_text" varchar NOT NULL,
+  "source_id" uuid NOT NULL,
+  "status" varchar NOT NULL,
+  "generated_at" timestamptz,
+  "prompt_version" varchar,
+  "source_fingerprint" varchar,
+  "edited_by" varchar
+);
+
+CREATE TABLE "k_content_relation_summary_points" (
+  "id" uuid PRIMARY KEY,
+  "relation_id" uuid NOT NULL,
+  "position" smallint NOT NULL,
+  "summary_text" varchar NOT NULL,
+  "evidence_id" uuid NOT NULL,
+  "status" varchar NOT NULL,
+  "generated_at" timestamptz,
+  "prompt_version" varchar,
+  "source_fingerprint" varchar,
+  "edited_by" varchar
+);
+
 CREATE TABLE "audio_odii_spots" (
   "id" uuid PRIMARY KEY,
   "provider" varchar NOT NULL,
@@ -902,6 +1096,36 @@ CREATE UNIQUE INDEX ON "content_tag_overrides" ("target_type", "target_id", "lab
 
 CREATE INDEX ON "content_tag_overrides" ("target_type", "target_id");
 
+CREATE INDEX ON "k_contents" ("work_type", "normalized_title", "release_year", "season_key");
+
+CREATE UNIQUE INDEX ON "k_content_aliases" ("k_content_id", "normalized_alias");
+
+CREATE INDEX ON "k_content_aliases" ("normalized_alias");
+
+CREATE UNIQUE INDEX ON "k_content_metadata_sources" ("k_content_id", "canonical_url");
+
+CREATE UNIQUE INDEX ON "k_content_units" ("k_content_id", "unit_type", "unit_key");
+
+CREATE UNIQUE INDEX ON "k_content_party_aliases" ("party_id", "normalized_alias");
+
+CREATE UNIQUE INDEX ON "k_content_credits" ("k_content_id", "party_id", "role", "source_id");
+
+CREATE UNIQUE INDEX ON "k_content_place_relations" ("place_id", "k_content_id", "relation_type");
+
+CREATE INDEX ON "k_content_place_relations" ("place_id", "status", "k_content_id", "id");
+
+CREATE INDEX ON "k_content_place_relations" ("k_content_id", "status", "place_id", "id");
+
+CREATE UNIQUE INDEX ON "k_content_relation_evidence" ("relation_id", "canonical_url");
+
+CREATE INDEX ON "k_content_relation_evidence" ("relation_id", "status");
+
+CREATE UNIQUE INDEX ON "k_content_tag_aliases" ("scope", "group_code", "normalized_alias");
+
+CREATE UNIQUE INDEX ON "k_content_work_summary_points" ("k_content_id", "position");
+
+CREATE UNIQUE INDEX ON "k_content_relation_summary_points" ("relation_id", "position");
+
 CREATE UNIQUE INDEX ON "audio_odii_spots" ("provider", "tid", "tlid");
 
 CREATE UNIQUE INDEX ON "audio_odii_spots" ("public_id", "lang_code");
@@ -1038,6 +1262,10 @@ COMMENT ON COLUMN "map_place_read_projection"."location_geom" IS 'PostGIS Point(
 
 COMMENT ON COLUMN "map_scope_count_projection"."scope_type" IS 'DISTRICT or REGION';
 
+COMMENT ON COLUMN "k_contents"."work_type" IS 'DRAMA/MOVIE/VARIETY/MUSIC_VIDEO';
+
+COMMENT ON COLUMN "k_content_place_relations"."relation_type" IS 'FILMING_LOCATION';
+
 COMMENT ON COLUMN "audio_odii_spots"."public_id" IS 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-spot-:tid) compatible';
 
 COMMENT ON COLUMN "audio_odii_stories"."public_id" IS 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-story-:stid) compatible';
@@ -1124,6 +1352,8 @@ ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("place_id") REFERENCES "c
 
 ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERENCES "catalog_place_public_ids" ("public_id") DEFERRABLE INITIALLY IMMEDIATE;
 
+ALTER TABLE "k_content_place_relations" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
@@ -1187,6 +1417,62 @@ ALTER TABLE "map_place_category_projection" ADD FOREIGN KEY ("revision_id", "pla
 ALTER TABLE "map_scope_count_projection" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "map_projection_publications" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_aliases" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_metadata_sources" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_units" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_party_aliases" ADD FOREIGN KEY ("party_id") REFERENCES "k_content_creative_parties" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_credits" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_credits" ADD FOREIGN KEY ("party_id") REFERENCES "k_content_creative_parties" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_credits" ADD FOREIGN KEY ("source_id") REFERENCES "k_content_metadata_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_place_relations" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_evidence" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_appearance_contexts" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_appearance_contexts" ADD FOREIGN KEY ("unit_id") REFERENCES "k_content_units" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_appearance_contexts" ADD FOREIGN KEY ("evidence_id") REFERENCES "k_content_relation_evidence" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_aliases" ADD FOREIGN KEY ("tag_id") REFERENCES "k_content_tags" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_tags" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_tags" ADD FOREIGN KEY ("tag_id") REFERENCES "k_content_tags" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_tags" ADD FOREIGN KEY ("source_id") REFERENCES "k_content_metadata_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_tags" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_tags" ADD FOREIGN KEY ("tag_id") REFERENCES "k_content_tags" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_tags" ADD FOREIGN KEY ("evidence_id") REFERENCES "k_content_relation_evidence" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("source_id") REFERENCES "k_content_metadata_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("evidence_id") REFERENCES "k_content_relation_evidence" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("resolved_tag_id") REFERENCES "k_content_tags" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_summary_points" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_summary_points" ADD FOREIGN KEY ("source_id") REFERENCES "k_content_metadata_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_summary_points" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_summary_points" ADD FOREIGN KEY ("evidence_id") REFERENCES "k_content_relation_evidence" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "audio_odii_stories" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

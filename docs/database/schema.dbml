@@ -5,6 +5,7 @@ Project onmaru_backend_detail {
 
 use * from './modules/identity'
 use * from './modules/catalog'
+use * from './modules/kcontents'
 use * from './modules/audio'
 use * from './modules/insights'
 use * from './modules/discovery'
@@ -50,3 +51,5 @@ Ref: catalog_external_places.public_place_id > catalog_place_public_ids.public_i
 // journey_saved_resources.resource_type=PLACE      -> catalog_place_identity.id
 // journey_saved_resources.resource_type=ODII_STORY -> audio_odii_stories.id
 // DBML cannot express this conditional FK as one column without split tables.
+
+Ref: k_content_place_relations.place_id > catalog_place_identity.id

@@ -91,7 +91,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("045");
+                    """)).isEqualTo("046");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM information_schema.tables
@@ -108,9 +108,11 @@ class DatabaseMigrationContractTests {
                         'audio_odii_spots',
                         'operations_retention_deletion_ledger',
                         'stamp_ranking_profiles',
-                        'identity_admin_access_token_revocations'
+                        'identity_admin_access_token_revocations',
+                        'k_contents',
+                        'k_content_place_relations'
                       )
-                    """)).isEqualTo(12);
+                    """)).isEqualTo(14);
         }
     }
 
@@ -138,7 +140,7 @@ class DatabaseMigrationContractTests {
                     WHERE success
                     ORDER BY installed_rank DESC
                     LIMIT 1
-                    """)).isEqualTo("045");
+                    """)).isEqualTo("046");
             assertThat(countRows(statement, """
                     SELECT COUNT(*)
                     FROM onmaru.community_visit_reviews
@@ -153,8 +155,8 @@ class DatabaseMigrationContractTests {
                     SELECT COUNT(*)
                     FROM information_schema.tables
                     WHERE table_schema = 'onmaru'
-                      AND table_name IN ('audio_odii_spots', 'audio_story_versions')
-                    """)).isEqualTo(2);
+                      AND table_name IN ('audio_odii_spots', 'audio_story_versions', 'k_content_relation_evidence')
+                    """)).isEqualTo(3);
         }
     }
 

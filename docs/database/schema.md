@@ -12,6 +12,11 @@
 // ./overview.dbml
 // V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
 // failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
+// V046은 별도 K-Contents 작품/별칭/촬영 관계/근거/태그/요약을 정규화한다.
+// 관계 place_id는 catalog_place_identity 내부 UUID FK이며 외부 tourContentId는 FK가 아니다.
+// 공개 조회는 k_content_public_relations view를 사용한다. 작품과 관계가 승인 상태이고
+// VERIFIED 관계 근거가 최소 1개 있어야 노출된다. 근거 철회/상태 변경은 즉시 view에 반영된다.
+// 상세 모델: ./modules/kcontents.dbml. 기존 screen-hanok API와 게시본은 변경하지 않는다.
 // V045는 관리자 파이프라인 상세 조회를 위해 operations_sync_runs에 scope,
 // requested_at, nullable progress snapshot을 추가한다. operations_sync_failures에는
 // 실행별 sanitized 오류 코드·메시지·endpoint·content ID만 저장하며 credential,
