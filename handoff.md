@@ -1,13 +1,12 @@
 # handoff.md
 
-## 2026-10-08 Issue #603 장소 선별·K-Contents 구현 작업 분해
+## 2026-10-08 Issue #603 실행: 현재 #681 Wave 0
 
-- 브랜치: `feature/603-screen-hanok-research-harness` (branch parser #603). 사용자 요청은 통합 PRD와 신규 FE 계약을 백엔드 독립 Issue Graph로 분해하고 현 브랜치의 `develop` 대상 PR을 여는 것이다.
-- `docs/planning/place-kcontents/work-graph.json`과 `backend-implementation-issues.md`에 기존 #603을 Root로 재사용하는 Child 후보 11개, Wave 0~5, 선행 관계·파일 소유권·객관적 인수 기준과 통합 gate를 기록했다. `README.md`에 탐색 링크를 추가했다.
-- 사용자 승인 후 #603 본문을 최신 정책으로 개정하고 [#681](https://github.com/YRootLab/OnMaru-backend/issues/681)~[#691](https://github.com/YRootLab/OnMaru-backend/issues/691) 11개 Child를 발행했다. 모두 native Sub-Issue이며 직접 선행 관계를 `blocked-by`로 연결했다. #569는 기존 지도 회귀 전 닫지 않는다.
-- 검증: skill의 `validate_work_graph.py`에서 11개 오류/경고 0개, `compute_waves.py`로 Wave 0~5 계산, `bash scripts/verify-contracts --contracts-only`, `node scripts/verify-planning-inputs.mjs`, `git diff --check` 통과. PR의 CI `verify`는 별도 확인 대상이다.
-- PR: [#679](https://github.com/YRootLab/OnMaru-backend/pull/679)을 `develop` 대상으로 열었다. 기존 브랜치에 누적된 PRD/API 계약/자료와 이번 작업 그래프가 함께 포함된다. #603은 문서 작업만으로 닫지 않으므로 `Refs #603`으로 연결했다.
-- 다음 단계: PR #679의 CI·리뷰를 확인한다. 실제 구현은 각 Child별 별도 branch/PR로 수행하고 W0 실데이터 정책 검증부터 시작한다.
+- 사용자 요청: #681의 실데이터 정책 검증을 먼저 완료하고, `blocked-by`가 해제되는 #682~#691을 각 독립 worktree·브랜치·`develop` 대상 PR로 병렬 구현한다. 각 PR은 `verify`와 Wave 통합 gate 뒤 병합한다. #691에서 100→1,000건 pilot·스테이징·롤백까지 수행하고 운영 배포 직전 결과/위험을 보고해 승인을 기다린다.
+- 현재 브랜치/Issue: `docs/681-catalog-policy-validation`, #681. TourAPI 34개 코드 9,801건/41페이지, 4개 구제 검색의 신규 ID 57건, 운영 readonly 원천 49,613·공개 23,637건을 2026-10-08 실측했다. 원본 capture는 Git 밖의 `/tmp/onmaru-681-tourapi.json`과 `/tmp/onmaru-681-db.jsonl`에만 있으며 SHA는 `policy-validation.md`에 기록했다.
+- 수정: `docs/planning/place-kcontents/policy-validation.md`, ADR-0016 초안, 공개 API 기준선 fixture, 재현 스크립트. 신규 정책 `discovery-candidate-v1.0.0`의 후보 dry-run은 INCLUDE 1,983/REVIEW 4,463/EXCLUDE 3,412다. INCLUDE는 게시 허가가 아니며 상세 quality gate가 남는다.
+- 검증: 정책 4개 테스트, `verify-contracts --contracts-only`, planning inputs, branch parser, 문서 집계 일관성은 통과. 로컬 전체 Node 테스트는 `/tmp/onmaru-ci-toolkit-9c6f003/src`의 불완전한 별도 Toolkit 설치를 집어 24개가 실패했고, 동일 테스트의 고정 fixture 경로를 지정한 release 비교 24개는 통과했다. GitHub `verify`가 최종 gate다.
+- 다음: 로컬 hygiene/계약 검증 → #681 PR 생성·`verify` → Wave 0 gate/병합·Issue 상태 확인. 이후 #682/#683/#684를 독립 worktree로 병렬 시작한다. #569의 FE 실제 경로는 미검증이므로 열어 둔다.
 
 ## 2026-10-03 Issue #552 회원 익명 프로필·온기 후기 작성자
 ## 다음 작업: Issue #675 스테이징 pagination 실검증
