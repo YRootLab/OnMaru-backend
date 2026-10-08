@@ -1,12 +1,20 @@
 # handoff.md
 
-## 2026-10-08 Issue #603 실행: 현재 #681 Wave 0
+## 2026-10-08 Issue #685 주간 선별 탐색 revision
+
+- 브랜치: `feature/685-selected-discovery-revision`, Issue #685. `develop`의 병합된 #682 W1·#683 W2와 별도 V047 스키마를 연결했다. #686 V048은 뒤따르는 migration이다.
+- 구현: 같은 공식 TourAPI taxonomy Set을 수집 격리와 의미 판정에 주입한다. 목록·상세 SHA-256/버전, ADDED·CHANGED·UNCHANGED·MISSING, 페이지 checkpoint와 상세 호출 상한, 후보/격리 dry-run, 사람 승인에 따른 별도 신규 active revision을 둔다. 기존 일일 cron·`kto-korean-tour` active pointer·공개 API는 수정하지 않는다.
+- 안전: 승인 전 자동 공개 없음. 상세 merge 후 hash/fingerprint를 preview하고 one-shot 명령으로 근거·역할·권리를 확인해 승인한다. 승인 철회는 `selected_discovery_public_visible` view에서 즉시 숨긴다. 실패·빈 snapshot·상세 예산 초과·누락·기존 공개 행 변경은 신규 LKG pointer를 보존한다. 첫 게시 CAS와 source identity 충돌 처리를 추가했다.
+- 검증: 선정 diff/승인/scheduler 집중 Gradle 테스트, PostGIS V047 migration·legacy pointer/공개 ID 보존·identity 공유·첫 게시 CAS·철회 view·rollback 통합 테스트, migration registry/DBML/Azimutt 계약, planning inputs, branch parser가 통과했다. PR의 `verify`가 최종 게이트다.
+- 다음: PR을 `develop` 대상으로 열고 `verify` 확인. 부모가 Wave 통합에서 #685(V047)→#686(V048) 순서로 병합한다. 운영 자동 수집은 기본 비활성이고 #691 파일럿에서만 별도 승인 레코드로 단계적 공개한다.
+
+## 2026-10-08 Issue #603 실행: 완료된 #681 Wave 0 기록
 
 - 사용자 요청: #681의 실데이터 정책 검증을 먼저 완료하고, `blocked-by`가 해제되는 #682~#691을 각 독립 worktree·브랜치·`develop` 대상 PR로 병렬 구현한다. 각 PR은 `verify`와 Wave 통합 gate 뒤 병합한다. #691에서 100→1,000건 pilot·스테이징·롤백까지 수행하고 운영 배포 직전 결과/위험을 보고해 승인을 기다린다.
 - 현재 브랜치/Issue: `docs/681-catalog-policy-validation`, #681. TourAPI 34개 코드 9,801건/41페이지, 4개 구제 검색의 신규 ID 57건, 운영 readonly 원천 49,613·공개 23,637건을 2026-10-08 실측했다. 원본 capture는 Git 밖의 `/tmp/onmaru-681-tourapi.json`과 `/tmp/onmaru-681-db.jsonl`에만 있으며 SHA는 `policy-validation.md`에 기록했다.
 - 수정: `docs/planning/place-kcontents/policy-validation.md`, ADR-0016 초안, 공개 API 기준선 fixture, 재현 스크립트. 신규 정책 `discovery-candidate-v1.0.0`의 후보 dry-run은 INCLUDE 1,983/REVIEW 4,463/EXCLUDE 3,412다. INCLUDE는 게시 허가가 아니며 상세 quality gate가 남는다.
 - 검증: 정책 4개 테스트, `verify-contracts --contracts-only`, planning inputs, branch parser, 문서 집계 일관성은 통과. 로컬 전체 Node 테스트는 `/tmp/onmaru-ci-toolkit-9c6f003/src`의 불완전한 별도 Toolkit 설치를 집어 24개가 실패했고, 동일 테스트의 고정 fixture 경로를 지정한 release 비교 24개는 통과했다. GitHub `verify`가 최종 gate다.
-- 다음: 로컬 hygiene/계약 검증 → #681 PR 생성·`verify` → Wave 0 gate/병합·Issue 상태 확인. 이후 #682/#683/#684를 독립 worktree로 병렬 시작한다. #569의 FE 실제 경로는 미검증이므로 열어 둔다.
+- 완료: #681 PR #692가 `develop`에 병합됐고 Issue가 닫혔다. #682/#683/#684도 병합·종료되어 #685의 선행 조건이 해제됐다. #569의 FE 실제 경로는 미검증이므로 열어 둔다.
 
 ## 2026-10-03 Issue #552 회원 익명 프로필·온기 후기 작성자
 ## 다음 작업: Issue #675 스테이징 pagination 실검증
