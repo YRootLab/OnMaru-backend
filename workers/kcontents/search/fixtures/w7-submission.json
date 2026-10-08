@@ -1,0 +1,27 @@
+{
+  "placeId": "00000000-0000-0000-0000-000000000065",
+  "sourceFingerprint": "fixture-0",
+  "inputJson": {
+    "title": "경복궁",
+    "region": "서울 종로구"
+  },
+  "evidence": [
+    {
+      "evidenceId": "8da0a94e-7caa-5129-a9f1-f6d41775b027",
+      "url": "https://example.org/filming",
+      "title": "검토용 촬영 기사 예시",
+      "publisher": "fixture",
+      "excerpt": "검토용 fixture 문장: 서울 종로구 경복궁에서 드라마 별빛을 촬영했다."
+    }
+  ],
+  "submission": {
+    "resultStatus": "MATCH",
+    "schemaVersion": "kcontents-extraction-v1",
+    "promptVersion": "kcontents-evidence-v1",
+    "modelVersion": "fixture-v1",
+    "evidenceIds": [
+      "8da0a94e-7caa-5129-a9f1-f6d41775b027"
+    ],
+    "resultJson": "{\"candidates\": [{\"evidence\": [{\"evidenceId\": \"8da0a94e-7caa-5129-a9f1-f6d41775b027\", \"quote\": \"서울 종로구 경복궁에서 드라마 별빛을 촬영했다.\"}], \"placeId\": \"00000000-0000-0000-0000-000000000065\", \"placeName\": \"경복궁\", \"region\": \"서울 종로구\", \"relationType\": \"FILMING_LOCATION\", \"summaries\": [], \"tags\": [], \"title\": \"별빛\", \"workType\": \"DRAMA\"}], \"resultStatus\": \"MATCH\"}"
+  }
+}
