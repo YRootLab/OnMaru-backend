@@ -407,6 +407,113 @@ CREATE TABLE "content_tag_overrides" (
   "expires_at" timestamptz
 );
 
+CREATE TABLE "selected_discovery_runs" (
+  "id" uuid PRIMARY KEY,
+  "due_at" timestamp UNIQUE NOT NULL,
+  "status" varchar NOT NULL,
+  "detail_requests" int NOT NULL DEFAULT 0,
+  "failure_code" varchar,
+  "started_at" timestamp NOT NULL,
+  "finished_at" timestamp
+);
+
+CREATE TABLE "selected_discovery_checkpoints" (
+  "run_id" uuid NOT NULL,
+  "operation" varchar NOT NULL,
+  "filter_value" varchar NOT NULL,
+  "page_number" int NOT NULL,
+  "received" int NOT NULL,
+  "expected" int NOT NULL,
+  "candidate_count" int NOT NULL,
+  "quarantine_count" int NOT NULL,
+  PRIMARY KEY ("run_id", "operation", "filter_value", "page_number")
+);
+
+CREATE TABLE "selected_discovery_revisions" (
+  "id" uuid PRIMARY KEY,
+  "base_revision_id" uuid,
+  "status" varchar NOT NULL,
+  "policy_version" varchar NOT NULL,
+  "hash_schema_version" varchar NOT NULL,
+  "added_count" int NOT NULL,
+  "changed_count" int NOT NULL,
+  "unchanged_count" int NOT NULL,
+  "missing_count" int NOT NULL,
+  "quarantine_count" int NOT NULL,
+  "approved_count" int NOT NULL,
+  "detail_requests" int NOT NULL,
+  "counts_by_region" jsonb NOT NULL,
+  "counts_by_role" jsonb NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "published_at" timestamp
+);
+
+CREATE TABLE "selected_discovery_candidates" (
+  "revision_id" uuid NOT NULL,
+  "content_id" varchar NOT NULL,
+  "raw" jsonb NOT NULL,
+  "list_hash" char(64) NOT NULL,
+  "detail_hash" char(64) NOT NULL,
+  "hash_schema_version" varchar NOT NULL,
+  "policy_version" varchar NOT NULL,
+  "decision" varchar NOT NULL,
+  "role" varchar,
+  "reason_code" varchar NOT NULL,
+  "diff_status" varchar NOT NULL,
+  "modifiedtime" varchar,
+  PRIMARY KEY ("revision_id", "content_id")
+);
+
+CREATE TABLE "selected_discovery_quarantines" (
+  "id" uuid PRIMARY KEY,
+  "revision_id" uuid NOT NULL,
+  "content_id" varchar,
+  "reason_code" varchar NOT NULL,
+  "decision" varchar NOT NULL,
+  "policy_reason" varchar NOT NULL,
+  "raw" jsonb NOT NULL
+);
+
+CREATE TABLE "selected_discovery_approvals" (
+  "content_id" varchar PRIMARY KEY,
+  "list_hash" char(64) NOT NULL,
+  "detail_hash" char(64) NOT NULL,
+  "role" varchar NOT NULL,
+  "source_fingerprint" text NOT NULL,
+  "detail_reviewed" boolean NOT NULL,
+  "rights_reviewed" boolean NOT NULL,
+  "evidence_ref" text NOT NULL,
+  "approved_by" varchar NOT NULL,
+  "approved_at" timestamp NOT NULL
+);
+
+CREATE TABLE "selected_discovery_approval_audit" (
+  "id" uuid PRIMARY KEY,
+  "content_id" varchar NOT NULL,
+  "action" varchar NOT NULL,
+  "actor" varchar NOT NULL,
+  "list_hash" char(64),
+  "detail_hash" char(64),
+  "evidence_ref" text,
+  "recorded_at" timestamp NOT NULL
+);
+
+CREATE TABLE "selected_discovery_public_items" (
+  "revision_id" uuid NOT NULL,
+  "content_id" varchar NOT NULL,
+  "place_id" uuid NOT NULL,
+  "role" varchar NOT NULL,
+  "region_code" varchar,
+  "raw" jsonb NOT NULL,
+  PRIMARY KEY ("revision_id", "content_id")
+);
+
+CREATE TABLE "selected_discovery_active" (
+  "singleton" boolean PRIMARY KEY,
+  "revision_id" uuid NOT NULL,
+  "activated_at" timestamp NOT NULL
+);
+
 CREATE TABLE "k_contents" (
   "id" uuid PRIMARY KEY,
   "title" varchar NOT NULL,
@@ -1096,6 +1203,8 @@ CREATE UNIQUE INDEX ON "content_tag_overrides" ("target_type", "target_id", "lab
 
 CREATE INDEX ON "content_tag_overrides" ("target_type", "target_id");
 
+CREATE UNIQUE INDEX ON "selected_discovery_public_items" ("revision_id", "place_id");
+
 CREATE INDEX ON "k_contents" ("work_type", "normalized_title", "release_year", "season_key");
 
 CREATE UNIQUE INDEX ON "k_content_aliases" ("k_content_id", "normalized_alias");
@@ -1354,6 +1463,8 @@ ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERE
 
 ALTER TABLE "k_content_place_relations" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
+ALTER TABLE "selected_discovery_public_items" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
@@ -1417,6 +1528,20 @@ ALTER TABLE "map_place_category_projection" ADD FOREIGN KEY ("revision_id", "pla
 ALTER TABLE "map_scope_count_projection" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "map_projection_publications" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_checkpoints" ADD FOREIGN KEY ("run_id") REFERENCES "selected_discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_revisions" ADD FOREIGN KEY ("id") REFERENCES "selected_discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_revisions" ADD FOREIGN KEY ("base_revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_candidates" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_quarantines" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_public_items" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_active" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "k_content_aliases" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

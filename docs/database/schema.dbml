@@ -53,3 +53,4 @@ Ref: catalog_external_places.public_place_id > catalog_place_public_ids.public_i
 // DBML cannot express this conditional FK as one column without split tables.
 
 Ref: k_content_place_relations.place_id > catalog_place_identity.id
+Ref: selected_discovery_public_items.place_id > catalog_place_identity.id

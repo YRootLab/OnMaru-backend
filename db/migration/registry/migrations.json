@@ -410,6 +410,15 @@
       "checksum": "kcontents-normalized-schema-v046-20261008",
       "sha256": "05ea2f1c715e60895a8fa873d3350f9525dcd893075d4f0dae7a3ee86cfc4c62",
       "description": "Normalized K-Contents works, place filming relations, evidence and public gate"
+    },
+    {
+      "version": "047",
+      "reservedFor": "SELECTED_DISCOVERY_REVISION",
+      "issueNumber": 685,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V047__685_selected_discovery_revision.sql",
+      "checksum": "selected-discovery-revision-v047-20261008",
+      "sha256": "a3670c7ceddea339c4b963b64ad23feb3f5e8d9c908e276dd45c07812037eeeb",
+      "description": "Independent weekly discovery candidates, approval gate and active revision"
     }
   ]
 }
