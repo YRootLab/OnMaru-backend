@@ -419,6 +419,15 @@
       "checksum": "selected-discovery-revision-v047-20261008",
       "sha256": "a3670c7ceddea339c4b963b64ad23feb3f5e8d9c908e276dd45c07812037eeeb",
       "description": "Independent weekly discovery candidates, approval gate and active revision"
+    },
+    {
+      "version": "048",
+      "reservedFor": "KCONTENTS_RESEARCH_JOBS",
+      "issueNumber": 686,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V048__686_research_jobs.sql",
+      "checksum": "kcontents-research-jobs-v048-20261008",
+      "sha256": "94b73496accd7eb680ec4d4af991ce026d2e7edb5f777bce74f1dc21c59475e3",
+      "description": "Durable K-Contents research leases, evidence, receipts and audit"
     }
   ]
 }
