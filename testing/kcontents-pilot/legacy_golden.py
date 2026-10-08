@@ -18,10 +18,12 @@ def canonical(body):
 
 def allowed_base(raw):
     parsed = urllib.parse.urlsplit(raw)
-    if parsed.scheme == "https" and parsed.hostname == "staging-api.onmaru.site" and not parsed.username:
-        return raw.rstrip("/")
-    if parsed.scheme == "http" and parsed.hostname in ("127.0.0.1", "localhost") and not parsed.username:
-        return raw.rstrip("/")
+    if parsed.username or parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+        raise ValueError("capture requires an exact API origin")
+    if parsed.scheme == "https" and parsed.netloc == "staging-api.onmaru.site":
+        return "https://staging-api.onmaru.site"
+    if parsed.scheme == "http" and parsed.hostname in ("127.0.0.1", "localhost") and parsed.port:
+        return f"http://{parsed.hostname}:{parsed.port}"
     raise ValueError("capture is restricted to staging or localhost")
 
 
@@ -37,8 +39,14 @@ def expand(path):
     return result
 
 
-def capture(base, specification, opener=urllib.request.urlopen):
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
+def capture(base, specification, opener=None):
     base = allowed_base(base)
+    opener = opener or urllib.request.build_opener(NoRedirect).open
     result = []
     for item in specification["requests"]:
         path = expand(item["path"])
@@ -52,6 +60,8 @@ def capture(base, specification, opener=urllib.request.urlopen):
         try:
             response = opener(request, timeout=15)
         except urllib.error.HTTPError as error:
+            if 300 <= error.code < 400:
+                raise ValueError("legacy capture refused a redirect") from error
             response = error
         with response:
             raw = response.read(2_000_001)

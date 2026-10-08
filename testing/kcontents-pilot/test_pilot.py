@@ -1,5 +1,6 @@
 import importlib.util
 import unittest
+import urllib.error
 from pathlib import Path
 
 
@@ -60,6 +61,28 @@ class PilotTests(unittest.TestCase):
         after = {"kind": before["kind"], "requests": [dict(before["requests"][0], sha256="b")]}
         self.assertEqual(golden.compare(before, after), ["screen-hanok"])
         with self.assertRaises(ValueError): golden.allowed_base("https://api.onmaru.site")
+        for unsafe in ("https://staging-api.onmaru.site:443", "https://staging-api.onmaru.site/api",
+                       "https://staging-api.onmaru.site?next=elsewhere",
+                       "https://staging-api.onmaru.site/#fragment"):
+            with self.assertRaises(ValueError): golden.allowed_base(unsafe)
+
+    def test_authenticated_golden_refuses_redirect(self):
+        def redirect(request, timeout):
+            self.assertEqual(request.get_header("Cookie"), "__Host-onmaru-session=secret")
+            raise urllib.error.HTTPError(request.full_url, 302, "moved",
+                                         {"Location": "https://example.org/steal"}, None)
+        import os
+        previous = os.environ.get("ONMARU_STAGING_SESSION_COOKIE")
+        os.environ["ONMARU_STAGING_SESSION_COOKIE"] = "secret"
+        try:
+            with self.assertRaisesRegex(ValueError, "redirect"):
+                golden.capture("https://staging-api.onmaru.site", {"requests": [
+                    {"id": "saved", "path": "/api/v1/saved-resources", "status": 200, "session": True}]}, redirect)
+        finally:
+            if previous is None:
+                os.environ.pop("ONMARU_STAGING_SESSION_COOKIE", None)
+            else:
+                os.environ["ONMARU_STAGING_SESSION_COOKIE"] = previous
 
     def test_enqueue_requires_exact_distinct_validated_place_inputs(self):
         rows = [{"placeId": f"00000000-0000-4000-8000-{index:012d}",
