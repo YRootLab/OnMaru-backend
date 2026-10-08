@@ -32,8 +32,9 @@ FROM generate_series(1,3) n WHERE true ON CONFLICT (content_id) DO NOTHING;
 INSERT INTO onmaru.selected_discovery_candidates
  (revision_id,content_id,raw,list_hash,detail_hash,hash_schema_version,policy_version,decision,role,reason_code,diff_status)
 SELECT revision_id,'staging-691-' || n,
-       jsonb_build_object('contentid','staging-691-' || n,'title','합성 선택 장소 ' || n,
-                          'overview','staging cursor 전용 합성 자료','mapx','127.0','mapy','37.5'),
+       jsonb_build_object('fields',jsonb_build_object(
+           'contentid','staging-691-' || n,'title','합성 선택 장소 ' || n,
+           'overview','staging cursor 전용 합성 자료','mapx','127.0','mapy','37.5')),
        repeat('a',64),repeat('b',64),'staging-fixture','staging-fixture','INCLUDE',
        'CORE_TRADITIONAL_PLACE','STAGING_FIXTURE','UNCHANGED'
 FROM (VALUES ('69100000-0000-4000-8000-000000000001'::uuid,2),
