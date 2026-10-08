@@ -2,6 +2,8 @@
 """Capture and strictly compare read-only legacy staging responses."""
 
 import argparse
+import base64
+import binascii
 import hashlib
 import json
 import os
@@ -14,6 +16,33 @@ from pathlib import Path
 
 def canonical(body):
     return json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+
+
+def comparable_body(item_id, body):
+    """Compare stable public content while retaining cursor position and revision."""
+    if not isinstance(body, dict):
+        return body
+    comparable = dict(body)
+    if item_id == "home":
+        comparable.pop("countsAsOf", None)
+    if item_id == "odii" and comparable.get("nextCursor") is not None:
+        token = comparable["nextCursor"]
+        try:
+            encoded, _signature = token.split(".", 1)
+            payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+            if not isinstance(payload, dict) or "expiresAt" not in payload:
+                raise ValueError("missing cursor expiry")
+            payload.pop("expiresAt")
+        except (AttributeError, ValueError, UnicodeError, binascii.Error) as error:
+            raise ValueError("invalid Odii cursor in legacy golden") from error
+        comparable["nextCursor"] = payload
+    return comparable
+
+
+def row_digest(row):
+    if "body" not in row:
+        return row["sha256"]
+    return hashlib.sha256(canonical(comparable_body(row["id"], row["body"]))).hexdigest()
 
 
 def allowed_base(raw):
@@ -71,7 +100,7 @@ def capture(base, specification, opener=None):
             if response.status != item["status"]:
                 raise ValueError(f"{item['id']} returned {response.status}, expected {item['status']}")
             row = {"id": item["id"], "path": path, "status": response.status,
-                   "sha256": hashlib.sha256(canonical(body)).hexdigest()}
+                   "sha256": hashlib.sha256(canonical(comparable_body(item["id"], body))).hexdigest()}
             if not item.get("session"):
                 row["body"] = body
             result.append(row)
@@ -85,8 +114,9 @@ def compare(before, after):
     new = {row["id"]: row for row in after["requests"]}
     if old.keys() != new.keys():
         raise ValueError("legacy request sets differ")
-    return [key for key in sorted(old) if any(old[key][field] != new[key][field]
-                                             for field in ("path", "status", "sha256"))]
+    return [key for key in sorted(old) if old[key]["path"] != new[key]["path"]
+            or old[key]["status"] != new[key]["status"]
+            or row_digest(old[key]) != row_digest(new[key])]
 
 
 def main():
