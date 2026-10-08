@@ -1,0 +1,11 @@
+{
+  "\"경복궁\" \"서울 종로구\" 촬영지": [
+    {
+      "url": "https://example.org/filming?utm_source=fixture",
+      "title": "검토용 촬영 기사 예시",
+      "publisher": "fixture",
+      "excerpt": "검토용 fixture 문장: 경복궁에서 촬영했다.",
+      "tier": "DISCOVERY_ONLY"
+    }
+  ]
+}

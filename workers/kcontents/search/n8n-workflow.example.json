@@ -1,0 +1,32 @@
+{
+  "name": "OnMaru K-Contents search worker (disabled fixture template)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "minutes", "minutesInterval": 10}]}
+      },
+      "id": "scheduler",
+      "name": "Poll every 10 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "command": "python3 -m workers.kcontents.search.worker --max-jobs 1 --fixture workers/kcontents/search/fixtures/pilot-example.json"
+      },
+      "id": "one-shot",
+      "name": "One bounded lease",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Poll every 10 minutes": {
+      "main": [[{"node": "One bounded lease", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {"executionOrder": "v1"}
+}

@@ -13,3 +13,5 @@
 Lease token은 DB에 SHA-256 해시만 저장하며 만료·소유자 불일치 시 409다. 같은 `Idempotency-Key`는 동일 worker·lease token·payload에만 동일 응답을 재생한다. 하루 lease 예산은 `onmaru.kcontents.research.daily-lease-budget`(기본 1000)으로 제한한다. 운영 재큐잉은 새 epoch를 만들며 과거 시도·receipt·감사 기록을 보존한다.
 
 `SUCCEEDED`는 **원시 조사 결과 접수 완료**를 뜻한다. 촬영 관계의 근거 검증과 공개는 W7 및 게시 quality gate가 수행한다. 기존 공개 API와 데이터는 이 경로가 변경하지 않는다.
+
+검색 worker의 `NO_MATCH` 결과 JSON에 있는 `nextSearchAt`은 재조사 권장 시각이다. W5 API는 이 값으로 자동 재큐잉하지 않는다. 운영자가 만료 또는 새 작품/원천 단서를 확인해 관리자 `requeue`를 호출한다. worker는 동일 장소·이유·source fingerprint의 로컬 TTL을 적용하며 새 fingerprint는 TTL 중에도 다시 조사한다.
