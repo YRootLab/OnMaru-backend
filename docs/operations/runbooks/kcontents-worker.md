@@ -35,4 +35,6 @@ python3 -m workers.kcontents.search.worker \
 
 100건 제한 파일럿은 #691에서 provider 약관·key가 확정된 뒤 별도로 시행한다. 그때 `--max-jobs 100`과 서버의 하루 lease budget을 함께 제한하고, 기본 `~/.local/state/onmaru/kcontents-search-metrics.jsonl`에서 `jobs`, `jobsWithHits`, `searchCalls`, `cacheHits`, `resultHits`, `failures`, `retries`, `rateLimited`, `timeouts`, `elapsedMs`, `estimatedCost`를 회차별로 집계한다. hit rate는 `jobsWithHits / jobs`, 실패율은 `failures / jobs`로 계산한다. JSONL에는 토큰·URL·검색 원문이 기록되지 않는다. `NO_MATCH` 재조사 시각과 429/timeout 건수를 함께 확인하고 quota 초과 시 worker를 중지한다. SQLite cache/예산 파일도 같은 디렉터리에 둔다.
 
-검증: `python3 -m unittest workers.kcontents.search.test_worker -v`. fixture E2E는 lease→검색→URL 중복 제거→근거 ID 접수→`UNCERTAIN` 제출, 중단 후 SQLite cache 재사용, `NO_MATCH` TTL, 429/timeout `/fail`을 재현한다. 실제 대량 외부 검색은 이 변경에서 실행하지 않는다.
+검증: `python3 -m unittest workers.kcontents.search.test_worker -v`. fixture E2E는 lease→검색→URL 중복 제거→근거 ID 접수→`UNCERTAIN` 제출, 중단 후 SQLite cache 재사용, `NO_MATCH` TTL, 429/timeout `/fail`을 재현한다.
+
+2026-10-09에 `python3 -m workers.kcontents.search.pilot_fixture`로 **localhost W5 mock + fixture 100건**을 실행했다. 제출 100/100, 검색 provider 호출 2, cache hit 198, 근거 발견 job 100/100(hit rate 100%), 실패 0, 재시도 0, 429 0, timeout 0, worker 처리 시간 합 210ms, wall time 302ms, 추정 비용 0원(fixture)이었다. 동일 장소·지역 fixture를 100회 재사용한 캐시 경로 검증치이며 실제 검색의 hit rate나 비용 예측치가 아니다. 실제 대량 외부 검색은 이 변경에서 실행하지 않았다.
