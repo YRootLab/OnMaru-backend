@@ -1,0 +1,41 @@
+{
+  "fixtureOnly": true,
+  "schemaVersion": "1.2",
+  "worksPage": {
+    "schemaVersion": "1.2",
+    "catalogRevision": "00000000-0000-0000-0000-000000000001",
+    "countsAsOf": "2026-10-09T00:00:00Z",
+    "matchingWorkCount": 1,
+    "items": [{
+      "workId": "00000000-0000-0000-0000-000000000002",
+      "canonicalTitle": "가상 작품",
+      "englishTitle": null,
+      "type": "DRAMA",
+      "releaseYear": null,
+      "artists": [],
+      "workArtwork": null,
+      "publicPlaceCount": 1,
+      "workTags": []
+    }],
+    "hasMore": false,
+    "nextCursor": null
+  },
+  "placeRelationsPage": {
+    "schemaVersion": "1.2",
+    "catalogRevision": "00000000-0000-0000-0000-000000000001",
+    "countsAsOf": "2026-10-09T00:00:00Z",
+    "matchingRelationCount": 1,
+    "items": [{
+      "relationId": "00000000-0000-0000-0000-000000000003",
+      "relationType": "FILMING_LOCATION",
+      "work": {"workId": "00000000-0000-0000-0000-000000000002", "canonicalTitle": "가상 작품", "type": "DRAMA", "releaseYear": null},
+      "contextSummary": null,
+      "relationTags": [],
+      "evidence": [{"sourceTitle": "가상 공식자료", "sourceUrl": "https://example.org/source", "sourceType": "OFFICIAL", "publisherName": "가상 기관", "checkedAt": "2026-10-09T00:00:00Z"}],
+      "evidenceCount": 1,
+      "verifiedAt": "2026-10-09T00:00:00Z"
+    }],
+    "hasMore": false,
+    "nextCursor": null
+  }
+}
