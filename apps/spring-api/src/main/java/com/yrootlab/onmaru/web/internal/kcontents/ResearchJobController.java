@@ -7,6 +7,7 @@ import com.yrootlab.onmaru.persistence.kcontents.JdbcResearchJobStore;
 import com.yrootlab.onmaru.persistence.kcontents.JdbcResearchJobStore.Evidence;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ import java.util.UUID;
 
 /** Pull-only worker boundary. The configured token cannot call admin operations. */
 @RestController
+@ConditionalOnProperty(name="onmaru.kcontents.research.enabled",havingValue="true")
 @RequestMapping("/api/v1/internal/kcontents/research")
 public final class ResearchJobController {
     private final JdbcResearchJobStore jobs;

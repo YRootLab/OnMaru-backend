@@ -1,6 +1,6 @@
 # K-Contents 조사 워커 내부 계약 v1
 
-이 API는 로컬 워커가 서버에서 작업을 가져오는 pull 경계다. 워커는 운영 PostgreSQL에 직접 접속하지 않으며 서버는 로컬 PC에 callback하지 않는다. `onmaru.kcontents.research.worker-token`을 운영 secret으로 설정해야 worker API가 활성화된다. 빈 값이면 모든 worker 요청은 401이다. 워커 토큰은 `/admin/*` 권한을 갖지 않으며 관리자 JWT는 worker API 권한을 갖지 않는다.
+이 API는 로컬 워커가 서버에서 작업을 가져오는 pull 경계다. 워커는 운영 PostgreSQL에 직접 접속하지 않으며 서버는 로컬 PC에 callback하지 않는다. DB가 준비된 환경에서 `onmaru.kcontents.research.enabled=true`와 운영 secret `onmaru.kcontents.research.worker-token`을 함께 설정해야 API가 활성화된다. 기능 플래그가 꺼져 있으면 route 자체가 등록되지 않고, 토큰이 빈 값이면 worker 요청은 401이다. 워커 토큰은 `/admin/*` 권한을 갖지 않으며 관리자 JWT는 worker API 권한을 갖지 않는다.
 
 | 요청 | 권한 | 의미 |
 |---|---|---|

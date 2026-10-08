@@ -4,6 +4,7 @@ import com.yrootlab.onmaru.kcontents.research.ResearchSubmission;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -25,6 +26,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Component
+@ConditionalOnProperty(name="onmaru.kcontents.research.enabled",havingValue="true")
 public final class JdbcResearchJobStore {
     private final DataSource dataSource;
     private final int dailyLeaseBudget;
