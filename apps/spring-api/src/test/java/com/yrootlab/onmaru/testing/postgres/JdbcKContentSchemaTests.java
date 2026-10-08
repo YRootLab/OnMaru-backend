@@ -55,15 +55,22 @@ class JdbcKContentSchemaTests {
         var evidence = UUID.randomUUID();
         jdbc.update("INSERT INTO onmaru.k_content_relation_evidence (id,relation_id,canonical_url,source_type,title,filming_excerpt,observed_at,status,verified_by,verified_at) VALUES (?,?,?,?,?,?,now(),?,'test',now())",
                 evidence, relation1, "https://example.org/filming", "OFFICIAL", "촬영 공지", "장소에서 촬영했다", "VERIFIED");
-        assertThat(repository.findPublicByPlace(place1)).hasSize(1);
-        assertThat(repository.findPublicByWork(work1)).hasSize(1);
+        var evidence2 = UUID.randomUUID();
+        insertEvidence(jdbc, evidence2, relation1, "https://example.org/filming-2");
+        insertEvidence(jdbc, UUID.randomUUID(), relation2, "https://example.org/work-2");
+        insertEvidence(jdbc, UUID.randomUUID(), relation3, "https://example.org/place-2");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM onmaru.k_content_relation_evidence WHERE relation_id=?", Long.class, relation1)).isEqualTo(2);
+        assertThat(repository.findPublicByPlace(place1)).hasSize(2);
+        assertThat(repository.findPublicByWork(work1)).hasSize(2);
         assertThatThrownBy(() -> jdbc.update("INSERT INTO onmaru.k_content_relation_evidence (id,relation_id,canonical_url,source_type,title,filming_excerpt,observed_at) VALUES (?,?,?,?,?,?,now())",
                 UUID.randomUUID(), relation1, "https://example.org/filming", "OFFICIAL", "중복", "촬영")).hasMessageContaining("unique");
         jdbc.update("UPDATE onmaru.k_content_relation_evidence SET status='WITHDRAWN' WHERE id=?", evidence);
-        assertThat(repository.findPublicByPlace(place1)).isEmpty();
+        assertThat(repository.findPublicByPlace(place1)).hasSize(2);
+        jdbc.update("UPDATE onmaru.k_content_relation_evidence SET status='WITHDRAWN' WHERE id=?", evidence2);
+        assertThat(repository.findPublicByPlace(place1)).hasSize(1);
         jdbc.update("UPDATE onmaru.k_content_relation_evidence SET status='VERIFIED' WHERE id=?", evidence);
         jdbc.update("UPDATE onmaru.k_content_place_relations SET status='STALE' WHERE id=?", relation1);
-        assertThat(repository.findPublicByWork(work1)).isEmpty();
+        assertThat(repository.findPublicByWork(work1)).hasSize(1);
         // A failed transaction never publishes partially submitted evidence.
         assertThatThrownBy(() -> {
             try (var connection = ds.getConnection()) {
@@ -75,7 +82,12 @@ class JdbcKContentSchemaTests {
                 } catch (Exception e) { connection.rollback(); throw e; }
             }
         }).isInstanceOf(Exception.class);
-        assertThat(repository.findPublicByPlace(place1)).isEmpty();
+        assertThat(repository.findPublicByPlace(place1)).hasSize(1);
+    }
+
+    private static void insertEvidence(JdbcTemplate jdbc, UUID id, UUID relation, String url) {
+        jdbc.update("INSERT INTO onmaru.k_content_relation_evidence (id,relation_id,canonical_url,source_type,title,filming_excerpt,observed_at,status,verified_by,verified_at) VALUES (?,?,?,?,?,?,now(),'VERIFIED','test',now())",
+                id, relation, url, "OFFICIAL", "촬영 공지", "장소에서 촬영했다");
     }
 
     private static void insertRelation(JdbcTemplate jdbc, UUID id, UUID place, UUID work) {
