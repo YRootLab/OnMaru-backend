@@ -1,4 +1,5 @@
 import json
+import sys
 import tempfile
 import unittest
 import uuid
@@ -7,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
 
+from workers.kcontents.search.extractor import CommandExtractor, ExtractorFailure
 from workers.kcontents.search.worker import Cache, FixtureProvider, HttpJsonProvider, JobApi, PinnedHttpsConnection, SearchFailure, Worker, canonical_url, queries
 
 
@@ -40,6 +42,9 @@ class WorkerTests(unittest.TestCase):
         fixture.write_text(json.dumps(data), encoding="utf-8")
         return FixtureProvider(fixture)
 
+    def extractor(self):
+        return CommandExtractor([sys.executable, "-m", "workers.kcontents.search.fixture_extractor"])
+
     def test_url_dedup_tracking_and_ssrf(self):
         resolve = lambda host: ["8.8.8.8"]
         self.assertEqual(canonical_url("https://news.example/a/?utm_source=x&z=2#part", {"news.example"}, resolve),
@@ -65,7 +70,7 @@ class WorkerTests(unittest.TestCase):
         cache_path = self.path / "cache.sqlite3"
         api = FakeApi([lease()])
         worker = Worker(api, provider, Cache(cache_path), {"news.example"}, now=lambda: 1000,
-                        resolver=lambda host: ["8.8.8.8"])
+                        resolver=lambda host: ["8.8.8.8"], extractor=self.extractor())
         self.assertTrue(worker.once())
         evidence = next(call[1] for call in api.calls if call[0].endswith("/evidence"))
         self.assertEqual(len(evidence), 1)
@@ -73,10 +78,11 @@ class WorkerTests(unittest.TestCase):
         self.assertNotIn("DO_NOT_STORE", cache_path.read_bytes().decode("utf-8", errors="ignore"))
         submission = next(call[1] for call in api.calls if call[0].endswith("/submit"))
         self.assertEqual(submission["resultStatus"], "UNCERTAIN")
-        self.assertEqual(json.loads(submission["resultJson"])["relationCandidates"], [])
+        self.assertEqual(json.loads(submission["resultJson"])["candidates"], [])
+        self.assertEqual(submission["schemaVersion"], "kcontents-extraction-v1")
 
         restarted = Worker(FakeApi([lease("job-2", "fp-2")]), provider, Cache(cache_path), {"news.example"},
-                           now=lambda: 1100, resolver=lambda host: ["8.8.8.8"])
+                           now=lambda: 1100, resolver=lambda host: ["8.8.8.8"], extractor=self.extractor())
         self.assertTrue(restarted.once())
         self.assertEqual(provider.calls, 2)  # both query variants were fetched only in the first process
         self.assertEqual(restarted.metrics["cacheHits"], 2)
@@ -137,7 +143,7 @@ class WorkerTests(unittest.TestCase):
         provider = self.provider({query: [{"url": "https://news.example/a", "title": "기사", "excerpt": "촬영 근거"}]})
         api = JobApi(f"http://127.0.0.1:{server.server_port}", "worker-secret", "worker-1")
         worker = Worker(api, provider, Cache(self.path / "http.db"), {"news.example"},
-                        resolver=lambda host: ["8.8.8.8"])
+                        resolver=lambda host: ["8.8.8.8"], extractor=self.extractor())
         self.assertTrue(worker.once())
         self.assertEqual(len(events), 3)
         self.assertTrue(all(headers["Authorization"] == "Bearer worker-secret" for _, _, headers in events))
@@ -201,6 +207,43 @@ class WorkerTests(unittest.TestCase):
             connection.connect()
             socket_call.assert_called_once_with(("8.8.8.8", 443), 5)
             context.wrap_socket.assert_called_once_with(raw, server_hostname="provider.example")
+
+    def test_hit_without_extractor_fails_lease_without_final_submission(self):
+        query = queries({"title": "경복궁", "region": "서울 종로구"})[0]
+        provider = self.provider({query: [{"url": "https://news.example/a", "title": "기사", "excerpt": "촬영 단서"}]})
+        api = FakeApi([lease()])
+        Worker(api, provider, Cache(self.path / "disabled.db"), {"news.example"},
+               resolver=lambda host: ["8.8.8.8"]).once()
+        self.assertTrue(any(call[0].endswith("/fail") and call[1] == {"code": "CLI_FAILURE"} for call in api.calls))
+        self.assertFalse(any(call[0].endswith("/submit") for call in api.calls))
+
+    def test_fixture_extractor_uses_server_evidence_id_and_w7_shape(self):
+        query = queries({"title": "경복궁", "region": "서울 종로구"})[0]
+        quote = "서울 종로구 경복궁에서 드라마 별빛을 촬영했다."
+        provider = self.provider({query: [{"url": "https://news.example/a", "title": "기사", "excerpt": quote}]})
+        api = FakeApi([lease()])
+        Worker(api, provider, Cache(self.path / "extract.db"), {"news.example"},
+               resolver=lambda host: ["8.8.8.8"], extractor=self.extractor()).once()
+        submission = next(call[1] for call in api.calls if call[0].endswith("/submit"))
+        result = json.loads(submission["resultJson"])
+        claim = result["candidates"][0]["evidence"][0]
+        self.assertEqual(submission["resultStatus"], "MATCH")
+        self.assertEqual(submission["schemaVersion"], "kcontents-extraction-v1")
+        self.assertEqual(submission["promptVersion"], "kcontents-evidence-v1")
+        self.assertEqual(set(result), {"resultStatus", "candidates"})
+        self.assertEqual(submission["evidenceIds"], [claim["evidenceId"]])
+        self.assertEqual(claim["quote"], quote)
+        self.assertEqual(result["candidates"][0]["placeId"], lease()["placeId"])
+
+    def test_command_extractor_enforces_timeout_and_output_limit(self):
+        sleeping = CommandExtractor([sys.executable, "-c", "import time; time.sleep(2)"], timeout_seconds=0.1)
+        with self.assertRaises(ExtractorFailure) as timeout:
+            sleeping.extract({"placeId": "fixture"})
+        self.assertEqual(timeout.exception.code, "TIMEOUT")
+        noisy = CommandExtractor([sys.executable, "-c", "print('x' * 5000)"], max_output_bytes=100)
+        with self.assertRaises(ExtractorFailure) as overflow:
+            noisy.extract({"placeId": "fixture"})
+        self.assertEqual(overflow.exception.code, "INVALID_JSON")
 
 
 if __name__ == "__main__":

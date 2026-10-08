@@ -1,6 +1,6 @@
 # K-Contents 검색 근거 worker 운영 (#687)
 
-이 worker는 W5 서버 queue를 HTTPS로 lease하고 짧은 검색 근거만 제출한다. 운영 DB에 연결하지 않는다. n8n이 꺼져도 queue는 서버에 남고, lease 도중 worker가 종료되면 15분 만료 후 서버가 재시도한다. 이 worker의 결과는 `UNCERTAIN` 또는 `NO_MATCH` 원시 조사 결과이며 공개 촬영 관계를 만들거나 기존 관계를 삭제하지 않는다. W7 검증과 게시 승인이 뒤따른다.
+이 worker는 W5 서버 queue를 HTTPS로 lease하고 짧은 검색 근거를 수집한 뒤 같은 lease에서 로컬 추출 명령으로 W7 계약 결과를 만든다. 운영 DB에 연결하지 않는다. n8n이 꺼져도 queue는 서버에 남고, lease 도중 worker가 종료되면 15분 만료 후 서버가 재시도한다. 검증 전 조사 결과는 공개 촬영 관계를 만들거나 기존 관계를 삭제하지 않는다. W7 검증과 게시 승인이 뒤따른다.
 
 ## 준비와 기본 실행
 
@@ -15,10 +15,13 @@ export ONMARU_RESEARCH_WORKER_TOKEN='<secret from local secret store>'
 export ONMARU_SEARCH_EVIDENCE_HOSTS='example.org'
 python3 -m workers.kcontents.search.worker \
   --fixture workers/kcontents/search/fixtures/pilot-example.json \
+  --fixture-extractor \
   --max-jobs 1
 ```
 
 비밀값은 환경 변수나 로컬 비밀 저장소에서 읽고 명령 인수, 로그, fixture, n8n workflow JSON에 넣지 않는다. `ONMARU_SEARCH_PROVIDER=fixture`가 기본값이다. HTTP provider는 `ONMARU_SEARCH_PROVIDER=http-json`, `ONMARU_SEARCH_LIVE_ENABLED=true`, 승인된 HTTPS `ONMARU_SEARCH_PROVIDER_ENDPOINT`, **별도 외부 allowlist** `ONMARU_SEARCH_PROVIDER_HOSTS`, `ONMARU_SEARCH_PROVIDER_KEY`, `ONMARU_SEARCH_EVIDENCE_HOSTS`를 모두 설정해야만 켜진다. 현재는 검색 제공자/키/이용 약관이 미확정이므로 운영에서 켜지 않는다. provider 연결은 공개 IP를 검증한 뒤 그 IP로 직접 TLS 연결하고 승인된 hostname의 인증서와 SNI를 확인한다. 환경 proxy와 리다이렉트는 사용하지 않는다. 근거 URL은 DNS/allowlist 검증만 하며 페이지 fetch는 하지 않는다.
+
+추출 명령도 기본 비활성이다. fixture 전용 `--fixture-extractor`는 live provider에서 사용할 수 없다. 실제 추출은 별도로 승인된 로컬 CLI의 **절대 실행 파일 경로와 인수 배열**을 `ONMARU_EXTRACTOR_COMMAND_JSON='["/absolute/path/to/cli","arg"]'`에 지정하고 `ONMARU_EXTRACTOR_ENABLED=true`로 켠다. worker는 shell을 쓰지 않으며 장소/지역과 서버 evidence ID가 붙은 짧은 근거만 stdin JSON으로 전달한다. 기본 timeout 60초(`ONMARU_EXTRACTOR_TIMEOUT_SECONDS`, 최대 600초), 입력/출력 각각 64KB이며 출력 초과 시 명령을 종료한다. `ONMARU_EXTRACTOR_MODEL_VERSION`으로 실행 버전을 기록한다. 명령 프로세스에는 worker bearer와 검색 provider key를 환경으로 전달하지 않는다. 검색 hit가 있는데 추출 명령이 없으면 최종 `SUCCEEDED`로 제출하지 않고 `CLI_FAILURE`로 실패 처리한다. CLI 설정 전 one-shot 명령 자체는 lease 전에 종료한다.
 
 `workers/kcontents/search/n8n-workflow.example.json`은 **비활성** n8n 템플릿이다. n8n 호스트가 저장소와 Python 3을 볼 수 있게 구성한 뒤, one-shot 명령의 작업 디렉터리와 환경 비밀값을 지정하고 수동 실행으로 먼저 확인한다. n8n에 Execute Command 노드가 허용되지 않는 환경에서는 OS scheduler로 위 one-shot 명령을 호출한다. 동시에 여러 n8n 실행을 켜지 않는다. 서버 lease가 중복 소유를 막지만 호출 예산과 로컬 cache 충돌을 줄이기 위해 한 worker ID당 하나의 프로세스만 운용한다.
 
@@ -27,7 +30,7 @@ python3 -m workers.kcontents.search.worker \
 - 장소 제목과 지역이 모두 있어야 한다. 기본 쿼리 2개에 지역명을 함께 넣고, 작품 단서가 있을 때만 역방향 쿼리를 추가한다. 지역 없는 동명이인 검색은 실패 처리한다.
 - 검색 결과 URL은 http(s), 공개 IP, 허용 host, 기본 port만 통과한다. URL의 추적 파라미터와 fragment를 제거한 canonical URL당 하나만 제출한다. worker는 외부 기사 페이지 본문이나 이미지를 가져오지 않는다. 발췌 최대 1,000자, 한 job당 근거 최대 20개다.
 - 출처 등급은 검색 제공자의 주장값을 신뢰하지 않고 기본 `DISCOVERY_ONLY`로 둔다. 검토한 host만 `ONMARU_SEARCH_SOURCE_TIERS='{"official.example":"OFFICIAL"}'`처럼 allowlist와 별도 정책에 등록한다. 가능한 값은 `OFFICIAL`, `BROADCAST`, `CULTURAL`, `PRESS`, `DISCOVERY_ONLY`다. 이 등급 자체가 촬영 관계 검증/자동 공개를 뜻하지 않는다.
-- 검색 cache는 로컬 SQLite에 기본 24시간 보존된다. `NO_MATCH`는 동일 장소·조사 이유·source fingerprint에서 기본 30일 후 재조사 대상이다. 제출 JSON의 `nextSearchAt`은 **조사 권장 시각이지 서버 예약 실행이 아니다**. W5에는 `NO_MATCH` 자동 재큐잉 scheduler가 없으므로 운영자가 새 단서/작품 이벤트 또는 만료를 확인해 관리자 requeue를 수행한다. 새 source fingerprint면 TTL 내에도 다시 검색한다. #691 파일럿에서 `NO_MATCH` 후 관리자 재큐잉과 새 fingerprint 재조사를 실증한다. `NO_MATCH`는 촬영 부재 확정이 아니다.
+- 검색 cache는 로컬 SQLite에 기본 24시간 보존된다. `NO_MATCH`는 동일 장소·조사 이유·source fingerprint에서 기본 30일 후 재조사 대상이다. 제출 JSON의 `nextSearchAt`은 **조사 권장 시각이지 서버 예약 실행이 아니다**. W5의 현재 관리자 requeue는 `FAILED`/`QUARANTINED`만 허용하므로 정상 완료된 `NO_MATCH`를 같은 job으로 다시 열지 못한다. 새 source fingerprint는 새 job으로 다시 조사할 수 있다. 동일 fingerprint의 TTL 만료 재조사는 #691 전에 서버 재큐잉/epoch 계약을 확장해야 한다. `NO_MATCH`는 촬영 부재 확정이 아니다.
 - 429, timeout, 5xx는 `RATE_LIMITED`/`TIMEOUT`으로 `/fail`에 제출한다. 서버가 제한된 backoff와 최대 시도를 관리한다. worker 중단 또는 서버 API 단절 시 lease 만료 후 재실행하며, 이미 저장된 검색 cache를 재사용한다. 실패 시 active 공개 관계는 변하지 않는다.
 - 한 one-shot 기본값은 job 1개, job당 검색 최대 3회다. `--max-jobs`는 100을 넘지 못한다. `ONMARU_SEARCH_MAX_CALLS_PER_JOB`, 일일 `ONMARU_SEARCH_MAX_CALLS_PER_DAY`(기본 300), `ONMARU_SEARCH_COST_PER_CALL`, 일일 `ONMARU_SEARCH_MAX_COST`로 호출·추정 비용을 제한한다. 유료 provider를 켤 때는 호출당 비용과 최대 비용을 모두 0보다 크게 명시한다. 호출 **직전** SQLite에 일별 시도/비용을 예약하므로 429·timeout·프로세스 종료와 재기동 후에도 사용한 예산이 복원되지 않는다. cache hit는 새 provider 호출 예산을 쓰지 않는다.
 
@@ -35,6 +38,6 @@ python3 -m workers.kcontents.search.worker \
 
 100건 제한 파일럿은 #691에서 provider 약관·key가 확정된 뒤 별도로 시행한다. 그때 `--max-jobs 100`과 서버의 하루 lease budget을 함께 제한하고, 기본 `~/.local/state/onmaru/kcontents-search-metrics.jsonl`에서 `jobs`, `jobsWithHits`, `searchCalls`, `cacheHits`, `resultHits`, `failures`, `retries`, `rateLimited`, `timeouts`, `elapsedMs`, `estimatedCost`를 회차별로 집계한다. hit rate는 `jobsWithHits / jobs`, 실패율은 `failures / jobs`로 계산한다. JSONL에는 토큰·URL·검색 원문이 기록되지 않는다. `NO_MATCH` 재조사 시각과 429/timeout 건수를 함께 확인하고 quota 초과 시 worker를 중지한다. SQLite cache/예산 파일도 같은 디렉터리에 둔다.
 
-검증: `python3 -m unittest workers.kcontents.search.test_worker -v`. fixture E2E는 lease→검색→URL 중복 제거→근거 ID 접수→`UNCERTAIN` 제출, 중단 후 SQLite cache 재사용, `NO_MATCH` TTL, 429/timeout `/fail`을 재현한다.
+검증: `python3 -m unittest workers.kcontents.search.test_worker -v`. fixture E2E는 lease→검색→URL 중복 제거→서버 근거 ID 접수→같은 lease의 fixture 추출→W7 `kcontents-extraction-v1`/`kcontents-evidence-v1` 후보 제출, 중단 후 SQLite cache 재사용, `NO_MATCH` TTL, 429/timeout `/fail`, 추출 비활성·시간/출력 상한을 재현한다. W7 교차 검증용 고정 입력·evidence·최종 제출은 `workers/kcontents/search/fixtures/w7-submission.json`에 있다.
 
-2026-10-09에 `python3 -m workers.kcontents.search.pilot_fixture`로 **localhost W5 mock + fixture 100건**을 실행했다. 제출 100/100, 검색 provider 호출 2, cache hit 198, 근거 발견 job 100/100(hit rate 100%), 실패 0, 재시도 0, 429 0, timeout 0, worker 처리 시간 합 210ms, wall time 302ms, 추정 비용 0원(fixture)이었다. 동일 장소·지역 fixture를 100회 재사용한 캐시 경로 검증치이며 실제 검색의 hit rate나 비용 예측치가 아니다. 실제 대량 외부 검색은 이 변경에서 실행하지 않았다.
+2026-10-09에 `python3 -m workers.kcontents.search.pilot_fixture`로 **localhost W5 mock + fixture 추출 100건**을 실행했다. 제출 100/100(MATCH 후보 100), 검색 provider 호출 2, cache hit 198, 근거 발견 job 100/100(hit rate 100%), 실패 0, 재시도 0, 429 0, timeout 0, worker 처리 시간 합 약 3.8초, wall time 약 3.9초, 추정 비용 0원(fixture)이었다. 동일 장소·지역 fixture를 100회 재사용한 캐시·CLI 경로 검증치이며 실제 검색의 hit rate나 비용 예측치가 아니다. 실제 대량 외부 검색은 이 변경에서 실행하지 않았다.

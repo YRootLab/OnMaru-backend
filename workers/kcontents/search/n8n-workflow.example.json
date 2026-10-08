@@ -14,7 +14,7 @@
     },
     {
       "parameters": {
-        "command": "python3 -m workers.kcontents.search.worker --max-jobs 1 --fixture workers/kcontents/search/fixtures/pilot-example.json"
+        "command": "python3 -m workers.kcontents.search.worker --max-jobs 1 --fixture workers/kcontents/search/fixtures/pilot-example.json --fixture-extractor"
       },
       "id": "one-shot",
       "name": "One bounded lease",

@@ -20,12 +20,17 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = "kcontents-search-v1"
+from .extractor import CommandExtractor, ExtractorFailure
+
+SEARCH_SCHEMA_VERSION = "kcontents-search-v1"
+EXTRACTION_SCHEMA_VERSION = "kcontents-extraction-v1"
+PROMPT_VERSION = "kcontents-evidence-v1"
 SOURCE_TIERS = {"OFFICIAL", "BROADCAST", "CULTURAL", "PRESS", "DISCOVERY_ONLY"}
 STATE_DIR = Path.home() / ".local" / "state" / "onmaru"
 TRACKING = {"fbclid", "gclid", "igshid", "mc_cid", "mc_eid"}
@@ -79,6 +84,27 @@ def queries(input_json: dict[str, Any]) -> list[str]:
     if work:
         terms.append(f'"{work}" "{title}" "{region}" 촬영')
     return terms
+
+
+def referenced_evidence(value: Any) -> set[str]:
+    """Mirror W5's recursive evidenceId/evidenceIds exact-set contract."""
+    found: set[str] = set()
+    if isinstance(value, list):
+        for child in value:
+            found.update(referenced_evidence(child))
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            if key == "evidenceId":
+                if not isinstance(child, str):
+                    raise SearchFailure("INVALID_JSON")
+                found.add(child)
+            elif key == "evidenceIds":
+                if not isinstance(child, list) or not all(isinstance(item, str) for item in child):
+                    raise SearchFailure("INVALID_JSON")
+                found.update(child)
+            else:
+                found.update(referenced_evidence(child))
+    return found
 
 
 @dataclass(frozen=True)
@@ -264,7 +290,9 @@ class Worker:
                  max_total_calls: int = 300,
                  now: Callable[[], float] = time.time,
                  resolver: Callable[[str], list[str]] | None = None,
-                 source_tiers: dict[str, str] | None = None):
+                 source_tiers: dict[str, str] | None = None,
+                 extractor: CommandExtractor | None = None,
+                 model_version: str = "local-extractor-v1"):
         self.api, self.provider, self.cache, self.hosts = api, provider, cache, hosts
         self.cache_ttl, self.no_match_ttl = cache_ttl, no_match_ttl
         if not 1 <= max_searches <= 3 or cache_ttl < 60 or no_match_ttl < 60:
@@ -278,6 +306,8 @@ class Worker:
         self.now = now
         self.resolver = resolver
         self.source_tiers = source_tiers or {}
+        self.extractor = extractor
+        self.model_version = model_version
         if any(host not in hosts or tier not in SOURCE_TIERS for host, tier in self.source_tiers.items()):
             raise ValueError("Invalid source tier policy")
         self.metrics = {"jobs": 0, "jobsWithHits": 0, "searchCalls": 0, "cacheHits": 0, "resultHits": 0,
@@ -314,12 +344,12 @@ class Worker:
             raise SearchFailure("INVALID_JSON")
         fingerprint = ":".join((lease["placeId"], lease["reason"], lease["sourceFingerprint"]))
         if not self.cache.no_match_due(fingerprint, self.now()):
-            self._submit(lease, [], "NO_MATCH", self.cache.connection.execute(
+            self._submit(lease, inputs, [], "NO_MATCH", self.cache.connection.execute(
                 "SELECT next_at FROM no_match WHERE fingerprint=?", (fingerprint,)).fetchone()[0])
             return
         hits: dict[str, Hit] = {}
         for query in queries(inputs)[:self.max_searches]:
-            key = hashlib.sha256((SCHEMA_VERSION + query).encode()).hexdigest()
+            key = hashlib.sha256((SEARCH_SCHEMA_VERSION + query).encode()).hexdigest()
             rows = self.cache.get(key, self.now())
             if rows is None:
                 day = datetime.fromtimestamp(self.now(), timezone.utc).date().isoformat()
@@ -364,22 +394,78 @@ class Worker:
         next_at = self.now() + self.no_match_ttl if not hits else None
         if next_at:
             self.cache.mark_no_match(fingerprint, next_at)
-        self._submit(lease, list(hits.values()), "UNCERTAIN" if hits else "NO_MATCH", next_at)
+        self._submit(lease, inputs, list(hits.values()), "UNCERTAIN" if hits else "NO_MATCH", next_at)
 
-    def _submit(self, lease: dict[str, Any], hits: list[Hit], status: str, next_at: float | None) -> None:
+    def _submit(self, lease: dict[str, Any], inputs: dict[str, Any], hits: list[Hit],
+                status: str, next_at: float | None) -> None:
         job_id, token = lease["jobId"], lease["leaseToken"]
         ids: list[str] = []
         if hits:
+            if self.extractor is None:
+                raise SearchFailure("CLI_FAILURE")
             response = self.api.post(f"/jobs/{job_id}/evidence", [hit.api_value() for hit in hits], token)
             ids = response["evidenceIds"]
-        result = {"status": status, "placeId": lease["placeId"], "sourceFingerprint": lease["sourceFingerprint"],
-                  "evidenceIds": ids, "queryCount": min(self.max_searches, len(queries(json.loads(lease["inputJson"]) if isinstance(lease["inputJson"], str) else lease["inputJson"]))),
-                  "nextSearchAt": datetime.fromtimestamp(next_at, timezone.utc).isoformat() if next_at else None,
-                  "sources": [{"evidenceId": evidence_id, "tier": hit.tier}
-                              for evidence_id, hit in zip(ids, hits)],
-                  "relationCandidates": [], "note": "Search leads only; server verification required"}
-        payload = {"resultStatus": status, "schemaVersion": SCHEMA_VERSION, "promptVersion": "none",
-                   "modelVersion": "none", "evidenceIds": ids,
+            if not isinstance(ids, list) or len(ids) != len(hits):
+                raise SearchFailure("INVALID_JSON")
+            bundle = {"placeId": lease["placeId"], "placeName": inputs.get("placeName") or inputs.get("placeTitle") or inputs.get("title"),
+                      "region": inputs.get("region") or inputs.get("regionName"),
+                      "sourceFingerprint": lease["sourceFingerprint"],
+                      "evidence": [{"evidenceId": evidence_id, "url": hit.url, "title": hit.title,
+                                    "publisher": hit.publisher, "excerpt": hit.excerpt, "tier": hit.tier}
+                                   for evidence_id, hit in zip(ids, hits)]}
+            try:
+                result = self.extractor.extract(bundle)
+            except ExtractorFailure as error:
+                raise SearchFailure(error.code) from None
+        else:
+            result = {"resultStatus": "NO_MATCH", "candidates": []}
+            if next_at is not None:
+                result["ambiguityReason"] = "NO_EVIDENCE_FOUND"
+                result["nextSearchAt"] = datetime.fromtimestamp(next_at, timezone.utc).isoformat()
+        if not isinstance(result, dict) or set(result) - {"resultStatus", "candidates", "ambiguityReason", "nextSearchAt"}:
+            raise SearchFailure("INVALID_JSON")
+        status = result.get("resultStatus")
+        candidates = result.get("candidates")
+        if status not in {"MATCH", "NO_MATCH", "UNCERTAIN"} or not isinstance(candidates, list):
+            raise SearchFailure("INVALID_JSON")
+        if (status == "MATCH" and not candidates) or (status != "MATCH" and candidates):
+            raise SearchFailure("INVALID_JSON")
+        if "nextSearchAt" in result and status != "NO_MATCH":
+            raise SearchFailure("INVALID_JSON")
+        references = referenced_evidence(result)
+        if not references.issubset(set(ids)) or (status == "MATCH" and not references):
+            raise SearchFailure("INVALID_JSON")
+        for reference in references:
+            try:
+                uuid.UUID(reference)
+            except ValueError:
+                raise SearchFailure("INVALID_JSON") from None
+        if status == "MATCH":
+            excerpts = {evidence_id: hit.excerpt for evidence_id, hit in zip(ids, hits)}
+            place_name = str(inputs.get("placeName") or inputs.get("placeTitle") or inputs.get("title") or "")
+            region = str(inputs.get("region") or inputs.get("regionName") or "")
+            for candidate in candidates:
+                if not isinstance(candidate, dict) or set(candidate) - {
+                    "title", "workType", "releaseYear", "seasonKey", "aliases", "placeId",
+                    "placeName", "region", "relationType", "evidence", "tags", "summaries"}:
+                    raise SearchFailure("INVALID_JSON")
+                if (not isinstance(candidate.get("title"), str) or not candidate["title"].strip()
+                        or candidate.get("workType") not in {"DRAMA", "MOVIE", "VARIETY", "MUSIC_VIDEO"}
+                        or candidate.get("placeId") != lease["placeId"]
+                        or candidate.get("placeName") != place_name or candidate.get("region") != region
+                        or candidate.get("relationType") != "FILMING_LOCATION"
+                        or not isinstance(candidate.get("evidence"), list) or not candidate["evidence"]
+                        or not isinstance(candidate.get("tags"), list)
+                        or not isinstance(candidate.get("summaries"), list)):
+                    raise SearchFailure("INVALID_JSON")
+                for claim in candidate["evidence"]:
+                    if (not isinstance(claim, dict) or set(claim) != {"evidenceId", "quote"}
+                            or not isinstance(claim["quote"], str) or not claim["quote"].strip()
+                            or claim["quote"] not in excerpts.get(claim.get("evidenceId"), "")):
+                        raise SearchFailure("INVALID_JSON")
+        payload = {"resultStatus": status, "schemaVersion": EXTRACTION_SCHEMA_VERSION,
+                   "promptVersion": PROMPT_VERSION, "modelVersion": self.model_version,
+                   "evidenceIds": sorted(references),
                    "resultJson": json.dumps(result, ensure_ascii=False, sort_keys=True)}
         key = hashlib.sha256((job_id + ":" + str(lease["attempt"]) + ":submit").encode()).hexdigest()
         self.api.post(f"/jobs/{job_id}/submit", payload, token, key)
@@ -391,6 +477,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-jobs", type=int, default=1)
     parser.add_argument("--cache", type=Path, default=STATE_DIR / "kcontents-search.sqlite3")
     parser.add_argument("--metrics", type=Path, default=STATE_DIR / "kcontents-search-metrics.jsonl")
+    parser.add_argument("--fixture-extractor", action="store_true",
+                        help="explicit deterministic extractor for fixture-only tests")
     args = parser.parse_args(argv)
     if args.max_jobs < 1 or args.max_jobs > 100:
         parser.error("max-jobs must be 1..100")
@@ -409,6 +497,19 @@ def main(argv: list[str] | None = None) -> int:
         provider = HttpJsonProvider(endpoint, key, approved_provider_hosts)
     else:
         parser.error("live search requires explicit ONMARU_SEARCH_LIVE_ENABLED=true and approved provider")
+    if args.fixture_extractor:
+        if mode != "fixture":
+            parser.error("fixture extractor cannot be used with a live provider")
+        extractor = CommandExtractor([sys.executable, "-m", "workers.kcontents.search.fixture_extractor"])
+    elif os.getenv("ONMARU_EXTRACTOR_ENABLED") == "true":
+        command = json.loads(os.getenv("ONMARU_EXTRACTOR_COMMAND_JSON", "[]"))
+        if not isinstance(command, list):
+            parser.error("ONMARU_EXTRACTOR_COMMAND_JSON must be an argv array")
+        extractor = CommandExtractor(command,
+                                     timeout_seconds=float(os.getenv("ONMARU_EXTRACTOR_TIMEOUT_SECONDS", "60")),
+                                     max_output_bytes=int(os.getenv("ONMARU_EXTRACTOR_MAX_OUTPUT_BYTES", "64000")))
+    else:
+        parser.error("extractor disabled: configure explicit command before leasing jobs")
     if not hosts:
         parser.error("ONMARU_SEARCH_EVIDENCE_HOSTS is required")
     source_tiers = json.loads(os.getenv("ONMARU_SEARCH_SOURCE_TIERS", "{}"))
@@ -424,7 +525,8 @@ def main(argv: list[str] | None = None) -> int:
                     max_searches=int(os.getenv("ONMARU_SEARCH_MAX_CALLS_PER_JOB", "3")),
                     max_cost=max_cost, cost_per_search=cost_per_search,
                     max_total_calls=int(os.getenv("ONMARU_SEARCH_MAX_CALLS_PER_DAY", "300")),
-                    source_tiers=source_tiers)
+                    source_tiers=source_tiers, extractor=extractor,
+                    model_version=os.getenv("ONMARU_EXTRACTOR_MODEL_VERSION", "fixture-v1" if args.fixture_extractor else "local-extractor-v1"))
     for _ in range(args.max_jobs):
         if not worker.once():
             break

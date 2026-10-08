@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import time
 import uuid
@@ -10,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
 
+from .extractor import CommandExtractor
 from .worker import Cache, FixtureProvider, JobApi, Worker
 
 
@@ -60,13 +62,19 @@ def main() -> None:
             provider = FixtureProvider(fixture)
             worker = Worker(JobApi(f"http://127.0.0.1:{server.server_port}", "fixture-token", "fixture-pilot"),
                             provider, Cache(Path(directory) / "pilot.sqlite3"), {"example.org"},
-                            resolver=lambda host: ["8.8.8.8"], max_total_calls=300)
+                            resolver=lambda host: ["8.8.8.8"], max_total_calls=300,
+                            extractor=CommandExtractor([sys.executable, "-m", "workers.kcontents.search.fixture_extractor"]),
+                            model_version="fixture-v1")
             start = time.monotonic()
             for _ in range(100):
                 assert worker.once()
             elapsed = round((time.monotonic() - start) * 1000)
             assert not jobs and len(submitted) == 100 and not failures
-            assert all(item["resultStatus"] == "UNCERTAIN" for item in submitted)
+            assert all(item["resultStatus"] == "MATCH" for item in submitted)
+            assert all(item["schemaVersion"] == "kcontents-extraction-v1" and
+                       item["promptVersion"] == "kcontents-evidence-v1" for item in submitted)
+            assert all(item["evidenceIds"] == [json.loads(item["resultJson"])["candidates"][0]["evidence"][0]["evidenceId"]]
+                       for item in submitted)
             result = {"mode": "fixture-localhost", **worker.metrics,
                       "submissions": len(submitted), "wallElapsedMs": elapsed,
                       "hitRate": worker.metrics["jobsWithHits"] / worker.metrics["jobs"]}

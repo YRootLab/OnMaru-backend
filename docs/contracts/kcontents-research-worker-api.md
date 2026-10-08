@@ -14,4 +14,4 @@ Lease token은 DB에 SHA-256 해시만 저장하며 만료·소유자 불일치 
 
 `SUCCEEDED`는 **원시 조사 결과 접수 완료**를 뜻한다. 촬영 관계의 근거 검증과 공개는 W7 및 게시 quality gate가 수행한다. 기존 공개 API와 데이터는 이 경로가 변경하지 않는다.
 
-검색 worker의 `NO_MATCH` 결과 JSON에 있는 `nextSearchAt`은 재조사 권장 시각이다. W5 API는 이 값으로 자동 재큐잉하지 않는다. 운영자가 만료 또는 새 작품/원천 단서를 확인해 관리자 `requeue`를 호출한다. worker는 동일 장소·이유·source fingerprint의 로컬 TTL을 적용하며 새 fingerprint는 TTL 중에도 다시 조사한다.
+검색 worker는 같은 lease에서 검색→서버 evidence ID 발급→로컬 추출→최종 제출을 수행한다. 최종 결과는 W7의 `kcontents-extraction-v1` schema, `kcontents-evidence-v1` prompt와 `{resultStatus,candidates,ambiguityReason?,nextSearchAt?}` JSON을 따른다. `nextSearchAt`은 `NO_MATCH`에만 쓰는 재조사 권장 시각이며 서버 자동 예약이 아니다. 현재 관리자 `requeue`는 `FAILED`/`QUARANTINED`만 허용해 `SUCCEEDED/NO_MATCH` 동일 job을 다시 열 수 없다. 새 source fingerprint는 새 job으로 등록할 수 있고, 동일 fingerprint TTL 만료 재조사는 별도 서버 계약이 필요하다.
