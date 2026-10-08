@@ -53,11 +53,11 @@ public final class DiscoveryCandidatePolicy {
         if (code.equals("FD050100") || code.equals("EX030100"))
             return signal ? decision(Status.REVIEW, null, "BROAD_CLASS_TITLE_SIGNAL_NEEDS_EVIDENCE")
                     : decision(Status.EXCLUDE, null, "BROAD_CLASS_NO_TRADITION_SIGNAL");
+        if (!knownSourceCode) return decision(Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
+        if (code.isEmpty() || (!code.matches("[A-Z]{2}[0-9]{6}") && !code.startsWith("C01")))
+            return decision(Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
         if (code.startsWith("EV") || code.startsWith("LS") || code.startsWith("C01"))
             return decision(Status.EXCLUDE, null, "RESCUE_NO_PLACE_EVIDENCE");
-        if (code.isEmpty() || !code.matches("[A-Z]{2}[0-9]{6}"))
-            return decision(Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
-        if (!knownSourceCode) return decision(Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
         return signal ? decision(Status.REVIEW, null, "KEYWORD_RESCUE_NEEDS_EVIDENCE")
                 : decision(Status.EXCLUDE, null, "RESCUE_NO_PLACE_EVIDENCE");
     }

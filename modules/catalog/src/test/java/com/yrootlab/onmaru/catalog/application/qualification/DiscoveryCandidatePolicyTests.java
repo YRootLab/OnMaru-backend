@@ -18,10 +18,14 @@ class DiscoveryCandidatePolicyTests {
         assertCase(row("7", "서원", "HS020300"), Status.INCLUDE, Role.CORE_TRADITIONAL_PLACE, "CONDITIONAL_TITLE_SIGNAL_PENDING_DETAIL_GATE");
         assertCase(row("8", "사찰", "HS020100"), Status.REVIEW, null, "CONDITIONAL_NEEDS_CONTEXT");
         assertThat(policy.qualify(row("9", "락고재 서울 북촌 한옥호텔", "AC010100"), null, false, true).reasonCode()).isEqualTo("KEYWORD_RESCUE_NEEDS_EVIDENCE");
-        assertCase(row("10", "한양도성 안 궁궐과 학교이야기", "C01150001"), Status.EXCLUDE, null, "RESCUE_NO_PLACE_EVIDENCE");
+        assertThat(policy.qualify(row("10", "한양도성 안 궁궐과 학교이야기", "C01150001"), null, false, true).reasonCode()).isEqualTo("RESCUE_NO_PLACE_EVIDENCE");
         assertCase(row("11", "한옥", "ZZ999999"), Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
         assertCase(row("12", "새 분류 일반 장소", "ZZ999999"), Status.REVIEW, null, "UNKNOWN_SOURCE_CODE");
         assertThat(policy.qualify(row("13", "일반 장소", "AC010100"), null, false, true).reasonCode()).isEqualTo("RESCUE_NO_PLACE_EVIDENCE");
+        for (String code : new String[] {"EV999999", "LS999999", "C01999999"}) {
+            assertThat(policy.qualify(row("14", "일반 장소", code)).reasonCode()).isEqualTo("UNKNOWN_SOURCE_CODE");
+            assertThat(policy.qualify(row("14", "일반 장소", code), null, false, true).reasonCode()).isEqualTo("RESCUE_NO_PLACE_EVIDENCE");
+        }
     }
 
     @Test void invalidCoordinatesAndDuplicateAreConservative() {
