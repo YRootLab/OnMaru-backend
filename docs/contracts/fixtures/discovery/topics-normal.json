@@ -1,0 +1,60 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/discovery/topics"
+  },
+  "response": {
+    "status": 200,
+    "schema": "DiscoveryTopics",
+    "body": {
+      "schemaVersion": "1.2",
+      "catalogRevision": "00000000-0000-0000-0000-000000000001",
+      "countsAsOf": "2026-10-09T00:00:00Z",
+      "items": [
+        {
+          "code": "TRADITIONAL_SPACE_HERITAGE",
+          "labelKo": "전통 공간·문화유산",
+          "labelEn": "Traditional Spaces & Heritage",
+          "placeCount": 1,
+          "active": true
+        },
+        {
+          "code": "TRADITIONAL_EXPERIENCE",
+          "labelKo": "전통문화 체험",
+          "labelEn": "Traditional Experiences",
+          "placeCount": 0,
+          "active": false
+        },
+        {
+          "code": "TRADITIONAL_FOOD_TEA",
+          "labelKo": "전통 음식·차",
+          "labelEn": "Traditional Food & Tea",
+          "placeCount": 0,
+          "active": false
+        },
+        {
+          "code": "K_DRAMA",
+          "labelKo": "K-드라마",
+          "labelEn": "K-Drama",
+          "placeCount": 1,
+          "active": true
+        },
+        {
+          "code": "K_MOVIE",
+          "labelKo": "K-영화",
+          "labelEn": "K-Movie",
+          "placeCount": 0,
+          "active": false
+        },
+        {
+          "code": "K_POP_MV",
+          "labelKo": "K-POP 뮤직비디오",
+          "labelEn": "K-Pop Music Videos",
+          "placeCount": 0,
+          "active": false
+        }
+      ]
+    }
+  },
+  "name": "discovery-topics-normal"
+}

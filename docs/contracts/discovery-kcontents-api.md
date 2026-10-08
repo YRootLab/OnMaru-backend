@@ -1,6 +1,6 @@
 # 전통문화 탐색·K-Contents FE API 명세 초안
 
-> 상태: 2026-10-08 FE 검토용 설계. 아래 신규 경로는 **아직 구현·배포되지 않았다**. 기존 API의 대체 명세가 아니다.
+> 상태: 2026-10-09 구현 중 FE 계약. 신규 경로는 기본 비활성(`onmaru.discovery.api.enabled=false`)이며 아직 배포되지 않았다. 기존 API의 대체 명세가 아니다.
 > 관련: [장소·K-Contents PRD](../planning/place-kcontents/product-prd.md), [현행 스크린 속 한옥 계약](screen-hanok-api.md), [FE–BE 추적표](../specs/traceability/fe-be-traceability-matrix.md), Issue #603.
 
 ## 1. 호환성 경계
@@ -48,6 +48,8 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 
 `GET /api/v1/discovery/topics`
 
+현재 W2/W3의 저장 역할은 세 가지로 동결되어 있다. `PALACE`, `HANOK_CAFE`는 설명용 예시이며 실제 `placeRole` facet 코드가 아니다. 전통 주제는 승인된 역할과 공식 TourAPI 분류가 직접 지지할 때만 부여한다. 세부 장소 역할은 별도의 검수·저장 모델이 도입되기 전까지 제목으로 추론하지 않는다.
+
 초기 주제 코드는 `TRADITIONAL_SPACE_HERITAGE`, `TRADITIONAL_EXPERIENCE`, `TRADITIONAL_FOOD_TEA`, `K_DRAMA`, `K_MOVIE`, `K_POP_MV`다. 주제는 장소 역할 또는 검증된 작품 관계에서 계산하며 단순 TourAPI 소분류와 동일하지 않다. 한 장소가 여러 주제에 포함될 수 있다. `VARIETY`는 작품 타입과 관계 조회에는 지원하지만, 독립 공개 주제는 데이터 규모·FE 합의 후 활성화한다. 0건 주제는 `active:false`로 반환하고 FE가 노출 여부를 결정한다.
 
 ```json
@@ -77,7 +79,7 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 |---|---|---|
 | `topic` | 위 공개 주제 코드, 선택 | 주제 하나. 없으면 공개 탐색 장소 전체 |
 | `regionCode` | 행정구역 코드, 선택 | 지역명 문자열 대신 안정된 코드 |
-| `placeRole` | 게시된 장소 역할 코드, 선택 | 궁궐·고택·한옥 카페 등 의미 역할. `topic`과 별도 축 |
+| `placeRole` | 게시된 장소 역할 코드, 선택 | 현재 승인 registry의 `CORE_TRADITIONAL_PLACE`, `TRADITIONAL_EXPERIENCE`, `SURROUNDING_CULTURE`만 실제 게시한다. `topic`과 별도 축 |
 | `workId` | 작품 ID, 선택 | 그 작품과 공개 촬영 관계가 있는 장소 |
 | `type` | `DRAMA|MOVIE|VARIETY|MUSIC_VIDEO`, 선택 | 작품 타입. K-주제와 상충하면 빈 결과 |
 | `artistId` | 아티스트 ID, 선택 | 출처로 확인된 크레딧이 있는 작품만 |
@@ -96,8 +98,8 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
   "matchingPlaceCount": 1,
   "facets": {
     "topic": [{"code": "K_DRAMA", "count": 1}],
-    "regionCode": [{"code": "11", "labelKo": "서울", "count": 1}],
-    "placeRole": [{"code": "PALACE", "labelKo": "궁궐", "count": 1}],
+    "regionCode": [{"code": "11", "labelKo": "서울특별시", "count": 1}],
+    "placeRole": [{"code": "CORE_TRADITIONAL_PLACE", "labelKo": "전통 공간·문화유산", "count": 1}],
     "type": [{"code": "DRAMA", "count": 1}],
     "workTagCode": [],
     "relationTagCode": []
@@ -106,8 +108,8 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
     {
       "placeId": "p-example-palace",
       "name": "예시 궁궐",
-      "region": {"code": "11", "nameKo": "서울"},
-      "placeRoles": [{"code": "PALACE", "labelKo": "궁궐"}],
+      "region": {"code": "11", "nameKo": "서울특별시"},
+      "placeRoles": [{"code": "CORE_TRADITIONAL_PLACE", "labelKo": "전통 공간·문화유산"}],
       "topics": ["TRADITIONAL_SPACE_HERITAGE", "K_DRAMA"],
       "placeImage": null,
       "odiiLinked": false,
@@ -135,12 +137,12 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
   "schemaVersion": "1.2",
   "placeId": "p-example-palace",
   "name": "예시 궁궐",
-  "region": {"code": "11", "nameKo": "서울"},
+  "region": {"code": "11", "nameKo": "서울특별시"},
   "address": "예시 주소",
   "coordinates": {"latitude": 37.5, "longitude": 127.0},
   "description": "예시 설명",
   "sourceTaxonomy": {"provider": "TOUR_API", "lclsSystm2": "HS01", "lclsSystm3": null, "labelKo": "역사유적지"},
-  "placeRoles": [{"code": "PALACE", "labelKo": "궁궐"}],
+  "placeRoles": [{"code": "CORE_TRADITIONAL_PLACE", "labelKo": "전통 공간·문화유산"}],
   "topics": ["TRADITIONAL_SPACE_HERITAGE", "K_DRAMA"],
   "images": [],
   "odii": {"linked": false, "storyCount": 0},
@@ -221,7 +223,7 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
     "work": {"workId": "w-example-1", "canonicalTitle": "예시 작품", "type": "DRAMA", "releaseYear": null},
     "contextSummary": null,
     "relationTags": [],
-    "evidence": [{"sourceTitle": "예시 공식자료", "sourceUrl": "https://example.org/source", "sourceType": "OFFICIAL_TOURISM", "publisherName": "예시 기관", "checkedAt": "2026-10-08T09:00:00Z"}],
+    "evidence": [{"sourceTitle": "예시 공식자료", "sourceUrl": "https://example.org/source", "sourceType": "OFFICIAL", "publisherName": "예시 기관", "checkedAt": "2026-10-08T09:00:00Z"}],
     "evidenceCount": 1,
     "verifiedAt": "2026-10-08T09:00:00Z"
   }],

@@ -1,0 +1,53 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/discovery/places/p-tourapi-123"
+  },
+  "response": {
+    "status": 200,
+    "schema": "DiscoveryPlaceDetail",
+    "body": {
+      "schemaVersion": "1.2",
+      "placeId": "p-tourapi-123",
+      "name": "예시 궁궐",
+      "region": {
+        "code": "11",
+        "nameKo": "서울특별시"
+      },
+      "address": null,
+      "coordinates": {
+        "latitude": 37.5,
+        "longitude": 127.0
+      },
+      "description": null,
+      "sourceTaxonomy": {
+        "provider": "TOUR_API",
+        "lclsSystm2": null,
+        "lclsSystm3": "HS010100",
+        "labelKo": null
+      },
+      "placeRoles": [
+        {
+          "code": "CORE_TRADITIONAL_PLACE",
+          "labelKo": "전통 공간·문화유산"
+        }
+      ],
+      "topics": [
+        "TRADITIONAL_SPACE_HERITAGE",
+        "K_DRAMA"
+      ],
+      "images": [],
+      "odii": {
+        "linked": false,
+        "storyCount": 0
+      },
+      "kContents": {
+        "relationCount": 1,
+        "href": "/api/v1/places/p-tourapi-123/k-contents"
+      },
+      "saveAvailable": false,
+      "savedByMe": null
+    }
+  },
+  "name": "discovery-place-detail-normal"
+}

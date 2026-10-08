@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/discovery/places/p-tourapi-missing"
+  },
+  "response": {
+    "status": 404,
+    "schema": "ApiError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "NOT_FOUND",
+      "message": "NOT_FOUND",
+      "requestId": "fixture-request",
+      "details": {
+        "resourceType": "PLACE"
+      }
+    }
+  },
+  "name": "discovery-place-not-found"
+}
