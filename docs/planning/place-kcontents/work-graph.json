@@ -1,7 +1,7 @@
 {
   "repo": "YRootLab/OnMaru-backend",
   "root": {
-    "title": "feat: 전통문화 선별 카탈로그와 근거 기반 K-Contents 공개 (#603 재정의)",
+    "title": "feat: 전통문화 선별 카탈로그와 근거 기반 K-Contents 공개",
     "goal": "선택한 TourAPI 후보를 안전하게 선별·증분 게시하고 검증된 작품–장소 촬영 관계를 신규 조회 API로 제공한다.",
     "background": "현행 #603의 3일·전체 catalog·초기 100곳/150관계 전제는 최신 PRD의 주간 선별 수집·단계적 50곳 품질 gate 및 심사 중 기존 API 보존 정책과 충돌한다. 기존 #603을 Root로 재정의하고 신규 Root를 만들지 않는다.",
     "scope": "34개 신분류 소분류와 제한된 키워드 구제, INCLUDE/REVIEW/EXCLUDE, contentId·SHA-256 증분 diff, 별도 신규 탐색 revision, 작품·관계·근거·태그 저장, 로컬 워커 조사, 6개 읽기 API, 회귀 및 단계적 공개",
