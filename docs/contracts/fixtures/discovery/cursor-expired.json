@@ -1,0 +1,21 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/discovery/places",
+    "query": {
+      "cursor": "expired-opaque"
+    }
+  },
+  "response": {
+    "status": 410,
+    "schema": "ApiError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "CURSOR_EXPIRED",
+      "message": "CURSOR_EXPIRED",
+      "requestId": "fixture-request",
+      "details": {}
+    }
+  },
+  "name": "discovery-cursor-expired"
+}

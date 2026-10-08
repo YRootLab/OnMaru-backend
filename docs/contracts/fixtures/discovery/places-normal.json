@@ -1,0 +1,84 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/discovery/places",
+    "query": {
+      "topic": "K_DRAMA"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "DiscoveryPlacePage",
+    "body": {
+      "schemaVersion": "1.2",
+      "catalogRevision": "00000000-0000-0000-0000-000000000001",
+      "countsAsOf": "2026-10-09T00:00:00Z",
+      "matchingPlaceCount": 1,
+      "facets": {
+        "topic": [
+          {
+            "code": "K_DRAMA",
+            "count": 1
+          }
+        ],
+        "regionCode": [
+          {
+            "code": "11",
+            "labelKo": "서울특별시",
+            "count": 1
+          }
+        ],
+        "placeRole": [
+          {
+            "code": "CORE_TRADITIONAL_PLACE",
+            "labelKo": "전통 공간·문화유산",
+            "count": 1
+          }
+        ],
+        "type": [
+          {
+            "code": "DRAMA",
+            "count": 1
+          }
+        ],
+        "workTagCode": [],
+        "relationTagCode": []
+      },
+      "items": [
+        {
+          "placeId": "p-tourapi-123",
+          "name": "예시 궁궐",
+          "region": {
+            "code": "11",
+            "nameKo": "서울특별시"
+          },
+          "placeRoles": [
+            {
+              "code": "CORE_TRADITIONAL_PLACE",
+              "labelKo": "전통 공간·문화유산"
+            }
+          ],
+          "topics": [
+            "TRADITIONAL_SPACE_HERITAGE",
+            "K_DRAMA"
+          ],
+          "placeImage": null,
+          "odiiLinked": false,
+          "featuredRelation": {
+            "relationId": "00000000-0000-0000-0000-000000000011",
+            "workId": "00000000-0000-0000-0000-000000000012",
+            "workTitle": "예시 작품",
+            "type": "DRAMA",
+            "relationType": "FILMING_LOCATION"
+          },
+          "matchingWorkCount": 1,
+          "saveAvailable": false,
+          "savedByMe": null
+        }
+      ],
+      "hasMore": false,
+      "nextCursor": null
+    }
+  },
+  "name": "discovery-places-normal"
+}

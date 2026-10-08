@@ -1,0 +1,188 @@
+openapi: 3.1.0
+info:
+  title: OnMaru 전통문화 탐색 공개 조회
+  version: 1.2.0-draft
+  description: 승인된 별도 discovery revision을 읽는 기본 비활성 공개 API. 응답은 모두 Cache-Control no-store.
+servers:
+  - url: /api/v1
+paths:
+  /discovery/topics:
+    get:
+      operationId: listDiscoveryTopics
+      summary: 공개 탐색 주제와 고유 장소 건수
+      responses:
+        '200': {description: 주제 목록, content: {application/json: {schema: {$ref: '#/components/schemas/DiscoveryTopics'}}}}
+        '503': {description: 게시본 없음 또는 읽기 장애, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+  /discovery/places:
+    get:
+      operationId: listDiscoveryPlaces
+      summary: 고유 장소 카드와 자기 차원 제외 facet
+      parameters:
+        - {name: topic, in: query, schema: {type: string, enum: [TRADITIONAL_SPACE_HERITAGE, TRADITIONAL_EXPERIENCE, TRADITIONAL_FOOD_TEA, K_DRAMA, K_MOVIE, K_POP_MV]}}
+        - {name: regionCode, in: query, schema: {type: string}}
+        - {name: placeRole, in: query, schema: {type: string, enum: [CORE_TRADITIONAL_PLACE, TRADITIONAL_EXPERIENCE, SURROUNDING_CULTURE]}}
+        - {name: workId, in: query, schema: {type: string}}
+        - {name: type, in: query, schema: {type: string, enum: [DRAMA, MOVIE, VARIETY, MUSIC_VIDEO]}}
+        - {name: artistId, in: query, schema: {type: string}}
+        - {name: workTagCodes, in: query, schema: {type: string}}
+        - {name: relationTagCodes, in: query, schema: {type: string}}
+        - {name: odiiLinked, in: query, schema: {type: boolean}}
+        - {name: sort, in: query, schema: {type: string, enum: [RELEVANCE, NAME], default: RELEVANCE}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: 별도 게시 revision의 장소 페이지, content: {application/json: {schema: {$ref: '#/components/schemas/DiscoveryPlacePage'}}}}
+        '400': {description: 잘못된 요청 또는 커서, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+        '410': {description: 유지 기간이 끝난 커서, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+        '429': {description: 요청 제한, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+        '500': {description: 예상하지 못한 오류, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+        '503': {description: 게시본 없음 또는 읽기 장애, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+  /discovery/places/{placeId}:
+    get:
+      operationId: getDiscoveryPlace
+      summary: 공개 탐색 장소 상세
+      parameters:
+        - {name: placeId, in: path, required: true, schema: {type: string, pattern: '^p-[a-z0-9]+(-[a-z0-9]+)*$'}}
+      responses:
+        '200': {description: 공개 상세, content: {application/json: {schema: {$ref: '#/components/schemas/DiscoveryPlaceDetail'}}}}
+        '400': {description: 잘못된 ID, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+        '404': {description: 게시되지 않은 장소, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+        '429': {description: 요청 제한, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+        '500': {description: 예상하지 못한 오류, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+        '503': {description: 게시본 없음 또는 읽기 장애, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+components:
+  schemas:
+    ApiError:
+      type: object
+      required: [schemaVersion, code, message, requestId, details]
+      properties:
+        schemaVersion: {const: '1.2'}
+        code: {type: string}
+        message: {type: string}
+        requestId: {type: string}
+        details: {type: object}
+    Region:
+      type: object
+      required: [code, nameKo]
+      properties:
+        code: {type: [string, 'null']}
+        nameKo: {type: [string, 'null']}
+    Role:
+      type: object
+      required: [code, labelKo]
+      properties:
+        code: {type: string, enum: [CORE_TRADITIONAL_PLACE, TRADITIONAL_EXPERIENCE, SURROUNDING_CULTURE]}
+        labelKo: {type: string}
+    FeaturedRelation:
+      type: object
+      required: [relationId, workId, workTitle, type, relationType]
+      properties:
+        relationId: {type: string}
+        workId: {type: string}
+        workTitle: {type: string}
+        type: {type: string, enum: [DRAMA, MOVIE, VARIETY, MUSIC_VIDEO]}
+        relationType: {const: FILMING_LOCATION}
+    DiscoveryTopic:
+      type: object
+      required: [code, labelKo, labelEn, placeCount, active]
+      properties:
+        code: {type: string}
+        labelKo: {type: string}
+        labelEn: {type: string}
+        placeCount: {type: integer, minimum: 0}
+        active: {type: boolean}
+    DiscoveryTopics:
+      type: object
+      required: [schemaVersion, catalogRevision, countsAsOf, items]
+      properties:
+        schemaVersion: {const: '1.2'}
+        catalogRevision: {type: string}
+        countsAsOf: {type: string, format: date-time}
+        items: {type: array, minItems: 6, maxItems: 6, items: {$ref: '#/components/schemas/DiscoveryTopic'}}
+    FacetItem:
+      type: object
+      required: [code, count]
+      properties:
+        code: {type: string}
+        labelKo: {type: string}
+        count: {type: integer, minimum: 0}
+    DiscoveryFacets:
+      type: object
+      required: [topic, regionCode, placeRole, type, workTagCode, relationTagCode]
+      properties:
+        topic: {type: array, items: {$ref: '#/components/schemas/FacetItem'}}
+        regionCode: {type: array, items: {$ref: '#/components/schemas/FacetItem'}}
+        placeRole: {type: array, items: {$ref: '#/components/schemas/FacetItem'}}
+        type: {type: array, items: {$ref: '#/components/schemas/FacetItem'}}
+        workTagCode: {type: array, items: {$ref: '#/components/schemas/FacetItem'}}
+        relationTagCode: {type: array, items: {$ref: '#/components/schemas/FacetItem'}}
+    DiscoveryPlaceCard:
+      type: object
+      required: [placeId, name, region, placeRoles, topics, placeImage, odiiLinked, featuredRelation, matchingWorkCount, saveAvailable, savedByMe]
+      properties:
+        placeId: {type: string}
+        name: {type: string}
+        region: {$ref: '#/components/schemas/Region'}
+        placeRoles: {type: array, items: {$ref: '#/components/schemas/Role'}}
+        topics: {type: array, items: {type: string}}
+        placeImage: {type: ['null', object]}
+        odiiLinked: {type: boolean}
+        featuredRelation: {oneOf: [{$ref: '#/components/schemas/FeaturedRelation'}, {type: 'null'}]}
+        matchingWorkCount: {type: integer, minimum: 0}
+        saveAvailable: {type: boolean}
+        savedByMe: {type: [boolean, 'null']}
+    DiscoveryPlacePage:
+      type: object
+      required: [schemaVersion, catalogRevision, countsAsOf, matchingPlaceCount, facets, items, hasMore, nextCursor]
+      properties:
+        schemaVersion: {const: '1.2'}
+        catalogRevision: {type: string}
+        countsAsOf: {type: string, format: date-time}
+        matchingPlaceCount: {type: integer, minimum: 0}
+        facets: {$ref: '#/components/schemas/DiscoveryFacets'}
+        items: {type: array, items: {$ref: '#/components/schemas/DiscoveryPlaceCard'}}
+        hasMore: {type: boolean}
+        nextCursor: {type: [string, 'null']}
+    Coordinates:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: {type: number}
+        longitude: {type: number}
+    SourceTaxonomy:
+      type: object
+      required: [provider, lclsSystm2, lclsSystm3, labelKo]
+      properties:
+        provider: {const: TOUR_API}
+        lclsSystm2: {type: [string, 'null']}
+        lclsSystm3: {type: [string, 'null']}
+        labelKo: {type: [string, 'null']}
+    DiscoveryPlaceDetail:
+      type: object
+      required: [schemaVersion, placeId, name, region, address, coordinates, description, sourceTaxonomy, placeRoles, topics, images, odii, kContents, saveAvailable, savedByMe]
+      properties:
+        schemaVersion: {const: '1.2'}
+        placeId: {type: string}
+        name: {type: string}
+        region: {$ref: '#/components/schemas/Region'}
+        address: {type: [string, 'null']}
+        coordinates: {oneOf: [{$ref: '#/components/schemas/Coordinates'}, {type: 'null'}]}
+        description: {type: [string, 'null']}
+        sourceTaxonomy: {$ref: '#/components/schemas/SourceTaxonomy'}
+        placeRoles: {type: array, items: {$ref: '#/components/schemas/Role'}}
+        topics: {type: array, items: {type: string}}
+        images: {type: array, items: {type: object}}
+        odii:
+          type: object
+          required: [linked, storyCount]
+          properties:
+            linked: {type: boolean}
+            storyCount: {type: integer, minimum: 0}
+        kContents:
+          type: object
+          required: [relationCount, href]
+          properties:
+            relationCount: {type: integer, minimum: 0}
+            href: {type: string}
+        saveAvailable: {type: boolean}
+        savedByMe: {type: [boolean, 'null']}
