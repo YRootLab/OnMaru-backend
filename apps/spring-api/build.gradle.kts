@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":adapters:persistence-jdbc"))
     implementation(project(":modules:audio"))
     implementation(project(":modules:catalog"))
+    implementation(project(":modules:kcontents"))
     implementation(project(":modules:community"))
     implementation(project(":modules:identity"))
     implementation(project(":modules:insights"))

@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":modules:journey"))
     implementation(project(":modules:operations"))
     implementation(project(":modules:catalog"))
+    implementation(project(":modules:kcontents"))
     implementation(project(":modules:community"))
     implementation(project(":modules:insights"))
     implementation(project(":modules:identity"))

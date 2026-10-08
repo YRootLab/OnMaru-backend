@@ -401,6 +401,15 @@
       "checksum": "admin-pipeline-details-v045-20261006",
       "sha256": "8101c5478d417066e667ee2ce532b4b87ea140af8a3ec6eb4cf1b7388b62b870",
       "description": "Admin pipeline run scope, progress snapshot, latest-run index and sanitized failures"
+    },
+    {
+      "version": "046",
+      "reservedFor": "KCONTENTS_NORMALIZED_SCHEMA",
+      "issueNumber": 684,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V046__684_kcontents_normalized_schema.sql",
+      "checksum": "kcontents-normalized-schema-v046-20261008",
+      "sha256": "05ea2f1c715e60895a8fa873d3350f9525dcd893075d4f0dae7a3ee86cfc4c62",
+      "description": "Normalized K-Contents works, place filming relations, evidence and public gate"
     }
   ]
 }
