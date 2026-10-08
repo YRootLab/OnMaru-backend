@@ -20,6 +20,32 @@ class SelectedDiscoverySyncTests {
     private static final Instant DUE = Instant.parse("2026-10-12T18:00:00Z");
 
     @Test
+    void manualSlotsInOneWeekAllowDryRunThenProgressiveApprovalWithoutReusingARevision() {
+        var store = new MemoryStore(); var fixture = new Fixture();
+        var first = row("1", "HS010100", "첫 궁궐", "same");
+        var second = row("2", "HS010100", "둘째 궁궐", "same");
+        fixture.rows = List.of(first, second);
+        var service = fixture.service(store, 3000);
+        UUID dryRun = UUID.randomUUID();
+        assertThat(service.run(dryRun, DUE)).isEqualTo(SelectedDiscoverySync.Result.STAGED);
+        assertThat(service.run(dryRun, DUE)).isEqualTo(SelectedDiscoverySync.Result.ALREADY_PROCESSED);
+        assertThat(store.activeRevision).isNull();
+
+        store.approvals.put("1", approval(first, fixture.overview, DiscoveryCandidatePolicy.Role.CORE_TRADITIONAL_PLACE));
+        UUID pilot = UUID.randomUUID();
+        assertThat(service.run(pilot, DUE.plusSeconds(60))).isEqualTo(SelectedDiscoverySync.Result.PUBLISHED);
+        assertThat(store.activePublic).containsOnlyKeys("1");
+        assertThat(service.run(pilot, DUE.plusSeconds(60))).isEqualTo(SelectedDiscoverySync.Result.ALREADY_PROCESSED);
+
+        store.approvals.put("2", approval(second, fixture.overview, DiscoveryCandidatePolicy.Role.CORE_TRADITIONAL_PLACE));
+        UUID expanded = UUID.randomUUID();
+        assertThat(service.run(expanded, DUE.plusSeconds(120))).isEqualTo(SelectedDiscoverySync.Result.PUBLISHED);
+        assertThat(store.activeRevision).isEqualTo(expanded);
+        assertThat(store.activePublic).containsOnlyKeys("1", "2");
+        assertThat(store.claimed).containsExactlyInAnyOrder(dryRun, pilot, expanded);
+    }
+
+    @Test
     void detectsDetailOnlyChangeWithSameModifiedTimeAndKeepsLastGoodRevision() {
         var store = new MemoryStore();
         var fixture = new Fixture();
