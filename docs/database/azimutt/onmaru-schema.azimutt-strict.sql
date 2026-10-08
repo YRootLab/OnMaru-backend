@@ -638,6 +638,9 @@ CREATE TABLE "k_content_research_jobs" (
   "lease_expires_at" timestamp,
   "result_status" varchar,
   "result_json" text,
+  "schema_version" varchar,
+  "prompt_version" varchar,
+  "model_version" varchar,
   "completed_at" timestamp,
   "last_failure_code" varchar,
   "created_at" timestamp NOT NULL,
@@ -663,7 +666,9 @@ CREATE TABLE "k_content_research_evidence" (
   "title" text NOT NULL,
   "publisher" varchar,
   "excerpt" varchar NOT NULL,
-  "observed_at" timestamp NOT NULL
+  "observed_at" timestamp NOT NULL,
+  "source_verified_at" timestamp,
+  "source_verified_by" varchar
 );
 
 CREATE TABLE "k_content_research_receipts" (
@@ -684,6 +689,44 @@ CREATE TABLE "k_content_research_events" (
   "actor" varchar NOT NULL,
   "detail_code" varchar,
   "created_at" timestamp NOT NULL
+);
+
+CREATE TABLE "k_content_validation_runs" (
+  "id" varchar(36) PRIMARY KEY,
+  "job_id" varchar(36) NOT NULL,
+  "requeue_epoch" integer NOT NULL,
+  "input_fingerprint" varchar NOT NULL,
+  "source_fingerprint" varchar NOT NULL,
+  "schema_version" varchar NOT NULL,
+  "prompt_version" varchar NOT NULL,
+  "model_version" varchar NOT NULL,
+  "rule_version" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "candidate_count" integer NOT NULL,
+  "validated_at" timestamp NOT NULL
+);
+
+CREATE TABLE "k_content_validation_reviews" (
+  "id" varchar(36) PRIMARY KEY,
+  "validation_run_id" varchar(36) NOT NULL,
+  "candidate_index" integer NOT NULL,
+  "relation_id" varchar(36),
+  "reason_code" varchar NOT NULL,
+  "candidate_json" text NOT NULL,
+  "state" varchar NOT NULL,
+  "reviewed_by" varchar,
+  "reviewed_at" timestamp,
+  "created_at" timestamp NOT NULL
+);
+
+CREATE TABLE "k_content_validation_audit" (
+  "id" varchar(36) PRIMARY KEY,
+  "validation_run_id" varchar(36) NOT NULL,
+  "review_id" varchar(36),
+  "action" varchar NOT NULL,
+  "actor" varchar NOT NULL,
+  "detail_code" varchar,
+  "recorded_at" timestamp NOT NULL
 );
 
 CREATE TABLE "audio_odii_spots" (
@@ -1242,6 +1285,8 @@ CREATE TABLE "ai_corpus_sync_runs" (
 
 
 
+
+
 COMMENT ON TABLE "discovery_explorations" IS 'Executable DDL must enforce exactly one owner: (owner_member_id IS NULL) <> (owner_guest_id IS NULL).';
 
 COMMENT ON TABLE "discovery_runs" IS 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.';
@@ -1391,6 +1436,16 @@ ALTER TABLE "selected_discovery_quarantines" ADD FOREIGN KEY ("revision_id") REF
 ALTER TABLE "selected_discovery_public_items" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id");
 
 ALTER TABLE "selected_discovery_active" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id");
+
+ALTER TABLE "k_content_validation_runs" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id");
+
+ALTER TABLE "k_content_validation_reviews" ADD FOREIGN KEY ("validation_run_id") REFERENCES "k_content_validation_runs" ("id");
+
+ALTER TABLE "k_content_validation_reviews" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id");
+
+ALTER TABLE "k_content_validation_audit" ADD FOREIGN KEY ("validation_run_id") REFERENCES "k_content_validation_runs" ("id");
+
+ALTER TABLE "k_content_validation_audit" ADD FOREIGN KEY ("review_id") REFERENCES "k_content_validation_reviews" ("id");
 
 ALTER TABLE "k_content_research_runs" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id");
 

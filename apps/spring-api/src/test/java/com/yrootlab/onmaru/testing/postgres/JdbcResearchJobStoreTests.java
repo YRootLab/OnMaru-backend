@@ -140,7 +140,7 @@ class JdbcResearchJobStoreTests {
         var db=new JdbcTemplate(new DriverManagerDataSource(url,"onmaru_test","onmaru_test"));
         db.update("INSERT INTO onmaru.catalog_place_identity(id,created_at) VALUES (?,now())",existing);
         Flyway.configure().dataSource(url,"onmaru_test","onmaru_test").locations("classpath:db/migration/baseline")
-                .baselineOnMigrate(true).baselineVersion("0").load().migrate();
+                .target("48").baselineOnMigrate(true).baselineVersion("0").load().migrate();
         assertThat(db.queryForObject("SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",String.class)).isEqualTo("048");
         assertThat(db.queryForObject("SELECT count(*) FROM onmaru.catalog_place_identity WHERE id=?",Integer.class,existing)).isEqualTo(1);
         assertThat(db.queryForObject("SELECT count(*) FROM information_schema.tables WHERE table_schema='onmaru' AND table_name='k_content_research_jobs'",Integer.class)).isEqualTo(1);

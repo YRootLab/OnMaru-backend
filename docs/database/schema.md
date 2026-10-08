@@ -13,6 +13,14 @@
 // V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
 // failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
 // V046은 별도 K-Contents 작품/별칭/촬영 관계/근거/태그/요약을 정규화한다.
+// V049는 성공한 조사 job의 epoch별 서버 검증 결과, 검수 큐, 승인 감사를 별도 기록한다.
+// 제출 schema/prompt/model 버전을 job에 보존하고 입력 근거 bundle fingerprint로
+// 재검증을 추적한다. 검수자는 관계 검수에서 특정 evidence ID를 확인한 뒤에만
+// HUMAN_VERIFIED로 승격할 수 있다. 태그·요약 검수는 관계 상태를 바꾸지 않는다.
+// worker가 제출한 URL·발췌는 출처 검증이 아니므로 기본 REVIEW_REQUIRED다.
+// 서버가 원문·인용문을 독립 확인해 source_verified_at/by를 기록한 근거만
+// 자동 confidence에 사용한다. 기존 검증 관계는 약한 재조사 결과로 강등하지 않는다.
+// 신규 작품 API는 k_content_public_relations view를 사용하며 legacy 공개 경로와 분리된다.
 // V047은 기존 kto-korean-tour active pointer와 분리된 주간 선별 탐색 run,
 // 페이지 checkpoint, 후보/diff·격리, 수동 승인 감사, 공개 revision과 별도 active pointer를 둔다.
 // 동일 TourAPI contentId는 catalog_place_sources의 기존 provider/dataset/language 키로

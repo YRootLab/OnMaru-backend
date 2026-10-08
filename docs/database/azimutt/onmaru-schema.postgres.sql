@@ -724,6 +724,9 @@ CREATE TABLE "k_content_research_jobs" (
   "lease_expires_at" timestamptz,
   "result_status" varchar,
   "result_json" jsonb,
+  "schema_version" varchar,
+  "prompt_version" varchar,
+  "model_version" varchar,
   "completed_at" timestamptz,
   "last_failure_code" varchar,
   "created_at" timestamptz NOT NULL,
@@ -749,7 +752,9 @@ CREATE TABLE "k_content_research_evidence" (
   "title" text NOT NULL,
   "publisher" varchar,
   "excerpt" varchar NOT NULL,
-  "observed_at" timestamptz NOT NULL
+  "observed_at" timestamptz NOT NULL,
+  "source_verified_at" timestamptz,
+  "source_verified_by" varchar
 );
 
 CREATE TABLE "k_content_research_receipts" (
@@ -770,6 +775,44 @@ CREATE TABLE "k_content_research_events" (
   "actor" varchar NOT NULL,
   "detail_code" varchar,
   "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_validation_runs" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "requeue_epoch" integer NOT NULL,
+  "input_fingerprint" varchar NOT NULL,
+  "source_fingerprint" varchar NOT NULL,
+  "schema_version" varchar NOT NULL,
+  "prompt_version" varchar NOT NULL,
+  "model_version" varchar NOT NULL,
+  "rule_version" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "candidate_count" integer NOT NULL,
+  "validated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_validation_reviews" (
+  "id" uuid PRIMARY KEY,
+  "validation_run_id" uuid NOT NULL,
+  "candidate_index" integer NOT NULL,
+  "relation_id" uuid,
+  "reason_code" varchar NOT NULL,
+  "candidate_json" jsonb NOT NULL,
+  "state" varchar NOT NULL,
+  "reviewed_by" varchar,
+  "reviewed_at" timestamptz,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_validation_audit" (
+  "id" uuid PRIMARY KEY,
+  "validation_run_id" uuid NOT NULL,
+  "review_id" uuid,
+  "action" varchar NOT NULL,
+  "actor" varchar NOT NULL,
+  "detail_code" varchar,
+  "recorded_at" timestamptz NOT NULL
 );
 
 CREATE TABLE "audio_odii_spots" (
@@ -1307,6 +1350,10 @@ CREATE UNIQUE INDEX ON "k_content_research_evidence" ("job_id", "canonical_url")
 
 CREATE UNIQUE INDEX ON "k_content_research_receipts" ("job_id", "idempotency_key");
 
+CREATE UNIQUE INDEX ON "k_content_validation_runs" ("job_id", "requeue_epoch");
+
+CREATE INDEX ON "k_content_validation_runs" ("input_fingerprint");
+
 CREATE UNIQUE INDEX ON "audio_odii_spots" ("provider", "tid", "tlid");
 
 CREATE UNIQUE INDEX ON "audio_odii_spots" ("public_id", "lang_code");
@@ -1616,6 +1663,16 @@ ALTER TABLE "selected_discovery_quarantines" ADD FOREIGN KEY ("revision_id") REF
 ALTER TABLE "selected_discovery_public_items" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "selected_discovery_active" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_runs" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_reviews" ADD FOREIGN KEY ("validation_run_id") REFERENCES "k_content_validation_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_reviews" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_audit" ADD FOREIGN KEY ("validation_run_id") REFERENCES "k_content_validation_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_audit" ADD FOREIGN KEY ("review_id") REFERENCES "k_content_validation_reviews" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "k_content_research_runs" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 

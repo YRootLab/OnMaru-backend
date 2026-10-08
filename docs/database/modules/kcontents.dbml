@@ -197,6 +197,9 @@ TableGroup kcontents [color: #B07AA1] {
   k_content_research_evidence
   k_content_research_receipts
   k_content_research_events
+  k_content_validation_runs
+  k_content_validation_reviews
+  k_content_validation_audit
   k_contents
   k_content_aliases
   k_content_metadata_sources
@@ -232,6 +235,9 @@ Table k_content_research_jobs [headercolor: #B07AA1] {
   lease_expires_at timestamptz
   result_status varchar
   result_json jsonb
+  schema_version varchar
+  prompt_version varchar
+  model_version varchar
   completed_at timestamptz
   last_failure_code varchar
   created_at timestamptz [not null]
@@ -258,6 +264,8 @@ Table k_content_research_evidence [headercolor: #B07AA1] {
   publisher varchar
   excerpt varchar [not null]
   observed_at timestamptz [not null]
+  source_verified_at timestamptz
+  source_verified_by varchar
   Indexes { (job_id, canonical_url) [unique] }
 }
 Table k_content_research_receipts [headercolor: #B07AA1] {
@@ -279,6 +287,49 @@ Table k_content_research_events [headercolor: #B07AA1] {
   detail_code varchar
   created_at timestamptz [not null]
 }
+// Issue #688. Validation is private; public readers still use k_content_public_relations.
+Table k_content_validation_runs [headercolor: #B07AA1] {
+  id uuid [pk]
+  job_id uuid [not null]
+  requeue_epoch integer [not null]
+  input_fingerprint varchar [not null]
+  source_fingerprint varchar [not null]
+  schema_version varchar [not null]
+  prompt_version varchar [not null]
+  model_version varchar [not null]
+  rule_version varchar [not null]
+  status varchar [not null]
+  candidate_count integer [not null]
+  validated_at timestamptz [not null]
+  Indexes { (job_id, requeue_epoch) [unique]
+    input_fingerprint }
+}
+Table k_content_validation_reviews [headercolor: #B07AA1] {
+  id uuid [pk]
+  validation_run_id uuid [not null]
+  candidate_index integer [not null]
+  relation_id uuid
+  reason_code varchar [not null]
+  candidate_json jsonb [not null]
+  state varchar [not null]
+  reviewed_by varchar
+  reviewed_at timestamptz
+  created_at timestamptz [not null]
+}
+Table k_content_validation_audit [headercolor: #B07AA1] {
+  id uuid [pk]
+  validation_run_id uuid [not null]
+  review_id uuid
+  action varchar [not null]
+  actor varchar [not null]
+  detail_code varchar
+  recorded_at timestamptz [not null]
+}
+Ref: k_content_validation_runs.job_id > k_content_research_jobs.id
+Ref: k_content_validation_reviews.validation_run_id > k_content_validation_runs.id
+Ref: k_content_validation_reviews.relation_id >? k_content_place_relations.id
+Ref: k_content_validation_audit.validation_run_id > k_content_validation_runs.id
+Ref: k_content_validation_audit.review_id >? k_content_validation_reviews.id
 Ref: k_content_research_runs.job_id > k_content_research_jobs.id
 Ref: k_content_research_evidence.job_id > k_content_research_jobs.id
 Ref: k_content_research_receipts.job_id > k_content_research_jobs.id

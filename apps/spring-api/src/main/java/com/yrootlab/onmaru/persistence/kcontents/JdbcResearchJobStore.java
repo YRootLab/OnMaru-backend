@@ -181,11 +181,14 @@ public final class JdbcResearchJobStore {
             }
             try (PreparedStatement update=connection.prepareStatement("""
                     UPDATE onmaru.k_content_research_jobs SET status='SUCCEEDED',result_status=?,result_json=?::jsonb,
+                    schema_version=?,prompt_version=?,model_version=?,
                     completed_at=now(),lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,
                     last_idempotency_key=?,last_request_hash=?,updated_at=now() WHERE id=?
                     """)) {
                 update.setString(1,submission.resultStatus());update.setString(2,submission.resultJson());
-                update.setString(3,idempotencyKey);update.setString(4,requestHash);update.setObject(5,jobId);update.executeUpdate();
+                update.setString(3,submission.schemaVersion());update.setString(4,submission.promptVersion());
+                update.setString(5,submission.modelVersion());
+                update.setString(6,idempotencyKey);update.setString(7,requestHash);update.setObject(8,jobId);update.executeUpdate();
             }
             receipt(connection,jobId,idempotencyKey,requestHash,"SUCCEEDED",worker,token);
             finishRun(connection,jobId,"SUCCEEDED",null);
