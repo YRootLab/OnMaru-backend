@@ -428,6 +428,15 @@
       "checksum": "kcontents-research-jobs-v048-20261008",
       "sha256": "94b73496accd7eb680ec4d4af991ce026d2e7edb5f777bce74f1dc21c59475e3",
       "description": "Durable K-Contents research leases, evidence, receipts and audit"
+    },
+    {
+      "version": "049",
+      "reservedFor": "KCONTENTS_EVIDENCE_VALIDATION",
+      "issueNumber": 688,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V049__688_kcontents_validation.sql",
+      "checksum": "kcontents-validation-v049-20261009",
+      "sha256": "b3ce6854e29bd3737f3e8c3831ede05c5704c88d00e318390d6340c51b0e5cf4",
+      "description": "Evidence-bound extraction validation, review queue and audit"
     }
   ]
 }

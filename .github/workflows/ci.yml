@@ -87,6 +87,7 @@ jobs:
             :adapters:tourism-api:test \
             :modules:insights:test \
             :modules:catalog:test \
+            :modules:kcontents:test \
             :modules:audio:test \
             :modules:community:test \
             :modules:identity:test \
@@ -114,7 +115,7 @@ jobs:
       - name: Contract validator tests
         run: |
           python3 -m pip install -r scripts/test/requirements-contract.txt
-          python3 -m pytest scripts/test/test_contract_validation.py
+          python3 -m pytest scripts/test/test_contract_validation.py scripts/test/test_kcontents_extraction_schema.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
