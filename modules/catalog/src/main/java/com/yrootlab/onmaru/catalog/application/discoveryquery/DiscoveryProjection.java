@@ -115,6 +115,7 @@ public final class DiscoveryProjection {
         value.put("region",region(place));value.put("address",place.address());
         value.put("coordinates",place.latitude()==null||place.longitude()==null?null:Map.of("latitude",place.latitude(),"longitude",place.longitude()));
         value.put("description",place.description());
+        value.put("placeSummaryPoints",place.placeSummaryPoints());
         var source=new LinkedHashMap<String,Object>();source.put("provider","TOUR_API");source.put("lclsSystm2",place.lclsSystm2());
         source.put("lclsSystm3",place.lclsSystm3());source.put("labelKo",place.taxonomyLabel());value.put("sourceTaxonomy",source);
         value.put("placeRoles",roles(place));value.put("topics",place.topics());value.put("images",List.of());

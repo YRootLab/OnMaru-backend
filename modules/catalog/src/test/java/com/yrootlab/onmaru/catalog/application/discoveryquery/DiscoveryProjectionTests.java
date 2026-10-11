@@ -31,6 +31,7 @@ class DiscoveryProjectionTests {
         assertThat(DiscoveryProjection.facets(snapshot,filter).get("type").toString()).contains("DRAMA").doesNotContain("MOVIE");
         assertThat(DiscoveryProjection.facets(snapshot,filter).get("workTagCode").toString()).contains("ROMANCE").doesNotContain("ACTION");
         assertThat(DiscoveryProjection.topics(snapshot)).hasSize(6);
+        assertThat(DiscoveryProjection.detail(place).get("placeSummaryPoints")).isEqualTo(List.of());
     }
     @Test void keysetSortDoesNotDependOnCurrentRelations() {
         var place=new Place("p-tourapi-1",UUID.randomUUID(),"궁궐","11","서울","CORE_TRADITIONAL_PLACE",null,null,null,null,
