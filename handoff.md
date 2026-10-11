@@ -268,3 +268,4 @@ git diff --check # 통과
 - Branch `feature/718-bulk-labeling`, Issue #718. TourAPI 50필터/55페이지/14,917응답, 고유 11,081건 전수 1차 라벨을 `tmp/kcontents-718/`에 생성. 산출물은 Git 제외.
 - 공식 촬영지 CSV 15,034행 SHA 확인, 정확명+30m 후보 216관계/98곳. 기존 검증 17곳 중 옥천성당(contentId 2717818)이 새 수집 범위 밖이라 카탈로그 전환 보호 필요.
 - 운영 DB 적재, FE API 연결, 후보 관계 검수는 미완. 자세한 수치와 실행 명령은 `docs/operations/runbooks/full-candidate-labeling.md`.
+- #718 V050 adds versioned internal label batch tables and active pointer. `prepare-kcontent-label-import.py` emits default-ROLLBACK import with count/hash checks. V050 is not yet deployed; current 11,081 labels remain local. Existing verified contentId 2717818 prevents active label publication and #716 catalog pointer switch until rescued.

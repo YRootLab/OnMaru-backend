@@ -9,3 +9,11 @@
 재실행 절차: `ONMARU_TOURAPI_SERVICE_KEY` 환경변수를 설정하고 `python3 scripts/policy-validation/capture-tourapi.py --output tmp/kcontents-718/tourapi-capture.json`을 실행한다. 이전 운영 catalog 스냅샷은 `scripts/policy-validation/readonly-catalog-snapshot.sql`로 읽기 전용 추출한다. 촬영지 CSV와 기존 검증 관계를 확보한 뒤 `python3 scripts/policy-validation/label-selected-candidates.py <capture> <previous-snapshot> --official-csv <official-csv> --verified-relations <verified-jsonl> --labels <labels-jsonl> --manifest <manifest-json>`을 실행한다. 산출물의 고유 ID 수, 중복, 충돌, 입력 SHA, 새/기존 차집합을 검사한다.
 
 **현재 경계:** 라벨 파일은 로컬 1차 가공 결과다. 새 revision/운영 DB에는 아직 적재되지 않았고 FE API가 읽는 값도 아니다. `INCLUDE`도 상세·권리 gate 전의 정책 판정이다. `displaySummary`는 TourAPI 제목과 주소를 연결한 출처 기반 문구이며 LLM 장면/작품 요약이 아니다. 공식 CSV 후보의 장면 설명과 장소 동일성 검수, 기존 검증 장소 보호, 운영 적재 및 API 회귀를 완료한 뒤 공개한다.
+
+V050 migration이 적용되면 `k_content_label_batches`/`k_content_candidate_labels`에 전수 라벨을 **STAGED**로 보관할 수 있다. `scripts/operations/prepare-kcontent-label-import.py`는 기본 `ROLLBACK` SQL을 생성하며, `--apply`를 명시한 경우에만 transaction을 commit한다. `--publish`는 기존 검증 장소가 후보 밖에 있으면 거부한다. 현재 옥천성당이 후보 밖이므로 배치를 active로 바꾸지 않는다. 가져온 행의 총수와 결정 집합 SHA-256을 DB에서 다시 검사하며 동일 batch 재실행은 멱등이다. 이 내부 배치와 `selected_discovery_active`는 별도 pointer다.
+
+```bash
+python3 scripts/operations/prepare-kcontent-label-import.py \
+  tmp/kcontents-718/labels.jsonl tmp/kcontents-718/manifest.json \
+  --output tmp/kcontents-718/import-preview.sql
+```
