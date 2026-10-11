@@ -10,9 +10,11 @@ import org.junit.jupiter.api.Test;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import com.yrootlab.onmaru.catalog.application.sourcefetch.SelectedSourceFetch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TourApiCatalogSnapshotSourceTests {
 
@@ -63,6 +65,37 @@ class TourApiCatalogSnapshotSourceTests {
 
         assertThat(result.rawCount()).isEqualTo(3);
         assertThat(requested).filteredOn(uri -> uri.contains("areaBasedList2")).hasSize(2);
+    }
+
+    @Test
+    void verifiedPlaceKeywordMustReturnItsExactContentId() {
+        TourApiPageFetcher fetcher = (operation, uri) -> {
+            if (operation.equals("lclsSystmCode2")) {
+                var codes = SelectedSourceFetch.CODES.stream().map(code ->
+                        new TourApiSourceRecord(operation, objectMapper.createObjectNode()
+                                .put("lclsSystm3Cd", code).put("lclsSystm3Nm", "고궁"))).toList();
+                var all = new ArrayList<>(codes);
+                all.add(new TourApiSourceRecord(operation, objectMapper.createObjectNode()
+                        .put("lclsSystm3Cd", "HS030200").put("lclsSystm3Nm", "종교성지")));
+                return TourApiParseResult.success(new TourApiPage(operation, 1, 1000, all.size(), true, all));
+            }
+            var query = java.net.URLDecoder.decode(uri.getRawQuery(), java.nio.charset.StandardCharsets.UTF_8);
+            var rows = query.contains("keyword=옥천성당")
+                    ? List.of(new TourApiSourceRecord(operation, objectMapper.createObjectNode()
+                            .put("contentid", "2717818").put("title", "옥천성당")
+                            .put("lclsSystm3", "HS030200").put("mapx", "127.5").put("mapy", "36.3")))
+                    : List.<TourApiSourceRecord>of();
+            return TourApiParseResult.success(new TourApiPage(operation, 1, 1000, rows.size(), true, rows));
+        };
+        var source = new TourApiCatalogSnapshotSource(fetcher, new TourApiUriBuilder(
+                URI.create("https://apis.data.go.kr/B551011/KorService2"), "key", "OnMaru"), 1000);
+        var streamed = new ArrayList<com.yrootlab.onmaru.catalog.application.qualification.SourceRecord>();
+        assertThat(source.streamSelectedSnapshot(streamed::addAll, Map.of("2717818", "옥천성당")).rawCount())
+                .isEqualTo(1);
+        assertThat(streamed.getFirst().field("contentid")).isEqualTo("2717818");
+        assertThatThrownBy(() -> source.streamSelectedSnapshot(rows -> { }, Map.of("9999999", "옥천성당")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("omits a verified K-Contents place");
     }
 
     @Test

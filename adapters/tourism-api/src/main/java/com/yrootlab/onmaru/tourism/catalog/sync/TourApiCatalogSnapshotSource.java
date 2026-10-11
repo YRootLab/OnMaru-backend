@@ -65,7 +65,14 @@ public final class TourApiCatalogSnapshotSource {
 
     /** The replacement catalog snapshot uses the same bounded source selection as discovery. */
     public SnapshotResult streamSelectedSnapshot(Consumer<List<SourceRecord>> pageConsumer) {
+        return streamSelectedSnapshot(pageConsumer, Map.of());
+    }
+
+    /** Verified public relations outside the policy filters are rescued by exact source title. */
+    public SnapshotResult streamSelectedSnapshot(Consumer<List<SourceRecord>> pageConsumer,
+                                                 Map<String, String> requiredVerifiedPlaces) {
         Objects.requireNonNull(pageConsumer);
+        Objects.requireNonNull(requiredVerifiedPlaces);
         List<SourceRecord> codes = collect("lclsSystmCode2",
                 page -> uriBuilder.classificationCodes(page, pageSize, true));
         Set<String> knownCodes = codes.stream()
@@ -77,7 +84,8 @@ public final class TourApiCatalogSnapshotSource {
             throw new IllegalStateException("Official taxonomy omits selected codes");
         TourApiLclsCategoryResolver resolver = TourApiLclsCategoryResolver.fromOfficialCodes(codes);
         var snapshot = new SelectedSourceFetch(
-                new SelectedTourApiPageSource(fetcher, uriBuilder), knownCodes, pageSize)
+                new SelectedTourApiPageSource(fetcher, uriBuilder), knownCodes, pageSize,
+                requiredVerifiedPlaces.values().stream().sorted().toList())
                 .fetch(new SelectedSourceFetch.Observer() {
                     public void checkpoint(SelectedSourceFetch.Checkpoint checkpoint) { }
                     public void completed(SelectedSourceFetch.Snapshot complete) { }
@@ -87,6 +95,8 @@ public final class TourApiCatalogSnapshotSource {
         if (invalidFiltersOrConflicts > 0)
             throw new IllegalStateException("Selected TourAPI source has " + invalidFiltersOrConflicts
                     + " filter mismatches or conflicting identities");
+        if (!snapshot.candidates().keySet().containsAll(requiredVerifiedPlaces.keySet()))
+            throw new IllegalStateException("Selected TourAPI source omits a verified K-Contents place");
         List<SourceRecord> rows = snapshot.candidates().values().stream()
                 .sorted(java.util.Comparator.comparing(row -> row.field("contentid")))
                 .map(resolver::enrich).toList();

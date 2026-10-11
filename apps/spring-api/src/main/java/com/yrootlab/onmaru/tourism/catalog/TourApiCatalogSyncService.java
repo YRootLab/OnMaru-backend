@@ -49,7 +49,9 @@ public final class TourApiCatalogSyncService {
                 quarantined.addAndGet(page.quarantinedCount());
                 skipped.addAndGet(page.skippedCount());
             };
-            var snapshot = selectedSource ? source.streamSelectedSnapshot(stage) : source.streamFullSnapshot(stage);
+            var snapshot = selectedSource
+                    ? source.streamSelectedSnapshot(stage, publisher.verifiedPublicPlaceSources())
+                    : source.streamFullSnapshot(stage);
             return publisher.complete(session, snapshot.rawCount(), snapshot.providerTotalCount(),
                     published.get(), quarantined.get(), skipped.get(), clock.instant());
         } catch (RuntimeException exception) {

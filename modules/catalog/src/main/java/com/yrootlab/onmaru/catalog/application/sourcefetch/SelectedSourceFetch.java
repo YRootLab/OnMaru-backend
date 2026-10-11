@@ -38,13 +38,22 @@ public final class SelectedSourceFetch {
     private final PageSource source;
     private final Set<String> knownCodes;
     private final int pageSize;
+    private final List<String> additionalKeywords;
 
     /** {@code knownCodes} must be the same official taxonomy registry passed to downstream qualification. */
     public SelectedSourceFetch(PageSource source, Set<String> knownCodes, int pageSize) {
+        this(source, knownCodes, pageSize, List.of());
+    }
+
+    public SelectedSourceFetch(PageSource source, Set<String> knownCodes, int pageSize,
+                               List<String> additionalKeywords) {
         this.source = Objects.requireNonNull(source);
         this.knownCodes = Set.copyOf(knownCodes);
         if (pageSize < 1 || pageSize > 1000) throw new IllegalArgumentException("pageSize must be 1..1000");
         this.pageSize = pageSize;
+        this.additionalKeywords = List.copyOf(Objects.requireNonNull(additionalKeywords));
+        if (this.additionalKeywords.stream().anyMatch(keyword -> keyword == null || keyword.isBlank()))
+            throw new IllegalArgumentException("additional keywords must be nonblank");
     }
 
     public Snapshot fetch(Observer observer) {
@@ -59,7 +68,9 @@ public final class SelectedSourceFetch {
             Counts counts = collect(new Query("areaBasedList2", code), staged, provenance, quarantine, conflicts, observer);
             pages += counts.pages(); received += counts.received();
         }
-        for (String keyword : KEYWORDS) {
+        var keywords = new LinkedHashSet<>(KEYWORDS);
+        keywords.addAll(additionalKeywords);
+        for (String keyword : keywords) {
             Counts counts = collect(new Query("searchKeyword2", keyword), staged, provenance, quarantine, conflicts, observer);
             pages += counts.pages(); received += counts.received();
         }

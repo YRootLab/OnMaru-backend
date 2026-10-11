@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.tourism.catalog;
 
 import com.yrootlab.onmaru.catalog.application.qualification.SourceQualificationPolicy;
+import com.yrootlab.onmaru.persistence.catalog.JdbcTourApiCatalogPublisher;
 import com.yrootlab.onmaru.tourism.catalog.sync.TourApiCatalogSnapshotSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
@@ -19,11 +20,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 @ConditionalOnProperty(prefix = "onmaru.tourapi", name = "selected-preview", havingValue = "true")
 public final class SelectedCatalogPreviewCommand implements ApplicationRunner {
     private final TourApiCatalogSnapshotSource source;
+    private final JdbcTourApiCatalogPublisher publisher;
     private final String webApplicationType;
 
     public SelectedCatalogPreviewCommand(TourApiCatalogSnapshotSource source,
+            JdbcTourApiCatalogPublisher publisher,
             @Value("${spring.main.web-application-type:servlet}") String webApplicationType) {
         this.source = source;
+        this.publisher = publisher;
         this.webApplicationType = webApplicationType;
     }
 
@@ -36,6 +40,7 @@ public final class SelectedCatalogPreviewCommand implements ApplicationRunner {
         var skipped = new AtomicInteger();
         var quarantined = new AtomicInteger();
         Map<String, Integer> categories = new TreeMap<>();
+        var requiredVerified = publisher.verifiedPublicPlaceSources();
         var snapshot = source.streamSelectedSnapshot(rows -> rows.forEach(row -> {
             var result = policy.qualify(row);
             switch (result.status()) {
@@ -46,10 +51,11 @@ public final class SelectedCatalogPreviewCommand implements ApplicationRunner {
                 case SKIPPED -> skipped.incrementAndGet();
                 case QUARANTINED -> quarantined.incrementAndGet();
             }
-        }));
+        }), requiredVerified);
         System.out.println("selectedCatalogPreview raw=" + snapshot.rawCount()
                 + " qualified=" + qualified.get() + " skipped=" + skipped.get()
                 + " sourceQuarantined=" + snapshot.sourceQuarantineCount()
-                + " qualificationQuarantined=" + quarantined.get() + " categories=" + categories);
+                + " qualificationQuarantined=" + quarantined.get()
+                + " verifiedCarryovers=" + requiredVerified.size() + " categories=" + categories);
     }
 }

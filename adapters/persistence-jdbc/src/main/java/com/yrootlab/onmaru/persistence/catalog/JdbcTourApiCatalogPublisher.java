@@ -312,6 +312,30 @@ public final class JdbcTourApiCatalogPublisher {
         }
     }
 
+    /** Read-only rescue input for source selection; the publish guard still checks every public relation. */
+    public Map<String, String> verifiedPublicPlaceSources() {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     SELECT DISTINCT source.contentid, source.title
+                     FROM onmaru.k_content_public_relations relation
+                     JOIN onmaru.catalog_active_datasets active ON active.dataset = 'kto-korean-tour'
+                     JOIN onmaru.catalog_place_versions place
+                       ON place.revision_id = active.revision_id AND place.place_id = relation.place_id
+                     JOIN onmaru.catalog_kto_korean_content_versions source
+                       ON source.revision_id = place.revision_id
+                      AND source.source_ref_id = place.source_ref_id
+                     WHERE place.status = 'ACTIVE'
+                     """)) {
+            var result = new LinkedHashMap<String, String>();
+            try (var rows = statement.executeQuery()) {
+                while (rows.next()) result.put(rows.getString(1), rows.getString(2));
+            }
+            return Map.copyOf(result);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("failed to resolve verified K-Contents rescue sources", exception);
+        }
+    }
+
     private UUID findActiveRevision(Connection connection) throws SQLException {
         try (var statement = connection.prepareStatement("""
                 SELECT revision_id FROM onmaru.catalog_active_datasets WHERE dataset = ?

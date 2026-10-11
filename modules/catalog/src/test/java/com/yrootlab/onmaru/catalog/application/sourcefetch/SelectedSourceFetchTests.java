@@ -13,6 +13,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SelectedSourceFetchTests {
     @Test
+    void additionalVerifiedPlaceKeywordRescuesAnOtherwiseMissingSource() {
+        var fetch = new SelectedSourceFetch((query, number, size) -> {
+            if (query.operation().equals("searchKeyword2") && query.filter().equals("옥천성당"))
+                return page(1, 2, 1, row("2717818", "HS030200", "same"));
+            return page(1, 2, 0);
+        }, Set.of("HS030200"), 2, List.of("옥천성당"));
+        var snapshot = fetch.fetch(new RecordingObserver());
+        assertThat(snapshot.candidates()).containsOnlyKeys("2717818");
+        assertThat(snapshot.provenance().get("2717818")).containsExactly("searchKeyword2:옥천성당");
+    }
+
+    @Test
     void deduplicatesAcrossPagesAndQueriesAndPreservesRawFields() {
         var observer = new RecordingObserver();
         var fetch = new SelectedSourceFetch((query, number, size) -> {
