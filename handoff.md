@@ -263,3 +263,8 @@ git diff --check # 통과
 - Cutover publisher no longer deletes prior KTO revision on publish or unchanged sync. Retention protects latest two KTO published revisions and KTO published revisions for 14 days, leaving an operational rollback window.
 - `docs/operations/runbooks/selected-catalog-cutover.md` now audits removed public places referenced by saved places, reviews, and K-Contents, compares active map projections, and documents a transaction-safe active-pointer rollback. Do not claim prod cutover complete until affected reference counts and FE screen checks are reviewed; historical detail for removed places may require a separate compatibility migration.
 - `./gradlew :apps:spring-api:test --tests '*JdbcTourApiCatalogPublisherTests' --tests '*RetentionCleanupJdbcTests'` compiled but Testcontainers initialization failed locally because Docker socket is unavailable. CI must run integration tests.
+
+## #718 전수 1차 라벨링 (2026-10-12)
+- Branch `feature/718-bulk-labeling`, Issue #718. TourAPI 50필터/55페이지/14,917응답, 고유 11,081건 전수 1차 라벨을 `tmp/kcontents-718/`에 생성. 산출물은 Git 제외.
+- 공식 촬영지 CSV 15,034행 SHA 확인, 정확명+30m 후보 216관계/98곳. 기존 검증 17곳 중 옥천성당(contentId 2717818)이 새 수집 범위 밖이라 카탈로그 전환 보호 필요.
+- 운영 DB 적재, FE API 연결, 후보 관계 검수는 미완. 자세한 수치와 실행 명령은 `docs/operations/runbooks/full-candidate-labeling.md`.
