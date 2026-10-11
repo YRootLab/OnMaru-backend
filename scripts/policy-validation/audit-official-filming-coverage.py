@@ -37,7 +37,7 @@ def official_index(path):
     by_name = collections.defaultdict(list)
     valid = 0
     for row in rows:
-        if row['미디어타입'] not in ('drama', 'movie'):
+        if row['미디어타입'] not in ('drama', 'movie', 'show', 'artist'):
             continue
         try:
             latitude, longitude = float(row['위도']), float(row['경도'])
@@ -85,11 +85,14 @@ def audit(record, grid, by_name, verified=False):
                                    'distanceMeters': round(distance, 1),
                                    'sameName': same_name, 'nameOverlap': name_overlap,
                                    'officialRows': [row['연번']],
-                                   'workTitles': [row['제목']]}
+                                   'sourceTitles': [row['제목']],
+                                   'mediaTypes': [row['미디어타입']]}
                 else:
                     old['officialRows'].append(row['연번'])
-                    if row['제목'] not in old['workTitles']:
-                        old['workTitles'].append(row['제목'])
+                    if row['제목'] not in old['sourceTitles']:
+                        old['sourceTitles'].append(row['제목'])
+                    if row['미디어타입'] not in old['mediaTypes']:
+                        old['mediaTypes'].append(row['미디어타입'])
     places = sorted(nearby.values(), key=lambda row: (not row['sameName'], not row['nameOverlap'],
                                                       row['distanceMeters'], row['officialPlaceName']))
     distant = {}
@@ -104,11 +107,14 @@ def audit(record, grid, by_name, verified=False):
                                     'officialAddress': row['주소'],
                                     'distanceMeters': round(distance, 1),
                                     'officialRows': [row['연번']],
-                                    'workTitles': [row['제목']]}
+                                    'sourceTitles': [row['제목']],
+                                    'mediaTypes': [row['미디어타입']]}
                 else:
                     old['officialRows'].append(row['연번'])
-                    if row['제목'] not in old['workTitles']:
-                        old['workTitles'].append(row['제목'])
+                    if row['제목'] not in old['sourceTitles']:
+                        old['sourceTitles'].append(row['제목'])
+                    if row['미디어타입'] not in old['mediaTypes']:
+                        old['mediaTypes'].append(row['미디어타입'])
     distant_places = sorted(distant.values(), key=lambda row: (row['distanceMeters'], row['officialPlaceName']))
     if verified:
         status = 'VERIFIED_EXISTING'
@@ -136,7 +142,7 @@ def run(capture, labels, official_csv):
     counts = dict(sorted(collections.Counter(row['auditStatus'] for row in audits).items()))
     encoded = ''.join(json.dumps(row, ensure_ascii=False, separators=(',', ':')) + '\n' for row in audits)
     manifest = {'auditVersion': AUDIT_VERSION, 'candidateCount': len(audits),
-                'officialSourceRows': source_rows, 'usableDramaMovieRows': usable_rows,
+                'officialSourceRows': source_rows, 'usableMediaRows': usable_rows,
                 'officialSourceSha256': hashlib.sha256(Path(official_csv).read_bytes()).hexdigest(),
                 'auditSha256': hashlib.sha256(encoded.encode()).hexdigest(),
                 'statuses': counts}

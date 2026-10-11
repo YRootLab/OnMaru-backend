@@ -17,7 +17,7 @@ class OfficialFilmingCoverageTests(unittest.TestCase):
         self.by_name = collections.defaultdict(list)
 
     def add(self, name, lat, lon, row_id='7'):
-        row = {'장소명': name, '제목': '작품', '주소': '경기도 용인시', '위도': str(lat),
+        row = {'장소명': name, '제목': '작품', '미디어타입': 'drama', '주소': '경기도 용인시', '위도': str(lat),
                '경도': str(lon), '연번': row_id}
         located = (lat, lon, row)
         self.grid[(int(lat * 100), int(lon * 100))].append(located)
