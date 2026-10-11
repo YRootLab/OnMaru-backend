@@ -23,7 +23,6 @@ def export(labels, previous):
             'verifiedRelationCount': row['verifiedFilmingRelationCount'],
             'officialResearchCandidates': [{
                 'officialPlaceName': candidate['officialPlaceName'],
-                'sourceTitles': candidate['sourceTitles'],
                 'mediaTypes': candidate['mediaTypes'],
                 'officialRows': candidate['officialRows'],
                 'distanceMeters': candidate['distanceMeters'],

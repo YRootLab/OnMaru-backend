@@ -26,7 +26,7 @@ python3 scripts/operations/prepare-kcontent-label-import.py \
 
 이번 세션에서는 외부 LLM 호출 없이 11,083곳 모두에 `placeSummaryPoints` 3개를 생성했다. 장소명·정책 역할, TourAPI 주소, 공식 촬영지 자료 대조 상태만 기술하며 미검증 촬영 사실을 주장하지 않는다. `manifest-reviewed.json`의 `placeSummaryPolicyVersion`과 `placeSummarySetSha256`으로 요약 집합을 고정한다. 이는 작품 상세의 `summaryPoints`와 별개의 장소 설명이다.
 
-`tmp/kcontents-718/fe-place-labels.jsonl`은 FE #366 계약과 대조할 내부 전달본이다. 11,083건 모두 `placeId`가 있고 8,678건은 기존 공개 ID, 2,405건은 현재 read store와 같은 `p-tourapi-{contentId}` fallback을 쓴다. 후보 작품명·공식 행 번호는 검수용이며 `reviewRequired=true`다. 이 파일은 현재 FE API가 제공하지 않고 `INTERNAL_REVIEW_ONLY` 상태다. 검증된 작품 관계는 기존 17곳에 한한다.
+`tmp/kcontents-718/fe-place-labels.jsonl`은 FE #366 계약과 대조할 내부 전달본이다. 11,083건 모두 `placeId`가 있고 8,678건은 기존 공개 ID, 2,405건은 현재 read store와 같은 `p-tourapi-{contentId}` fallback을 쓴다. 근접 후보의 공식 행 번호는 검수용이며 `reviewRequired=true`다. 미검증 작품명은 FE 전달본에서 제외했다. 이 파일은 현재 FE API가 제공하지 않고 `INTERNAL_REVIEW_ONLY` 상태다. 검증된 작품 관계는 기존 17곳에 한한다.
 
 한국문화정보원 공개 촬영지 CSV에는 이미지 URL 열이 없다. 따라서 `workArtwork=null`을 유지한다. 장소 이미지는 TourAPI 권리 정보와 개별 이미지 사용 조건을 확인한 기존 `placeImage`/`images[]` 경로를 따른다. 미확인 포스터·스틸을 FE에 전달하지 않는다.
 
