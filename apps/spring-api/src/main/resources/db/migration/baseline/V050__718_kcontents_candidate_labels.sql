@@ -8,6 +8,7 @@ CREATE TABLE onmaru.k_content_label_batches (
     expected_count integer NOT NULL CHECK (expected_count > 0),
     label_set_sha256 char(64) NOT NULL CHECK (label_set_sha256 ~ '^[0-9a-f]{64}$'),
     official_source_sha256 char(64) CHECK (official_source_sha256 ~ '^[0-9a-f]{64}$'),
+    evidence_audit_sha256 char(64) NOT NULL CHECK (evidence_audit_sha256 ~ '^[0-9a-f]{64}$'),
     status varchar(20) NOT NULL CHECK (status IN ('STAGED','PUBLISHED')),
     created_at timestamptz NOT NULL DEFAULT now(),
     published_at timestamptz

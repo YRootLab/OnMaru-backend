@@ -14,7 +14,8 @@
 // failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
 // V046은 별도 K-Contents 작품/별칭/촬영 관계/근거/태그/요약을 정규화한다.
 // V049는 성공한 조사 job의 epoch별 서버 검증 결과, 검수 큐, 승인 감사를 별도 기록한다.
-// V050은 TourAPI 선별 후보 전수의 내부 라벨 배치와 contentId별 판정·조사 상태를 보존한다.
+// V050은 TourAPI 선별 후보 전수의 내부 라벨 배치와 contentId별 판정·공식 자료
+// 대조 결과를 보존한다. batch는 결정 집합과 근거 감사 집합의 SHA-256을 가진다.
 // active pointer는 검증된 배치에만 전환한다. 이 테이블의 촬영 후보는 공개 관계가 아니며
 // 공개 작품·장소 API는 계속 k_content_public_relations의 검증 근거 gate를 따른다.
 // 제출 schema/prompt/model 버전을 job에 보존하고 입력 근거 bundle fingerprint로

@@ -444,7 +444,7 @@
       "issueNumber": 718,
       "path": "apps/spring-api/src/main/resources/db/migration/baseline/V050__718_kcontents_candidate_labels.sql",
       "checksum": "kcontents-candidate-labels-v050-20261012",
-      "sha256": "1ff641f8d98c10d361d6d16b432d037a67717c93f678792b5c0571d6ddd65b47",
+      "sha256": "f5b76ba6f00eb59ea4a0d43182897d45d185f0b088d32e4321966cfd7e446414",
       "description": "Versioned full-candidate internal labels and active pointer"
     }
   ]

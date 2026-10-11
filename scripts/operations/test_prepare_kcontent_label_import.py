@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 import unittest
 
@@ -14,10 +15,16 @@ class PrepareKcontentLabelImportTests(unittest.TestCase):
         row = {'contentId': '123', 'sourceHash': 'a' * 64, 'decision': 'REVIEW',
                'policyVersion': 'v1', 'kcontentsResearchStatus': 'OFFICIAL_CANDIDATE_REVIEW',
                'reason': 'TEST', 'role': None}
+        row['evidenceAudit'] = {'contentId': '123', 'auditStatus': 'EXACT_NAME_NEARBY_REVIEW',
+                                'auditVersion': 'audit-v1', 'nearbyOfficialPlaces': []}
         digest = hashlib.sha256(('123:' + 'a' * 64 + ':REVIEW').encode()).hexdigest()
+        audit_digest = hashlib.sha256((json.dumps(row['evidenceAudit'], ensure_ascii=False,
+                                                  separators=(',', ':')) + '\n').encode()).hexdigest()
         manifest = {'uniqueContentIds': 1, 'labelSetSha256': digest,
                     'decisions': {'REVIEW': 1}, 'policyVersion': 'v1',
                     'capturedAt': '2026-10-12T00:00:00Z', 'officialSourceRows': 1,
+                    'evidenceAuditVersion': 'audit-v1', 'evidenceAuditSha256': audit_digest,
+                    'evidenceAuditStatuses': {'EXACT_NAME_NEARBY_REVIEW': 1},
                     'verifiedRelationsProvided': True,
                     'verifiedOutsideCandidateContentIds': []}
         return [row], manifest
@@ -39,6 +46,12 @@ class PrepareKcontentLabelImportTests(unittest.TestCase):
         rows, manifest = self.fixture()
         rows[0]['decision'] = 'INCLUDE'
         with self.assertRaisesRegex(ValueError, 'digest differs'):
+            module.generate(rows, manifest)
+
+    def test_tampered_audit_fails_before_sql_generation(self):
+        rows, manifest = self.fixture()
+        rows[0]['evidenceAudit']['auditStatus'] = 'VERIFIED_EXISTING'
+        with self.assertRaisesRegex(ValueError, 'audit digest differs'):
             module.generate(rows, manifest)
 
 
