@@ -120,6 +120,7 @@ def main():
     verified_relations = {row['contentId']: row['relationCount'] for row in
                           (json.loads(line) for line in Path(args.verified_relations).read_text().splitlines())} if args.verified_relations else {}
     rows, manifest = label(capture, old_rows, official_index, official_row_count, verified_relations)
+    manifest['verifiedRelationsProvided'] = bool(args.verified_relations)
     if args.official_csv:
         manifest['officialSourceSha256'] = hashlib.sha256(Path(args.official_csv).read_bytes()).hexdigest()
     Path(args.labels).write_text(''.join(json.dumps(row, ensure_ascii=False, separators=(',', ':')) + '\n'

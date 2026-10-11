@@ -437,6 +437,15 @@
       "checksum": "kcontents-validation-v049-20261009",
       "sha256": "b3ce6854e29bd3737f3e8c3831ede05c5704c88d00e318390d6340c51b0e5cf4",
       "description": "Evidence-bound extraction validation, review queue and audit"
+    },
+    {
+      "version": "050",
+      "reservedFor": "KCONTENTS_CANDIDATE_LABELS",
+      "issueNumber": 718,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V050__718_kcontents_candidate_labels.sql",
+      "checksum": "kcontents-candidate-labels-v050-20261012",
+      "sha256": "1ff641f8d98c10d361d6d16b432d037a67717c93f678792b5c0571d6ddd65b47",
+      "description": "Versioned full-candidate internal labels and active pointer"
     }
   ]
 }
