@@ -1,6 +1,8 @@
 import collections
+import csv
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
 
 
@@ -66,6 +68,23 @@ class OfficialFilmingCoverageTests(unittest.TestCase):
             module.attach_audits(labels, manifest, [{'contentId': '2'}], audit_manifest)
         with self.assertRaisesRegex(ValueError, 'official source differs'):
             module.attach_audits(labels, manifest, audits, audit_manifest | {'officialSourceSha256': 'c'})
+
+    def test_show_and_artist_are_included_without_treating_title_as_a_work(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'official.csv'
+            with path.open('w', encoding='cp949', newline='') as handle:
+                writer = csv.DictWriter(handle, fieldnames=['미디어타입', '장소명', '제목', '주소',
+                                                             '위도', '경도', '연번'])
+                writer.writeheader()
+                writer.writerow({'미디어타입': 'show', '장소명': '한국민속촌', '제목': '예능',
+                                 '주소': '용인', '위도': '37.259', '경도': '127.117', '연번': '1'})
+                writer.writerow({'미디어타입': 'artist', '장소명': '한국민속촌', '제목': '가수',
+                                 '주소': '용인', '위도': '37.259', '경도': '127.117', '연번': '2'})
+            source_count, usable_count, grid, by_name = module.official_index(path)
+            self.assertEqual((source_count, usable_count), (2, 2))
+            result = module.audit(self.record, grid, by_name)
+            self.assertEqual(result['nearbyOfficialPlaces'][0]['mediaTypes'], ['show', 'artist'])
+            self.assertEqual(result['nearbyOfficialPlaces'][0]['sourceTitles'], ['예능', '가수'])
 
 
 if __name__ == '__main__':
