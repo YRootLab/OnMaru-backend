@@ -29,7 +29,9 @@ CREATE TABLE onmaru.k_content_candidate_labels (
     CHECK (label->>'contentId' = content_id),
     CHECK (label->>'sourceHash' = source_hash),
     CHECK (label->>'decision' = decision),
-    CHECK (label->>'kcontentsResearchStatus' = research_status)
+    CHECK (label->>'kcontentsResearchStatus' = research_status),
+    CHECK ((jsonb_typeof(label->'evidenceAudit') = 'object') IS TRUE),
+    CHECK ((label->'evidenceAudit'->>'contentId' = content_id) IS TRUE)
 );
 CREATE INDEX k_content_candidate_labels_decision_idx
     ON onmaru.k_content_candidate_labels(batch_id, decision, research_status, content_id);
