@@ -1,5 +1,13 @@
 # handoff.md
 
+## 2026-10-12 Issue #716 운영 카탈로그 선별 전환
+
+- 사용자 지시: 기존 49,663건 전체 호출→23,598 활성 장소 경로를 신분류 34코드와 구분류 한옥·고택·궁궐·전통마을·한옥카페·한옥숙소·전통체험·전통시장 8필터, 관련 키워드 8개로 좁혀 교체한다. 이전 revision/identity/관계는 물리 삭제하지 않는다.
+- 기존 운영 원천 읽기 전용 기준선: 신분류 9,801행, 구분류 4,685행, 중복 3,461행, 합집합 11,025행. 키워드 고유 추가분과 재호출 결과는 미측정이다.
+- 브랜치 `feature/716-selected-catalog-cutover`. `SelectedSourceFetch`와 TourAPI 어댑터에 구분류 호출·키워드 확장, 기존 카탈로그 sync의 선택 모드 플래그를 추가했다. 집중 테스트와 Spring 컴파일 통과. 운영 전환은 아직 수행하지 않았다.
+- 운영 절차: `docs/operations/runbooks/selected-catalog-cutover.md`. 다음은 PR·CI, 운영 후보 실행/분포 검증, 배포와 포인터 전환, FE 회귀 확인이다.
+
+
 ## 2026-10-12 Issue #691 공공 촬영지 기반 운영 라벨링
 
 - 운영 활성 TourAPI 23,598곳 중 전통·역사 우선 분류 7,282곳을 대상으로 한국문화정보원 촬영지 CSV 15,034행을 대조했다. 넓은 매칭 후보 577관계는 미검증이다.
@@ -249,3 +257,9 @@ git diff --check # 통과
 - 관련 이슈: [#543](https://github.com/YRootLab/OnMaru-backend/issues/543). 완료 조건은 3+3 중앙값 비교, 15% 초과 회귀의 승인 보류, 원본 run/artifact link 보존, 단일 정본 판정 및 계약 테스트 통과다.
 - 현재 증적: 여섯 실행이 모두 성공했다. v0.3.38 값은 467.05/341.36/394.40초, v0.3.39 값은 471.61/411.86/457.93초다. 중앙값 delta는 +16.108%로 `approval_hold`이며 자동 통과시키지 않는다.
 - 상태: 두 Release asset과 v0.3.39 비교 asset 업로드, README/운영 보고서 반영, 정본 comparator 재실행과 계약 테스트 35개 통과. 이 문서 PR 병합 후 #543과 Toolkit #115를 종료한다.
+
+## #716 catalog cutover DB compatibility (2026-10-12)
+- Branch: `feature/716-selected-catalog-cutover`, PR #717.
+- Cutover publisher no longer deletes prior KTO revision on publish or unchanged sync. Retention protects latest two KTO published revisions and KTO published revisions for 14 days, leaving an operational rollback window.
+- `docs/operations/runbooks/selected-catalog-cutover.md` now audits removed public places referenced by saved places, reviews, and K-Contents, compares active map projections, and documents a transaction-safe active-pointer rollback. Do not claim prod cutover complete until affected reference counts and FE screen checks are reviewed; historical detail for removed places may require a separate compatibility migration.
+- `./gradlew :apps:spring-api:test --tests '*JdbcTourApiCatalogPublisherTests' --tests '*RetentionCleanupJdbcTests'` compiled but Testcontainers initialization failed locally because Docker socket is unavailable. CI must run integration tests.

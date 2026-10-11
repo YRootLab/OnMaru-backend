@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -78,6 +79,82 @@ class JdbcTourApiCatalogPublisherTests {
                 .locations("classpath:db/migration/baseline")
                 .baselineOnMigrate(true).baselineVersion("0").load().migrate();
         dataSource = new DriverManagerDataSource(url(), "onmaru_test", "onmaru_test");
+    }
+
+    @Test
+    void rejectsSnapshotThatDropsAPlaceWithVerifiedFilmingRelation() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var firstAt = Instant.parse("2026-09-27T03:00:00Z");
+        var first = publisher.start(firstAt);
+        var firstPage = publisher.stagePage(first, List.of(row("2001", "북촌 한옥", "HANOK")));
+        publisher.complete(first, firstPage.rawCount(), firstPage.rawCount(),
+                firstPage.publishedCount(), firstPage.quarantinedCount(), firstPage.skippedCount(), firstAt);
+
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            var placeRows = statement.executeQuery("""
+                    SELECT place_id FROM onmaru.catalog_place_versions
+                    WHERE revision_id = '%s'
+                    """.formatted(first.revisionId()));
+            placeRows.next();
+            UUID placeId = placeRows.getObject(1, UUID.class);
+            placeRows.close();
+            UUID workId = UUID.randomUUID();
+            UUID relationId = UUID.randomUUID();
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.k_contents
+                      (id,title,normalized_title,work_type,status,verified_by,verified_at)
+                    VALUES ('%s','검증 작품','검증작품','DRAMA','HUMAN_VERIFIED','test',now())
+                    """.formatted(workId));
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.k_content_place_relations
+                      (id,place_id,k_content_id,status,verified_by,verified_at)
+                    VALUES ('%s','%s','%s','HUMAN_VERIFIED','test',now())
+                    """.formatted(relationId, placeId, workId));
+            statement.executeUpdate("""
+                    INSERT INTO onmaru.k_content_relation_evidence
+                      (id,relation_id,canonical_url,source_type,title,filming_excerpt,observed_at,
+                       status,verified_by,verified_at)
+                    VALUES ('%s','%s','https://example.org/evidence','OFFICIAL_DATA','공식 촬영지',
+                            '북촌 한옥 촬영',now(),'VERIFIED','test',now())
+                    """.formatted(UUID.randomUUID(), relationId));
+        }
+
+        var secondAt = firstAt.plus(Duration.ofDays(1));
+        var second = publisher.start(secondAt);
+        var secondPage = publisher.stagePage(second, List.of(row("2002", "다른 한옥", "HANOK")));
+        assertThatThrownBy(() -> publisher.complete(second, secondPage.rawCount(), secondPage.rawCount(),
+                secondPage.publishedCount(), secondPage.quarantinedCount(), secondPage.skippedCount(), secondAt))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("failed to activate TourAPI catalog snapshot");
+        assertThat(queryCount("onmaru.catalog_active_datasets WHERE dataset = 'kto-korean-tour' AND revision_id = '"
+                + first.revisionId() + "'")).isOne();
+        publisher.fail(second, "VERIFIED_PLACE_MISSING", secondAt);
+    }
+
+    @Test
+    void preservesPreviousRevisionAndOnlyServesNewActivePlacesAfterReplacement() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var firstAt = Instant.parse("2026-09-27T03:00:00Z");
+        var first = publisher.start(firstAt);
+        var firstPage = publisher.stagePage(first, List.of(
+                row("old-only", "이전 장소", "HANOK"), row("shared", "공통 장소", "HANOK")));
+        publisher.complete(first, firstPage.rawCount(), firstPage.rawCount(),
+                firstPage.publishedCount(), firstPage.quarantinedCount(), firstPage.skippedCount(), firstAt);
+
+        var secondAt = firstAt.plus(Duration.ofDays(1));
+        var second = publisher.start(secondAt);
+        var secondPage = publisher.stagePage(second, List.of(row("shared", "공통 장소", "HANOK")));
+        publisher.complete(second, secondPage.rawCount(), secondPage.rawCount(),
+                secondPage.publishedCount(), secondPage.quarantinedCount(), secondPage.skippedCount(), secondAt);
+
+        assertThat(queryCount("onmaru.catalog_dataset_revisions WHERE dataset = 'kto-korean-tour'"))
+                .isEqualTo(2);
+        assertThat(queryCount("onmaru.catalog_place_versions WHERE revision_id = '" + first.revisionId() + "'"))
+                .isEqualTo(2);
+        assertThat(queryCount("onmaru.catalog_place_versions WHERE revision_id = '" + second.revisionId() + "'"))
+                .isEqualTo(1);
+        assertThat(queryCount("onmaru.map_place_read_projection WHERE revision_id = '" + second.revisionId() + "'"))
+                .isEqualTo(1);
     }
 
     @Test
@@ -666,7 +743,7 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     @Test
-    void replacesChangedSnapshotWithoutRetainingPreviousPublishedRevision() throws Exception {
+    void replacesChangedSnapshotWhileRetainingPreviousPublishedRevisionForRollback() throws Exception {
         var publisher = new JdbcTourApiCatalogPublisher(dataSource);
         var firstSession = publisher.start(Instant.parse("2026-09-27T03:00:00Z"));
         var firstPage = publisher.stagePage(firstSession, List.of(row("2001", "북촌 한옥", "HANOK")));
@@ -683,8 +760,8 @@ class JdbcTourApiCatalogPublisherTests {
                 Instant.parse("2026-09-30T03:01:00Z"));
 
         assertThat(queryCount("onmaru.catalog_dataset_revisions WHERE dataset = 'kto-korean-tour'"))
-                .isEqualTo(1);
-        assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isEqualTo(2);
+                .isEqualTo(2);
+        assertThat(queryCount("onmaru.catalog_kto_korean_content_versions")).isEqualTo(3);
     }
 
     @Test
