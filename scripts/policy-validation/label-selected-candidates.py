@@ -56,7 +56,9 @@ def label(capture, old_rows, official_index=None, official_row_count=0, verified
         old_row = old.get(content_id)
         verified_count = verified_relations.get(content_id, 0)
         matched = matcher.candidates(record, official_index) if official_index is not None else []
-        if matched and decision == 'EXCLUDE':
+        if verified_count and decision == 'EXCLUDE':
+            decision, reason = 'REVIEW', 'VERIFIED_FILMING_REQUIRES_POLICY_REVIEW'
+        elif matched and decision == 'EXCLUDE':
             decision, reason = 'REVIEW', 'OFFICIAL_FILMING_CANDIDATE_REQUIRES_POLICY_REVIEW'
         official_relations += len(matched)
         official_places += bool(matched)
@@ -79,7 +81,7 @@ def label(capture, old_rows, official_index=None, official_row_count=0, verified
             'kcontentsResearchStatus': 'VERIFIED_EXISTING' if verified_count else 'OFFICIAL_CANDIDATE_REVIEW' if matched else 'NO_OFFICIAL_MATCH_IN_DATASET' if official_index is not None else 'EVIDENCE_NOT_CHECKED',
             'officialFilmingCandidates': matched,
             'verifiedFilmingRelationCount': verified_count,
-            'previouslyActive': bool(old_row and old_row.get('status') == 'ACTIVE'),
+            'previouslyActive': bool((old_row and old_row.get('status') == 'ACTIVE') or verified_count),
             'previousPlaceId': str(old_row.get('placeId')) if old_row and old_row.get('placeId') else None,
             'provenance': sorted(set(provenance[content_id])),
         })

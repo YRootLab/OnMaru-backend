@@ -45,6 +45,18 @@ class LabelSelectedCandidatesTests(unittest.TestCase):
                  'records': [{'contentid': '123'}]},
             ]}, [])
 
+    def test_reports_verified_place_outside_capture_and_preserves_existing_status(self):
+        row = {'contentid': '123', 'title': '옥천성당', 'lclsSystm3': 'HS030200',
+               'mapx': '127.57', 'mapy': '36.30'}
+        capture = {'capturedAt': '2026-10-12T00:00:00Z', 'captures': [
+            {'operation': 'searchKeyword2', 'filter': '옥천성당', 'totalCount': 1, 'records': [row]},
+        ]}
+        labels, manifest = module.label(capture, [], verified_relations={'123': 2, '999': 1})
+        self.assertEqual(labels[0]['kcontentsResearchStatus'], 'VERIFIED_EXISTING')
+        self.assertEqual(labels[0]['verifiedFilmingRelationCount'], 2)
+        self.assertTrue(labels[0]['previouslyActive'])
+        self.assertEqual(manifest['verifiedOutsideCandidateContentIds'], ['999'])
+
 
 if __name__ == '__main__':
     unittest.main()

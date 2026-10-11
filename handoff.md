@@ -269,3 +269,4 @@ git diff --check # 통과
 - 공식 촬영지 CSV 15,034행 SHA 확인, 정확명+30m 후보 216관계/98곳. 기존 검증 17곳 중 옥천성당(contentId 2717818)이 새 수집 범위 밖이라 카탈로그 전환 보호 필요.
 - 운영 DB 적재, FE API 연결, 후보 관계 검수는 미완. 자세한 수치와 실행 명령은 `docs/operations/runbooks/full-candidate-labeling.md`.
 - #718 V050 adds versioned internal label batch tables and active pointer. `prepare-kcontent-label-import.py` emits default-ROLLBACK import with count/hash checks. V050 is not yet deployed; current 11,081 labels remain local. Existing verified contentId 2717818 prevents active label publication and #716 catalog pointer switch until rescued.
+- #718 최종 재호출은 기존 검증 장소 제목 17개를 동적 구제로 추가한 67필터/72페이지/14,936응답, 고유 11,083건. 기존 검증 26관계/17곳 전부 포함, 공식 후보 217관계/99곳. Gemini는 공식 후보의 장면 요약 초안 210개만 생성했고 원문 인용 검사 후 전부 REVIEW_REQUIRED(7개 빈 요약), 공개 0. 산출물은 `tmp/kcontents-718/`.

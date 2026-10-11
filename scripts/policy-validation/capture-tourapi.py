@@ -65,13 +65,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--rows", type=int, default=1000)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--required-keyword", action="append", default=[],
+                        help="Current verified filming place title outside the base filters; repeatable")
     args = parser.parse_args()
     key = os.environ.get("ONMARU_TOURAPI_SERVICE_KEY")
     if not key:
         parser.error("ONMARU_TOURAPI_SERVICE_KEY is required")
     captures = []
     queries = [("areaBasedList2", {"lclsSystm3": code}) for code in CODES]
-    queries += [("searchKeyword2", {"keyword": keyword}) for keyword in KEYWORDS]
+    keywords = tuple(dict.fromkeys((*KEYWORDS, *args.required_keyword)))
+    if any(not keyword.strip() for keyword in keywords):
+        parser.error("required keywords must be nonblank")
+    queries += [("searchKeyword2", {"keyword": keyword}) for keyword in keywords]
     queries += [("areaBasedList2", dict(zip(("contentTypeId", "cat1", "cat2", "cat3"), values)))
                 for values in LEGACY_FILTERS]
     for operation, filters in queries:
