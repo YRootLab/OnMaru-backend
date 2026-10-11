@@ -1,5 +1,11 @@
 # handoff.md
 
+## 2026-10-12 Issue #718 전수 장소 요약·FE 내부 전달
+
+- 브랜치 `feature/718-bulk-labeling`, PR #720. TourAPI 선별 후보 11,083곳 모두에 로컬 `placeSummaryPoints` 3개를 생성하고 `manifest-reviewed.json`에 내용 SHA를 기록했다. 기존 공식 촬영지 대조는 17곳 검증, 신규 1,752곳 검토 후보, 그 외는 공식 자료 한 종류에서 근접 근거가 없는 상태다. 이는 작품 관계 전수 검증 완료가 아니다.
+- `tmp/kcontents-718/fe-place-labels.jsonl`/manifest는 FE #366 대조용 내부 산출물이다. `placeId`는 기존 공개 ID 8,678개와 read store 동일 fallback 2,405개이며 새 후보의 작품 관계·이미지는 공개 미승인이다. KCISA CSV에 이미지 URL 없음.
+- V050에 요약 SHA와 3개 항목 CHECK를 추가했고 로컬 import SQL은 기본 ROLLBACK이다. 운영 DB는 아직 미적재, 공개 FE API도 새 요약을 읽지 않는다. 다음은 CI `verify`, PR 병합, release/migration, 운영 STAGED import와 검증, 승인 게시 게이트·FE API 연결이다.
+
 ## 2026-10-12 Issue #716 운영 카탈로그 선별 전환
 
 - 사용자 지시: 기존 49,663건 전체 호출→23,598 활성 장소 경로를 신분류 34코드와 구분류 한옥·고택·궁궐·전통마을·한옥카페·한옥숙소·전통체험·전통시장 8필터, 관련 키워드 8개로 좁혀 교체한다. 이전 revision/identity/관계는 물리 삭제하지 않는다.

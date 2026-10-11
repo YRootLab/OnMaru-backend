@@ -9,6 +9,7 @@ CREATE TABLE onmaru.k_content_label_batches (
     label_set_sha256 char(64) NOT NULL CHECK (label_set_sha256 ~ '^[0-9a-f]{64}$'),
     official_source_sha256 char(64) CHECK (official_source_sha256 ~ '^[0-9a-f]{64}$'),
     evidence_audit_sha256 char(64) NOT NULL CHECK (evidence_audit_sha256 ~ '^[0-9a-f]{64}$'),
+    place_summary_sha256 char(64) NOT NULL CHECK (place_summary_sha256 ~ '^[0-9a-f]{64}$'),
     status varchar(20) NOT NULL CHECK (status IN ('STAGED','PUBLISHED')),
     created_at timestamptz NOT NULL DEFAULT now(),
     published_at timestamptz
@@ -31,7 +32,9 @@ CREATE TABLE onmaru.k_content_candidate_labels (
     CHECK (label->>'decision' = decision),
     CHECK (label->>'kcontentsResearchStatus' = research_status),
     CHECK ((jsonb_typeof(label->'evidenceAudit') = 'object') IS TRUE),
-    CHECK ((label->'evidenceAudit'->>'contentId' = content_id) IS TRUE)
+    CHECK ((label->'evidenceAudit'->>'contentId' = content_id) IS TRUE),
+    CHECK ((jsonb_typeof(label->'placeSummaryPoints') = 'array') IS TRUE),
+    CHECK ((jsonb_array_length(label->'placeSummaryPoints') = 3) IS TRUE)
 );
 CREATE INDEX k_content_candidate_labels_decision_idx
     ON onmaru.k_content_candidate_labels(batch_id, decision, research_status, content_id);

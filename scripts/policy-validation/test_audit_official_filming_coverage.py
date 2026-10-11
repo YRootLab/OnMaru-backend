@@ -63,11 +63,21 @@ class OfficialFilmingCoverageTests(unittest.TestCase):
                           'statuses': {'NO_NEARBY_MATCH_IN_DATASET': 1}}
         enriched, result = module.attach_audits(labels, manifest, audits, audit_manifest)
         self.assertEqual(enriched[0]['evidenceAudit'], audits[0])
+        self.assertEqual(len(enriched[0]['placeSummaryPoints']), 3)
+        self.assertIn('placeSummarySetSha256', result)
         self.assertEqual(result['evidenceAuditSha256'], 'b')
         with self.assertRaisesRegex(ValueError, 'contentId differs'):
             module.attach_audits(labels, manifest, [{'contentId': '2'}], audit_manifest)
         with self.assertRaisesRegex(ValueError, 'official source differs'):
             module.attach_audits(labels, manifest, audits, audit_manifest | {'officialSourceSha256': 'c'})
+
+    def test_summary_does_not_turn_nearby_evidence_into_filming_claim(self):
+        label = {'sourceTitle': '한국민속촌', 'sourceAddress': '경기도 용인시',
+                 'role': 'CORE_TRADITIONAL_PLACE'}
+        audit = {'auditStatus': 'COLOCATED_NEARBY_REVIEW'}
+        points = module.place_summary_points(label, audit)
+        self.assertEqual(len(points), 3)
+        self.assertIn('확인되지 않았습니다', points[2])
 
     def test_show_and_artist_are_included_without_treating_title_as_a_work(self):
         with tempfile.TemporaryDirectory() as directory:

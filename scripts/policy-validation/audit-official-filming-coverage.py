@@ -15,6 +15,7 @@ from pathlib import Path
 
 
 AUDIT_VERSION = 'official-filming-spatial-v1.0.0'
+SUMMARY_VERSION = 'place-summary-v1.0.0'
 MAX_DISTANCE_METERS = 100
 MAX_EXACT_NAME_DISTANCE_METERS = 1000
 
@@ -158,13 +159,44 @@ def attach_audits(labels, label_manifest, audits, audit_manifest):
         raise ValueError('label manifest count differs from audits')
     if label_manifest['officialSourceSha256'] != audit_manifest['officialSourceSha256']:
         raise ValueError('official source differs between labels and audits')
-    enriched = [label | {'evidenceAudit': audit} for label, audit in zip(labels, audits)]
+    enriched = [label | {'evidenceAudit': audit,
+                         'placeSummaryPoints': place_summary_points(label, audit)}
+                for label, audit in zip(labels, audits)]
+    summary_encoded = ''.join(json.dumps({'contentId': row['contentId'],
+                                           'placeSummaryPoints': row['placeSummaryPoints']},
+                                          ensure_ascii=False, separators=(',', ':')) + '\n'
+                              for row in enriched)
     enriched_manifest = label_manifest | {
         'evidenceAuditVersion': audit_manifest['auditVersion'],
         'evidenceAuditSha256': audit_manifest['auditSha256'],
         'evidenceAuditStatuses': audit_manifest['statuses'],
+        'placeSummaryPolicyVersion': SUMMARY_VERSION,
+        'placeSummarySetSha256': hashlib.sha256(summary_encoded.encode()).hexdigest(),
     }
     return enriched, enriched_manifest
+
+
+def place_summary_points(label, audit):
+    """Three source-grounded place lines; no unverified filming assertion."""
+    name = (label.get('sourceTitle') or '이 관광지').strip()
+    address = (label.get('sourceAddress') or 'TourAPI 주소 정보 없음').strip()
+    role = {
+        'CORE_TRADITIONAL_PLACE': '전통 공간·문화유산',
+        'TRADITIONAL_EXPERIENCE': '전통문화 체험',
+        'SURROUNDING_CULTURE': '주변 문화 공간',
+    }.get(label.get('role'), '전통문화 후보 검토 중')
+    status = audit['auditStatus']
+    if status == 'VERIFIED_EXISTING':
+        evidence = '기존에 출처 검증된 작품 관계가 있습니다.'
+    elif status in ('EXACT_NAME_NEARBY_REVIEW', 'EXACT_NAME_WITHIN_1KM_REVIEW'):
+        evidence = '공식 촬영지 자료에 같은 이름의 장소가 있어 동일 장소인지 검토 중입니다.'
+    elif status in ('NAME_OVERLAP_NEARBY_REVIEW', 'COLOCATED_NEARBY_REVIEW'):
+        evidence = '인근 공식 촬영지 자료가 있으나 이 장소의 촬영 사실은 확인되지 않았습니다.'
+    elif status == 'COORDINATE_UNAVAILABLE':
+        evidence = '좌표가 없어 공식 촬영지 자료와 위치 대조가 필요합니다.'
+    else:
+        evidence = '현재 대조한 공식 자료에서는 이 장소의 촬영 근거를 찾지 못했습니다.'
+    return [f'{name} · {role}', f'위치: {address}', evidence]
 
 
 def main():

@@ -17,14 +17,20 @@ class PrepareKcontentLabelImportTests(unittest.TestCase):
                'reason': 'TEST', 'role': None}
         row['evidenceAudit'] = {'contentId': '123', 'auditStatus': 'EXACT_NAME_NEARBY_REVIEW',
                                 'auditVersion': 'audit-v1', 'nearbyOfficialPlaces': []}
+        row['placeSummaryPoints'] = ['장소 · 전통문화 후보 검토 중', '위치: 서울', '촬영 근거 검토 중']
         digest = hashlib.sha256(('123:' + 'a' * 64 + ':REVIEW').encode()).hexdigest()
         audit_digest = hashlib.sha256((json.dumps(row['evidenceAudit'], ensure_ascii=False,
                                                   separators=(',', ':')) + '\n').encode()).hexdigest()
+        summary_digest = hashlib.sha256((json.dumps(
+            {'contentId': row['contentId'], 'placeSummaryPoints': row['placeSummaryPoints']},
+            ensure_ascii=False, separators=(',', ':')) + '\n').encode()).hexdigest()
         manifest = {'uniqueContentIds': 1, 'labelSetSha256': digest,
                     'decisions': {'REVIEW': 1}, 'policyVersion': 'v1',
                     'capturedAt': '2026-10-12T00:00:00Z', 'officialSourceRows': 1,
                     'evidenceAuditVersion': 'audit-v1', 'evidenceAuditSha256': audit_digest,
                     'evidenceAuditStatuses': {'EXACT_NAME_NEARBY_REVIEW': 1},
+                    'placeSummaryPolicyVersion': 'place-summary-v1.0.0',
+                    'placeSummarySetSha256': summary_digest,
                     'verifiedRelationsProvided': True,
                     'verifiedOutsideCandidateContentIds': []}
         return [row], manifest
@@ -52,6 +58,12 @@ class PrepareKcontentLabelImportTests(unittest.TestCase):
         rows, manifest = self.fixture()
         rows[0]['evidenceAudit']['auditStatus'] = 'VERIFIED_EXISTING'
         with self.assertRaisesRegex(ValueError, 'audit digest differs'):
+            module.generate(rows, manifest)
+
+    def test_tampered_summary_fails_before_sql_generation(self):
+        rows, manifest = self.fixture()
+        rows[0]['placeSummaryPoints'][2] = '촬영 확정'
+        with self.assertRaisesRegex(ValueError, 'summary digest differs'):
             module.generate(rows, manifest)
 
 

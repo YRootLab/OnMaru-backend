@@ -50,7 +50,20 @@ def validate(labels, manifest):
         statuses[status] = statuses.get(status, 0) + 1
     if statuses != manifest.get('evidenceAuditStatuses'):
         raise ValueError('evidence audit status counts differ from manifest')
-    return uuid.uuid5(uuid.NAMESPACE_URL, 'onmaru:kcontent-label:' + digest + ':' + audit_digest)
+    if any(not isinstance(row.get('placeSummaryPoints'), list)
+           or len(row['placeSummaryPoints']) != 3
+           or any(not isinstance(point, str) or not point.strip()
+                  for point in row['placeSummaryPoints']) for row in labels):
+        raise ValueError('every place requires three nonempty summary points')
+    summary_digest = hashlib.sha256(''.join(
+        json.dumps({'contentId': row['contentId'], 'placeSummaryPoints': row['placeSummaryPoints']},
+                   ensure_ascii=False, separators=(',', ':')) + '\n' for row in labels
+    ).encode()).hexdigest()
+    if summary_digest != manifest.get('placeSummarySetSha256'):
+        raise ValueError('place summary digest differs from manifest')
+    if not manifest.get('placeSummaryPolicyVersion'):
+        raise ValueError('place summary policy version missing')
+    return uuid.uuid5(uuid.NAMESPACE_URL, 'onmaru:kcontent-label:' + digest + ':' + audit_digest + ':' + summary_digest)
 
 
 def generate(labels, manifest, apply=False, publish=False):
@@ -69,11 +82,11 @@ def generate(labels, manifest, apply=False, publish=False):
     output.write('\\.\n')
     output.write(f"""
 INSERT INTO onmaru.k_content_label_batches
-  (id,captured_at,policy_version,expected_count,label_set_sha256,official_source_sha256,evidence_audit_sha256,status)
+  (id,captured_at,policy_version,expected_count,label_set_sha256,official_source_sha256,evidence_audit_sha256,place_summary_sha256,status)
 VALUES ({sql_literal(batch_id)}::uuid,{sql_literal(manifest['capturedAt'])}::timestamptz,
         {sql_literal(manifest['policyVersion'])},{len(labels)},
         {sql_literal(manifest['labelSetSha256'])},{sql_literal(manifest.get('officialSourceSha256'))},
-        {sql_literal(manifest['evidenceAuditSha256'])},'STAGED')
+        {sql_literal(manifest['evidenceAuditSha256'])},{sql_literal(manifest['placeSummarySetSha256'])},'STAGED')
 ON CONFLICT (id) DO NOTHING;
 INSERT INTO onmaru.k_content_candidate_labels
   (batch_id,content_id,source_hash,decision,reason_code,role,research_status,label)
@@ -88,6 +101,8 @@ DO $check$ BEGIN
        <> {sql_literal(manifest['labelSetSha256'])}
     OR (SELECT evidence_audit_sha256 FROM onmaru.k_content_label_batches WHERE id={sql_literal(batch_id)}::uuid)
        <> {sql_literal(manifest['evidenceAuditSha256'])}
+    OR (SELECT place_summary_sha256 FROM onmaru.k_content_label_batches WHERE id={sql_literal(batch_id)}::uuid)
+       <> {sql_literal(manifest['placeSummarySetSha256'])}
     OR (SELECT encode(sha256(convert_to(string_agg(
          content_id || ':' || source_hash || ':' || decision, E'\\n'
          ORDER BY length(content_id),content_id),'UTF8')),'hex')
