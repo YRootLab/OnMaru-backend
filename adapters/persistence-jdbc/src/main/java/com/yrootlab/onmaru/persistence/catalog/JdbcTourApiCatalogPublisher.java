@@ -738,6 +738,7 @@ public final class JdbcTourApiCatalogPublisher {
             int quarantined,
             int skipped
     ) throws SQLException {
+        assertVerifiedKContentsPlacesPreserved(connection, revisionId);
         publishMapInfoProjection(connection, revisionId, publishedAt);
         try (var revision = connection.prepareStatement("""
                 UPDATE onmaru.catalog_dataset_revisions
@@ -775,6 +776,27 @@ public final class JdbcTourApiCatalogPublisher {
         }
         // Keep the previous published revision for cutover verification and rollback.
         // The retention job removes old inactive revisions after the rollback window.
+    }
+
+    /** A catalog replacement must not orphan an already public filming relation. */
+    private void assertVerifiedKContentsPlacesPreserved(Connection connection, UUID revisionId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT count(DISTINCT relation.place_id)
+                FROM onmaru.k_content_public_relations relation
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM onmaru.catalog_place_versions place
+                    WHERE place.revision_id = ? AND place.place_id = relation.place_id
+                      AND place.status = 'ACTIVE'
+                )
+                """)) {
+            statement.setObject(1, revisionId);
+            try (var rows = statement.executeQuery()) {
+                rows.next();
+                int missing = rows.getInt(1);
+                if (missing > 0)
+                    throw new SQLException("selected catalog omits " + missing + " verified K-Contents places");
+            }
+        }
     }
 
     /**
