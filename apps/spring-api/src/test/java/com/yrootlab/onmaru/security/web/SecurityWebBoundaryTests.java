@@ -102,6 +102,21 @@ class SecurityWebBoundaryTests {
     }
 
     @Test
+    void warmthBroadcastEndpointBypassesCsrf() throws Exception {
+        mockMvc.perform(post("/api/v1/realtime/warmth")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "roomId": "hanok_anchae",
+                                  "clientId": "test-client-1",
+                                  "type": "firefly",
+                                  "x": 0.5
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void privateResponsesAreNoStoreAndHaveBrowserSecurityHeaders() throws Exception {
         mockMvc.perform(get("/api/security/private"))
                 .andExpect(status().isOk())

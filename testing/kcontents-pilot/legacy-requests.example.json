@@ -1,0 +1,11 @@
+{
+  "requests": [
+    {"id": "home", "path": "/api/v1/home/popular-regions", "status": 200},
+    {"id": "hanoks", "path": "/api/v1/hanoks?limit=2", "status": 200},
+    {"id": "map", "path": "/api/v1/map/places?lat=37.5796&lng=126.9770&radius=1500&limit=1000", "status": 200},
+    {"id": "place-detail", "path": "/api/v1/places/${PILOT_LEGACY_PLACE_ID}", "status": 200},
+    {"id": "saved-places", "path": "/api/v1/saved-resources?type=PLACE&limit=20", "status": 200, "session": true},
+    {"id": "odii", "path": "/api/v1/odii/stories?limit=20", "status": 200},
+    {"id": "screen-hanok", "path": "/api/v1/hanoks/screen-hanok", "status": 200}
+  ]
+}

@@ -1,4 +1,6 @@
-# Lightsail 배포 및 Render 앱·Neon DB 전환 runbook
+# [Deprecated] Lightsail 배포 및 Render 앱·Neon DB 전환 기록
+
+> 이 문서는 2026-10-01 기준의 계획/이관 기록이며 현재 운영 절차가 아니다. Neon 원본 DB를 사용하고 AWS DB가 미구축이라는 전제는 deprecated다. 사용자가 확인한 현재 상태는 AWS PostgreSQL에 TourAPI 데이터를 적재해 운영 중인 것이다. 아래 Neon 복원·rollback-to-Neon 및 미배포 상태 안내를 현재 운영 지침으로 실행하지 않는다.
 
 > **Deprecated (전환 이력 보존용):** Render와 Neon에서 AWS Lightsail로 옮기던 당시의 cutover 계획이다. Render 운영 서버는 제거됐으며 현재 운영 절차의 기준 문서가 아니다. 최신 구성·배포·rollback은 [`infra/lightsail/README.md`](../../../infra/lightsail/README.md)를 따른다.
 

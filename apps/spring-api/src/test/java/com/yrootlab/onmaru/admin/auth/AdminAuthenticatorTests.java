@@ -27,6 +27,8 @@ class AdminAuthenticatorTests {
 
         assertThat(new AdminAuthenticator(codec).authenticate("Bearer " + codec.issue(expected)))
                 .isEqualTo(expected);
+        assertThat(new AdminAuthenticator(codec).authenticateToken("Bearer " + codec.issue(expected)).principal())
+                .isEqualTo(expected);
     }
 
     @Test

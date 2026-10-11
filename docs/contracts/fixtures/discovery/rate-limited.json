@@ -1,0 +1,20 @@
+{
+  "name": "discovery-rate-limited",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/discovery/places"
+  },
+  "response": {
+    "status": 429,
+    "schema": "ApiError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "RATE_LIMITED",
+      "message": "RATE_LIMITED",
+      "requestId": "fixture-request",
+      "details": {
+        "retryAfterMs": 30000
+      }
+    }
+  }
+}

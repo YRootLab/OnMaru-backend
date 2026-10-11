@@ -1,0 +1,97 @@
+{
+  "capturedAt": "2026-10-08T13:45:18.682244+00:00",
+  "baseUrl": "https://api.onmaru.site",
+  "responses": [
+    {
+      "path": "/api/v1/hanoks?limit=2",
+      "status": 200,
+      "schemaVersion": "1.2",
+      "totalCount": 1096,
+      "itemCount": 2,
+      "firstPlaceIds": [
+        "p-tourapi-1005548",
+        "p-tourapi-1018702"
+      ],
+      "containsGyeongbokgung": false
+    },
+    {
+      "path": "/api/v1/hanoks/p-tourapi-1005548",
+      "status": 200,
+      "schemaVersion": "1.2",
+      "totalCount": null,
+      "itemCount": 0,
+      "firstPlaceIds": [],
+      "containsGyeongbokgung": false
+    },
+    {
+      "path": "/api/v1/hanoks/screen-hanok",
+      "status": 200,
+      "schemaVersion": null,
+      "totalCount": 0,
+      "itemCount": 0,
+      "firstPlaceIds": [],
+      "containsGyeongbokgung": false
+    },
+    {
+      "path": "/api/v1/map/places?lat=37.5796&lng=126.9770&radius=1500&limit=1000",
+      "status": 200,
+      "schemaVersion": "1.2",
+      "totalCount": 322,
+      "itemCount": 100,
+      "firstPlaceIds": [
+        "p-tourapi-2941379",
+        "p-tourapi-1934593",
+        "p-tourapi-129908"
+      ],
+      "containsGyeongbokgung": true
+    },
+    {
+      "path": "/api/v1/map/info/places?category=SPOT&limit=2",
+      "status": 200,
+      "schemaVersion": "1.0",
+      "totalCount": 5213,
+      "itemCount": 2,
+      "firstPlaceIds": [
+        "p-tourapi-945221",
+        "p-tourapi-3333975"
+      ],
+      "containsGyeongbokgung": false
+    },
+    {
+      "path": "/api/v1/places/p-tourapi-126508",
+      "status": 200,
+      "schemaVersion": "1.2",
+      "totalCount": null,
+      "itemCount": 0,
+      "firstPlaceIds": [],
+      "containsGyeongbokgung": true
+    },
+    {
+      "path": "/api/v1/saved-resources",
+      "status": 401,
+      "schemaVersion": "1.2",
+      "totalCount": null,
+      "itemCount": 0,
+      "firstPlaceIds": [],
+      "containsGyeongbokgung": false
+    },
+    {
+      "path": "/api/v1/home/popular-regions",
+      "status": 200,
+      "schemaVersion": "1.2",
+      "totalCount": null,
+      "itemCount": 2,
+      "firstPlaceIds": [],
+      "containsGyeongbokgung": false
+    },
+    {
+      "path": "/api/v1/home/trending-sounds?language=ko-KR&limit=2",
+      "status": 200,
+      "schemaVersion": "1.2",
+      "totalCount": 3664,
+      "itemCount": 2,
+      "firstPlaceIds": [],
+      "containsGyeongbokgung": false
+    }
+  ]
+}

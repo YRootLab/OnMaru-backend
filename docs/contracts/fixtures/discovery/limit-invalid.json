@@ -1,0 +1,25 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/discovery/places",
+    "query": {
+      "limit": 999
+    }
+  },
+  "response": {
+    "status": 400,
+    "schema": "ApiError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "VALIDATION_ERROR",
+      "message": "VALIDATION_ERROR",
+      "requestId": "fixture-request",
+      "details": {
+        "fieldErrors": {
+          "limit": "must be between 1 and 50"
+        }
+      }
+    }
+  },
+  "name": "discovery-limit-invalid"
+}

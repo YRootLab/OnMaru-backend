@@ -1,3 +1,5 @@
 # API contracts required by repository-specific validation.
 hanok-stamps.openapi.yaml
 admin.openapi.yaml
+
+discovery.openapi.yaml

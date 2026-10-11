@@ -1,0 +1,15 @@
+{
+  "name": "onmaru-dbml-toolchain",
+  "version": "1.0.0",
+  "private": true,
+  "description": "계약 검증용 DBML CLI와 호환 전이 의존성",
+  "dependencies": {
+    "@dbml/cli": "10.1.1",
+    "@types/node": "22.20.2"
+  },
+  "overrides": {
+    "@dbml/core": "10.1.1",
+    "@dbml/parse": "10.1.1",
+    "@dbml/connector": "10.1.1"
+  }
+}

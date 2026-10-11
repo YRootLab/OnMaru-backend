@@ -23,6 +23,8 @@ tags:
 retrospective: false
 ---
 
+> **운영 환경 참고:** 이 ADR의 Production Neon 관측 및 Neon SQL Editor 대안은 당시의 역사적 기록이며 현재 구성으로는 deprecated다. 현재 운영 원본은 AWS PostgreSQL이다. 아래 Flyway의 기술적 결정은 DB 호스팅 제공자와 무관하게 유효하다.
+
 ## 맥락 및 문제 설명
 
 Production에서 Spring Boot 애플리케이션은 기동했지만 `onmaru.discovery_runs`와 `flyway_schema_history`가 생성되지 않아 `JourneyRunSweeper`가 `relation does not exist` 오류를 반복했다. migration SQL과 Flyway 엔진이 bootJar에 포함되어 있어도 Spring Boot 4의 Flyway auto-configuration 모듈이 runtime classpath에 없으면 startup migration이 실행되지 않는다.

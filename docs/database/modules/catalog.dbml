@@ -413,3 +413,113 @@ Ref: map_place_read_projection.(revision_id, place_id) > catalog_place_versions.
 Ref: map_place_category_projection.(revision_id, place_id) > catalog_place_versions.(revision_id, place_id)
 Ref: map_scope_count_projection.revision_id > catalog_dataset_revisions.id
 Ref: map_projection_publications.revision_id > catalog_dataset_revisions.id
+// V047 selected discovery is independent of legacy catalog_active_datasets.
+Table selected_discovery_runs [headercolor: #59A14F] {
+  id uuid [pk]
+  due_at timestamp [not null, unique]
+  status varchar [not null]
+  detail_requests int [not null, default: 0]
+  failure_code varchar
+  started_at timestamp [not null]
+  finished_at timestamp
+}
+
+Table selected_discovery_checkpoints [headercolor: #59A14F] {
+  run_id uuid [not null, ref: > selected_discovery_runs.id]
+  operation varchar [not null]
+  filter_value varchar [not null]
+  page_number int [not null]
+  received int [not null]
+  expected int [not null]
+  candidate_count int [not null]
+  quarantine_count int [not null]
+  indexes { (run_id, operation, filter_value, page_number) [pk] }
+}
+
+Table selected_discovery_revisions [headercolor: #59A14F] {
+  id uuid [pk, ref: > selected_discovery_runs.id]
+  base_revision_id uuid [ref: > selected_discovery_revisions.id]
+  status varchar [not null]
+  policy_version varchar [not null]
+  hash_schema_version varchar [not null]
+  added_count int [not null]
+  changed_count int [not null]
+  unchanged_count int [not null]
+  missing_count int [not null]
+  quarantine_count int [not null]
+  approved_count int [not null]
+  detail_requests int [not null]
+  counts_by_region jsonb [not null]
+  counts_by_role jsonb [not null]
+  created_at timestamp [not null]
+  published_at timestamp
+}
+
+Table selected_discovery_candidates [headercolor: #59A14F] {
+  revision_id uuid [not null, ref: > selected_discovery_revisions.id]
+  content_id varchar [not null]
+  raw jsonb [not null]
+  list_hash char(64) [not null]
+  detail_hash char(64) [not null]
+  hash_schema_version varchar [not null]
+  policy_version varchar [not null]
+  decision varchar [not null]
+  role varchar
+  reason_code varchar [not null]
+  diff_status varchar [not null]
+  modifiedtime varchar
+  indexes { (revision_id, content_id) [pk] }
+}
+
+Table selected_discovery_quarantines [headercolor: #59A14F] {
+  id uuid [pk]
+  revision_id uuid [not null, ref: > selected_discovery_revisions.id]
+  content_id varchar
+  reason_code varchar [not null]
+  decision varchar [not null]
+  policy_reason varchar [not null]
+  raw jsonb [not null]
+}
+
+Table selected_discovery_approvals [headercolor: #59A14F] {
+  content_id varchar [pk]
+  list_hash char(64) [not null]
+  detail_hash char(64) [not null]
+  role varchar [not null]
+  source_fingerprint text [not null]
+  detail_reviewed boolean [not null]
+  rights_reviewed boolean [not null]
+  evidence_ref text [not null]
+  approved_by varchar [not null]
+  approved_at timestamp [not null]
+}
+
+Table selected_discovery_approval_audit [headercolor: #59A14F] {
+  id uuid [pk]
+  content_id varchar [not null]
+  action varchar [not null]
+  actor varchar [not null]
+  list_hash char(64)
+  detail_hash char(64)
+  evidence_ref text
+  recorded_at timestamp [not null]
+}
+
+Table selected_discovery_public_items [headercolor: #59A14F] {
+  revision_id uuid [not null, ref: > selected_discovery_revisions.id]
+  content_id varchar [not null]
+  place_id uuid [not null]
+  role varchar [not null]
+  region_code varchar
+  raw jsonb [not null]
+  indexes {
+    (revision_id, content_id) [pk]
+    (revision_id, place_id) [unique]
+  }
+}
+
+Table selected_discovery_active [headercolor: #59A14F] {
+  singleton boolean [pk]
+  revision_id uuid [not null, ref: > selected_discovery_revisions.id]
+  activated_at timestamp [not null]
+}
