@@ -1,5 +1,13 @@
 # handoff.md
 
+## 2026-10-11 Issue #691 운영 실데이터 시연 준비
+
+- 사용자 요청: 내일 FE 시연을 위해 운영 DB의 실제 장소 데이터를 읽고 촬영 관계를 근거로 라벨링한다. staging은 합성 데이터로 검증할 수 있으나, 운영 라벨을 합성 사실로 채우지 않는다. 1만 후보 전체에 LLM을 호출하지 않고 검색·규칙 선별 후 근거가 있는 후보만 추출한다.
+- 현재 브랜치: `feature/691-production-labeling-demo`. 운영 `master`에는 K-Contents V046~V049와 신규 API가 아직 없고, `develop`에만 있다. 운영 공개 `screen-hanok`은 2026-10-11 조회에서 `total=0`; FE 7개는 fallback이다.
+- 준비: 관리 SSH를 통해 운영 PostgreSQL의 전용 읽기 전용 계정으로 `testing/kcontents-pilot/read-only-demo-candidates.sql`을 실행했다. 기존 FE 7개 대상은 모두 활성 TourAPI revision에서 확인됐고, `양진당`은 상주와 안동 두 장소가 검색되므로 주소 대조가 필수다. 관광공사 공식 근거 후보 3건의 장소 contentId·주소·공개 ID를 `production-demo-evidence.md`에 기록했다. 운영 `k_contents`와 관계 테이블은 아직 없다. 운영 입력은 수행하지 않았다.
+- 릴리스 준비: `develop` → `release/v0.3.44` 초안 동기화 PR #708 생성. 검증과 운영 배포는 미완료다.
+- 다음: 원문·권리 및 관계를 검수하고 승인된 selected discovery 게시 절차를 준비한다. PR #708 검증 후 `release/*` → `master`, 운영 migration·feature flag·실제 관계 입력·FE API 응답 확인이 필요하다.
+
 ## 2026-10-08 Issue #685 주간 선별 탐색 revision
 
 - 브랜치: `feature/685-selected-discovery-revision`, Issue #685. `develop`의 병합된 #682 W1·#683 W2와 별도 V047 스키마를 연결했다. #686 V048은 뒤따르는 migration이다.
