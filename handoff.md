@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-12 Issue #691 공공 촬영지 기반 운영 라벨링
+
+- 운영 활성 TourAPI 23,598곳 중 전통·역사 우선 분류 7,282곳을 대상으로 한국문화정보원 촬영지 CSV 15,034행을 대조했다. 넓은 매칭 후보 577관계는 미검증이다.
+- 정확한 장소명·주소·30m 이내 좌표와 장면 원문을 검토한 23관계/14장소를 운영 DB에 추가하고, 기존 3장소와 함께 선별 공개 revision을 17장소로 전환했다. 작품/관계 각 26건이며 공개 API에서 17장소·26작품·장면 요약을 확인했다.
+- Codex 지원 요약은 원천 행별로 검토해 `VERIFIED`로 저장했다. 태그 23개는 `REVIEW_REQUIRED` 후보로 저장되어 FE에 아직 보이지 않는다. 이미지·작품 줄거리·연도·장르는 채우지 않았다.
+- 실행 기록과 재현 SQL: `testing/kcontents-pilot/build_official_filming_seed.py`, `production-official-filming-reviewed.sql`, `production-official-filming-selected.sql`. 정책과 다음 범위: `docs/operations/runbooks/official-filming-enrichment.md`.
+- 현재 로컬 n8n health 200. n8n의 14일 자동 실행·100→1000 파일럿·고유 50장소 목표는 미완료다. #691은 계속 열어 둔다.
+
+
 ## 2026-10-11 Issue #691 운영 실데이터 시연 준비
 
 - 사용자 요청: 내일 FE 시연을 위해 운영 DB의 실제 장소 데이터를 읽고 촬영 관계를 근거로 라벨링한다. staging은 합성 데이터로 검증할 수 있으나, 운영 라벨을 합성 사실로 채우지 않는다. 1만 후보 전체에 LLM을 호출하지 않고 검색·규칙 선별 후 근거가 있는 후보만 추출한다.
