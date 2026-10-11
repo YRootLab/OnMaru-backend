@@ -134,6 +134,26 @@ CREATE TABLE "identity_exploration_grants" (
   PRIMARY KEY ("member_id", "exploration_id")
 );
 
+CREATE TABLE "identity_admin_accounts" (
+  "id" uuid PRIMARY KEY,
+  "email" varchar NOT NULL,
+  "password_hash" varchar NOT NULL,
+  "nickname" varchar NOT NULL,
+  "role" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "last_login_at" timestamptz,
+  "tokens_valid_after" timestamptz NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "identity_admin_access_token_revocations" (
+  "jti_hash" varchar PRIMARY KEY,
+  "admin_id" uuid NOT NULL,
+  "expires_at" timestamptz NOT NULL,
+  "revoked_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "catalog_regions" (
   "id" uuid PRIMARY KEY,
   "parent_id" uuid,
@@ -385,6 +405,414 @@ CREATE TABLE "content_tag_overrides" (
   "created_by" uuid,
   "created_at" timestamptz NOT NULL,
   "expires_at" timestamptz
+);
+
+CREATE TABLE "selected_discovery_runs" (
+  "id" uuid PRIMARY KEY,
+  "due_at" timestamp UNIQUE NOT NULL,
+  "status" varchar NOT NULL,
+  "detail_requests" int NOT NULL DEFAULT 0,
+  "failure_code" varchar,
+  "started_at" timestamp NOT NULL,
+  "finished_at" timestamp
+);
+
+CREATE TABLE "selected_discovery_checkpoints" (
+  "run_id" uuid NOT NULL,
+  "operation" varchar NOT NULL,
+  "filter_value" varchar NOT NULL,
+  "page_number" int NOT NULL,
+  "received" int NOT NULL,
+  "expected" int NOT NULL,
+  "candidate_count" int NOT NULL,
+  "quarantine_count" int NOT NULL,
+  PRIMARY KEY ("run_id", "operation", "filter_value", "page_number")
+);
+
+CREATE TABLE "selected_discovery_revisions" (
+  "id" uuid PRIMARY KEY,
+  "base_revision_id" uuid,
+  "status" varchar NOT NULL,
+  "policy_version" varchar NOT NULL,
+  "hash_schema_version" varchar NOT NULL,
+  "added_count" int NOT NULL,
+  "changed_count" int NOT NULL,
+  "unchanged_count" int NOT NULL,
+  "missing_count" int NOT NULL,
+  "quarantine_count" int NOT NULL,
+  "approved_count" int NOT NULL,
+  "detail_requests" int NOT NULL,
+  "counts_by_region" jsonb NOT NULL,
+  "counts_by_role" jsonb NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "published_at" timestamp
+);
+
+CREATE TABLE "selected_discovery_candidates" (
+  "revision_id" uuid NOT NULL,
+  "content_id" varchar NOT NULL,
+  "raw" jsonb NOT NULL,
+  "list_hash" char(64) NOT NULL,
+  "detail_hash" char(64) NOT NULL,
+  "hash_schema_version" varchar NOT NULL,
+  "policy_version" varchar NOT NULL,
+  "decision" varchar NOT NULL,
+  "role" varchar,
+  "reason_code" varchar NOT NULL,
+  "diff_status" varchar NOT NULL,
+  "modifiedtime" varchar,
+  PRIMARY KEY ("revision_id", "content_id")
+);
+
+CREATE TABLE "selected_discovery_quarantines" (
+  "id" uuid PRIMARY KEY,
+  "revision_id" uuid NOT NULL,
+  "content_id" varchar,
+  "reason_code" varchar NOT NULL,
+  "decision" varchar NOT NULL,
+  "policy_reason" varchar NOT NULL,
+  "raw" jsonb NOT NULL
+);
+
+CREATE TABLE "selected_discovery_approvals" (
+  "content_id" varchar PRIMARY KEY,
+  "list_hash" char(64) NOT NULL,
+  "detail_hash" char(64) NOT NULL,
+  "role" varchar NOT NULL,
+  "source_fingerprint" text NOT NULL,
+  "detail_reviewed" boolean NOT NULL,
+  "rights_reviewed" boolean NOT NULL,
+  "evidence_ref" text NOT NULL,
+  "approved_by" varchar NOT NULL,
+  "approved_at" timestamp NOT NULL
+);
+
+CREATE TABLE "selected_discovery_approval_audit" (
+  "id" uuid PRIMARY KEY,
+  "content_id" varchar NOT NULL,
+  "action" varchar NOT NULL,
+  "actor" varchar NOT NULL,
+  "list_hash" char(64),
+  "detail_hash" char(64),
+  "evidence_ref" text,
+  "recorded_at" timestamp NOT NULL
+);
+
+CREATE TABLE "selected_discovery_public_items" (
+  "revision_id" uuid NOT NULL,
+  "content_id" varchar NOT NULL,
+  "place_id" uuid NOT NULL,
+  "role" varchar NOT NULL,
+  "region_code" varchar,
+  "raw" jsonb NOT NULL,
+  PRIMARY KEY ("revision_id", "content_id")
+);
+
+CREATE TABLE "selected_discovery_active" (
+  "singleton" boolean PRIMARY KEY,
+  "revision_id" uuid NOT NULL,
+  "activated_at" timestamp NOT NULL
+);
+
+CREATE TABLE "k_contents" (
+  "id" uuid PRIMARY KEY,
+  "title" varchar NOT NULL,
+  "normalized_title" varchar NOT NULL,
+  "work_type" varchar NOT NULL,
+  "release_year" smallint,
+  "season_key" varchar,
+  "status" varchar NOT NULL,
+  "verified_by" varchar,
+  "verified_at" timestamptz,
+  "rule_version" varchar,
+  "model_version" varchar,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_aliases" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "alias_text" varchar NOT NULL,
+  "normalized_alias" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_metadata_sources" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "canonical_url" text NOT NULL,
+  "source_type" varchar NOT NULL,
+  "title" text NOT NULL,
+  "publisher" varchar,
+  "excerpt" text,
+  "document_location" text,
+  "published_at" timestamptz,
+  "observed_at" timestamptz NOT NULL,
+  "status" varchar NOT NULL,
+  "verified_by" varchar,
+  "verified_at" timestamptz,
+  "rule_version" varchar,
+  "model_version" varchar
+);
+
+CREATE TABLE "k_content_units" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "unit_type" varchar NOT NULL,
+  "unit_key" varchar NOT NULL,
+  "title" varchar
+);
+
+CREATE TABLE "k_content_creative_parties" (
+  "id" uuid PRIMARY KEY,
+  "name" varchar NOT NULL,
+  "normalized_name" varchar NOT NULL,
+  "party_type" varchar NOT NULL,
+  "status" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_party_aliases" (
+  "id" uuid PRIMARY KEY,
+  "party_id" uuid NOT NULL,
+  "alias_text" varchar NOT NULL,
+  "normalized_alias" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_credits" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "party_id" uuid NOT NULL,
+  "source_id" uuid NOT NULL,
+  "role" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_place_relations" (
+  "id" uuid PRIMARY KEY,
+  "place_id" uuid NOT NULL,
+  "k_content_id" uuid NOT NULL,
+  "relation_type" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "confidence" decimal,
+  "verified_by" varchar,
+  "verified_at" timestamptz,
+  "rule_version" varchar,
+  "model_version" varchar,
+  "review_reason" varchar
+);
+
+CREATE TABLE "k_content_relation_evidence" (
+  "id" uuid PRIMARY KEY,
+  "relation_id" uuid NOT NULL,
+  "canonical_url" text NOT NULL,
+  "source_type" varchar NOT NULL,
+  "title" text NOT NULL,
+  "publisher" varchar,
+  "filming_excerpt" text NOT NULL,
+  "document_location" text,
+  "published_at" timestamptz,
+  "observed_at" timestamptz NOT NULL,
+  "status" varchar NOT NULL,
+  "verified_by" varchar,
+  "verified_at" timestamptz,
+  "rule_version" varchar,
+  "model_version" varchar
+);
+
+CREATE TABLE "k_content_appearance_contexts" (
+  "id" uuid PRIMARY KEY,
+  "relation_id" uuid NOT NULL,
+  "k_content_id" uuid NOT NULL,
+  "unit_id" uuid,
+  "evidence_id" uuid NOT NULL,
+  "scene_description" text,
+  "document_location" text
+);
+
+CREATE TABLE "k_content_tags" (
+  "id" uuid PRIMARY KEY,
+  "code" varchar UNIQUE NOT NULL,
+  "scope" varchar NOT NULL,
+  "group_code" varchar NOT NULL,
+  "label_ko" varchar NOT NULL,
+  "label_en" varchar,
+  "active" boolean NOT NULL,
+  "policy_version" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_tag_aliases" (
+  "id" uuid PRIMARY KEY,
+  "tag_id" uuid NOT NULL,
+  "scope" varchar NOT NULL,
+  "group_code" varchar NOT NULL,
+  "alias_text" varchar NOT NULL,
+  "normalized_alias" varchar NOT NULL
+);
+
+CREATE TABLE "k_content_work_tags" (
+  "k_content_id" uuid NOT NULL,
+  "tag_id" uuid NOT NULL,
+  "source_id" uuid NOT NULL,
+  "status" varchar NOT NULL,
+  PRIMARY KEY ("k_content_id", "tag_id")
+);
+
+CREATE TABLE "k_content_relation_tags" (
+  "relation_id" uuid NOT NULL,
+  "tag_id" uuid NOT NULL,
+  "evidence_id" uuid NOT NULL,
+  "status" varchar NOT NULL,
+  PRIMARY KEY ("relation_id", "tag_id")
+);
+
+CREATE TABLE "k_content_tag_candidates" (
+  "id" uuid PRIMARY KEY,
+  "scope" varchar NOT NULL,
+  "k_content_id" uuid,
+  "relation_id" uuid,
+  "source_id" uuid,
+  "evidence_id" uuid,
+  "raw_label" varchar NOT NULL,
+  "normalized_label" varchar NOT NULL,
+  "group_hint" varchar NOT NULL,
+  "supporting_quote" text NOT NULL,
+  "extraction_run_id" uuid,
+  "model_version" varchar,
+  "status" varchar NOT NULL,
+  "resolved_tag_id" uuid
+);
+
+CREATE TABLE "k_content_work_summary_points" (
+  "id" uuid PRIMARY KEY,
+  "k_content_id" uuid NOT NULL,
+  "position" smallint NOT NULL,
+  "summary_text" varchar NOT NULL,
+  "source_id" uuid NOT NULL,
+  "status" varchar NOT NULL,
+  "generated_at" timestamptz,
+  "prompt_version" varchar,
+  "source_fingerprint" varchar,
+  "edited_by" varchar
+);
+
+CREATE TABLE "k_content_relation_summary_points" (
+  "id" uuid PRIMARY KEY,
+  "relation_id" uuid NOT NULL,
+  "position" smallint NOT NULL,
+  "summary_text" varchar NOT NULL,
+  "evidence_id" uuid NOT NULL,
+  "status" varchar NOT NULL,
+  "generated_at" timestamptz,
+  "prompt_version" varchar,
+  "source_fingerprint" varchar,
+  "edited_by" varchar
+);
+
+CREATE TABLE "k_content_research_jobs" (
+  "id" uuid PRIMARY KEY,
+  "place_id" uuid NOT NULL,
+  "reason" varchar NOT NULL,
+  "source_fingerprint" varchar NOT NULL,
+  "input_json" jsonb NOT NULL,
+  "status" varchar NOT NULL,
+  "attempts" integer NOT NULL,
+  "requeue_epoch" integer NOT NULL,
+  "max_attempts" integer NOT NULL,
+  "available_at" timestamptz NOT NULL,
+  "lease_owner" varchar,
+  "lease_token_hash" varchar,
+  "lease_expires_at" timestamptz,
+  "result_status" varchar,
+  "result_json" jsonb,
+  "schema_version" varchar,
+  "prompt_version" varchar,
+  "model_version" varchar,
+  "completed_at" timestamptz,
+  "last_failure_code" varchar,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_research_runs" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "requeue_epoch" integer NOT NULL,
+  "attempt" integer NOT NULL,
+  "worker_id" varchar NOT NULL,
+  "started_at" timestamptz NOT NULL,
+  "finished_at" timestamptz,
+  "outcome" varchar,
+  "failure_code" varchar
+);
+
+CREATE TABLE "k_content_research_evidence" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "canonical_url" text NOT NULL,
+  "title" text NOT NULL,
+  "publisher" varchar,
+  "excerpt" varchar NOT NULL,
+  "observed_at" timestamptz NOT NULL,
+  "source_verified_at" timestamptz,
+  "source_verified_by" varchar
+);
+
+CREATE TABLE "k_content_research_receipts" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "idempotency_key" varchar NOT NULL,
+  "request_hash" varchar NOT NULL,
+  "outcome" varchar NOT NULL,
+  "worker_id" varchar NOT NULL,
+  "lease_token_hash" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_research_events" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "event_type" varchar NOT NULL,
+  "actor" varchar NOT NULL,
+  "detail_code" varchar,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_validation_runs" (
+  "id" uuid PRIMARY KEY,
+  "job_id" uuid NOT NULL,
+  "requeue_epoch" integer NOT NULL,
+  "input_fingerprint" varchar NOT NULL,
+  "source_fingerprint" varchar NOT NULL,
+  "schema_version" varchar NOT NULL,
+  "prompt_version" varchar NOT NULL,
+  "model_version" varchar NOT NULL,
+  "rule_version" varchar NOT NULL,
+  "status" varchar NOT NULL,
+  "candidate_count" integer NOT NULL,
+  "validated_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_validation_reviews" (
+  "id" uuid PRIMARY KEY,
+  "validation_run_id" uuid NOT NULL,
+  "candidate_index" integer NOT NULL,
+  "relation_id" uuid,
+  "reason_code" varchar NOT NULL,
+  "candidate_json" jsonb NOT NULL,
+  "state" varchar NOT NULL,
+  "reviewed_by" varchar,
+  "reviewed_at" timestamptz,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "k_content_validation_audit" (
+  "id" uuid PRIMARY KEY,
+  "validation_run_id" uuid NOT NULL,
+  "review_id" uuid,
+  "action" varchar NOT NULL,
+  "actor" varchar NOT NULL,
+  "detail_code" varchar,
+  "recorded_at" timestamptz NOT NULL
 );
 
 CREATE TABLE "audio_odii_spots" (
@@ -712,6 +1140,8 @@ CREATE TABLE "operations_sync_schedules" (
 CREATE TABLE "operations_sync_runs" (
   "id" uuid PRIMARY KEY,
   "dataset" varchar NOT NULL,
+  "scope" varchar NOT NULL DEFAULT 'ALL',
+  "requested_at" timestamptz,
   "scheduled_for" timestamptz NOT NULL,
   "attempt" int NOT NULL,
   "status" operations_sync_run_status NOT NULL,
@@ -720,7 +1150,21 @@ CREATE TABLE "operations_sync_runs" (
   "finished_at" timestamptz,
   "next_attempt_at" timestamptz,
   "error_code" varchar,
-  "counts" jsonb
+  "counts" jsonb,
+  "current_stage" varchar,
+  "progress_completed" bigint,
+  "progress_total" bigint
+);
+
+CREATE TABLE "operations_sync_failures" (
+  "id" uuid PRIMARY KEY,
+  "run_id" uuid NOT NULL,
+  "occurred_at" timestamptz NOT NULL,
+  "endpoint" varchar,
+  "content_id" varchar,
+  "error_code" varchar NOT NULL,
+  "message" varchar NOT NULL,
+  "retryable" boolean NOT NULL
 );
 
 CREATE TABLE "operations_sync_checkpoints" (
@@ -816,6 +1260,8 @@ CREATE INDEX ON "identity_oauth_states" ("expires_at");
 
 CREATE INDEX ON "identity_exploration_grants" ("expires_at");
 
+CREATE INDEX ON "identity_admin_access_token_revocations" ("expires_at");
+
 CREATE INDEX ON "catalog_region_source_codes" ("region_id");
 
 CREATE INDEX ON "catalog_region_boundaries" USING GIST ("geometry");
@@ -863,6 +1309,50 @@ CREATE INDEX ON "catalog_place_content_tag_versions" ("label", "revision_id");
 CREATE UNIQUE INDEX ON "content_tag_overrides" ("target_type", "target_id", "label", "action");
 
 CREATE INDEX ON "content_tag_overrides" ("target_type", "target_id");
+
+CREATE UNIQUE INDEX ON "selected_discovery_public_items" ("revision_id", "place_id");
+
+CREATE INDEX ON "k_contents" ("work_type", "normalized_title", "release_year", "season_key");
+
+CREATE UNIQUE INDEX ON "k_content_aliases" ("k_content_id", "normalized_alias");
+
+CREATE INDEX ON "k_content_aliases" ("normalized_alias");
+
+CREATE UNIQUE INDEX ON "k_content_metadata_sources" ("k_content_id", "canonical_url");
+
+CREATE UNIQUE INDEX ON "k_content_units" ("k_content_id", "unit_type", "unit_key");
+
+CREATE UNIQUE INDEX ON "k_content_party_aliases" ("party_id", "normalized_alias");
+
+CREATE UNIQUE INDEX ON "k_content_credits" ("k_content_id", "party_id", "role", "source_id");
+
+CREATE UNIQUE INDEX ON "k_content_place_relations" ("place_id", "k_content_id", "relation_type");
+
+CREATE INDEX ON "k_content_place_relations" ("place_id", "status", "k_content_id", "id");
+
+CREATE INDEX ON "k_content_place_relations" ("k_content_id", "status", "place_id", "id");
+
+CREATE UNIQUE INDEX ON "k_content_relation_evidence" ("relation_id", "canonical_url");
+
+CREATE INDEX ON "k_content_relation_evidence" ("relation_id", "status");
+
+CREATE UNIQUE INDEX ON "k_content_tag_aliases" ("scope", "group_code", "normalized_alias");
+
+CREATE UNIQUE INDEX ON "k_content_work_summary_points" ("k_content_id", "position");
+
+CREATE UNIQUE INDEX ON "k_content_relation_summary_points" ("relation_id", "position");
+
+CREATE UNIQUE INDEX ON "k_content_research_jobs" ("place_id", "reason", "source_fingerprint");
+
+CREATE UNIQUE INDEX ON "k_content_research_runs" ("job_id", "requeue_epoch", "attempt");
+
+CREATE UNIQUE INDEX ON "k_content_research_evidence" ("job_id", "canonical_url");
+
+CREATE UNIQUE INDEX ON "k_content_research_receipts" ("job_id", "idempotency_key");
+
+CREATE UNIQUE INDEX ON "k_content_validation_runs" ("job_id", "requeue_epoch");
+
+CREATE INDEX ON "k_content_validation_runs" ("input_fingerprint");
 
 CREATE UNIQUE INDEX ON "audio_odii_spots" ("provider", "tid", "tlid");
 
@@ -962,6 +1452,8 @@ CREATE UNIQUE INDEX ON "operations_sync_runs" ("dataset", "scheduled_for", "atte
 
 CREATE INDEX ON "operations_sync_runs" ("dataset", "status");
 
+CREATE INDEX ON "operations_sync_failures" ("run_id", "occurred_at", "id");
+
 CREATE INDEX ON "operations_sync_quarantine" ("expires_at");
 
 CREATE INDEX ON "ai_documents" ("source_type", "source_ref");
@@ -973,6 +1465,8 @@ CREATE UNIQUE INDEX ON "ai_corpus_sync_runs" ("source_revision", "source_manifes
 COMMENT ON COLUMN "identity_external_accounts"."provider" IS 'KAKAO active for MVP; GOOGLE/NAVER can be added through allowlist';
 
 COMMENT ON COLUMN "identity_oauth_states"."pkce_verifier_hash" IS 'SHA-256 hash used for one-time OAuth PKCE verification';
+
+COMMENT ON COLUMN "identity_admin_access_token_revocations"."jti_hash" IS 'SHA-256 hash of the JWT ID; raw JTI values are never persisted';
 
 COMMENT ON COLUMN "catalog_region_boundaries"."geometry" IS 'PostGIS MultiPolygon(4326)';
 
@@ -995,6 +1489,10 @@ COMMENT ON COLUMN "catalog_place_versions"."location" IS 'PostGIS Point(4326)';
 COMMENT ON COLUMN "map_place_read_projection"."location_geom" IS 'PostGIS Point(4326), WGS84 geometry for bbox queries';
 
 COMMENT ON COLUMN "map_scope_count_projection"."scope_type" IS 'DISTRICT or REGION';
+
+COMMENT ON COLUMN "k_contents"."work_type" IS 'DRAMA/MOVIE/VARIETY/MUSIC_VIDEO';
+
+COMMENT ON COLUMN "k_content_place_relations"."relation_type" IS 'FILMING_LOCATION';
 
 COMMENT ON COLUMN "audio_odii_spots"."public_id" IS 'V033 generated stored: Java UUID.nameUUIDFromBytes(provider:odii-spot-:tid) compatible';
 
@@ -1023,6 +1521,10 @@ COMMENT ON COLUMN "journey_saved_odii_stories"."story_id" IS '공개 odii story 
 COMMENT ON COLUMN "community_review_reports"."reason" IS 'SPAM, ABUSE, PERSONAL_DATA, COPYRIGHT, OTHER';
 
 COMMENT ON COLUMN "community_review_moderation_actions"."actor_type" IS 'SYSTEM or OPERATOR; never a public member action';
+
+COMMENT ON TABLE "operations_sync_runs" IS 'Latest-run migration index uses (dataset, COALESCE(started_at, scheduled_for) DESC, id DESC).';
+
+COMMENT ON COLUMN "operations_sync_failures"."message" IS 'Sanitized; no credentials, personal data, or upstream payload';
 
 COMMENT ON COLUMN "ai_documents"."source_ref" IS 'Stable source identifier from Spring corpus export; not a DB FK';
 
@@ -1078,6 +1580,12 @@ ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("place_id") REFERENCES "c
 
 ALTER TABLE "catalog_external_places" ADD FOREIGN KEY ("public_place_id") REFERENCES "catalog_place_public_ids" ("public_id") DEFERRABLE INITIALLY IMMEDIATE;
 
+ALTER TABLE "k_content_place_relations" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_research_jobs" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_public_items" ADD FOREIGN KEY ("place_id") REFERENCES "catalog_place_identity" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
 ALTER TABLE "identity_external_accounts" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
@@ -1085,6 +1593,8 @@ ALTER TABLE "identity_sessions" ADD FOREIGN KEY ("member_id") REFERENCES "identi
 ALTER TABLE "identity_oauth_states" ADD FOREIGN KEY ("guest_id") REFERENCES "identity_guests" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "identity_exploration_grants" ADD FOREIGN KEY ("member_id") REFERENCES "identity_members" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "identity_admin_access_token_revocations" ADD FOREIGN KEY ("admin_id") REFERENCES "identity_admin_accounts" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "catalog_regions" ADD FOREIGN KEY ("parent_id") REFERENCES "catalog_regions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
@@ -1140,6 +1650,94 @@ ALTER TABLE "map_scope_count_projection" ADD FOREIGN KEY ("revision_id") REFEREN
 
 ALTER TABLE "map_projection_publications" ADD FOREIGN KEY ("revision_id") REFERENCES "catalog_dataset_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
+ALTER TABLE "selected_discovery_checkpoints" ADD FOREIGN KEY ("run_id") REFERENCES "selected_discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_revisions" ADD FOREIGN KEY ("id") REFERENCES "selected_discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_revisions" ADD FOREIGN KEY ("base_revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_candidates" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_quarantines" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_public_items" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "selected_discovery_active" ADD FOREIGN KEY ("revision_id") REFERENCES "selected_discovery_revisions" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_runs" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_reviews" ADD FOREIGN KEY ("validation_run_id") REFERENCES "k_content_validation_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_reviews" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_audit" ADD FOREIGN KEY ("validation_run_id") REFERENCES "k_content_validation_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_validation_audit" ADD FOREIGN KEY ("review_id") REFERENCES "k_content_validation_reviews" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_research_runs" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_research_evidence" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_research_receipts" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_research_events" ADD FOREIGN KEY ("job_id") REFERENCES "k_content_research_jobs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_aliases" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_metadata_sources" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_units" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_party_aliases" ADD FOREIGN KEY ("party_id") REFERENCES "k_content_creative_parties" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_credits" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_credits" ADD FOREIGN KEY ("party_id") REFERENCES "k_content_creative_parties" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_credits" ADD FOREIGN KEY ("source_id") REFERENCES "k_content_metadata_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_place_relations" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_evidence" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_appearance_contexts" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_appearance_contexts" ADD FOREIGN KEY ("unit_id") REFERENCES "k_content_units" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_appearance_contexts" ADD FOREIGN KEY ("evidence_id") REFERENCES "k_content_relation_evidence" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_aliases" ADD FOREIGN KEY ("tag_id") REFERENCES "k_content_tags" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_tags" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_tags" ADD FOREIGN KEY ("tag_id") REFERENCES "k_content_tags" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_tags" ADD FOREIGN KEY ("source_id") REFERENCES "k_content_metadata_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_tags" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_tags" ADD FOREIGN KEY ("tag_id") REFERENCES "k_content_tags" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_tags" ADD FOREIGN KEY ("evidence_id") REFERENCES "k_content_relation_evidence" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("source_id") REFERENCES "k_content_metadata_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("evidence_id") REFERENCES "k_content_relation_evidence" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_tag_candidates" ADD FOREIGN KEY ("resolved_tag_id") REFERENCES "k_content_tags" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_summary_points" ADD FOREIGN KEY ("k_content_id") REFERENCES "k_contents" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_work_summary_points" ADD FOREIGN KEY ("source_id") REFERENCES "k_content_metadata_sources" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_summary_points" ADD FOREIGN KEY ("relation_id") REFERENCES "k_content_place_relations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "k_content_relation_summary_points" ADD FOREIGN KEY ("evidence_id") REFERENCES "k_content_relation_evidence" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
 ALTER TABLE "audio_odii_stories" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "audio_spot_versions" ADD FOREIGN KEY ("spot_id") REFERENCES "audio_odii_spots" ("id") DEFERRABLE INITIALLY IMMEDIATE;
@@ -1175,6 +1773,8 @@ ALTER TABLE "community_review_moderation_actions" ADD FOREIGN KEY ("review_id") 
 ALTER TABLE "operations_sync_checkpoints" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "operations_sync_quarantine" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "operations_sync_failures" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "ai_chunks" ADD FOREIGN KEY ("document_id", "revision") REFERENCES "ai_documents" ("document_id", "revision") DEFERRABLE INITIALLY IMMEDIATE;
 

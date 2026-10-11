@@ -22,24 +22,30 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public final class AdmissionFilter extends OncePerRequestFilter {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final Pattern DISCOVERY_READ = Pattern.compile(
+            "^/api/v1/(?:discovery/(?:topics|places(?:/[^/]+)?)|k-contents/works(?:/[^/]+)?|places/[^/]+/k-contents)$");
 
     private final AdmissionService admissionService;
     private final AdmissionPolicy admissionPolicy;
     private final ClientIdentityResolver identityResolver;
+    private final boolean discoveryEnabled;
 
     public AdmissionFilter(
             AdmissionService admissionService,
             AdmissionPolicy admissionPolicy,
-            ClientIdentityResolver identityResolver
+            ClientIdentityResolver identityResolver,
+            boolean discoveryEnabled
     ) {
         this.admissionService = admissionService;
         this.admissionPolicy = admissionPolicy;
         this.identityResolver = identityResolver;
+        this.discoveryEnabled = discoveryEnabled;
     }
 
     @Override
@@ -67,6 +73,10 @@ public final class AdmissionFilter extends OncePerRequestFilter {
     }
 
     private String operationFor(HttpServletRequest request) {
+        if (discoveryEnabled && "GET".equals(request.getMethod())
+                && DISCOVERY_READ.matcher(request.getRequestURI()).matches()) {
+            return "discovery.read";
+        }
         if ("POST".equals(request.getMethod()) && "/api/admission/login".equals(request.getRequestURI())) {
             return "login.start";
         }

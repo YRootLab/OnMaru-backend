@@ -23,3 +23,12 @@
 | **`/odii`** | `ODII-F002` | `ScriptSyncViewer` | `DATA-ODII-001` | Subtitle Script | `BE-REQ-008` | `src/features/odii-audio/components/ScriptSyncViewer.tsx` |
 | **`/odii`** | `ODII-F003` | `SoundConstellationSection` | `DATA-ODII-002` | Constellation | `BE-REQ-008` | `src/features/odii-audio/components/SoundConstellationSection.tsx` |
 | **`/odii`** | `ODII-F004` | `OdiiQuestionAssistant` | `DATA-ODII-003` | LLM Docent Q&A | `BE-REQ-009` (`POST /api/v1/odii/ask`) | `src/features/odii-audio/components/OdiiQuestionAssistant.tsx` |
+# 관리자 데이터 파이프라인 확장 (Issue #668)
+
+| FE 화면/요구 | Backend 계약 | 저장 근거 | 비고 |
+|---|---|---|---|
+| `/admin/data` 최근 실행 | `GET /api/v1/admin/pipelines/{dataset}/status` | `operations_sync_runs`, `operations_sync_failures` | `failureCount`는 최근 run 실패 항목 수, 누적 실패 실행은 `cumulativeFailureRunCount` |
+| 실행 진행 확인 | `GET /api/v1/admin/pipelines/{dataset}/runs/{runId}` | run scope/status/timestamps/progress snapshot | 정확한 progress가 없으면 `null` |
+| 실패 진단 | `GET /api/v1/admin/pipelines/{dataset}/runs/{runId}/failures` | sanitized failure table + scheduler run error code | 서명 cursor, limit 1..100, 원문 응답·secret 미노출 |
+| 수동 실행 | `POST /api/v1/admin/pipelines/{dataset}/runs` | 저장·수집 없음 | 3일 주기 scheduler 소유; 유효 요청도 501 |
+| 수집량·quota | status의 `contentStats`, `apiUsage` | 신뢰 가능한 집계 미구축 | 0으로 위장하지 않고 `null`/생략 |

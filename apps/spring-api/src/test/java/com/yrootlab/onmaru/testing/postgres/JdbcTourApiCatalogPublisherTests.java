@@ -722,7 +722,7 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     @Test
-    void productionUsesNeonSnapshotsInsteadOfHardcodedStores() throws Exception {
+    void productionUsesJdbcSnapshotsInsteadOfHardcodedStores() throws Exception {
         try (var context = new AnnotationConfigApplicationContext()) {
             context.getEnvironment().setActiveProfiles("production");
             context.registerBean(DataSource.class, () -> dataSource);

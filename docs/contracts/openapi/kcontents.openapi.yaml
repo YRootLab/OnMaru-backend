@@ -1,0 +1,136 @@
+openapi: 3.0.3
+info:
+  title: OnMaru K-Contents public read API
+  version: 1.2.0
+  description: 신규 탐색 게시본과 검증된 촬영 관계의 교집합만 조회한다. 기존 screen-hanok API와 독립적이다.
+paths:
+  /api/v1/k-contents/works:
+    get:
+      operationId: listKContentsWorks
+      parameters:
+        - {name: q, in: query, schema: {type: string, minLength: 2, maxLength: 100}}
+        - {name: type, in: query, schema: {$ref: '#/components/schemas/WorkType'}}
+        - {name: artistId, in: query, schema: {type: string, format: uuid}}
+        - {name: releaseYear, in: query, schema: {type: integer, minimum: 1895, maximum: 2200}}
+        - {name: workTagCodes, in: query, description: 검증된 canonical code의 쉼표 구분 OR 조건, schema: {type: string}}
+        - {name: sort, in: query, schema: {type: string, enum: [RELEVANCE, TITLE], default: RELEVANCE}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: 비회원도 조회 가능. 이미지 권리 미확인 시 workArtwork는 null.
+          headers: {Cache-Control: {schema: {type: string, example: no-store}}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/WorkPage'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '410': {$ref: '#/components/responses/ExpiredCursor'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/k-contents/works/{workId}:
+    get:
+      operationId: getKContentsWork
+      parameters:
+        - {name: workId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 작품 상세. 공개 관계가 있는 작품만 조회한다.
+          headers: {Cache-Control: {schema: {type: string, example: no-store}}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/WorkDetail'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/places/{placeId}/k-contents:
+    get:
+      operationId: listPlaceKContentsRelations
+      parameters:
+        - {name: placeId, in: path, required: true, description: "FE 공개 ID. 기존 mapping 우선, 신규 장소는 p-tourapi-contentId.", schema: {type: string}}
+        - {name: type, in: query, schema: {$ref: '#/components/schemas/WorkType'}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: 장소별 검증된 관계. 관계가 없으면 빈 items.
+          headers: {Cache-Control: {schema: {type: string, example: no-store}}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/RelationPage'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '410': {$ref: '#/components/responses/ExpiredCursor'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+components:
+  parameters:
+    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
+    Cursor: {name: cursor, in: query, schema: {type: string}, description: 필터·limit·게시 revision과 묶인 24시간 서명 커서}
+  responses:
+    BadRequest: {description: VALIDATION_ERROR 또는 CURSOR_INVALID, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+    NotFound: {description: NOT_FOUND, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+    ExpiredCursor: {description: CURSOR_EXPIRED, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+    Unavailable: {description: SERVICE_UNAVAILABLE 및 Retry-After, headers: {Retry-After: {schema: {type: integer, example: 30}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ApiError'}}}}
+  schemas:
+    WorkType: {type: string, enum: [DRAMA, MOVIE, VARIETY, MUSIC_VIDEO]}
+    ApiError:
+      type: object
+      required: [schemaVersion, code, message, requestId, details]
+      properties:
+        schemaVersion: {type: string, example: '1.2'}
+        code: {type: string}
+        message: {type: string}
+        requestId: {type: string}
+        details: {type: object}
+    WorkCard:
+      type: object
+      required: [workId, canonicalTitle, type, artists, publicPlaceCount, workTags]
+      properties:
+        workId: {type: string, format: uuid}
+        canonicalTitle: {type: string}
+        englishTitle: {type: string, nullable: true}
+        type: {$ref: '#/components/schemas/WorkType'}
+        releaseYear: {type: integer, nullable: true}
+        artists: {type: array, items: {type: object}}
+        workArtwork: {type: object, nullable: true, description: 현재 권리 확인 자료가 없어 null}
+        publicPlaceCount: {type: integer}
+        workTags: {type: array, items: {type: object}}
+    WorkDetail:
+      allOf:
+        - {$ref: '#/components/schemas/WorkCard'}
+        - {type: object, required: [summaryPoints, metadataSources, placesHref], properties: {summaryPoints: {type: array, maxItems: 3, items: {type: string}}, officialPageUrl: {type: string, nullable: true}, metadataSources: {type: array, items: {$ref: '#/components/schemas/Source'}}, placesHref: {type: string}}}
+    Source:
+      type: object
+      required: [sourceTitle, sourceUrl, sourceType, checkedAt]
+      properties:
+        sourceTitle: {type: string}
+        sourceUrl: {type: string, format: uri}
+        sourceType: {type: string, enum: [OFFICIAL, WEB, BROADCAST]}
+        publisherName: {type: string, nullable: true}
+        checkedAt: {type: string, format: date-time}
+    WorkPage:
+      type: object
+      required: [schemaVersion, catalogRevision, countsAsOf, matchingWorkCount, items, hasMore]
+      properties:
+        schemaVersion: {type: string, example: '1.2'}
+        catalogRevision: {type: string, format: uuid}
+        countsAsOf: {type: string, format: date-time}
+        matchingWorkCount: {type: integer}
+        items: {type: array, items: {$ref: '#/components/schemas/WorkCard'}}
+        hasMore: {type: boolean}
+        nextCursor: {type: string, nullable: true}
+    RelationPage:
+      type: object
+      required: [schemaVersion, catalogRevision, countsAsOf, matchingRelationCount, items, hasMore]
+      properties:
+        schemaVersion: {type: string, example: '1.2'}
+        catalogRevision: {type: string, format: uuid}
+        countsAsOf: {type: string, format: date-time}
+        matchingRelationCount: {type: integer}
+        items: {type: array, items: {$ref: '#/components/schemas/Relation'}}
+        hasMore: {type: boolean}
+        nextCursor: {type: string, nullable: true}
+    Relation:
+      type: object
+      required: [relationId, relationType, work, relationTags, evidence, evidenceCount, verifiedAt]
+      properties:
+        relationId: {type: string, format: uuid}
+        relationType: {type: string, enum: [FILMING_LOCATION]}
+        work: {type: object}
+        contextSummary: {type: string, nullable: true}
+        relationTags: {type: array, items: {type: object}}
+        evidence: {type: array, maxItems: 5, items: {$ref: '#/components/schemas/Source'}}
+        evidenceCount: {type: integer}
+        verifiedAt: {type: string, format: date-time}

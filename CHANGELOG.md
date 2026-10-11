@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Issue #668의 관리자 데이터 파이프라인 최근 scheduler 실행 상세, 실행 단건 조회, sanitized 실패 로그 cursor API와 실행별 `failureCount` 계약을 추가했다. 관리자 POST는 수집을 시작하지 않고 501을 반환한다.
+
 ## [0.3.41](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.40...v0.3.41) (2026-10-05)
 
 
@@ -35,6 +39,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 
 ## Unreleased
 
+- Issue #492의 관리자 access token JTI 폐기 상태와 계정별 `tokens_valid_after` 경계를 PostgreSQL에 영속화하고, logout 즉시 폐기·production fail-closed·만료 row cleanup과 관측 지표를 추가했다.
 - Issue #643의 Kakao 외부 장소 온기 생성 API, 장소·좌표·태그 검증, typed error, 원자적 외부 장소 registry와 FE 연동 계약을 추가했다.
 - Issue #647의 온디맨드 스테이징 DB에 지도·장소 상세·후기·Odii 연결을 함께 검증하는 결정적 합성 fixture와 반복 seed 통합 검증을 추가했다.
 - Issue #638에서 검증된 workers 2 / Gradle build cache disabled profile을 Spring Docker build와 deploy/release migration rehearsal에 적용하고 dependency·BuildKit cache는 유지했다.
@@ -66,7 +71,7 @@ This project uses semantic version tags from `master`. Release notes should be g
 - Issue #463의 한옥 목록을 한 번에 최대 500건까지 조회하고, 각 카드에 FE 호환 `lat`/`lng` 좌표를 제공한다.
 - Issue #453의 revision 보존 정책을 활성 PUBLISHED 1벌로 축소하고, 동일 TourAPI·ODII snapshot 재사용, TourAPI 실패 원문 미보관, 실패 STAGING 즉시 제거, 72시간 최소 동기화 간격을 적용했다.
 - Issue #444의 한옥 목록 필터·주소/좌표 계약, DataLab 35일 제공 지연 대응, 전국 285개 행정구역 registry와 DB 기반 원형 히트맵을 추가했다.
-- Issue #375의 TourAPI 국문 v4.4 전체 원천 적재, 공식 분류체계 기반 공개 필터, Neon 지도·한옥 snapshot과 TourAPI·Odii 03:00 KST 전체 동기화를 추가했다.
+- Issue #375의 TourAPI 국문 v4.4 전체 원천 적재, 공식 분류체계 기반 공개 필터, 당시 Neon 지도·한옥 snapshot과 TourAPI·Odii 03:00 KST 전체 동기화를 추가했다. **Neon 운영 구성은 deprecated이며 현재 운영 원본은 AWS PostgreSQL이다.**
 - Issue #262의 로그인 회원용 위치 기반 한옥 수결첩, PostGIS 체크인, 관계형 수결 지급, OpenAPI와 FE 연동 문서를 추가했다.
 - Issue #262의 명시적 참여형 익명 수결 랭킹, 참여·철회 API, OpenAPI 1.3과 FE 연동 안내를 추가했다.
 - Issue #262의 production OAuth 회원 원장을 JDBC로 연결하고, 탈퇴 시 수결 체크인·획득·랭킹 및 체크인 멱등성 응답 개인정보 삭제와 재생성 차단을 보강했다.

@@ -1,0 +1,4738 @@
+{
+  "source_file": "신분류체계정보_관광타입정보_연계_정의서.xlsx",
+  "source_sheet": "Sheet1",
+  "description": "TourAPI 신분류 소분류와 기존 관광타입(contentTypeId) 연계 정의서의 행을 계층형으로 변환한 자료. 정책 판단이나 포함/제외 라벨은 추가하지 않음.",
+  "leaf_count": 240,
+  "categories": [
+    {
+      "code": "AC",
+      "name": "숙박",
+      "subcategories": [
+        {
+          "code": "AC01",
+          "name": "호텔",
+          "items": [
+            {
+              "code": "AC010100",
+              "name": "호텔",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            }
+          ]
+        },
+        {
+          "code": "AC02",
+          "name": "콘도미니엄",
+          "items": [
+            {
+              "code": "AC020100",
+              "name": "콘도",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            },
+            {
+              "code": "AC020200",
+              "name": "레지던스",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            }
+          ]
+        },
+        {
+          "code": "AC03",
+          "name": "펜션/민박",
+          "items": [
+            {
+              "code": "AC030100",
+              "name": "펜션",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            },
+            {
+              "code": "AC030200",
+              "name": "한옥스테이",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            },
+            {
+              "code": "AC030300",
+              "name": "농어촌민박",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            },
+            {
+              "code": "AC030400",
+              "name": "홈스테이",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            }
+          ]
+        },
+        {
+          "code": "AC04",
+          "name": "모텔",
+          "items": [
+            {
+              "code": "AC040100",
+              "name": "모텔",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            }
+          ]
+        },
+        {
+          "code": "AC05",
+          "name": "캠핑",
+          "items": [
+            {
+              "code": "AC050100",
+              "name": "일반야영장",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "AC050200",
+              "name": "오토캠핑장",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "AC050300",
+              "name": "카라반",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "AC050400",
+              "name": "글램핑장",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            }
+          ]
+        },
+        {
+          "code": "AC06",
+          "name": "호스텔",
+          "items": [
+            {
+              "code": "AC060100",
+              "name": "유스호스텔",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            },
+            {
+              "code": "AC060200",
+              "name": "게스트하우스",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "EV",
+      "name": "축제/공연/행사",
+      "subcategories": [
+        {
+          "code": "EV01",
+          "name": "축제",
+          "items": [
+            {
+              "code": "EV010100",
+              "name": "문화관광축제",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV010200",
+              "name": "문화예술축제",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV010300",
+              "name": "지역특산물축제",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV010400",
+              "name": "전통역사축제",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV010500",
+              "name": "생태자연축제",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV010600",
+              "name": "기타축제",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            }
+          ]
+        },
+        {
+          "code": "EV02",
+          "name": "공연",
+          "items": [
+            {
+              "code": "EV020100",
+              "name": "전통공연",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV020200",
+              "name": "연극",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV020300",
+              "name": "뮤지컬",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV020400",
+              "name": "오페라",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV020500",
+              "name": "무용",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV020600",
+              "name": "클래식음악회",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV020700",
+              "name": "대중콘서트",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV020800",
+              "name": "영화",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV020900",
+              "name": "기타공연",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV021000",
+              "name": "넌버벌",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            }
+          ]
+        },
+        {
+          "code": "EV03",
+          "name": "행사",
+          "items": [
+            {
+              "code": "EV030100",
+              "name": "전시회",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV030200",
+              "name": "박람회",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV030300",
+              "name": "스포츠경기",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            },
+            {
+              "code": "EV030400",
+              "name": "기타행사",
+              "content_type_id": "15",
+              "content_type_name": "축제/공연/행사",
+              "multilingual_content_type_id": "85"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "EX",
+      "name": "체험관광",
+      "subcategories": [
+        {
+          "code": "EX01",
+          "name": "전통체험",
+          "items": [
+            {
+              "code": "EX010100",
+              "name": "전통문화체험",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "EX02",
+          "name": "공예체험",
+          "items": [
+            {
+              "code": "EX020100",
+              "name": "금속공예체험",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX020200",
+              "name": "유리공예체험",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX020300",
+              "name": "가죽공예체험",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX020400",
+              "name": "기타공예체험",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "EX03",
+          "name": "농.산.어촌 체험",
+          "items": [
+            {
+              "code": "EX030100",
+              "name": "체험마을",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX030200",
+              "name": "체험목장",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX030300",
+              "name": "체험농장",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX030400",
+              "name": "체험어장",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "EX04",
+          "name": "산사체험",
+          "items": [
+            {
+              "code": "EX040100",
+              "name": "템플스테이",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX040200",
+              "name": "사찰문화체험",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "EX05",
+          "name": "웰니스관광",
+          "items": [
+            {
+              "code": "EX050100",
+              "name": "온천 / 사우나 / 스파",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX050200",
+              "name": "찜질방",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX050300",
+              "name": "한방체험",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX050400",
+              "name": "힐링명상",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX050500",
+              "name": "뷰티스파",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX050600",
+              "name": "기타웰니스",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX050700",
+              "name": "자연치유",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX050800",
+              "name": "기타의료관광",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "EX06",
+          "name": "산업관광",
+          "items": [
+            {
+              "code": "EX060100",
+              "name": "근대산업유산",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX060200",
+              "name": "게임 등 첨단IT산업",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX060300",
+              "name": "전통/향토산업",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX060400",
+              "name": "문화콘텐츠산업",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX060500",
+              "name": "장수기업/산업테마거리",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX060600",
+              "name": "자동차/조선/철강 등",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX060700",
+              "name": "로봇/항공우주산업",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX060800",
+              "name": "화장품/주류/먹거리",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX060900",
+              "name": "친환경/신재생에너지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX061000",
+              "name": "기타산업관광지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "EX07",
+          "name": "기타체험",
+          "items": [
+            {
+              "code": "EX070100",
+              "name": "유람선/잠수함관광",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "EX070200",
+              "name": "기타체험관광",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "FD",
+      "name": "음식",
+      "subcategories": [
+        {
+          "code": "FD01",
+          "name": "한식",
+          "items": [
+            {
+              "code": "FD010100",
+              "name": "관광식당",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD010200",
+              "name": "모범음식점",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            }
+          ]
+        },
+        {
+          "code": "FD02",
+          "name": "외국식",
+          "items": [
+            {
+              "code": "FD020100",
+              "name": "중식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD020200",
+              "name": "일식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD020300",
+              "name": "서양식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD020400",
+              "name": "기타외국식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD020500",
+              "name": "퓨전음식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            }
+          ]
+        },
+        {
+          "code": "FD03",
+          "name": "간이음식",
+          "items": [
+            {
+              "code": "FD030100",
+              "name": "제과",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD030200",
+              "name": "피자, 햄버거, 샌드위치 및 유사음식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD030300",
+              "name": "치킨",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD030400",
+              "name": "김밥 분식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD030500",
+              "name": "이동음식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD030600",
+              "name": "기타간이음식",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            }
+          ]
+        },
+        {
+          "code": "FD04",
+          "name": "주점",
+          "items": [
+            {
+              "code": "FD040100",
+              "name": "바/펍",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD040200",
+              "name": "생맥주전문점",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD040300",
+              "name": "클럽",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD040400",
+              "name": "전통주/민속주점",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD040500",
+              "name": "기타주점",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            }
+          ]
+        },
+        {
+          "code": "FD05",
+          "name": "카페/ 찻집",
+          "items": [
+            {
+              "code": "FD050100",
+              "name": "카페",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD050200",
+              "name": "찻집",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            },
+            {
+              "code": "FD050300",
+              "name": "기타음료점",
+              "content_type_id": "39",
+              "content_type_name": "음식점",
+              "multilingual_content_type_id": "82"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "HS",
+      "name": "역사관광",
+      "subcategories": [
+        {
+          "code": "HS01",
+          "name": "역사유적지",
+          "items": [
+            {
+              "code": "HS010100",
+              "name": "고궁",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS010200",
+              "name": "성ㆍ산성ㆍ성곽",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS010300",
+              "name": "문",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS010400",
+              "name": "고택",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS010500",
+              "name": "생가",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS010600",
+              "name": "민속마을",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS010700",
+              "name": "사적지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS010800",
+              "name": "고분, 능",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS010900",
+              "name": "사당",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS011000",
+              "name": "선사유적지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS011100",
+              "name": "근대건축물",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS011200",
+              "name": "기타역사유적지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "HS02",
+          "name": "역사유물",
+          "items": [
+            {
+              "code": "HS020100",
+              "name": "탑ㆍ비석ㆍ기념탑",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS020200",
+              "name": "선사유물",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS020300",
+              "name": "불상",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS020400",
+              "name": "기타역사유물",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "HS03",
+          "name": "종교성지",
+          "items": [
+            {
+              "code": "HS030100",
+              "name": "불교",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS030200",
+              "name": "기독교",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS030300",
+              "name": "이슬람",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS030400",
+              "name": "기타 종교성지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "HS04",
+          "name": "안보관광지",
+          "items": [
+            {
+              "code": "HS040100",
+              "name": "안보유적지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS040200",
+              "name": "안보관광시설",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS040300",
+              "name": "북한관광지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "HS040400",
+              "name": "기타안보관광지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "LS",
+      "name": "레저스포츠",
+      "subcategories": [
+        {
+          "code": "LS01",
+          "name": "육상레저스포츠",
+          "items": [
+            {
+              "code": "LS010100",
+              "name": "인라인(실내 인라인 포함)",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS010200",
+              "name": "자전거하이킹",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS010300",
+              "name": "카트",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS010400",
+              "name": "골프",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS010500",
+              "name": "경마",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS010600",
+              "name": "경륜",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS010700",
+              "name": "승마",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS010800",
+              "name": "스키/스노보드",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS010900",
+              "name": "스케이트",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011000",
+              "name": "썰매장",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011100",
+              "name": "수렵장",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011200",
+              "name": "사격장",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011300",
+              "name": "암벽등반",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011400",
+              "name": "서바이벌게임",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011500",
+              "name": "ATV",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011600",
+              "name": "MTB",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011700",
+              "name": "오프로드",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011800",
+              "name": "번지점프",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS011900",
+              "name": "기타육상레저스포츠",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            }
+          ]
+        },
+        {
+          "code": "LS02",
+          "name": "수상레저스포츠",
+          "items": [
+            {
+              "code": "LS020100",
+              "name": "윈드서핑/제트스키",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS020200",
+              "name": "카약/카누",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS020300",
+              "name": "요트",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS020400",
+              "name": "스노쿨링/스킨스쿠버다이빙",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS020500",
+              "name": "민물낚시",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS020600",
+              "name": "바다낚시",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS020700",
+              "name": "수영",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS020800",
+              "name": "래프팅",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS020900",
+              "name": "수상오토바이",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS021000",
+              "name": "수상자전거",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS021100",
+              "name": "조정",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS021200",
+              "name": "워터슬레드",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS021300",
+              "name": "패러세일",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS021400",
+              "name": "기타수상레저스포츠",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            }
+          ]
+        },
+        {
+          "code": "LS03",
+          "name": "항공레저스포츠",
+          "items": [
+            {
+              "code": "LS030100",
+              "name": "스카이다이빙",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS030200",
+              "name": "초경량비행",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS030300",
+              "name": "헹글라이딩/패러글라이딩",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS030400",
+              "name": "열기구",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS030500",
+              "name": "무인비행장치(드론)",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "LS030600",
+              "name": "기타항공레저스포츠",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            }
+          ]
+        },
+        {
+          "code": "LS04",
+          "name": "복합레저스포츠",
+          "items": [
+            {
+              "code": "LS040100",
+              "name": "복합레저스포츠",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "NA",
+      "name": "자연관광",
+      "subcategories": [
+        {
+          "code": "NA01",
+          "name": "자연경관(산)",
+          "items": [
+            {
+              "code": "NA010100",
+              "name": "산, 고개, 오름, 봉우리",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA010200",
+              "name": "숲",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA010300",
+              "name": "폭포",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA010400",
+              "name": "계곡",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA010500",
+              "name": "약수터",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "NA02",
+          "name": "자연경관(하천‧해양)",
+          "items": [
+            {
+              "code": "NA020100",
+              "name": "강",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA020200",
+              "name": "호수",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA020300",
+              "name": "저수지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA020400",
+              "name": "연못·늪",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA020500",
+              "name": "섬",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA020600",
+              "name": "염전",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA020700",
+              "name": "항구/포구",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA020800",
+              "name": "해안절경",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA020900",
+              "name": "해변. 해수욕장",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "NA03",
+          "name": "자연생태",
+          "items": [
+            {
+              "code": "NA030100",
+              "name": "동굴",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA030200",
+              "name": "희귀동.식물",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA030300",
+              "name": "기암괴석",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA030400",
+              "name": "생태습지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA030500",
+              "name": "기타자연생태",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "NA04",
+          "name": "자연공원",
+          "items": [
+            {
+              "code": "NA040100",
+              "name": "국립공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA040200",
+              "name": "도립공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA040300",
+              "name": "군립공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA040400",
+              "name": "지질공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA040500",
+              "name": "생태관광지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA040600",
+              "name": "자연휴양림",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "NA040700",
+              "name": "수목원ㆍ정원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "NA05",
+          "name": "기타자연관광",
+          "items": [
+            {
+              "code": "NA050100",
+              "name": "기타자연관광",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SH",
+      "name": "쇼핑",
+      "subcategories": [
+        {
+          "code": "SH01",
+          "name": "백화점",
+          "items": [
+            {
+              "code": "SH010100",
+              "name": "백화점",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            }
+          ]
+        },
+        {
+          "code": "SH02",
+          "name": "쇼핑몰",
+          "items": [
+            {
+              "code": "SH020100",
+              "name": "복합쇼핑몰",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            },
+            {
+              "code": "SH020200",
+              "name": "아웃렛",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            }
+          ]
+        },
+        {
+          "code": "SH03",
+          "name": "대형마트",
+          "items": [
+            {
+              "code": "SH030100",
+              "name": "대형마트",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            }
+          ]
+        },
+        {
+          "code": "SH04",
+          "name": "면세점",
+          "items": [
+            {
+              "code": "SH040100",
+              "name": "공항면세점",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            },
+            {
+              "code": "SH040200",
+              "name": "시내면세점",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            },
+            {
+              "code": "SH040300",
+              "name": "사후면세점",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            }
+          ]
+        },
+        {
+          "code": "SH05",
+          "name": "전문매장/상가",
+          "items": [
+            {
+              "code": "SH050100",
+              "name": "공방/공예품점",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            },
+            {
+              "code": "SH050200",
+              "name": "전문상가",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            },
+            {
+              "code": "SH050300",
+              "name": "관광기념품/특산물판매점",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            }
+          ]
+        },
+        {
+          "code": "SH06",
+          "name": "시장",
+          "items": [
+            {
+              "code": "SH060100",
+              "name": "비상설시장",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            },
+            {
+              "code": "SH060200",
+              "name": "상설시장",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            }
+          ]
+        },
+        {
+          "code": "SH07",
+          "name": "기타쇼핑시설",
+          "items": [
+            {
+              "code": "SH070100",
+              "name": "기타쇼핑시설",
+              "content_type_id": "38",
+              "content_type_name": "쇼핑",
+              "multilingual_content_type_id": "79"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "VE",
+      "name": "문화관광",
+      "subcategories": [
+        {
+          "code": "VE01",
+          "name": "랜드마크관광",
+          "items": [
+            {
+              "code": "VE010100",
+              "name": "건물",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE010200",
+              "name": "타워 / 전망대",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE010300",
+              "name": "다리 / 대교",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE010400",
+              "name": "분수",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE010500",
+              "name": "동상",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE010600",
+              "name": "터널",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE010700",
+              "name": "댐",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE010800",
+              "name": "등대",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE010900",
+              "name": "기타 건축/조형물",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "VE02",
+          "name": "테마공원",
+          "items": [
+            {
+              "code": "VE020100",
+              "name": "테마파크",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE020200",
+              "name": "워터파크",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE020300",
+              "name": "동물원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE020400",
+              "name": "수족관 / 아쿠라리움",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE020500",
+              "name": "천문대",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "VE03",
+          "name": "도시공원",
+          "items": [
+            {
+              "code": "VE030100",
+              "name": "시민공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE030200",
+              "name": "소공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE030300",
+              "name": "어린이공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE030400",
+              "name": "근린공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE030500",
+              "name": "주제공원",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "VE04",
+          "name": "도시.지역문화관광",
+          "items": [
+            {
+              "code": "VE040100",
+              "name": "골목길, 문화거리",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE040200",
+              "name": "마을관광지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE040300",
+              "name": "둘레길",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            }
+          ]
+        },
+        {
+          "code": "VE05",
+          "name": "복합관광시설",
+          "items": [
+            {
+              "code": "VE050100",
+              "name": "관광단지",
+              "content_type_id": "12",
+              "content_type_name": "관광지",
+              "multilingual_content_type_id": "76"
+            },
+            {
+              "code": "VE050200",
+              "name": "리조트",
+              "content_type_id": "32",
+              "content_type_name": "숙박",
+              "multilingual_content_type_id": "80"
+            }
+          ]
+        },
+        {
+          "code": "VE06",
+          "name": "공연시설",
+          "items": [
+            {
+              "code": "VE060100",
+              "name": "공연장",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE060200",
+              "name": "영화관",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            }
+          ]
+        },
+        {
+          "code": "VE07",
+          "name": "전시시설",
+          "items": [
+            {
+              "code": "VE070100",
+              "name": "박물관",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE070200",
+              "name": "기념관",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE070300",
+              "name": "전시관",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE070400",
+              "name": "컨벤션센터",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE070500",
+              "name": "과학관",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE070600",
+              "name": "미술관/화랑",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            }
+          ]
+        },
+        {
+          "code": "VE08",
+          "name": "행사시설",
+          "items": [
+            {
+              "code": "VE080600",
+              "name": "연회장",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            }
+          ]
+        },
+        {
+          "code": "VE09",
+          "name": "교육시설",
+          "items": [
+            {
+              "code": "VE090100",
+              "name": "한국문화원",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE090200",
+              "name": "외국문화원",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE090300",
+              "name": "도서관",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE090400",
+              "name": "문화전수시설",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE090500",
+              "name": "어학당",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE090600",
+              "name": "학교",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            }
+          ]
+        },
+        {
+          "code": "VE10",
+          "name": "레저스포츠시설",
+          "items": [
+            {
+              "code": "VE100100",
+              "name": "스포츠경기장",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "VE100200",
+              "name": "스포츠센터, 수련시설",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            }
+          ]
+        },
+        {
+          "code": "VE12",
+          "name": "기타문화관광지",
+          "items": [
+            {
+              "code": "VE120100",
+              "name": "서점",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            },
+            {
+              "code": "VE120200",
+              "name": "카지노",
+              "content_type_id": "28",
+              "content_type_name": "레포츠",
+              "multilingual_content_type_id": "75"
+            },
+            {
+              "code": "VE120300",
+              "name": "기타문화시설",
+              "content_type_id": "14",
+              "content_type_name": "문화시설",
+              "multilingual_content_type_id": "78"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "C01",
+      "name": "추천코스",
+      "subcategories": [
+        {
+          "code": "C0112",
+          "name": "가족코스",
+          "items": [
+            {
+              "code": "C0112001",
+              "name": "가족코스",
+              "content_type_id": "25",
+              "content_type_name": "여행코스",
+              "multilingual_content_type_id": "-"
+            }
+          ]
+        },
+        {
+          "code": "C0113",
+          "name": "나홀로코스",
+          "items": [
+            {
+              "code": "C0113001",
+              "name": "나홀로코스",
+              "content_type_id": "25",
+              "content_type_name": "여행코스",
+              "multilingual_content_type_id": null
+            }
+          ]
+        },
+        {
+          "code": "C0114",
+          "name": "힐링코스",
+          "items": [
+            {
+              "code": "C0114001",
+              "name": "힐링코스",
+              "content_type_id": "25",
+              "content_type_name": "여행코스",
+              "multilingual_content_type_id": null
+            }
+          ]
+        },
+        {
+          "code": "C0115",
+          "name": "도보코스",
+          "items": [
+            {
+              "code": "C0115001",
+              "name": "도보코스",
+              "content_type_id": "25",
+              "content_type_name": "여행코스",
+              "multilingual_content_type_id": null
+            }
+          ]
+        },
+        {
+          "code": "C0116",
+          "name": "캠핑코스",
+          "items": [
+            {
+              "code": "C0116001",
+              "name": "캠핑코스",
+              "content_type_id": "25",
+              "content_type_name": "여행코스",
+              "multilingual_content_type_id": null
+            }
+          ]
+        },
+        {
+          "code": "C0117",
+          "name": "맛코스",
+          "items": [
+            {
+              "code": "C0117001",
+              "name": "맛코스",
+              "content_type_id": "25",
+              "content_type_name": "여행코스",
+              "multilingual_content_type_id": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC01",
+      "level2_name": "호텔",
+      "level3_code": "AC010100",
+      "level3_name": "호텔",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC02",
+      "level2_name": "콘도미니엄",
+      "level3_code": "AC020100",
+      "level3_name": "콘도",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC02",
+      "level2_name": "콘도미니엄",
+      "level3_code": "AC020200",
+      "level3_name": "레지던스",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC03",
+      "level2_name": "펜션/민박",
+      "level3_code": "AC030100",
+      "level3_name": "펜션",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC03",
+      "level2_name": "펜션/민박",
+      "level3_code": "AC030200",
+      "level3_name": "한옥스테이",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC03",
+      "level2_name": "펜션/민박",
+      "level3_code": "AC030300",
+      "level3_name": "농어촌민박",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC03",
+      "level2_name": "펜션/민박",
+      "level3_code": "AC030400",
+      "level3_name": "홈스테이",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC04",
+      "level2_name": "모텔",
+      "level3_code": "AC040100",
+      "level3_name": "모텔",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC05",
+      "level2_name": "캠핑",
+      "level3_code": "AC050100",
+      "level3_name": "일반야영장",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC05",
+      "level2_name": "캠핑",
+      "level3_code": "AC050200",
+      "level3_name": "오토캠핑장",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC05",
+      "level2_name": "캠핑",
+      "level3_code": "AC050300",
+      "level3_name": "카라반",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC05",
+      "level2_name": "캠핑",
+      "level3_code": "AC050400",
+      "level3_name": "글램핑장",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC06",
+      "level2_name": "호스텔",
+      "level3_code": "AC060100",
+      "level3_name": "유스호스텔",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "AC",
+      "level1_name": "숙박",
+      "level2_code": "AC06",
+      "level2_name": "호스텔",
+      "level3_code": "AC060200",
+      "level3_name": "게스트하우스",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV01",
+      "level2_name": "축제",
+      "level3_code": "EV010100",
+      "level3_name": "문화관광축제",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV01",
+      "level2_name": "축제",
+      "level3_code": "EV010200",
+      "level3_name": "문화예술축제",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV01",
+      "level2_name": "축제",
+      "level3_code": "EV010300",
+      "level3_name": "지역특산물축제",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV01",
+      "level2_name": "축제",
+      "level3_code": "EV010400",
+      "level3_name": "전통역사축제",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV01",
+      "level2_name": "축제",
+      "level3_code": "EV010500",
+      "level3_name": "생태자연축제",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV01",
+      "level2_name": "축제",
+      "level3_code": "EV010600",
+      "level3_name": "기타축제",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020100",
+      "level3_name": "전통공연",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020200",
+      "level3_name": "연극",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020300",
+      "level3_name": "뮤지컬",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020400",
+      "level3_name": "오페라",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020500",
+      "level3_name": "무용",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020600",
+      "level3_name": "클래식음악회",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020700",
+      "level3_name": "대중콘서트",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020800",
+      "level3_name": "영화",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV020900",
+      "level3_name": "기타공연",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV02",
+      "level2_name": "공연",
+      "level3_code": "EV021000",
+      "level3_name": "넌버벌",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV03",
+      "level2_name": "행사",
+      "level3_code": "EV030100",
+      "level3_name": "전시회",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV03",
+      "level2_name": "행사",
+      "level3_code": "EV030200",
+      "level3_name": "박람회",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV03",
+      "level2_name": "행사",
+      "level3_code": "EV030300",
+      "level3_name": "스포츠경기",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EV",
+      "level1_name": "축제/공연/행사",
+      "level2_code": "EV03",
+      "level2_name": "행사",
+      "level3_code": "EV030400",
+      "level3_name": "기타행사",
+      "content_type_id": "15",
+      "content_type_name": "축제/공연/행사",
+      "multilingual_content_type_id": "85"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX01",
+      "level2_name": "전통체험",
+      "level3_code": "EX010100",
+      "level3_name": "전통문화체험",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX02",
+      "level2_name": "공예체험",
+      "level3_code": "EX020100",
+      "level3_name": "금속공예체험",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX02",
+      "level2_name": "공예체험",
+      "level3_code": "EX020200",
+      "level3_name": "유리공예체험",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX02",
+      "level2_name": "공예체험",
+      "level3_code": "EX020300",
+      "level3_name": "가죽공예체험",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX02",
+      "level2_name": "공예체험",
+      "level3_code": "EX020400",
+      "level3_name": "기타공예체험",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX03",
+      "level2_name": "농.산.어촌 체험",
+      "level3_code": "EX030100",
+      "level3_name": "체험마을",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX03",
+      "level2_name": "농.산.어촌 체험",
+      "level3_code": "EX030200",
+      "level3_name": "체험목장",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX03",
+      "level2_name": "농.산.어촌 체험",
+      "level3_code": "EX030300",
+      "level3_name": "체험농장",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX03",
+      "level2_name": "농.산.어촌 체험",
+      "level3_code": "EX030400",
+      "level3_name": "체험어장",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX04",
+      "level2_name": "산사체험",
+      "level3_code": "EX040100",
+      "level3_name": "템플스테이",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX04",
+      "level2_name": "산사체험",
+      "level3_code": "EX040200",
+      "level3_name": "사찰문화체험",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX05",
+      "level2_name": "웰니스관광",
+      "level3_code": "EX050100",
+      "level3_name": "온천 / 사우나 / 스파",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX05",
+      "level2_name": "웰니스관광",
+      "level3_code": "EX050200",
+      "level3_name": "찜질방",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX05",
+      "level2_name": "웰니스관광",
+      "level3_code": "EX050300",
+      "level3_name": "한방체험",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX05",
+      "level2_name": "웰니스관광",
+      "level3_code": "EX050400",
+      "level3_name": "힐링명상",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX05",
+      "level2_name": "웰니스관광",
+      "level3_code": "EX050500",
+      "level3_name": "뷰티스파",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX05",
+      "level2_name": "웰니스관광",
+      "level3_code": "EX050600",
+      "level3_name": "기타웰니스",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX05",
+      "level2_name": "웰니스관광",
+      "level3_code": "EX050700",
+      "level3_name": "자연치유",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX05",
+      "level2_name": "웰니스관광",
+      "level3_code": "EX050800",
+      "level3_name": "기타의료관광",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060100",
+      "level3_name": "근대산업유산",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060200",
+      "level3_name": "게임 등 첨단IT산업",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060300",
+      "level3_name": "전통/향토산업",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060400",
+      "level3_name": "문화콘텐츠산업",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060500",
+      "level3_name": "장수기업/산업테마거리",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060600",
+      "level3_name": "자동차/조선/철강 등",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060700",
+      "level3_name": "로봇/항공우주산업",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060800",
+      "level3_name": "화장품/주류/먹거리",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX060900",
+      "level3_name": "친환경/신재생에너지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX06",
+      "level2_name": "산업관광",
+      "level3_code": "EX061000",
+      "level3_name": "기타산업관광지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX07",
+      "level2_name": "기타체험",
+      "level3_code": "EX070100",
+      "level3_name": "유람선/잠수함관광",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "EX",
+      "level1_name": "체험관광",
+      "level2_code": "EX07",
+      "level2_name": "기타체험",
+      "level3_code": "EX070200",
+      "level3_name": "기타체험관광",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD01",
+      "level2_name": "한식",
+      "level3_code": "FD010100",
+      "level3_name": "관광식당",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD01",
+      "level2_name": "한식",
+      "level3_code": "FD010200",
+      "level3_name": "모범음식점",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD02",
+      "level2_name": "외국식",
+      "level3_code": "FD020100",
+      "level3_name": "중식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD02",
+      "level2_name": "외국식",
+      "level3_code": "FD020200",
+      "level3_name": "일식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD02",
+      "level2_name": "외국식",
+      "level3_code": "FD020300",
+      "level3_name": "서양식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD02",
+      "level2_name": "외국식",
+      "level3_code": "FD020400",
+      "level3_name": "기타외국식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD02",
+      "level2_name": "외국식",
+      "level3_code": "FD020500",
+      "level3_name": "퓨전음식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD03",
+      "level2_name": "간이음식",
+      "level3_code": "FD030100",
+      "level3_name": "제과",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD03",
+      "level2_name": "간이음식",
+      "level3_code": "FD030200",
+      "level3_name": "피자, 햄버거, 샌드위치 및 유사음식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD03",
+      "level2_name": "간이음식",
+      "level3_code": "FD030300",
+      "level3_name": "치킨",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD03",
+      "level2_name": "간이음식",
+      "level3_code": "FD030400",
+      "level3_name": "김밥 분식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD03",
+      "level2_name": "간이음식",
+      "level3_code": "FD030500",
+      "level3_name": "이동음식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD03",
+      "level2_name": "간이음식",
+      "level3_code": "FD030600",
+      "level3_name": "기타간이음식",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD04",
+      "level2_name": "주점",
+      "level3_code": "FD040100",
+      "level3_name": "바/펍",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD04",
+      "level2_name": "주점",
+      "level3_code": "FD040200",
+      "level3_name": "생맥주전문점",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD04",
+      "level2_name": "주점",
+      "level3_code": "FD040300",
+      "level3_name": "클럽",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD04",
+      "level2_name": "주점",
+      "level3_code": "FD040400",
+      "level3_name": "전통주/민속주점",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD04",
+      "level2_name": "주점",
+      "level3_code": "FD040500",
+      "level3_name": "기타주점",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD05",
+      "level2_name": "카페/ 찻집",
+      "level3_code": "FD050100",
+      "level3_name": "카페",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD05",
+      "level2_name": "카페/ 찻집",
+      "level3_code": "FD050200",
+      "level3_name": "찻집",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "FD",
+      "level1_name": "음식",
+      "level2_code": "FD05",
+      "level2_name": "카페/ 찻집",
+      "level3_code": "FD050300",
+      "level3_name": "기타음료점",
+      "content_type_id": "39",
+      "content_type_name": "음식점",
+      "multilingual_content_type_id": "82"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010100",
+      "level3_name": "고궁",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010200",
+      "level3_name": "성ㆍ산성ㆍ성곽",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010300",
+      "level3_name": "문",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010400",
+      "level3_name": "고택",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010500",
+      "level3_name": "생가",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010600",
+      "level3_name": "민속마을",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010700",
+      "level3_name": "사적지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010800",
+      "level3_name": "고분, 능",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS010900",
+      "level3_name": "사당",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS011000",
+      "level3_name": "선사유적지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS011100",
+      "level3_name": "근대건축물",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS01",
+      "level2_name": "역사유적지",
+      "level3_code": "HS011200",
+      "level3_name": "기타역사유적지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS02",
+      "level2_name": "역사유물",
+      "level3_code": "HS020100",
+      "level3_name": "탑ㆍ비석ㆍ기념탑",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS02",
+      "level2_name": "역사유물",
+      "level3_code": "HS020200",
+      "level3_name": "선사유물",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS02",
+      "level2_name": "역사유물",
+      "level3_code": "HS020300",
+      "level3_name": "불상",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS02",
+      "level2_name": "역사유물",
+      "level3_code": "HS020400",
+      "level3_name": "기타역사유물",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS03",
+      "level2_name": "종교성지",
+      "level3_code": "HS030100",
+      "level3_name": "불교",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS03",
+      "level2_name": "종교성지",
+      "level3_code": "HS030200",
+      "level3_name": "기독교",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS03",
+      "level2_name": "종교성지",
+      "level3_code": "HS030300",
+      "level3_name": "이슬람",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS03",
+      "level2_name": "종교성지",
+      "level3_code": "HS030400",
+      "level3_name": "기타 종교성지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS04",
+      "level2_name": "안보관광지",
+      "level3_code": "HS040100",
+      "level3_name": "안보유적지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS04",
+      "level2_name": "안보관광지",
+      "level3_code": "HS040200",
+      "level3_name": "안보관광시설",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS04",
+      "level2_name": "안보관광지",
+      "level3_code": "HS040300",
+      "level3_name": "북한관광지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "HS",
+      "level1_name": "역사관광",
+      "level2_code": "HS04",
+      "level2_name": "안보관광지",
+      "level3_code": "HS040400",
+      "level3_name": "기타안보관광지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010100",
+      "level3_name": "인라인(실내 인라인 포함)",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010200",
+      "level3_name": "자전거하이킹",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010300",
+      "level3_name": "카트",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010400",
+      "level3_name": "골프",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010500",
+      "level3_name": "경마",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010600",
+      "level3_name": "경륜",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010700",
+      "level3_name": "승마",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010800",
+      "level3_name": "스키/스노보드",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS010900",
+      "level3_name": "스케이트",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011000",
+      "level3_name": "썰매장",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011100",
+      "level3_name": "수렵장",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011200",
+      "level3_name": "사격장",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011300",
+      "level3_name": "암벽등반",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011400",
+      "level3_name": "서바이벌게임",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011500",
+      "level3_name": "ATV",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011600",
+      "level3_name": "MTB",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011700",
+      "level3_name": "오프로드",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011800",
+      "level3_name": "번지점프",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS01",
+      "level2_name": "육상레저스포츠",
+      "level3_code": "LS011900",
+      "level3_name": "기타육상레저스포츠",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020100",
+      "level3_name": "윈드서핑/제트스키",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020200",
+      "level3_name": "카약/카누",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020300",
+      "level3_name": "요트",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020400",
+      "level3_name": "스노쿨링/스킨스쿠버다이빙",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020500",
+      "level3_name": "민물낚시",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020600",
+      "level3_name": "바다낚시",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020700",
+      "level3_name": "수영",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020800",
+      "level3_name": "래프팅",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS020900",
+      "level3_name": "수상오토바이",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS021000",
+      "level3_name": "수상자전거",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS021100",
+      "level3_name": "조정",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS021200",
+      "level3_name": "워터슬레드",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS021300",
+      "level3_name": "패러세일",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS02",
+      "level2_name": "수상레저스포츠",
+      "level3_code": "LS021400",
+      "level3_name": "기타수상레저스포츠",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS03",
+      "level2_name": "항공레저스포츠",
+      "level3_code": "LS030100",
+      "level3_name": "스카이다이빙",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS03",
+      "level2_name": "항공레저스포츠",
+      "level3_code": "LS030200",
+      "level3_name": "초경량비행",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS03",
+      "level2_name": "항공레저스포츠",
+      "level3_code": "LS030300",
+      "level3_name": "헹글라이딩/패러글라이딩",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS03",
+      "level2_name": "항공레저스포츠",
+      "level3_code": "LS030400",
+      "level3_name": "열기구",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS03",
+      "level2_name": "항공레저스포츠",
+      "level3_code": "LS030500",
+      "level3_name": "무인비행장치(드론)",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS03",
+      "level2_name": "항공레저스포츠",
+      "level3_code": "LS030600",
+      "level3_name": "기타항공레저스포츠",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "LS",
+      "level1_name": "레저스포츠",
+      "level2_code": "LS04",
+      "level2_name": "복합레저스포츠",
+      "level3_code": "LS040100",
+      "level3_name": "복합레저스포츠",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA01",
+      "level2_name": "자연경관(산)",
+      "level3_code": "NA010100",
+      "level3_name": "산, 고개, 오름, 봉우리",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA01",
+      "level2_name": "자연경관(산)",
+      "level3_code": "NA010200",
+      "level3_name": "숲",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA01",
+      "level2_name": "자연경관(산)",
+      "level3_code": "NA010300",
+      "level3_name": "폭포",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA01",
+      "level2_name": "자연경관(산)",
+      "level3_code": "NA010400",
+      "level3_name": "계곡",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA01",
+      "level2_name": "자연경관(산)",
+      "level3_code": "NA010500",
+      "level3_name": "약수터",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020100",
+      "level3_name": "강",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020200",
+      "level3_name": "호수",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020300",
+      "level3_name": "저수지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020400",
+      "level3_name": "연못·늪",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020500",
+      "level3_name": "섬",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020600",
+      "level3_name": "염전",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020700",
+      "level3_name": "항구/포구",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020800",
+      "level3_name": "해안절경",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA02",
+      "level2_name": "자연경관(하천‧해양)",
+      "level3_code": "NA020900",
+      "level3_name": "해변. 해수욕장",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA03",
+      "level2_name": "자연생태",
+      "level3_code": "NA030100",
+      "level3_name": "동굴",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA03",
+      "level2_name": "자연생태",
+      "level3_code": "NA030200",
+      "level3_name": "희귀동.식물",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA03",
+      "level2_name": "자연생태",
+      "level3_code": "NA030300",
+      "level3_name": "기암괴석",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA03",
+      "level2_name": "자연생태",
+      "level3_code": "NA030400",
+      "level3_name": "생태습지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA03",
+      "level2_name": "자연생태",
+      "level3_code": "NA030500",
+      "level3_name": "기타자연생태",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA04",
+      "level2_name": "자연공원",
+      "level3_code": "NA040100",
+      "level3_name": "국립공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA04",
+      "level2_name": "자연공원",
+      "level3_code": "NA040200",
+      "level3_name": "도립공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA04",
+      "level2_name": "자연공원",
+      "level3_code": "NA040300",
+      "level3_name": "군립공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA04",
+      "level2_name": "자연공원",
+      "level3_code": "NA040400",
+      "level3_name": "지질공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA04",
+      "level2_name": "자연공원",
+      "level3_code": "NA040500",
+      "level3_name": "생태관광지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA04",
+      "level2_name": "자연공원",
+      "level3_code": "NA040600",
+      "level3_name": "자연휴양림",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA04",
+      "level2_name": "자연공원",
+      "level3_code": "NA040700",
+      "level3_name": "수목원ㆍ정원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "NA",
+      "level1_name": "자연관광",
+      "level2_code": "NA05",
+      "level2_name": "기타자연관광",
+      "level3_code": "NA050100",
+      "level3_name": "기타자연관광",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH01",
+      "level2_name": "백화점",
+      "level3_code": "SH010100",
+      "level3_name": "백화점",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH02",
+      "level2_name": "쇼핑몰",
+      "level3_code": "SH020100",
+      "level3_name": "복합쇼핑몰",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH02",
+      "level2_name": "쇼핑몰",
+      "level3_code": "SH020200",
+      "level3_name": "아웃렛",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH03",
+      "level2_name": "대형마트",
+      "level3_code": "SH030100",
+      "level3_name": "대형마트",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH04",
+      "level2_name": "면세점",
+      "level3_code": "SH040100",
+      "level3_name": "공항면세점",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH04",
+      "level2_name": "면세점",
+      "level3_code": "SH040200",
+      "level3_name": "시내면세점",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH04",
+      "level2_name": "면세점",
+      "level3_code": "SH040300",
+      "level3_name": "사후면세점",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH05",
+      "level2_name": "전문매장/상가",
+      "level3_code": "SH050100",
+      "level3_name": "공방/공예품점",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH05",
+      "level2_name": "전문매장/상가",
+      "level3_code": "SH050200",
+      "level3_name": "전문상가",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH05",
+      "level2_name": "전문매장/상가",
+      "level3_code": "SH050300",
+      "level3_name": "관광기념품/특산물판매점",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH06",
+      "level2_name": "시장",
+      "level3_code": "SH060100",
+      "level3_name": "비상설시장",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH06",
+      "level2_name": "시장",
+      "level3_code": "SH060200",
+      "level3_name": "상설시장",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "SH",
+      "level1_name": "쇼핑",
+      "level2_code": "SH07",
+      "level2_name": "기타쇼핑시설",
+      "level3_code": "SH070100",
+      "level3_name": "기타쇼핑시설",
+      "content_type_id": "38",
+      "content_type_name": "쇼핑",
+      "multilingual_content_type_id": "79"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010100",
+      "level3_name": "건물",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010200",
+      "level3_name": "타워 / 전망대",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010300",
+      "level3_name": "다리 / 대교",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010400",
+      "level3_name": "분수",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010500",
+      "level3_name": "동상",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010600",
+      "level3_name": "터널",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010700",
+      "level3_name": "댐",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010800",
+      "level3_name": "등대",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE01",
+      "level2_name": "랜드마크관광",
+      "level3_code": "VE010900",
+      "level3_name": "기타 건축/조형물",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE02",
+      "level2_name": "테마공원",
+      "level3_code": "VE020100",
+      "level3_name": "테마파크",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE02",
+      "level2_name": "테마공원",
+      "level3_code": "VE020200",
+      "level3_name": "워터파크",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE02",
+      "level2_name": "테마공원",
+      "level3_code": "VE020300",
+      "level3_name": "동물원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE02",
+      "level2_name": "테마공원",
+      "level3_code": "VE020400",
+      "level3_name": "수족관 / 아쿠라리움",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE02",
+      "level2_name": "테마공원",
+      "level3_code": "VE020500",
+      "level3_name": "천문대",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE03",
+      "level2_name": "도시공원",
+      "level3_code": "VE030100",
+      "level3_name": "시민공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE03",
+      "level2_name": "도시공원",
+      "level3_code": "VE030200",
+      "level3_name": "소공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE03",
+      "level2_name": "도시공원",
+      "level3_code": "VE030300",
+      "level3_name": "어린이공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE03",
+      "level2_name": "도시공원",
+      "level3_code": "VE030400",
+      "level3_name": "근린공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE03",
+      "level2_name": "도시공원",
+      "level3_code": "VE030500",
+      "level3_name": "주제공원",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE04",
+      "level2_name": "도시.지역문화관광",
+      "level3_code": "VE040100",
+      "level3_name": "골목길, 문화거리",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE04",
+      "level2_name": "도시.지역문화관광",
+      "level3_code": "VE040200",
+      "level3_name": "마을관광지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE04",
+      "level2_name": "도시.지역문화관광",
+      "level3_code": "VE040300",
+      "level3_name": "둘레길",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE05",
+      "level2_name": "복합관광시설",
+      "level3_code": "VE050100",
+      "level3_name": "관광단지",
+      "content_type_id": "12",
+      "content_type_name": "관광지",
+      "multilingual_content_type_id": "76"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE05",
+      "level2_name": "복합관광시설",
+      "level3_code": "VE050200",
+      "level3_name": "리조트",
+      "content_type_id": "32",
+      "content_type_name": "숙박",
+      "multilingual_content_type_id": "80"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE06",
+      "level2_name": "공연시설",
+      "level3_code": "VE060100",
+      "level3_name": "공연장",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE06",
+      "level2_name": "공연시설",
+      "level3_code": "VE060200",
+      "level3_name": "영화관",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE07",
+      "level2_name": "전시시설",
+      "level3_code": "VE070100",
+      "level3_name": "박물관",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE07",
+      "level2_name": "전시시설",
+      "level3_code": "VE070200",
+      "level3_name": "기념관",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE07",
+      "level2_name": "전시시설",
+      "level3_code": "VE070300",
+      "level3_name": "전시관",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE07",
+      "level2_name": "전시시설",
+      "level3_code": "VE070400",
+      "level3_name": "컨벤션센터",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE07",
+      "level2_name": "전시시설",
+      "level3_code": "VE070500",
+      "level3_name": "과학관",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE07",
+      "level2_name": "전시시설",
+      "level3_code": "VE070600",
+      "level3_name": "미술관/화랑",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE08",
+      "level2_name": "행사시설",
+      "level3_code": "VE080600",
+      "level3_name": "연회장",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE09",
+      "level2_name": "교육시설",
+      "level3_code": "VE090100",
+      "level3_name": "한국문화원",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE09",
+      "level2_name": "교육시설",
+      "level3_code": "VE090200",
+      "level3_name": "외국문화원",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE09",
+      "level2_name": "교육시설",
+      "level3_code": "VE090300",
+      "level3_name": "도서관",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE09",
+      "level2_name": "교육시설",
+      "level3_code": "VE090400",
+      "level3_name": "문화전수시설",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE09",
+      "level2_name": "교육시설",
+      "level3_code": "VE090500",
+      "level3_name": "어학당",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE09",
+      "level2_name": "교육시설",
+      "level3_code": "VE090600",
+      "level3_name": "학교",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE10",
+      "level2_name": "레저스포츠시설",
+      "level3_code": "VE100100",
+      "level3_name": "스포츠경기장",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE10",
+      "level2_name": "레저스포츠시설",
+      "level3_code": "VE100200",
+      "level3_name": "스포츠센터, 수련시설",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE12",
+      "level2_name": "기타문화관광지",
+      "level3_code": "VE120100",
+      "level3_name": "서점",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE12",
+      "level2_name": "기타문화관광지",
+      "level3_code": "VE120200",
+      "level3_name": "카지노",
+      "content_type_id": "28",
+      "content_type_name": "레포츠",
+      "multilingual_content_type_id": "75"
+    },
+    {
+      "level1_code": "VE",
+      "level1_name": "문화관광",
+      "level2_code": "VE12",
+      "level2_name": "기타문화관광지",
+      "level3_code": "VE120300",
+      "level3_name": "기타문화시설",
+      "content_type_id": "14",
+      "content_type_name": "문화시설",
+      "multilingual_content_type_id": "78"
+    },
+    {
+      "level1_code": "C01",
+      "level1_name": "추천코스",
+      "level2_code": "C0112",
+      "level2_name": "가족코스",
+      "level3_code": "C0112001",
+      "level3_name": "가족코스",
+      "content_type_id": "25",
+      "content_type_name": "여행코스",
+      "multilingual_content_type_id": "-"
+    },
+    {
+      "level1_code": "C01",
+      "level1_name": "추천코스",
+      "level2_code": "C0113",
+      "level2_name": "나홀로코스",
+      "level3_code": "C0113001",
+      "level3_name": "나홀로코스",
+      "content_type_id": "25",
+      "content_type_name": "여행코스",
+      "multilingual_content_type_id": null
+    },
+    {
+      "level1_code": "C01",
+      "level1_name": "추천코스",
+      "level2_code": "C0114",
+      "level2_name": "힐링코스",
+      "level3_code": "C0114001",
+      "level3_name": "힐링코스",
+      "content_type_id": "25",
+      "content_type_name": "여행코스",
+      "multilingual_content_type_id": null
+    },
+    {
+      "level1_code": "C01",
+      "level1_name": "추천코스",
+      "level2_code": "C0115",
+      "level2_name": "도보코스",
+      "level3_code": "C0115001",
+      "level3_name": "도보코스",
+      "content_type_id": "25",
+      "content_type_name": "여행코스",
+      "multilingual_content_type_id": null
+    },
+    {
+      "level1_code": "C01",
+      "level1_name": "추천코스",
+      "level2_code": "C0116",
+      "level2_name": "캠핑코스",
+      "level3_code": "C0116001",
+      "level3_name": "캠핑코스",
+      "content_type_id": "25",
+      "content_type_name": "여행코스",
+      "multilingual_content_type_id": null
+    },
+    {
+      "level1_code": "C01",
+      "level1_name": "추천코스",
+      "level2_code": "C0117",
+      "level2_name": "맛코스",
+      "level3_code": "C0117001",
+      "level3_name": "맛코스",
+      "content_type_id": "25",
+      "content_type_name": "여행코스",
+      "multilingual_content_type_id": null
+    }
+  ]
+}

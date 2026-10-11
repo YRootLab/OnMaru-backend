@@ -383,6 +383,60 @@
       "checksum": "external-place-registry-v043-20261006",
       "sha256": "3bb0a7969e4295743c886c895664c351259e69e1995315a809072dccb2d14122",
       "description": "Client-asserted Kakao place identity and immutable VisitReview snapshot source"
+    },
+    {
+      "version": "044",
+      "reservedFor": "ADMIN_JWT_REVOCATION",
+      "issueNumber": 492,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V044__492_admin_jwt_revocation.sql",
+      "checksum": "admin-jwt-revocation-v044-20261006",
+      "sha256": "428fe94ccd759eaf6cbc10cfcffeaabdfa21fb95f4ec2f6cd2df110f1b0fea7e",
+      "description": "Persist admin access-token revocations and account token validity boundary"
+    },
+    {
+      "version": "045",
+      "reservedFor": "ADMIN_PIPELINE_DETAILS",
+      "issueNumber": 668,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V045__668_admin_pipeline_details.sql",
+      "checksum": "admin-pipeline-details-v045-20261006",
+      "sha256": "8101c5478d417066e667ee2ce532b4b87ea140af8a3ec6eb4cf1b7388b62b870",
+      "description": "Admin pipeline run scope, progress snapshot, latest-run index and sanitized failures"
+    },
+    {
+      "version": "046",
+      "reservedFor": "KCONTENTS_NORMALIZED_SCHEMA",
+      "issueNumber": 684,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V046__684_kcontents_normalized_schema.sql",
+      "checksum": "kcontents-normalized-schema-v046-20261008",
+      "sha256": "05ea2f1c715e60895a8fa873d3350f9525dcd893075d4f0dae7a3ee86cfc4c62",
+      "description": "Normalized K-Contents works, place filming relations, evidence and public gate"
+    },
+    {
+      "version": "047",
+      "reservedFor": "SELECTED_DISCOVERY_REVISION",
+      "issueNumber": 685,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V047__685_selected_discovery_revision.sql",
+      "checksum": "selected-discovery-revision-v047-20261008",
+      "sha256": "a3670c7ceddea339c4b963b64ad23feb3f5e8d9c908e276dd45c07812037eeeb",
+      "description": "Independent weekly discovery candidates, approval gate and active revision"
+    },
+    {
+      "version": "048",
+      "reservedFor": "KCONTENTS_RESEARCH_JOBS",
+      "issueNumber": 686,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V048__686_research_jobs.sql",
+      "checksum": "kcontents-research-jobs-v048-20261008",
+      "sha256": "94b73496accd7eb680ec4d4af991ce026d2e7edb5f777bce74f1dc21c59475e3",
+      "description": "Durable K-Contents research leases, evidence, receipts and audit"
+    },
+    {
+      "version": "049",
+      "reservedFor": "KCONTENTS_EVIDENCE_VALIDATION",
+      "issueNumber": 688,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V049__688_kcontents_validation.sql",
+      "checksum": "kcontents-validation-v049-20261009",
+      "sha256": "b3ce6854e29bd3737f3e8c3831ede05c5704c88d00e318390d6340c51b0e5cf4",
+      "description": "Evidence-bound extraction validation, review queue and audit"
     }
   ]
 }

@@ -1,5 +1,94 @@
 # handoff.md
 
+## 2026-10-11 Issue #691 운영 실데이터 시연 준비
+
+- 사용자 요청: 내일 FE 시연을 위해 운영 DB의 실제 장소 데이터를 읽고 촬영 관계를 근거로 라벨링한다. staging은 합성 데이터로 검증할 수 있으나, 운영 라벨을 합성 사실로 채우지 않는다. 1만 후보 전체에 LLM을 호출하지 않고 검색·규칙 선별 후 근거가 있는 후보만 추출한다.
+- 현재 브랜치: `feature/691-production-labeling-demo`. 운영 `master`에는 K-Contents V046~V049와 신규 API가 아직 없고, `develop`에만 있다. 운영 공개 `screen-hanok`은 2026-10-11 조회에서 `total=0`; FE 7개는 fallback이다.
+- 준비: 관리 SSH를 통해 운영 PostgreSQL의 전용 읽기 전용 계정으로 `testing/kcontents-pilot/read-only-demo-candidates.sql`을 실행했다. 기존 FE 7개 대상은 모두 활성 TourAPI revision에서 확인됐고, `양진당`은 상주와 안동 두 장소가 검색되므로 주소 대조가 필수다. 관광공사 공식 근거 후보 3건의 장소 contentId·주소·공개 ID를 `production-demo-evidence.md`에 기록했다. 운영 `k_contents`와 관계 테이블은 아직 없다. 운영 입력은 수행하지 않았다.
+- 릴리스 준비: `develop` → `release/v0.3.44` 초안 동기화 PR #708 생성. 검증과 운영 배포는 미완료다.
+- 다음: 원문·권리 및 관계를 검수하고 승인된 selected discovery 게시 절차를 준비한다. PR #708 검증 후 `release/*` → `master`, 운영 migration·feature flag·실제 관계 입력·FE API 응답 확인이 필요하다.
+
+## 2026-10-08 Issue #685 주간 선별 탐색 revision
+
+- 브랜치: `feature/685-selected-discovery-revision`, Issue #685. `develop`의 병합된 #682 W1·#683 W2와 별도 V047 스키마를 연결했다. #686 V048은 뒤따르는 migration이다.
+- 구현: 같은 공식 TourAPI taxonomy Set을 수집 격리와 의미 판정에 주입한다. 목록·상세 SHA-256/버전, ADDED·CHANGED·UNCHANGED·MISSING, 페이지 checkpoint와 상세 호출 상한, 후보/격리 dry-run, 사람 승인에 따른 별도 신규 active revision을 둔다. 기존 일일 cron·`kto-korean-tour` active pointer·공개 API는 수정하지 않는다.
+- 안전: 승인 전 자동 공개 없음. 상세 merge 후 hash/fingerprint를 preview하고 one-shot 명령으로 근거·역할·권리를 확인해 승인한다. 승인 철회는 `selected_discovery_public_visible` view에서 즉시 숨긴다. 실패·빈 snapshot·상세 예산 초과·누락·기존 공개 행 변경은 신규 LKG pointer를 보존한다. 첫 게시 CAS와 source identity 충돌 처리를 추가했다.
+- 검증: 선정 diff/승인/scheduler 집중 Gradle 테스트, PostGIS V047 migration·legacy pointer/공개 ID 보존·identity 공유·첫 게시 CAS·철회 view·rollback 통합 테스트, migration registry/DBML/Azimutt 계약, planning inputs, branch parser가 통과했다. PR의 `verify`가 최종 게이트다.
+- 다음: PR을 `develop` 대상으로 열고 `verify` 확인. 부모가 Wave 통합에서 #685(V047)→#686(V048) 순서로 병합한다. 운영 자동 수집은 기본 비활성이고 #691 파일럿에서만 별도 승인 레코드로 단계적 공개한다.
+
+## 2026-10-08 Issue #603 실행: 완료된 #681 Wave 0 기록
+
+- 사용자 요청: #681의 실데이터 정책 검증을 먼저 완료하고, `blocked-by`가 해제되는 #682~#691을 각 독립 worktree·브랜치·`develop` 대상 PR로 병렬 구현한다. 각 PR은 `verify`와 Wave 통합 gate 뒤 병합한다. #691에서 100→1,000건 pilot·스테이징·롤백까지 수행하고 운영 배포 직전 결과/위험을 보고해 승인을 기다린다.
+- 현재 브랜치/Issue: `docs/681-catalog-policy-validation`, #681. TourAPI 34개 코드 9,801건/41페이지, 4개 구제 검색의 신규 ID 57건, 운영 readonly 원천 49,613·공개 23,637건을 2026-10-08 실측했다. 원본 capture는 Git 밖의 `/tmp/onmaru-681-tourapi.json`과 `/tmp/onmaru-681-db.jsonl`에만 있으며 SHA는 `policy-validation.md`에 기록했다.
+- 수정: `docs/planning/place-kcontents/policy-validation.md`, ADR-0016 초안, 공개 API 기준선 fixture, 재현 스크립트. 신규 정책 `discovery-candidate-v1.0.0`의 후보 dry-run은 INCLUDE 1,983/REVIEW 4,463/EXCLUDE 3,412다. INCLUDE는 게시 허가가 아니며 상세 quality gate가 남는다.
+- 검증: 정책 4개 테스트, `verify-contracts --contracts-only`, planning inputs, branch parser, 문서 집계 일관성은 통과. 로컬 전체 Node 테스트는 `/tmp/onmaru-ci-toolkit-9c6f003/src`의 불완전한 별도 Toolkit 설치를 집어 24개가 실패했고, 동일 테스트의 고정 fixture 경로를 지정한 release 비교 24개는 통과했다. GitHub `verify`가 최종 gate다.
+- 완료: #681 PR #692가 `develop`에 병합됐고 Issue가 닫혔다. #682/#683/#684도 병합·종료되어 #685의 선행 조건이 해제됐다. #569의 FE 실제 경로는 미검증이므로 열어 둔다.
+
+## 2026-10-03 Issue #552 회원 익명 프로필·온기 후기 작성자
+## 다음 작업: Issue #675 스테이징 pagination 실검증
+
+- 브랜치: `feature/675-staging-pagination-fixtures`, Issue: [#675](https://github.com/YRootLab/OnMaru-backend/issues/675) OPEN. controller 리뷰 후 `develop` 대상 PR을 생성하며 본문은 `Refs #675`를 사용한다. 실제 Lightsail 배포·공개 API 3페이지 검증까지 Issue를 닫지 않는다.
+- 변경 범위: `infra/lightsail/staging/seed.sql`, `StagingFixtureTests.java`, staging README·FE 안내, deploy pipeline 문서 계약 테스트와 `docs/superpowers/{specs,plans}/2026-10-07-staging-pagination-fixtures*.md`. 아래 로컬 검증 결과를 기준으로 PR CI `verify`에서 전체 hygiene 결과를 재확인한다.
+- 병합 후: `CI / verify`가 통과한 병합된 `develop` SHA를 확인하고 `gh workflow run deploy.yml --ref develop -f deploy_staging=true`를 실행한다. workflow URL·SHA·이미지 digest가 일치하고 staging deploy가 성공한 뒤 제한 SSH `start`로 기동한다.
+- 실검증: 운영 `/api/v1/health` 전후 확인 → staging `/api/v1/visit-reviews?scope=ALL&limit=30`, `/api/v1/odii/stories?language=ko-KR&limit=30`의 응답 cursor를 다음 요청에 그대로 전달해 기준 상태의 30/30/5, fixture 65개 unique ID, 마지막 `hasMore=false`·`nextCursor=null` 확인(공개 사용자 후기가 있으면 실제 끝까지 순회하고 늘어난 합계·페이지 수와 추가 ID를 별도로 기록) → `/api/v1/map/info/places`의 SPOT/CAFE/MARKET별 전체 cursor 순회 34/33/33 및 합계 100개 unique public ID, viewport 줌 1/6/9/11의 PLACE/CLUSTER/DISTRICT/REGION 필터 확인 → 대표 장소 상세·후기·오디오 연결 확인 → SSH `stop`·`status` 및 운영 health 확인. workflow URL·병합 SHA·digest·각 응답 결과를 #675에 기록한 뒤 완료 조건을 대조해 종료한다. SSH·배포 절차는 [스테이징 README](infra/lightsail/staging/README.md)·[FE 안내](docs/operations/staging-fe-guide.md)를 따른다.
+- 최종 리뷰 수정: MockMvc 공개 controller·실제 JDBC 조회로 후기/Odii 30/30/5, 장소 후기 30/1·숨김 제외, Odii signed cursor와 동률 public ID ASC, 지도 4모드·카테고리별 ID를 자동 검증한다. 생성 집합 밖의 공개 #675 후기는 HIDDEN 처리하고 사용자 좋아요·신고·audit는 유지한다. 사용자 공개 후기 26개가 있는 DB는 fixture 65개를 보존하며 totalCount 91·30/30/30/1을 반환한다.
+- 열린 위험: 병합 후 실제 Lightsail의 배포 SHA/digest·공개 API·운영 health 전후·staging stop 증적 확인이 남았다. 로컬 공개 JDBC 통합 검증과 별도로 실서버 완료 기준을 충족하기 전에는 #675를 OPEN으로 유지한다.
+
+로컬 검증 재현 명령(저장소 루트에서 실행, 2026-10-07 결과):
+
+```bash
+# Task 4 수정 전 전체 Java CI baseline·bootJar 성공: 946 tests, 실패 0·skip 2; 당시 StagingFixtureTests 4/4
+./gradlew --init-script build-logic/ci-performance.gradle.kts :adapters:tourism-api:test :modules:insights:test :modules:catalog:test :modules:audio:test :modules:community:test :modules:identity:test :modules:journey:test :modules:operations:test :apps:spring-api:test :apps:spring-api:bootJar --no-daemon -Ponmaru.ci.performance.enabled=true
+# 최종 수정 관련 Java suite fresh 실행·bootJar 성공: 240 tests, 실패/오류/skip 0; StagingFixtureTests 8/8
+./gradlew --init-script build-logic/ci-performance.gradle.kts :modules:catalog:test :modules:audio:test :modules:community:test :modules:shared-web:test :apps:spring-api:test --tests '*StagingFixtureTests' --tests '*VisitReviewQueryWebBoundaryTests' --tests '*JdbcVisitReviewStoreTests' --tests '*JdbcOdiiStoryReadStoreIntegrationTests' --tests '*OdiiStory*WebBoundaryTests' --tests '*MapInfo*Tests' --tests '*MapViewport*Tests' :apps:spring-api:bootJar --no-daemon --rerun-tasks -Ponmaru.ci.performance.enabled=true
+# 최종 수정 전체 Node 229/229·skip 0: 불완전한 기존 로컬 Toolkit 대신 workflow 고정 SHA의 별도 checkout 사용
+taskToolkitDirectory="$(mktemp -d /tmp/onmaru-675-toolkit-XXXXXX)"
+git clone --quiet --no-checkout https://github.com/YRootLab/OnMaru-backend-ci-toolkit.git "$taskToolkitDirectory/repo"
+git -C "$taskToolkitDirectory/repo" checkout --quiet --detach 7ecbb89aae771604d9c1c532cf123f239e279110
+ONMARU_TOOLKIT_SRC="$taskToolkitDirectory/repo/src" node --test --test-concurrency=1 scripts/test/*.test.mjs
+node --test scripts/test/deploy-pipeline.test.mjs # 7/7 통과
+python3 -m pytest scripts/test/test_contract_validation.py # 11/11 통과
+bash scripts/verify-contracts # 전체 계약·generated artifact 통과
+node scripts/verify-planning-inputs.mjs # manifest hash·secret scan 통과
+node scripts/validate-odii-fixtures.mjs # 8 fixture 통과
+docker compose --env-file infra/lightsail/staging/.env.example -f infra/lightsail/staging/compose.yaml config --quiet # 통과
+uv run --project ai pytest ai/tests # 304 통과·live smoke 1 skip
+bash scripts/test/run-ai-evals.test.sh # re-exec version 테스트 통과
+uv run --project ai python scripts/run-ai-evals --input ai/evals/journey-held-out-v1.json --output /tmp/onmaru-675-ai-eval-report.json --schema-output /tmp/onmaru-675-ai-eval-report.schema.json # quality/safety/latency/cost/determinism 통과
+cmp ai/evals/report.schema.json /tmp/onmaru-675-ai-eval-report.schema.json # 일치
+uv run --project ai ruff check ai # 통과
+uv run --project ai mypy ai # 64 source files 통과
+node scripts/print-branch-issue.mjs # 675
+git diff --check origin/develop...HEAD # 통과
+git diff --check # 통과
+```
+## 2026-10-08 Issue #677 DBML 계약 검증 도구 고정
+
+- 브랜치: `fix/677-dbml-toolchain`, 관련 Issue: #677, 선행 PR: #676.
+- 요청: CI contract job의 DBML 전이 의존성 drift를 재현 가능한 toolchain 설치로 복구한다.
+- 구현: `scripts/dbml-toolchain`의 manifest·lock과 DBML 내부 패키지 override를 추가하고, wrapper가 매번 `npm ci` 이후 해당 로컬 CLI만 실행하도록 고정했다. 계약 테스트는 전체 lock, 경로·인수 전달, 설치 실패 시 stale CLI 실행 차단을 검증한다.
+- 검증: wrapper 계약 2개 red→green, parse lock 버전 drift mutation 실패→복구 green, Node v22.20.0 실제 변환·전체 `bash scripts/verify-contracts`·생성 SQL diff 일치, Python 3.12 contract 12개, Node 228개 및 hygiene 통과. 전체 Node 검증은 비어 있는 공유 `/tmp/onmaru-ci-toolkit-9c6f003/src`를 우회해 별도 임시 checkout의 고정 Toolkit SHA `7ecbb89aae771604d9c1c532cf123f239e279110`를 `ONMARU_TOOLKIT_SRC`로 지정했다.
+- 다음 단계: #677을 참조하는 develop 대상 PR 생성·리뷰, 필수 CI `verify` 확인 후 병합한다. PR #676의 실패한 contract 경로도 후속 CI에서 확인한다. npm 설치 단계는 CLI의 기존 전이 패키지 deprecation 경고를 출력하지만 검증은 성공한다.
+
+## 2026-10-07 Issue #671 실시간 온기 CSRF 예외 및 MockMvc 호환성 수정
+
+- 브랜치: `fix/671-warmth-csrf-bypass`, 관련 Issue: #671, PR: #672.
+- 문제 원인: `CsrfProtectionFilter`에서 `request.getServletPath()`를 직접 사용하여 MockMvc 테스트 환경(기본 `servletPath=""`)에서 모든 요청의 CSRF 검증이 누락되어 11개의 WebBoundary 테스트가 실패함.
+- 해결 내용:
+  - `resolvePath(request)` 헬퍼를 추가하여 `request.getServletPath()`가 비어있는 경우 `request.getRequestURI()`로 fallback 하도록 처리하여 MockMvc 및 서블릿 컨테이너(Tomcat) 환경 모두에서 정상 동작 보장.
+  - `schemaVersion(request)`도 `resolvePath(request)`를 사용하도록 일관성 개선.
+  - `SecurityWebBoundaryTests`에 `POST /api/v1/realtime/warmth` 요청이 CSRF 토큰 없이도 204 No Content로 허용되는지 검증하는 `warmthBroadcastEndpointBypassesCsrf()` 테스트 케이스 추가.
+- 다음 단계: PR #672 CI `verify` 통과 확인 후 PR 리뷰 및 merge.
+
+## 2026-10-06 Issue #492 관리자 JWT JTI PostgreSQL 폐기
+
+- 브랜치: `SHcommit/feat-security-jwt-jti-postgresql`, 관련 Issue: #492.
+- 설계: 개별 logout은 SHA-256 JTI hash row, 계정 비활성화는 `tokens_valid_after` 경계로 분리했다.
+- 구현: V044 migration, JDBC JTI/계정 경계 저장소, logout 즉시 access token 폐기, DB 장애 `503 AUTH_UNAVAILABLE`, production JDBC startup 검증, bounded cleanup, Micrometer 관측을 추가했다.
+- 보안: token/JTI 원문과 signing secret은 저장·로그·metric tag에 포함하지 않는다. production에는 메모리 fallback이 없다.
+- 검증: 관리자·migration 집중 Gradle suite 통과, Node/hygiene 228개 통과, 계약·fixture 검증 통과, AI 304개 통과·live smoke 1개 skip, `git diff --check` 통과. 전체 `./gradlew test`는 변경 범위와 무관한 `JdbcIdentityStampFlowTests.concurrentPartialProfileUpdatesPreserveBothFields`에서 로컬 PostgreSQL 연결을 6분 이상 대기해 thread dump 확인 후 중단했다. JTI hash, 별도 store 조회, 동시 upsert, expiry/cleanup, 계정 상태·iat 경계, logout 직후 401, 폐기 기록 장애 503은 집중 suite에서 모두 검증됐다.
+- 다음 단계: 전체 검증, PR diff cleanup, `Closes #492`로 develop 대상 PR 생성. develop 병합 후 Issue reconcile 전에는 #492를 닫지 않는다.
+
 ## 2026-10-06 Issue #647 스테이징 공개 API fixture
 
 - 브랜치: `feature/647-staging-api-fixtures`, 관련 Issue: #647.
@@ -85,7 +174,9 @@
 - runner 구조와 Java job 표시 개선은 #525로 기록했다. CI job 표시 이름을 `Java 모듈 및 Spring API 전체 테스트`로 구체화했다. 기존 모듈별 matrix 측정은 전체 workflow 소요 시간이 더 길었고, GitHub-hosted runner는 job마다 종료된다. 병렬 실행 방식은 사용자 선택 후 별도로 결정한다.
 - 실제 Lightsail Nginx/TLS, Render DB 복원, FE 로그인·쿠키·CORS, 운영 트래픽 전환은 아직 검증하지 않았다.
 
-### AWS 진행 상태
+### AWS 진행 상태 (2026-10-01 기록, deprecated)
+
+> 아래 Lightsail bootstrap/migration 진행 기록은 과거 snapshot이다. 사용자 확인 기준 현재 운영 중이며 TourAPI 데이터가 적재된 원본은 AWS PostgreSQL이다. 아래 “DB 아직 없음/Neon 원본” 전제와 남은 작업 목록은 현재 상태로 사용하지 않는다.
 
 - 인스턴스: `onmaru-prod-seoul`, Seoul `ap-northeast-2a`, Ubuntu 24.04, $7/월 번들(1 GB RAM, 2 vCPU, 40 GB SSD).
 - 고정 IP 리소스: `onmaru-prod-seoul-ip` 연결 완료. 숫자 IP는 사용자가 콘솔에서 확인해야 하며 아직 DNS에 등록하지 않았다.
@@ -110,6 +201,18 @@
 - SSH 22 인바운드가 넓게 열려 있다. 접속 경로를 보존하며 source IP를 제한해야 한다.
 - $7 번들은 1 GB RAM이라 Spring, PostgreSQL/PostGIS, Nginx 메모리 사용량을 관찰하고 OOM이 반복되면 상향을 검토한다.
 - Render 데이터의 실제 DB 버전/용량과 dump/restore 결과, GHCR package visibility, 필요한 운영 secret은 아직 확인하지 않았다.
+# 2026-10-04 Issue #603 검색 중심 스크린 속 한옥 리서치 하네스 설계
+
+- 브랜치: `feature/603-screen-hanok-research-harness`.
+- 운영 `스크린 속 한옥` 약 7개 항목을 재검증하고 고유 장소 100개·작품-장소 연결 150개 이상을 확보하는 검색 우선 내부 리서치 하네스를 설계했다.
+- 기존 장소 category는 유지하고 작품-장소-복수 출처 관계만 별도로 누적한다. 검색 API가 evidence를 수집하며 LLM은 evidence 구조화·요약·애매한 매칭 판정에만 사용한다.
+- TourAPI 변경 감지는 원천 수정 시각에 의존하지 않고 기존 revision의 `contentId + normalized SHA-256` set diff를 확장한다.
+- 초기 backfill은 기존 active catalog에서 일일 예산으로 처리하고, 정상 운영은 TourAPI 증분 동기화와 작품 리서치를 14일 통합 run으로 실행한다. evidence URL은 30일 주기로 확인한다.
+- 기존 장소는 목록 hash와 상세 hash를 분리한다. 목록이 변경된 장소만 즉시 상세 갱신하고, 변경 없는 장소는 중요도에 따라 30/60/180일 TTL로 quota 안에서 순환 재검증하며 기존 정상값을 보존한다.
+- 설계 문서: `docs/superpowers/specs/2026-10-04-screen-hanok-research-harness-design.md`.
+- 사용자 제공 TourAPI 신분류-관광타입 연계 XLSX를 원본 보존한 채 계층형 Markdown/JSON으로 변환했다. 전체 240개 소분류 행과 `contentTypeId` 연결을 옮겼다. OnMaru 적용 범위는 해당 Markdown에 기록: HS01·EX01·EX04·한옥스테이·VE04 일부 우선 후보, HS02/HS03/VE07/VE09/FD05/전통주/공예·시장/자연·랜드마크·산업관광 관련 항목은 선별 후보, C01 코스·EV 행사·대부분 LS 및 범용 업종은 초기 공개에서 제외한다. 중분류는 후보군, 소분류/장소 관련성은 세부 판정이며 작품 라벨은 별도 근거 기반이다.
+- 사용자가 현재 운영 DB가 AWS PostgreSQL이며 TourAPI 데이터를 적재해 사용 중이라고 확인했다. Neon 운영 구성과 Neon을 현재 원본으로 취급하는 문서는 deprecated 처리 대상으로 분류한다. 중분류 선택 정책에 따른 실제 장소 건수는 AWS 활성 catalog revision에서 `lcls_systm2/lcls_systm3`별 distinct `contentid`를 read-only 집계해야 한다. 현재 실행 환경에는 AWS CLI/접속 세션이 없어 아직 SQL을 실행하지 않았다. 운영 DB 변경은 금지한다.
+- 다음 단계: 사용자 문서 검토 후 구현 계획을 작성한다.
 
 ## 2026-10-04 Spring 운영 Blue-Green CD 준비 (#586)
 

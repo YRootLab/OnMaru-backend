@@ -22,13 +22,14 @@ public final class TourApiAdminPipelinePort implements AdminPipelinePort {
     });
 
     private final Function<String, AdminPipelineStatus> statusReader;
+    private final AdminPipelinePort historyReader;
     private final Runnable syncTask;
     private final Executor executor;
     private final Clock clock;
     private final Map<String, Execution> executions = new ConcurrentHashMap<>();
 
     public TourApiAdminPipelinePort(JdbcAdminPipelinePort statusPort, TourApiCatalogSyncService syncService) {
-        this(statusPort, syncService::syncFullSnapshot, PIPELINE_EXECUTOR, Clock.systemUTC());
+        this(statusPort::status, statusPort, syncService::syncFullSnapshot, PIPELINE_EXECUTOR, Clock.systemUTC());
     }
 
     TourApiAdminPipelinePort(
@@ -37,10 +38,7 @@ public final class TourApiAdminPipelinePort implements AdminPipelinePort {
             Executor executor,
             Clock clock
     ) {
-        this.statusReader = statusPort::status;
-        this.syncTask = syncTask;
-        this.executor = executor;
-        this.clock = clock;
+        this(statusPort::status, statusPort, syncTask, executor, clock);
     }
 
     TourApiAdminPipelinePort(
@@ -49,7 +47,18 @@ public final class TourApiAdminPipelinePort implements AdminPipelinePort {
             Executor executor,
             Clock clock
     ) {
+        this(statusReader, null, syncTask, executor, clock);
+    }
+
+    private TourApiAdminPipelinePort(
+            Function<String, AdminPipelineStatus> statusReader,
+            AdminPipelinePort historyReader,
+            Runnable syncTask,
+            Executor executor,
+            Clock clock
+    ) {
         this.statusReader = statusReader;
+        this.historyReader = historyReader;
         this.syncTask = syncTask;
         this.executor = executor;
         this.clock = clock;
@@ -65,8 +74,10 @@ public final class TourApiAdminPipelinePort implements AdminPipelinePort {
         var lastSuccessAt = execution.status().equals("SUCCEEDED")
                 ? execution.finishedAt()
                 : persisted.lastSuccessAt();
-        var failureCount = persisted.failureCount() + (execution.status().equals("FAILED") ? 1 : 0);
-        return new AdminPipelineStatus(dataset, execution.status(), lastSuccessAt, failureCount);
+        long cumulativeFailures = persisted.cumulativeFailureRunCount()
+                + (execution.status().equals("FAILED") ? 1 : 0);
+        return AdminPipelineStatus.from(dataset, execution.status(), lastSuccessAt,
+                cumulativeFailures, execution.toRun(dataset));
     }
 
     @Override
@@ -77,27 +88,43 @@ public final class TourApiAdminPipelinePort implements AdminPipelinePort {
         var execution = executions.compute(dataset, (key, current) -> {
             if (current != null && current.isActive()) return current;
             submitted[0] = true;
-            return new Execution(runId, "QUEUED", null);
+            return new Execution(runId, "QUEUED", null, null);
         });
 
         if (submitted[0]) {
             CompletableFuture.runAsync(() -> execute(dataset, runId), executor);
         }
-        return new AdminPipelineRunResult(execution.runId(), execution.status());
+        return new AdminPipelineRunResult("1.0", execution.runId(), dataset, "ALL", execution.status(), clock.instant());
+    }
+
+    @Override
+    public AdminPipelineRun run(String dataset, UUID runId) {
+        requireDataset(dataset);
+        var execution = executions.get(dataset);
+        if (execution != null && execution.runId().equals(runId)) return execution.toRun(dataset);
+        if (historyReader != null) return historyReader.run(dataset, runId);
+        throw new AdminPipelineRunNotFoundException();
+    }
+
+    @Override
+    public AdminPipelineFailurePage failures(String dataset, UUID runId, int limit, com.yrootlab.onmaru.catalog.application.pagination.AdminCursor cursor) {
+        if (historyReader != null) return historyReader.failures(dataset, runId, limit, cursor);
+        run(dataset, runId);
+        return new AdminPipelineFailurePage(java.util.List.of(), 0, false, null);
     }
 
     private void execute(String dataset, UUID runId) {
         executions.computeIfPresent(dataset, (key, current) -> current.runId().equals(runId)
-                ? new Execution(runId, "RUNNING", null)
+                ? new Execution(runId, "RUNNING", clock.instant(), null)
                 : current);
         try {
             syncTask.run();
             executions.computeIfPresent(dataset, (key, current) -> current.runId().equals(runId)
-                    ? new Execution(runId, "SUCCEEDED", clock.instant())
+                    ? new Execution(runId, "SUCCEEDED", current.startedAt(), clock.instant())
                     : current);
         } catch (RuntimeException exception) {
             executions.computeIfPresent(dataset, (key, current) -> current.runId().equals(runId)
-                    ? new Execution(runId, "FAILED", clock.instant())
+                    ? new Execution(runId, "FAILED", current.startedAt(), clock.instant())
                     : current);
         }
     }
@@ -106,9 +133,12 @@ public final class TourApiAdminPipelinePort implements AdminPipelinePort {
         if (!DATASET.equals(dataset)) throw new IllegalArgumentException("unsupported dataset");
     }
 
-    private record Execution(UUID runId, String status, Instant finishedAt) {
+    private record Execution(UUID runId, String status, Instant startedAt, Instant finishedAt) {
         private boolean isActive() {
             return status.equals("QUEUED") || status.equals("RUNNING");
+        }
+        private AdminPipelineRun toRun(String dataset) {
+            return new AdminPipelineRun(runId, dataset, "ALL", status, null, startedAt, finishedAt, 0);
         }
     }
 }

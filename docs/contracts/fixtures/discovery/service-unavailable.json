@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/discovery/topics"
+  },
+  "response": {
+    "status": 503,
+    "schema": "ApiError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "Discovery data is temporarily unavailable",
+      "requestId": "fixture-request",
+      "details": {
+        "retryAfterMs": 30000
+      }
+    }
+  },
+  "name": "discovery-service-unavailable"
+}

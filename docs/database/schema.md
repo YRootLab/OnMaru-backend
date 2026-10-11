@@ -12,6 +12,33 @@
 // ./overview.dbml
 // V038은 operations_sync_runs에 nullable trigger_source, lifecycle_status,
 // failure_phase, lease_generation을 추가해 Odii scheduler 실행 이력을 저장한다.
+// V046은 별도 K-Contents 작품/별칭/촬영 관계/근거/태그/요약을 정규화한다.
+// V049는 성공한 조사 job의 epoch별 서버 검증 결과, 검수 큐, 승인 감사를 별도 기록한다.
+// 제출 schema/prompt/model 버전을 job에 보존하고 입력 근거 bundle fingerprint로
+// 재검증을 추적한다. 검수자는 관계 검수에서 특정 evidence ID를 확인한 뒤에만
+// HUMAN_VERIFIED로 승격할 수 있다. 태그·요약 검수는 관계 상태를 바꾸지 않는다.
+// worker가 제출한 URL·발췌는 출처 검증이 아니므로 기본 REVIEW_REQUIRED다.
+// 서버가 원문·인용문을 독립 확인해 source_verified_at/by를 기록한 근거만
+// 자동 confidence에 사용한다. 기존 검증 관계는 약한 재조사 결과로 강등하지 않는다.
+// 신규 작품 API는 k_content_public_relations view를 사용하며 legacy 공개 경로와 분리된다.
+// V047은 기존 kto-korean-tour active pointer와 분리된 주간 선별 탐색 run,
+// 페이지 checkpoint, 후보/diff·격리, 수동 승인 감사, 공개 revision과 별도 active pointer를 둔다.
+// 동일 TourAPI contentId는 catalog_place_sources의 기존 provider/dataset/language 키로
+// catalog_place_identity UUID를 재사용한다. 후보는 공개가 아니며 상세·권리 검수와
+// source fingerprint 및 목록/상세 hash 일치가 확인된 승인만 공개 revision에 들어간다.
+// 신규 공개 조회는 selected_discovery_public_visible view를 사용한다. 승인 철회는
+// 기존 active 행도 즉시 숨기며 pointer와 legacy 공개본은 변경하지 않는다.
+// 누락·부분 실패는 active pointer를 자동 변경하지 않고, 운영자가 검토한
+// 이전 PUBLISHED revision으로만 rollback할 수 있다.
+// 관계 place_id는 catalog_place_identity 내부 UUID FK이며 외부 tourContentId는 FK가 아니다.
+// 공개 조회는 k_content_public_relations view를 사용한다. 작품과 관계가 승인 상태이고
+// VERIFIED 관계 근거가 최소 1개 있어야 노출된다. 근거 철회/상태 변경은 즉시 view에 반영된다.
+// 상세 모델: ./modules/kcontents.dbml. 기존 screen-hanok API와 게시본은 변경하지 않는다.
+// V045는 관리자 파이프라인 상세 조회를 위해 operations_sync_runs에 scope,
+// requested_at, nullable progress snapshot을 추가한다. operations_sync_failures에는
+// 실행별 sanitized 오류 코드·메시지·endpoint·content ID만 저장하며 credential,
+// Authorization header, 개인정보와 전체 upstream payload는 저장하지 않는다.
+// 최신 실행 조회와 실패 cursor page는 각각 dataset/latest, run/time/id index를 사용한다.
 // V039는 관리자 cursor 목록의 필터 전체 건수와 keyset page 조회를 위해
 // identity_members(status, created_at, id), 좌표 snapshot이 완전한
 // community_visit_reviews(status, created_at, id), OPEN community_review_reports
@@ -131,6 +158,11 @@
 // identity_admin_sessions에 저장하며, 후기/신고 변경은 기존 community moderation command와
 // 같은 transaction에서 audit row를 남긴다. curation override는 TourAPI 원천 행을 수정하지 않고
 // active Catalog projection에 별도로 적용한다.
+// V044는 관리자 access token의 logout 직후 폐기와 계정 단위 전체 폐기 경계를 추가한다.
+// identity_admin_access_token_revocations에는 token/JTI 원문이 아닌 SHA-256 JTI hash와 exp만
+// 저장하며, identity_admin_accounts.tokens_valid_after 이전 iat의 token은 거부한다.
+// production 인증은 두 값을 PostgreSQL에서 조회하고 장애 시 fail-closed 하며, 만료된 폐기 row는
+// 시간당 bounded cleanup으로 제거한다.
 // V037은 V036보다 먼저 게시된 활성 TourAPI revision의 지도 장소·카테고리·지역 집계
 // projection 및 publication을 원천 장소 변경 없이 채운다. 지역 코드가 없는 장소도
 // 위치와 공개 ID가 있으면 지도 목록에 포함하고 지역 집계에서는 제외한다.
@@ -203,3 +235,8 @@ Table audio_guides {
 
 // 관계 (Relationships)
 Ref: audio_guides.(tid, tlid) > tour_spots.(tid, tlid)
+# K-Contents 조사 작업 경계 (V048, #686)
+
+`k_content_research_jobs`는 장소별 조사 이유와 원천 fingerprint를 유일하게 보관한다. `QUEUED` 작업은 PostgreSQL `FOR UPDATE SKIP LOCKED`로 한 워커에게 15분 lease를 부여하며, 만료된 lease는 재시도 횟수 안에서 다시 가져갈 수 있다. 각 시도는 `k_content_research_runs`에 worker·시작/종료·결과로 기록한다.
+
+`k_content_research_evidence`의 ID는 서버가 발급한다. 제출 시 `k_content_research_receipts`의 `(job_id, idempotency_key)`가 중복 확정을 막고, 같은 lease token·worker·payload의 재생만 같은 결과를 돌려준다. 제출 JSON의 모든 `evidenceId`/`evidenceIds`는 최상위 목록과 정확히 일치하고 모두 해당 job 소속이어야 한다. `SUCCEEDED`는 원시 조사 결과 접수 상태이며 공개 촬영 관계의 검증·게시는 별도 단계다. `k_content_research_events`는 lease·근거·제출·실패·운영 재큐잉 이력을 남긴다.

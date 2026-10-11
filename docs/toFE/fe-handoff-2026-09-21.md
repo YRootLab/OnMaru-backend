@@ -1,4 +1,6 @@
-# 홈·오디오 API FE 연동 보고서 (2026-09-21, 2차 갱신)
+# [Deprecated] 홈·오디오 API FE 연동 보고서 (2026-09-21, 2차 갱신)
+
+> 과거 Neon 기반 운영 시점의 이력 문서다. Neon DB 연동과 아래 Render 배포 정보는 deprecated이며 현재 운영 DB는 AWS PostgreSQL이다. 이 문서를 현재 배포/DB 안내로 사용하지 않는다.
 
 FE에 전달하는 최신 API 연동 상태 보고서. Base URL: `https://onmaru-backend.onrender.com` (v0.3.12 이상 배포 기준). 모든 응답은 `Cache-Control: no-store`, 목록 계약은 `schemaVersion: 1.2`다.
 
