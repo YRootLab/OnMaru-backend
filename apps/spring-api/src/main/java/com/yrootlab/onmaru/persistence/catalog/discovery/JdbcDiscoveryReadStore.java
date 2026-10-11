@@ -26,6 +26,7 @@ import java.util.UUID;
 public final class JdbcDiscoveryReadStore {
     private static final String ACTIVE = """
             SELECT p.revision_id,p.content_id,p.place_id,p.role,p.region_code,p.raw,
+                   labels.label->'placeSummaryPoints' AS place_summary_points,
                    COALESCE(ids.public_id, 'p-tourapi-' || trim(both '-' from regexp_replace(lower(p.content_id),'[^a-z0-9]+','-','g'))) AS public_id,
                    region.name AS region_name,
                    EXISTS (SELECT 1 FROM onmaru.catalog_active_datasets a JOIN onmaru.catalog_place_versions v
@@ -39,6 +40,7 @@ public final class JdbcDiscoveryReadStore {
                        AND story_version.story_id=story.id AND story_version.status='ACTIVE'
                     WHERE link.place_id=p.place_id AND link.review_status='APPROVED') AS story_count
             FROM onmaru.selected_discovery_public_visible p
+            LEFT JOIN onmaru.k_content_active_candidate_labels labels ON labels.content_id=p.content_id
             LEFT JOIN onmaru.catalog_place_public_ids ids ON ids.place_id=p.place_id
             LEFT JOIN onmaru.map_region_display_names region ON region.provider_code=p.region_code
             ORDER BY p.place_id
@@ -56,6 +58,7 @@ public final class JdbcDiscoveryReadStore {
                   AND btrim(approval.evidence_ref)<>''
             )
             SELECT p.revision_id,p.content_id,p.place_id,p.role,p.region_code,p.raw,
+                   labels.label->'placeSummaryPoints' AS place_summary_points,
                    COALESCE(ids.public_id, 'p-tourapi-' || trim(both '-' from regexp_replace(lower(p.content_id),'[^a-z0-9]+','-','g'))) AS public_id,
                    region.name AS region_name,
                    EXISTS (SELECT 1 FROM onmaru.catalog_active_datasets a JOIN onmaru.catalog_place_versions v
@@ -69,6 +72,7 @@ public final class JdbcDiscoveryReadStore {
                        AND story_version.story_id=story.id AND story_version.status='ACTIVE'
                     WHERE link.place_id=p.place_id AND link.review_status='APPROVED') AS story_count
             FROM visible p
+            LEFT JOIN onmaru.k_content_active_candidate_labels labels ON labels.content_id=p.content_id
             LEFT JOIN onmaru.catalog_place_public_ids ids ON ids.place_id=p.place_id
             LEFT JOIN onmaru.map_region_display_names region ON region.provider_code=p.region_code
             ORDER BY p.place_id
@@ -147,6 +151,11 @@ public final class JdbcDiscoveryReadStore {
             b.role=row.getString("role"); b.address=value(fields,"addr1");
             b.latitude=number(fields,"mapy"); b.longitude=number(fields,"mapx");
             b.description=value(fields,"overview"); b.lcls2=value(fields,"lclsSystm2"); b.lcls3=value(fields,"lclsSystm3");
+            var summaries=row.getString("place_summary_points");
+            if(summaries!=null) {
+                var parsed=mapper.readTree(summaries);
+                if(parsed.isArray()) for(var point:parsed) if(point.isTextual()) b.placeSummaryPoints.add(point.asText());
+            }
             b.taxonomyLabel=value(fields,"lclsSystm3Name");
             b.storyCount=row.getInt("story_count"); b.saveAvailable=row.getBoolean("save_available") && saveEligibility.isSaveable(b.id); b.saved=row.getBoolean("saved");
             return b;
@@ -176,8 +185,8 @@ public final class JdbcDiscoveryReadStore {
     private static final class Builder {
         UUID internalId; String id,name,regionCode,regionName,role,address,description,lcls2,lcls3,taxonomyLabel;
         Double latitude,longitude; int storyCount; boolean saveAvailable,saved;
-        List<Relation> relations=new ArrayList<>();
+        List<Relation> relations=new ArrayList<>(); List<String> placeSummaryPoints=new ArrayList<>();
         Place build(){return new Place(id,internalId,name,regionCode,regionName,role,address,latitude,longitude,description,
-                lcls2,lcls3,taxonomyLabel,storyCount>0,storyCount,saveAvailable,saved,List.copyOf(relations));}
+                List.copyOf(placeSummaryPoints),lcls2,lcls3,taxonomyLabel,storyCount>0,storyCount,saveAvailable,saved,List.copyOf(relations));}
     }
 }

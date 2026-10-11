@@ -1,5 +1,11 @@
 # handoff.md
 
+## 2026-10-12 Issue #718 전수 장소 요약·FE 내부 전달
+
+- 브랜치 `feature/718-bulk-labeling`, PR #720. TourAPI 선별 후보 11,083곳 모두에 로컬 `placeSummaryPoints` 3개를 생성하고 `manifest-reviewed.json`에 내용 SHA를 기록했다. 기존 공식 촬영지 대조는 17곳 검증, 신규 1,752곳 검토 후보, 그 외는 공식 자료 한 종류에서 근접 근거가 없는 상태다. 이는 작품 관계 전수 검증 완료가 아니다.
+- `tmp/kcontents-718/fe-place-labels.jsonl`/manifest는 FE #366 대조용 내부 산출물이다. `placeId`는 기존 공개 ID 8,678개와 read store 동일 fallback 2,405개이며 새 후보의 작품 관계·이미지는 공개 미승인이다. KCISA CSV에 이미지 URL 없음.
+- V050에 요약 SHA와 3개 항목 CHECK를 추가했고 로컬 import SQL은 기본 ROLLBACK이다. 운영 DB는 아직 미적재, 공개 FE API도 새 요약을 읽지 않는다. 다음은 CI `verify`, PR 병합, release/migration, 운영 STAGED import와 검증, 승인 게시 게이트·FE API 연결이다.
+
 ## 2026-10-12 Issue #716 운영 카탈로그 선별 전환
 
 - 사용자 지시: 기존 49,663건 전체 호출→23,598 활성 장소 경로를 신분류 34코드와 구분류 한옥·고택·궁궐·전통마을·한옥카페·한옥숙소·전통체험·전통시장 8필터, 관련 키워드 8개로 좁혀 교체한다. 이전 revision/identity/관계는 물리 삭제하지 않는다.
@@ -263,3 +269,11 @@ git diff --check # 통과
 - Cutover publisher no longer deletes prior KTO revision on publish or unchanged sync. Retention protects latest two KTO published revisions and KTO published revisions for 14 days, leaving an operational rollback window.
 - `docs/operations/runbooks/selected-catalog-cutover.md` now audits removed public places referenced by saved places, reviews, and K-Contents, compares active map projections, and documents a transaction-safe active-pointer rollback. Do not claim prod cutover complete until affected reference counts and FE screen checks are reviewed; historical detail for removed places may require a separate compatibility migration.
 - `./gradlew :apps:spring-api:test --tests '*JdbcTourApiCatalogPublisherTests' --tests '*RetentionCleanupJdbcTests'` compiled but Testcontainers initialization failed locally because Docker socket is unavailable. CI must run integration tests.
+
+## #718 전수 1차 라벨링 (2026-10-12)
+- Branch `feature/718-bulk-labeling`, Issue #718, PR #719. 최종 TourAPI 67필터/72페이지/14,936응답, 고유 11,083건 전수 1차 라벨을 `tmp/kcontents-718/`에 생성. 산출물은 Git 제외.
+- 공식 촬영지 CSV 15,034행 SHA 확인, 정확명+30m 후보 217관계/99곳. 기존 검증 17곳은 옥천성당(contentId 2717818) 제목 검색 구제를 포함해 새 수집 범위에 모두 들어왔다.
+- 운영 DB 적재, FE API 연결, 후보 관계 검수는 미완. 자세한 수치와 실행 명령은 `docs/operations/runbooks/full-candidate-labeling.md`.
+- #718 V050은 버전형 내부 라벨 배치와 활성 pointer를 추가한다. `prepare-kcontent-label-import.py`는 기본 ROLLBACK, 건수·해시 검증 가져오기 SQL을 생성한다. V050은 아직 운영에 배포되지 않았고 11,083개 라벨은 로컬에 있다. 기존 검증 26관계/17곳은 전부 새 후보에 포함된다. Gemini는 공식 후보의 장면 요약 초안 210개만 생성했고 원문 인용 검사 후 전부 REVIEW_REQUIRED(7개 빈 요약), 공개 0.
+- #717은 CI `verify` 통과 뒤 `develop`에 squash merge됐다(`ede5bb76`). 원래 stacked PR #719는 GitHub가 base 브랜치 삭제 때 자동 종료했으므로, #718 커밋을 `origin/develop` 위로 rebase하고 PR #720을 새로 열었다. #716 Issue는 운영 전환 완료 전까지 열어 둔다.
+- #718 추가 근거 감사: 공식 드라마·영화·예능·아티스트 유효 좌표 15,028행과 11,083곳 전수 대조. 기존 검증 17, 이름 동일 100m 이내 248/1km 이내 82, 이름 일부 일치 78, 근접한 다른 장소 1,344, 자료 내 근접 근거 없음 9,308, 좌표 없음 6. `tmp/kcontents-718/evidence-audits.jsonl`과 `labels-reviewed.jsonl`에 출처 행·제목·미디어 유형·거리·상태를 보존한다. 감사 SHA `dc037b536d82ac82ea38c133cc5657ba7648ca57120358df7630c0d56d9ce6cb`. 외부 추가 조사나 인간 검증 완료를 뜻하지 않는다. V050과 가져오기 도구는 결정 집합·근거 감사 SHA를 함께 확인한다.

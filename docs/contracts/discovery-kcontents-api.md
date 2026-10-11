@@ -141,6 +141,7 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
   "address": "예시 주소",
   "coordinates": {"latitude": 37.5, "longitude": 127.0},
   "description": "예시 설명",
+  "placeSummaryPoints": [],
   "sourceTaxonomy": {"provider": "TOUR_API", "lclsSystm2": "HS01", "lclsSystm3": null, "labelKo": "역사유적지"},
   "placeRoles": [{"code": "CORE_TRADITIONAL_PLACE", "labelKo": "전통 공간·문화유산"}],
   "topics": ["TRADITIONAL_SPACE_HERITAGE", "K_DRAMA"],
@@ -153,6 +154,8 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 ```
 
 `images[]`의 각 항목은 `url`, `imageKind`, `creditText`, `licenseType`, `licenseUrl`, `sourcePageUrl`을 가진다. 이용 권한이 명확하지 않으면 배열에서 제외한다. `sourceTaxonomy.lclsSystm3`와 표시명은 TourAPI가 준 값이 있는 경우에만 채우며 없으면 `null`이다. `saveAvailable=true`는 현행 찜 API가 해당 `placeId`를 공개 장소로 인식하는 경우에만 반환한다. 이 항목만 기존 `PUT/DELETE /api/v1/saved-resources/places/{placeId}`로 연결한다. 신규 전용 장소까지 찜을 지원하려면 기존 찜의 공개성 검증·목록 hydration을 별도 회귀 검증한 후 계약을 확대한다.
+
+`placeSummaryPoints[]`는 공개된 내부 라벨 배치와 현재 장소의 TourAPI `contentId`가 일치할 때 제공하는 장소 설명 3줄이다. 라벨 배치가 없으면 빈 배열이다. 작품 상세 `summaryPoints[]`와 별개이며, 공식 촬영지 근접 후보를 검증된 작품 관계로 표현하지 않는다.
 
 ## 7. 작품 목록·상세
 
