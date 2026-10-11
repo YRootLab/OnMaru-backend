@@ -400,7 +400,6 @@ public final class JdbcTourApiCatalogPublisher {
             revision.setObject(1, session.revisionId());
             revision.executeUpdate();
         }
-        deleteInactiveCatalogRevisions(connection, activeRevisionId);
     }
 
     public void fail(PublishSession session, String errorCode, Instant failedAt) {
@@ -774,7 +773,8 @@ public final class JdbcTourApiCatalogPublisher {
             run.setObject(3, runId);
             run.executeUpdate();
         }
-        deleteInactiveCatalogRevisions(connection, revisionId);
+        // Keep the previous published revision for cutover verification and rollback.
+        // The retention job removes old inactive revisions after the rollback window.
     }
 
     /**
@@ -983,23 +983,6 @@ public final class JdbcTourApiCatalogPublisher {
                 }
             }
         }
-    }
-
-    private void deleteInactiveCatalogRevisions(Connection connection, UUID activeRevisionId) throws SQLException {
-        var revisionIds = new ArrayList<UUID>();
-        try (var statement = connection.prepareStatement("""
-                SELECT id
-                FROM onmaru.catalog_dataset_revisions
-                WHERE dataset = ? AND id <> ?
-                FOR UPDATE
-                """)) {
-            statement.setString(1, DATASET);
-            statement.setObject(2, activeRevisionId);
-            try (var rows = statement.executeQuery()) {
-                while (rows.next()) revisionIds.add(rows.getObject(1, UUID.class));
-            }
-        }
-        for (var revisionId : revisionIds) deleteCatalogRevision(connection, revisionId);
     }
 
     private void deleteCatalogRevision(Connection connection, UUID revisionId) throws SQLException {

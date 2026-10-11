@@ -237,12 +237,25 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 WITH protected_revisions AS (
                     SELECT active.revision_id AS id
                     FROM onmaru.catalog_active_datasets active
+                    UNION
+                    SELECT prior.id
+                    FROM (
+                        SELECT revision.id
+                        FROM onmaru.catalog_dataset_revisions revision
+                        WHERE revision.dataset = 'kto-korean-tour'
+                          AND revision.status = 'PUBLISHED'
+                        ORDER BY revision.published_at DESC, revision.id DESC
+                        LIMIT 2
+                    ) prior
                 )
                 SELECT revision.id
                 FROM onmaru.catalog_dataset_revisions revision
                 WHERE revision.id NOT IN (SELECT id FROM protected_revisions)
                   AND (
-                      revision.status IN ('PUBLISHED', 'FAILED')
+                      revision.status = 'FAILED'
+                      OR (revision.status = 'PUBLISHED'
+                          AND (revision.dataset <> 'kto-korean-tour'
+                               OR revision.published_at <= ?))
                       OR (
                           revision.status IN ('STAGING', 'READY')
                           AND revision.fetched_at <= ?
@@ -252,8 +265,9 @@ public final class JdbcRetentionCleanupStore implements RetentionCleanupStore {
                 LIMIT ?
                 FOR UPDATE OF revision SKIP LOCKED
                 """)) {
-            statement.setObject(1, utc(now.minus(policy.inactiveRevisionTtl())));
-            statement.setInt(2, policy.batchSize());
+            statement.setObject(1, utc(now.minus(java.time.Duration.ofDays(14))));
+            statement.setObject(2, utc(now.minus(policy.inactiveRevisionTtl())));
+            statement.setInt(3, policy.batchSize());
             var revisionIds = new ArrayList<UUID>();
             try (var result = statement.executeQuery()) {
                 while (result.next()) {

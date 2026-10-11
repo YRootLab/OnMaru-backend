@@ -81,6 +81,32 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     @Test
+    void preservesPreviousRevisionAndOnlyServesNewActivePlacesAfterReplacement() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var firstAt = Instant.parse("2026-09-27T03:00:00Z");
+        var first = publisher.start(firstAt);
+        var firstPage = publisher.stagePage(first, List.of(
+                row("old-only", "이전 장소", "HANOK"), row("shared", "공통 장소", "HANOK")));
+        publisher.complete(first, firstPage.rawCount(), firstPage.rawCount(),
+                firstPage.publishedCount(), firstPage.quarantinedCount(), firstPage.skippedCount(), firstAt);
+
+        var secondAt = firstAt.plus(Duration.ofDays(1));
+        var second = publisher.start(secondAt);
+        var secondPage = publisher.stagePage(second, List.of(row("shared", "공통 장소", "HANOK")));
+        publisher.complete(second, secondPage.rawCount(), secondPage.rawCount(),
+                secondPage.publishedCount(), secondPage.quarantinedCount(), secondPage.skippedCount(), secondAt);
+
+        assertThat(queryCount("onmaru.catalog_dataset_revisions WHERE dataset = 'kto-korean-tour'"))
+                .isEqualTo(2);
+        assertThat(queryCount("onmaru.catalog_place_versions WHERE revision_id = '" + first.revisionId() + "'"))
+                .isEqualTo(2);
+        assertThat(queryCount("onmaru.catalog_place_versions WHERE revision_id = '" + second.revisionId() + "'"))
+                .isEqualTo(1);
+        assertThat(queryCount("onmaru.map_place_read_projection WHERE revision_id = '" + second.revisionId() + "'"))
+                .isEqualTo(1);
+    }
+
+    @Test
     void publishesLocatedPlaceWhenRegionIsUnknown() throws Exception {
         var publisher = new JdbcTourApiCatalogPublisher(dataSource);
         var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");

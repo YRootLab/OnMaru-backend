@@ -10,7 +10,44 @@
 
 `ONMARU_TOURAPI_SYNC_SELECTED_SOURCE=false`가 기본이다. 이 상태로 새 버전을 배포해도 기존 전체 수집 경로가 유지된다. `true`인 배포에서 기존 카탈로그 sync를 실행하면 선택 목록을 완성·중복 제거한 뒤에만 새 revision을 적재한다. 모든 페이지의 `totalCount`와 행 수, 정확한 필터 응답, 공식 신분류 코드, 충돌을 확인한다. 빈 결과와 미완성 배치에서는 활성 포인터를 바꾸지 않는다.
 
-운영 전환 전에 같은 코드로 후보 수·신규/중복/격리·예상 활성 장소 수·카테고리/지역 분포를 확인한다. 이어 기존 활성 23,598곳과의 차집합 및 FE의 홈·지도·한옥·상세·찜·K-Contents 관계를 확인한다. 이전 revision과 장소 identity, 연관 레코드는 물리 삭제하지 않는다. 검증 실패 시 플래그를 내리고 이전 `catalog_active_datasets` revision으로 복귀한다. 자동 크론이 먼저 전환하지 않도록 배포 시점과 마지막 성공 sync를 확인한다.
+운영 전환 전에 같은 코드로 후보 수·신규/중복/격리·예상 활성 장소 수·카테고리/지역 분포를 확인한다. 이어 기존 활성 23,598곳과의 차집합 및 FE의 홈·지도·한옥·상세·찜·K-Contents 관계를 확인한다. 공개 장소가 빠지면 그 장소의 기존 찜·후기·스탬프·오디오·K-Contents 관계는 identity 참조가 유지돼도 활성 장소 조회와 상세 API에서 보이지 않을 수 있다. 따라서 새 revision을 게시한 후 아래 차집합을 확인하고, FE 회귀가 끝나기 전에는 전환을 완료로 기록하지 않는다. 새 게시에서는 이전 revision을 즉시 삭제하지 않으며 retention은 KTO 최신 2개 게시본과 최근 14일 게시본을 보존한다. 검증 실패 시 플래그를 내리고 이전 `catalog_active_datasets` revision으로 복귀한다. 자동 크론이 먼저 전환하지 않도록 배포 시점과 마지막 성공 sync를 확인한다.
+
+```sql
+-- 게시 직전 활성 revision UUID를 별도 기록한다. 새 revision 게시 후 :previous_revision과 비교한다.
+WITH removed AS (
+  SELECT old.place_id
+  FROM onmaru.catalog_place_versions old
+  WHERE old.revision_id = :previous_revision AND old.status = 'ACTIVE'
+  EXCEPT
+  SELECT current.place_id
+  FROM onmaru.catalog_place_versions current
+  JOIN onmaru.catalog_active_datasets active ON active.revision_id = current.revision_id
+  WHERE active.dataset = 'kto-korean-tour' AND current.status = 'ACTIVE'
+)
+SELECT (SELECT count(*) FROM removed) AS removed_places,
+       (SELECT count(*) FROM onmaru.journey_saved_places saved
+        JOIN onmaru.catalog_place_public_ids ids ON ids.public_id = saved.place_id
+        JOIN removed ON removed.place_id = ids.place_id) AS affected_saves,
+       (SELECT count(*) FROM onmaru.community_visit_reviews review
+        JOIN onmaru.catalog_place_public_ids ids ON ids.public_id = review.place_id
+        JOIN removed ON removed.place_id = ids.place_id) AS affected_reviews,
+       (SELECT count(*) FROM onmaru.k_content_place_relations relation
+        JOIN removed ON removed.place_id = relation.place_id) AS affected_kcontents;
+```
+
+영향받는 관계가 있으면 FE에서 기존 찜·후기와 K-Contents 화면 동작을 확인하고 필요한 호환 조회/데이터 이관을 별도 적용한다. 자동으로 관계를 삭제하거나 새로운 장소에 재연결하지 않는다. 지도는 새 활성 revision의 `map_place_read_projection` 건수와 `catalog_place_versions`의 `ACTIVE` 건수가 같은지 확인하고, viewport·목록·상세 응답을 실제 좌표와 public ID로 점검한다.
+
+```sql
+-- 오류가 확인됐을 때, 기록한 UUID가 실제 PUBLISHED 상태인지 확인한 뒤 한 트랜잭션에서 복귀한다.
+BEGIN;
+UPDATE onmaru.catalog_active_datasets active
+SET revision_id = :previous_revision, activated_at = now()
+WHERE active.dataset = 'kto-korean-tour'
+  AND EXISTS (SELECT 1 FROM onmaru.catalog_dataset_revisions revision
+              WHERE revision.id = :previous_revision AND revision.status = 'PUBLISHED');
+-- 정확히 1행 변경됐는지 확인하고 COMMIT한다. 아니면 ROLLBACK한다.
+COMMIT;
+```
 
 새 이미지가 운영에 배포된 뒤 호스트의 `infra/lightsail`에서 다음 **읽기 전용** one-shot을 실행한다. 이 명령은 카탈로그 게시 세션을 시작하지 않으며 원천 호출 결과의 `raw`, `qualified`, `skipped`, `sourceQuarantined`, `qualificationQuarantined`와 카테고리별 수만 출력한다. 필터 불일치와 `contentId` 충돌이 발견되면 결과를 실패 처리한다. 기존 API 컨테이너는 그대로 둔다.
 

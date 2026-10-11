@@ -257,3 +257,9 @@ git diff --check # 통과
 - 관련 이슈: [#543](https://github.com/YRootLab/OnMaru-backend/issues/543). 완료 조건은 3+3 중앙값 비교, 15% 초과 회귀의 승인 보류, 원본 run/artifact link 보존, 단일 정본 판정 및 계약 테스트 통과다.
 - 현재 증적: 여섯 실행이 모두 성공했다. v0.3.38 값은 467.05/341.36/394.40초, v0.3.39 값은 471.61/411.86/457.93초다. 중앙값 delta는 +16.108%로 `approval_hold`이며 자동 통과시키지 않는다.
 - 상태: 두 Release asset과 v0.3.39 비교 asset 업로드, README/운영 보고서 반영, 정본 comparator 재실행과 계약 테스트 35개 통과. 이 문서 PR 병합 후 #543과 Toolkit #115를 종료한다.
+
+## #716 catalog cutover DB compatibility (2026-10-12)
+- Branch: `feature/716-selected-catalog-cutover`, PR #717.
+- Cutover publisher no longer deletes prior KTO revision on publish or unchanged sync. Retention protects latest two KTO published revisions and KTO published revisions for 14 days, leaving an operational rollback window.
+- `docs/operations/runbooks/selected-catalog-cutover.md` now audits removed public places referenced by saved places, reviews, and K-Contents, compares active map projections, and documents a transaction-safe active-pointer rollback. Do not claim prod cutover complete until affected reference counts and FE screen checks are reviewed; historical detail for removed places may require a separate compatibility migration.
+- `./gradlew :apps:spring-api:test --tests '*JdbcTourApiCatalogPublisherTests' --tests '*RetentionCleanupJdbcTests'` compiled but Testcontainers initialization failed locally because Docker socket is unavailable. CI must run integration tests.
