@@ -12,7 +12,7 @@
 
 운영 전환 전에 같은 코드로 후보 수·신규/중복/격리·예상 활성 장소 수·카테고리/지역 분포를 확인한다. 이어 기존 활성 23,598곳과의 차집합 및 FE의 홈·지도·한옥·상세·찜·K-Contents 관계를 확인한다. 이전 revision과 장소 identity, 연관 레코드는 물리 삭제하지 않는다. 검증 실패 시 플래그를 내리고 이전 `catalog_active_datasets` revision으로 복귀한다. 자동 크론이 먼저 전환하지 않도록 배포 시점과 마지막 성공 sync를 확인한다.
 
-새 이미지가 운영에 배포된 뒤 호스트의 `infra/lightsail`에서 다음 **읽기 전용** one-shot을 실행한다. 이 명령은 카탈로그 게시 세션을 시작하지 않으며 원천 호출 결과의 `raw`, `qualified`, `skipped`, `quarantined`와 카테고리별 수만 출력한다. 기존 API 컨테이너는 그대로 둔다.
+새 이미지가 운영에 배포된 뒤 호스트의 `infra/lightsail`에서 다음 **읽기 전용** one-shot을 실행한다. 이 명령은 카탈로그 게시 세션을 시작하지 않으며 원천 호출 결과의 `raw`, `qualified`, `skipped`, `sourceQuarantined`, `qualificationQuarantined`와 카테고리별 수만 출력한다. 필터 불일치와 `contentId` 충돌이 발견되면 결과를 실패 처리한다. 기존 API 컨테이너는 그대로 둔다.
 
 ```bash
 sudo docker compose --env-file .env -f compose.yaml run --rm --no-deps \

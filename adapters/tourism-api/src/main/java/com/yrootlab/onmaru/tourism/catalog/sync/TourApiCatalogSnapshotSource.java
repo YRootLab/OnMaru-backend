@@ -82,13 +82,18 @@ public final class TourApiCatalogSnapshotSource {
                     public void checkpoint(SelectedSourceFetch.Checkpoint checkpoint) { }
                     public void completed(SelectedSourceFetch.Snapshot complete) { }
                 });
+        long invalidFiltersOrConflicts = snapshot.quarantine().stream()
+                .filter(row -> !row.reason().equals("UNKNOWN_CLASSIFICATION")).count();
+        if (invalidFiltersOrConflicts > 0)
+            throw new IllegalStateException("Selected TourAPI source has " + invalidFiltersOrConflicts
+                    + " filter mismatches or conflicting identities");
         List<SourceRecord> rows = snapshot.candidates().values().stream()
                 .sorted(java.util.Comparator.comparing(row -> row.field("contentid")))
                 .map(resolver::enrich).toList();
         if (rows.isEmpty()) throw new IllegalStateException("Selected TourAPI snapshot is empty");
         for (int start = 0; start < rows.size(); start += pageSize)
             pageConsumer.accept(rows.subList(start, Math.min(start + pageSize, rows.size())));
-        return new SnapshotResult(rows.size(), rows.size());
+        return new SnapshotResult(rows.size(), rows.size(), snapshot.quarantine().size());
     }
 
     private List<SourceRecord> collect(String operation, IntFunction<URI> uriFactory) {
@@ -125,6 +130,9 @@ public final class TourApiCatalogSnapshotSource {
         }
     }
 
-    public record SnapshotResult(int rawCount, int providerTotalCount) {
+    public record SnapshotResult(int rawCount, int providerTotalCount, int sourceQuarantineCount) {
+        public SnapshotResult(int rawCount, int providerTotalCount) {
+            this(rawCount, providerTotalCount, 0);
+        }
     }
 }

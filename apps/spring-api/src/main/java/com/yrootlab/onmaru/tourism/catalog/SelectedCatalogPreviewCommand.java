@@ -49,6 +49,7 @@ public final class SelectedCatalogPreviewCommand implements ApplicationRunner {
         }));
         System.out.println("selectedCatalogPreview raw=" + snapshot.rawCount()
                 + " qualified=" + qualified.get() + " skipped=" + skipped.get()
-                + " quarantined=" + quarantined.get() + " categories=" + categories);
+                + " sourceQuarantined=" + snapshot.sourceQuarantineCount()
+                + " qualificationQuarantined=" + quarantined.get() + " categories=" + categories);
     }
 }
