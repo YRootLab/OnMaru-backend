@@ -3,6 +3,13 @@
 ## Unreleased
 
 - Issue #668의 관리자 데이터 파이프라인 최근 scheduler 실행 상세, 실행 단건 조회, sanitized 실패 로그 cursor API와 실행별 `failureCount` 계약을 추가했다. 관리자 POST는 수집을 시작하지 않고 501을 반환한다.
+## [0.3.43](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.42...v0.3.43) (2026-10-06)
+
+
+### Bug Fixes
+
+* **cors:** 관리자 Bearer 인증 preflight 허용 ([6206324](https://github.com/YRootLab/OnMaru-backend/commit/6206324cb5849c17fa88281013995d3acd8c64f6))
+* **cors:** 관리자 Bearer 인증 preflight 허용 ([95ff115](https://github.com/YRootLab/OnMaru-backend/commit/95ff1157c6981c0a800a096c082f54e64305a385))
 
 ## [0.3.41](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.40...v0.3.41) (2026-10-05)
 
