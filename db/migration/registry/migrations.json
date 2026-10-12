@@ -446,6 +446,15 @@
       "checksum": "kcontents-candidate-labels-v050-20261012",
       "sha256": "24b62c05625f035a240755d1becc3c739d797eddf9318541c7117b911c1ef3ef",
       "description": "Versioned full-candidate internal labels and active pointer"
+    },
+    {
+      "version": "051",
+      "reservedFor": "KCONTENTS_OFFICIAL_WORK_RESEARCH",
+      "issueNumber": 718,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V051__718_kcontents_official_work_research.sql",
+      "checksum": "kcontents-official-work-research-v051-20261012",
+      "sha256": "44c072fe25c3641340e29be30254d02ba200cec5c617e520f37cc47c9667429b",
+      "description": "Official work research digest on full candidate label batches"
     }
   ]
 }
