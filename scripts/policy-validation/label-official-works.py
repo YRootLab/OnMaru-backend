@@ -13,8 +13,8 @@ import re
 from pathlib import Path
 
 
-VERSION = 'official-works-place-identity-v1.2.0'
-WORK_TYPES = {'drama': 'DRAMA', 'movie': 'MOVIE', 'show': 'VARIETY'}
+VERSION = 'official-works-place-identity-v1.3.0'
+WORK_TYPES = {'drama': 'DRAMA', 'movie': 'MOVIE', 'show': 'VARIETY', 'artist': 'ARTIST'}
 MAX_DISTANCE_METERS = 1000
 MAX_AUTO_MATCH_DISTANCE_METERS = 250
 MV_TITLES = {

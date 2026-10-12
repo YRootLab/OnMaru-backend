@@ -26,7 +26,7 @@ class OfficialWorkLabelTests(unittest.TestCase):
     def test_source_work_types_and_artist_name_boundary(self):
         works = module.work_candidates(self.label(), self.sources())
         self.assertEqual({(w['workType'], w['workTitle']) for w in works},
-                         {('DRAMA', '도깨비'), ('VARIETY', '1박2일 시즌4')})
+                         {('DRAMA', '도깨비'), ('VARIETY', '1박2일 시즌4'), ('ARTIST', '방탄소년단')})
         self.assertTrue(all(w['relationStatus'] == 'SOURCE_PLACE_MATCH' for w in works))
 
     def test_far_or_different_address_stays_in_review(self):

@@ -41,7 +41,7 @@ python3 scripts/policy-validation/export-kcontents-fe-handoff.py \
 
 사용자 요청에 따라 기존 장소 라벨의 운영 INSERT보다 작품 조사 단계를 앞에 둔다. `label-official-works.py`는 동일한 [한국문화정보원 촬영지 CSV](https://www.data.go.kr/data/15111405/fileData.do)의 드라마·영화·예능 제목을 작품명 후보로 연결한다. `artist` 유형의 제목은 아티스트명이므로 작품으로 사용하지 않는다. 원천 설명에서 뮤직비디오 제목을 직접 확인한 17행만 별도 수기 매핑했다. 장소명 정규화 일치 또는 수기 검수한 32개 장소 별칭, 같은 도로명·건물번호, 250m 이내 좌표, 비어 있지 않은 장면 설명을 모두 충족한 관계를 `SOURCE_PLACE_MATCH`로 둔다. 설명이 촬영 사실을 지지하지 않는 5개 행은 수기 검토 대기로 되돌렸다. 이것도 내부 자료 대조 상태이며 FE 공개 승인 상태 `VERIFIED`와 다르다.
 
-2026-10-12 현재 11,083곳 전수 조사 결과는 작품명이 발견된 장소 319곳, `SOURCE_PLACE_MATCH` 489관계, 주소·거리·설명 추가 확인이 필요한 `REVIEW_REQUIRED` 207관계다. `artist` 문맥 603곳은 작품명이 명확하지 않아 별도 조사 대상으로 남겼다. `official-work-labels.jsonl`은 11,083행으로 원천 행 번호·작품명·유형·설명·장소 동일성 검사 결과를 보존한다. `labels-with-works.jsonl`과 `manifest-with-works.json`은 이전 장소 라벨과 이 조사 결과를 동일 `contentId` 순서로 결합한다. 기존 `import-reviewed-apply.sql`은 작품 조사를 포함하지 않은 이전 산출물이므로 **사용하지 않는다**. 새 배치 SQL은 `labels-with-works.jsonl`에서 다시 생성한다.
+2026-10-12 11,083곳 전수 조사에 아티스트 방문·촬영 콘텐츠(`ARTIST`)를 수용한 결과, 콘텐츠가 발견된 장소는 378곳, `SOURCE_PLACE_MATCH` 610관계, 주소·거리·설명 추가 확인이 필요한 `REVIEW_REQUIRED` 247관계(총 857관계)다. `official-work-labels.jsonl`은 11,083행으로 원천 행 번호·작품/아티스트명·유형·설명·장소 동일성 검사 결과를 보존한다. `labels-with-works.jsonl`과 `manifest-with-works.json`은 이전 장소 라벨과 이 조사 결과를 동일 `contentId` 순서로 결합한다. 기존 `import-reviewed-apply.sql`은 작품 조사를 포함하지 않은 이전 산출물이므로 **사용하지 않는다**. 새 배치 SQL은 `labels-with-works.jsonl`에서 다시 생성한다.
 
 ```bash
 python3 scripts/policy-validation/label-official-works.py \
