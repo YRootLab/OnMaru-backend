@@ -1,5 +1,11 @@
 # handoff.md
 
+## 2026-10-12 Issue #718 운영 INSERT 전 작품 조사
+
+- 사용자 지시: 11,083곳의 작품명을 먼저 찾아 검수하고 그 후 운영 INSERT를 진행한다. 운영 DB는 아직 변경하지 않았다.
+- 브랜치 `feature/718-official-work-labels`. KCISA CSV 15,034행을 11,083곳과 다시 연결했다. 사용자 지시에 따라 아티스트 방문·촬영 콘텐츠(`ARTIST`)를 작품/콘텐츠 후보로 폭넓게 수용했다. 이에 따라 콘텐츠 후보가 있는 장소는 기존 319곳에서 378곳으로 확대되었고, 원천 장소명/검수 별칭·도로명 건물번호·250m 이내 좌표·장면 설명이 맞는 관계는 610건, 추가 검토 247건(총 857건)으로 증가했다.
+- 로컬 산출물 `tmp/kcontents-718/official-work-labels.jsonl`, `labels-with-works.jsonl`, `manifest-with-works.json`, `import-with-works-preview.sql`, `fe-place-labels.jsonl`. 이전 `import-reviewed-apply.sql`은 작품 조사 전 파일이므로 사용 금지. 새 작품 조사 해시를 V050/V051와 importer에 묶었다. 다음은 수동 작품/장면 검수 확대, 테스트·PR, 운영 마이그레이션 후 적재와 공개 관계 승격이다.
+
 ## 2026-10-12 Issue #718 전수 장소 요약·FE 내부 전달
 
 - 브랜치 `feature/718-bulk-labeling`, PR #720. TourAPI 선별 후보 11,083곳 모두에 로컬 `placeSummaryPoints` 3개를 생성하고 `manifest-reviewed.json`에 내용 SHA를 기록했다. 기존 공식 촬영지 대조는 17곳 검증, 신규 1,752곳 검토 후보, 그 외는 공식 자료 한 종류에서 근접 근거가 없는 상태다. 이는 작품 관계 전수 검증 완료가 아니다.

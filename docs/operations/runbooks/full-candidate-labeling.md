@@ -36,3 +36,24 @@ python3 scripts/policy-validation/export-kcontents-fe-handoff.py \
   --output tmp/kcontents-718/fe-place-labels.jsonl \
   --manifest tmp/kcontents-718/fe-place-labels-manifest.json
 ```
+
+## 운영 적재 전 공식 작품명 조사
+
+사용자 요청에 따라 기존 장소 라벨의 운영 INSERT보다 작품 조사 단계를 앞에 둔다. `label-official-works.py`는 동일한 [한국문화정보원 촬영지 CSV](https://www.data.go.kr/data/15111405/fileData.do)의 드라마·영화·예능 제목을 작품명 후보로 연결한다. `artist` 유형의 제목은 아티스트명이므로 작품으로 사용하지 않는다. 원천 설명에서 뮤직비디오 제목을 직접 확인한 17행만 별도 수기 매핑했다. 장소명 정규화 일치 또는 수기 검수한 32개 장소 별칭, 같은 도로명·건물번호, 250m 이내 좌표, 비어 있지 않은 장면 설명을 모두 충족한 관계를 `SOURCE_PLACE_MATCH`로 둔다. 설명이 촬영 사실을 지지하지 않는 5개 행은 수기 검토 대기로 되돌렸다. 이것도 내부 자료 대조 상태이며 FE 공개 승인 상태 `VERIFIED`와 다르다.
+
+2026-10-12 11,083곳 전수 조사에 아티스트 방문·촬영 콘텐츠(`ARTIST`)를 수용한 결과, 콘텐츠가 발견된 장소는 378곳, `SOURCE_PLACE_MATCH` 610관계, 주소·거리·설명 추가 확인이 필요한 `REVIEW_REQUIRED` 247관계(총 857관계)다. `official-work-labels.jsonl`은 11,083행으로 원천 행 번호·작품/아티스트명·유형·설명·장소 동일성 검사 결과를 보존한다. `labels-with-works.jsonl`과 `manifest-with-works.json`은 이전 장소 라벨과 이 조사 결과를 동일 `contentId` 순서로 결합한다. 기존 `import-reviewed-apply.sql`은 작품 조사를 포함하지 않은 이전 산출물이므로 **사용하지 않는다**. 새 배치 SQL은 `labels-with-works.jsonl`에서 다시 생성한다.
+
+```bash
+python3 scripts/policy-validation/label-official-works.py \
+  tmp/kcontents-718/labels-reviewed.jsonl tmp/kcontents-718/official-filming.csv \
+  --output tmp/kcontents-718/official-work-labels.jsonl \
+  --manifest tmp/kcontents-718/official-work-manifest.json \
+  --label-manifest tmp/kcontents-718/manifest-reviewed.json \
+  --enriched-labels tmp/kcontents-718/labels-with-works.jsonl \
+  --enriched-manifest tmp/kcontents-718/manifest-with-works.json
+python3 scripts/operations/prepare-kcontent-label-import.py \
+  tmp/kcontents-718/labels-with-works.jsonl tmp/kcontents-718/manifest-with-works.json \
+  --output tmp/kcontents-718/import-with-works-preview.sql
+```
+
+작품명을 찾지 못한 장소에는 작품 관계를 만들지 않는다. 특히 가까운 다른 장소, 도로명 주소가 다른 동명 장소, 아티스트 방문·화보는 촬영 작품으로 간주하지 않는다. 원천 CSV는 2022년 자료이므로 이후 작품을 모두 포함하지 않는다. 작품 공개 전에는 원천 유형·제목 중복/동명이작·장면 설명을 추가 검수하고 기존 `k_content_public_relations` 검증 gate로만 FE에 제공한다.

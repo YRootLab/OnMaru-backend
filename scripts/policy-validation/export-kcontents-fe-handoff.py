@@ -21,6 +21,13 @@ def export(labels, previous):
             'candidateDecision': row['decision'],
             'researchStatus': audit['auditStatus'],
             'verifiedRelationCount': row['verifiedFilmingRelationCount'],
+            'officialWorkResearchCandidates': [{
+                'workTitle': work['workTitle'],
+                'workType': work['workType'],
+                'researchStatus': work['relationStatus'],
+                'publiclyAvailable': False,
+                'officialSourceRows': [source['officialRow'] for source in work['evidence']],
+            } for work in row.get('officialWorkResearch', {}).get('works', [])],
             'officialResearchCandidates': [{
                 'officialPlaceName': candidate['officialPlaceName'],
                 'mediaTypes': candidate['mediaTypes'],
@@ -52,6 +59,8 @@ def main():
         'withExistingPublicPlaceId': sum(row['sourceContentId'] in existing_public_ids for row in rows),
         'withFallbackPublicPlaceId': sum(row['sourceContentId'] not in existing_public_ids for row in rows),
         'researchStatuses': dict(sorted(collections.Counter(row['researchStatus'] for row in rows).items())),
+        'workResearchStatuses': dict(sorted(collections.Counter(
+            work['researchStatus'] for row in rows for work in row['officialWorkResearchCandidates']).items())),
         'sha256': hashlib.sha256(encoded.encode()).hexdigest(),
         'publicationStatus': 'INTERNAL_REVIEW_ONLY',
     }
