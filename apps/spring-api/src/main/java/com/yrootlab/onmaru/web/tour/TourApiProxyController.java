@@ -99,6 +99,11 @@ final class TourApiProxyController {
         }
     }
 
+    private static final Set<String> IGNORED_PARAMS = Set.of(
+            "serviceKey", "MobileOS", "MobileApp", "_type",
+            // TourAPI 1.0 parameters rejected by KorService2 endpoints
+            "defaultYN", "firstImageYN", "addrinfoYN", "mapinfoYN", "overviewYN", "subImageYN");
+
     private URI buildUri(String operation, Map<String, String> input) {
         StringJoiner query = new StringJoiner("&");
         add(query, "MobileOS", "ETC");
@@ -106,7 +111,7 @@ final class TourApiProxyController {
         add(query, "_type", "json");
         add(query, "serviceKey", secrets.get("tourapi.service-key").current());
         input.forEach((key, value) -> {
-            if (!Set.of("serviceKey", "MobileOS", "MobileApp", "_type").contains(key)
+            if (!IGNORED_PARAMS.contains(key)
                     && value != null && !value.isBlank()) {
                 String normalizedValue = value;
                 if ("contentId".equals(key)) {
