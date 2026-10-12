@@ -21,18 +21,39 @@ public final class SelectedSourceFetch {
             + "HS010700 HS011100 HS011200 EX040200 HS020100 HS020300 HS030100 VE070100 VE070200 VE070300 "
             + "VE090100 VE090400 FD040400 FD050200 SH050100 SH060100 SH060200 NA040700 VE010100 VE010900 "
             + "EX060100 EX060300 FD050100 EX030100").split(" "));
-    public static final List<String> KEYWORDS = List.of("한옥", "고택", "궁궐", "전통마을");
+    public static final List<String> KEYWORDS = List.of(
+            "한옥", "고택", "종택", "고궁", "궁궐", "전통마을", "한옥스테이", "전통시장");
+    /** Narrow legacy categories rescue places whose new classification misses the selected set. */
+    public static final List<LegacyFilter> LEGACY_FILTERS = List.of(
+            new LegacyFilter("12", "A02", "A0201", "A02010700"), // 한옥
+            new LegacyFilter("12", "A02", "A0201", "A02010100"), // 고택·종택
+            new LegacyFilter("12", "A02", "A0201", "A02010300"), // 궁궐·누각
+            new LegacyFilter("12", "A02", "A0201", "A02010800"), // 전통마을
+            new LegacyFilter("39", "A05", "A0502", "A05020900"), // 한옥 카페
+            new LegacyFilter("32", "B02", "B0201", "B02011600"), // 한옥 숙소
+            new LegacyFilter("12", "A02", "A0203", "A02030400"), // 전통 체험
+            new LegacyFilter("38", "A04", "A0401", "A04010200")  // 전통 시장
+    );
 
     private final PageSource source;
     private final Set<String> knownCodes;
     private final int pageSize;
+    private final List<String> additionalKeywords;
 
     /** {@code knownCodes} must be the same official taxonomy registry passed to downstream qualification. */
     public SelectedSourceFetch(PageSource source, Set<String> knownCodes, int pageSize) {
+        this(source, knownCodes, pageSize, List.of());
+    }
+
+    public SelectedSourceFetch(PageSource source, Set<String> knownCodes, int pageSize,
+                               List<String> additionalKeywords) {
         this.source = Objects.requireNonNull(source);
         this.knownCodes = Set.copyOf(knownCodes);
         if (pageSize < 1 || pageSize > 1000) throw new IllegalArgumentException("pageSize must be 1..1000");
         this.pageSize = pageSize;
+        this.additionalKeywords = List.copyOf(Objects.requireNonNull(additionalKeywords));
+        if (this.additionalKeywords.stream().anyMatch(keyword -> keyword == null || keyword.isBlank()))
+            throw new IllegalArgumentException("additional keywords must be nonblank");
     }
 
     public Snapshot fetch(Observer observer) {
@@ -47,8 +68,15 @@ public final class SelectedSourceFetch {
             Counts counts = collect(new Query("areaBasedList2", code), staged, provenance, quarantine, conflicts, observer);
             pages += counts.pages(); received += counts.received();
         }
-        for (String keyword : KEYWORDS) {
+        var keywords = new LinkedHashSet<>(KEYWORDS);
+        keywords.addAll(additionalKeywords);
+        for (String keyword : keywords) {
             Counts counts = collect(new Query("searchKeyword2", keyword), staged, provenance, quarantine, conflicts, observer);
+            pages += counts.pages(); received += counts.received();
+        }
+        for (LegacyFilter filter : LEGACY_FILTERS) {
+            Counts counts = collect(new Query("legacyAreaBasedList2", filter.key()), staged, provenance,
+                    quarantine, conflicts, observer);
             pages += counts.pages(); received += counts.received();
         }
         Snapshot snapshot = new Snapshot(POLICY_VERSION, Map.copyOf(staged), List.copyOf(quarantine),
@@ -83,12 +111,17 @@ public final class SelectedSourceFetch {
                     continue;
                 }
                 String code = record.field("lclsSystm3");
-                if (code == null || !knownCodes.contains(code)) {
+                boolean legacy = query.operation().equals("legacyAreaBasedList2");
+                if (!legacy && (code == null || !knownCodes.contains(code))) {
                     quarantine.add(new Quarantine(query, id, "UNKNOWN_CLASSIFICATION", record));
                     continue;
                 }
                 if (query.operation().equals("areaBasedList2") && !query.filter().equals(code)) {
                     quarantine.add(new Quarantine(query, id, "CLASSIFICATION_MISMATCH", record));
+                    continue;
+                }
+                if (legacy && !LegacyFilter.fromKey(query.filter()).matches(record)) {
+                    quarantine.add(new Quarantine(query, id, "LEGACY_CLASSIFICATION_MISMATCH", record));
                     continue;
                 }
                 provenance.computeIfAbsent(id, ignored -> new LinkedHashSet<>()).add(query.operation() + ":" + query.filter());
@@ -118,6 +151,17 @@ public final class SelectedSourceFetch {
         void completed(Snapshot snapshot);
     }
     public record Query(String operation, String filter) { }
+    public record LegacyFilter(String contentTypeId, String cat1, String cat2, String cat3) {
+        public String key() { return String.join(":", contentTypeId, cat1, cat2, cat3); }
+        public boolean matches(SourceRecord record) {
+            return contentTypeId.equals(record.field("contenttypeid")) && cat1.equals(record.field("cat1"))
+                    && cat2.equals(record.field("cat2")) && cat3.equals(record.field("cat3"));
+        }
+        public static LegacyFilter fromKey(String key) {
+            return LEGACY_FILTERS.stream().filter(filter -> filter.key().equals(key)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown legacy category: " + key));
+        }
+    }
     public record Page(int pageNumber, int pageSize, int totalCount, List<SourceRecord> records) { }
     public record Checkpoint(String policyVersion, Query query, int pageNumber, int received,
                              int expected, int candidateCount, int quarantineCount) { }

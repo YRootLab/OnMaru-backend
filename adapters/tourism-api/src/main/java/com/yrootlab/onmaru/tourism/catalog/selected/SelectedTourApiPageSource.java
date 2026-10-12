@@ -27,20 +27,30 @@ public final class SelectedTourApiPageSource implements SelectedSourceFetch.Page
         URI uri = switch (query.operation()) {
             case "areaBasedList2" -> uris.areaBasedList(pageNumber, pageSize,
                     Map.of("lclsSystm3", query.filter(), "arrange", "C"));
+            case "legacyAreaBasedList2" -> {
+                var filter = SelectedSourceFetch.LegacyFilter.fromKey(query.filter());
+                yield uris.areaBasedList(pageNumber, pageSize, Map.of(
+                        "contentTypeId", filter.contentTypeId(), "cat1", filter.cat1(),
+                        "cat2", filter.cat2(), "cat3", filter.cat3(), "arrange", "C"));
+            }
             case "searchKeyword2" -> uris.searchKeyword(query.filter(), pageNumber, pageSize);
             default -> throw new IllegalArgumentException("Unsupported operation: " + query.operation());
         };
+        String expectedOperation = query.operation().equals("legacyAreaBasedList2")
+                ? "areaBasedList2" : query.operation();
         try {
-            TourApiParseResult result = fetcher.fetch(query.operation(), uri);
+            TourApiParseResult result = fetcher.fetch(expectedOperation, uri);
             if (result == null || result.page() == null) {
                 String kind = result == null || result.error() == null ? "UNKNOWN" : result.error().kind().name();
                 throw new IllegalStateException("TourAPI page failed: " + query + " page=" + pageNumber + " kind=" + kind);
             }
             TourApiPage page = result.page();
-            if (!query.operation().equals(page.operation())) {
+            if (!expectedOperation.equals(page.operation())) {
                 throw new IllegalStateException("TourAPI operation mismatch: " + query);
             }
-            return new SelectedSourceFetch.Page(page.pageNo(), page.numOfRows(), page.totalCount(),
+            // TourAPI may echo the final page's actual row count as numOfRows.
+            // The requested size is the stable pagination contract validated by SelectedSourceFetch.
+            return new SelectedSourceFetch.Page(page.pageNo(), pageSize, page.totalCount(),
                     page.items().stream().map(mapper::toSourceRecord).toList());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

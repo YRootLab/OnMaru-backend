@@ -1,6 +1,6 @@
 # 선별 탐색 revision 운영 절차 (#685)
 
-새 경로는 `onmaru.discovery.enabled=false`가 기본이다. 기존 `kto-korean-tour` 일일 수집과 `catalog_active_datasets`는 그대로 둔다. 주간 자동 실행을 켤 때만 `ONMARU_DISCOVERY_ENABLED=true`를 설정한다. 월요일 03:00 KST 회차만 등록하며 재기동 시 최신 미처리 회차 하나를 보충한다. `run_id`는 due 시각에서 결정적으로 생성되고 DB의 `due_at` UNIQUE가 중복 회차를 막는다. 상세 호출은 회차당 최대 3,000번이고 초과 시 `DETAIL_BUDGET_EXHAUSTED`로 실패하며 포인터를 유지한다.
+새 경로는 `onmaru.discovery.enabled=false`가 기본이다. 기본값에서는 기존 `kto-korean-tour` 전체 목록 수집과 `catalog_active_datasets`를 그대로 둔다. #716의 별도 `ONMARU_TOURAPI_SYNC_SELECTED_SOURCE` 전환을 실행하면 기존 카탈로그도 선택 수집 revision으로 교체된다(이전 revision과 장소 identity는 보존). 주간 자동 실행을 켤 때만 `ONMARU_DISCOVERY_ENABLED=true`를 설정한다. 월요일 03:00 KST 회차만 등록하며 재기동 시 최신 미처리 회차 하나를 보충한다. `run_id`는 due 시각에서 결정적으로 생성되고 DB의 `due_at` UNIQUE가 중복 회차를 막는다. 상세 호출은 회차당 최대 3,000번이고 초과 시 `DETAIL_BUDGET_EXHAUSTED`로 실패하며 포인터를 유지한다.
 
 ## 스테이징 파일럿 및 사람 승인
 
