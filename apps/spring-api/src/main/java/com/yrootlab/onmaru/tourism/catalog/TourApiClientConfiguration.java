@@ -12,6 +12,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.net.URI;
 import java.time.Clock;
@@ -57,9 +58,10 @@ public class TourApiClientConfiguration {
     TourApiCatalogSyncService tourApiCatalogSyncService(
             TourApiCatalogSnapshotSource source,
             JdbcTourApiCatalogPublisher publisher,
-            Clock clock
+            Clock clock,
+            @Value("${onmaru.tourapi.sync.selected-source:false}") boolean selectedSource
     ) {
-        return new TourApiCatalogSyncService(source, publisher, clock);
+        return new TourApiCatalogSyncService(source, publisher, clock, selectedSource);
     }
 
     @ConfigurationProperties(prefix = "onmaru.tourapi.client")

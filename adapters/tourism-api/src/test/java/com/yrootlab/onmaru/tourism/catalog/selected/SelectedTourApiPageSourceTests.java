@@ -42,4 +42,29 @@ class SelectedTourApiPageSourceTests {
         assertThatThrownBy(() -> adapter.fetch(new SelectedSourceFetch.Query("searchKeyword2", "한옥"), 1, 2))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("RATE_LIMITED");
     }
+
+    @Test
+    void usesExactLegacyContentTypeAndCategoryFilters() throws Exception {
+        var json = new ObjectMapper().readTree("""
+                {"contentid":"126508","contenttypeid":"32","cat1":"B02","cat2":"B0201","cat3":"B02011600"}
+                """);
+        var adapter = new SelectedTourApiPageSource((operation, uri) -> {
+            assertThat(operation).isEqualTo("areaBasedList2");
+            assertThat(uri.getRawQuery()).contains("contentTypeId=32", "cat1=B02", "cat2=B0201",
+                    "cat3=B02011600", "pageNo=1", "numOfRows=2");
+            return TourApiParseResult.success(new TourApiPage(operation, 1, 2, 1, true,
+                    List.of(new TourApiSourceRecord(operation, json))));
+        }, uris);
+        var page = adapter.fetch(new SelectedSourceFetch.Query(
+                "legacyAreaBasedList2", "32:B02:B0201:B02011600"), 1, 2);
+        assertThat(page.records().getFirst().field("contenttypeid")).isEqualTo("32");
+    }
+
+    @Test
+    void normalizesProviderLastPageSizeToRequestedPageSize() {
+        var adapter = new SelectedTourApiPageSource((operation, uri) -> TourApiParseResult.success(
+                new TourApiPage(operation, 2, 1, 1001, true, List.of())), uris);
+        var page = adapter.fetch(new SelectedSourceFetch.Query("areaBasedList2", "HS010100"), 2, 1000);
+        assertThat(page.pageSize()).isEqualTo(1000);
+    }
 }

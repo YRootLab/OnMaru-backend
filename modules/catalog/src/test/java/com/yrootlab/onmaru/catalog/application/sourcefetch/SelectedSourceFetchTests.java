@@ -13,6 +13,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SelectedSourceFetchTests {
     @Test
+    void additionalVerifiedPlaceKeywordRescuesAnOtherwiseMissingSource() {
+        var fetch = new SelectedSourceFetch((query, number, size) -> {
+            if (query.operation().equals("searchKeyword2") && query.filter().equals("옥천성당"))
+                return page(1, 2, 1, row("2717818", "HS030200", "same"));
+            return page(1, 2, 0);
+        }, Set.of("HS030200"), 2, List.of("옥천성당"));
+        var snapshot = fetch.fetch(new RecordingObserver());
+        assertThat(snapshot.candidates()).containsOnlyKeys("2717818");
+        assertThat(snapshot.provenance().get("2717818")).containsExactly("searchKeyword2:옥천성당");
+    }
+
+    @Test
     void deduplicatesAcrossPagesAndQueriesAndPreservesRawFields() {
         var observer = new RecordingObserver();
         var fetch = new SelectedSourceFetch((query, number, size) -> {
@@ -28,9 +40,9 @@ class SelectedSourceFetchTests {
         assertThat(snapshot.candidates()).hasSize(4);
         assertThat(snapshot.candidates().get("4").field("modifiedtime")).isEqualTo("20261008010404");
         assertThat(snapshot.provenance().get("1")).containsExactlyInAnyOrder("areaBasedList2:HS010100", "searchKeyword2:한옥");
-        assertThat(snapshot.pages()).isEqualTo(39);
+        assertThat(snapshot.pages()).isEqualTo(51);
         assertThat(observer.completed).isSameAs(snapshot);
-        assertThat(observer.checkpoints).hasSize(39);
+        assertThat(observer.checkpoints).hasSize(51);
     }
 
     @Test
@@ -84,6 +96,22 @@ class SelectedSourceFetchTests {
                 .containsExactly("CLASSIFICATION_MISMATCH");
     }
 
+    @Test
+    void legacyCategoryRescuesMissingNewClassificationAndRejectsMismatchedResponse() {
+        var fetch = new SelectedSourceFetch((query, number, size) -> {
+            if (query.operation().equals("legacyAreaBasedList2") && query.filter().equals("12:A02:A0201:A02010700"))
+                return page(1, 3, 2,
+                        legacyRow("1", "12", "A02", "A0201", "A02010700"),
+                        legacyRow("2", "12", "A02", "A0201", "A02010800"));
+            return page(1, 3, 0);
+        }, Set.of("HS010100"), 3);
+        var snapshot = fetch.fetch(new RecordingObserver());
+        assertThat(snapshot.candidates()).containsOnlyKeys("1");
+        assertThat(snapshot.provenance().get("1")).containsExactly("legacyAreaBasedList2:12:A02:A0201:A02010700");
+        assertThat(snapshot.quarantine()).extracting(SelectedSourceFetch.Quarantine::reason)
+                .containsExactly("LEGACY_CLASSIFICATION_MISMATCH");
+    }
+
     private static SelectedSourceFetch.Page page(int number, int size, int total, SourceRecord... records) {
         return new SelectedSourceFetch.Page(number, size, total, List.of(records));
     }
@@ -91,6 +119,11 @@ class SelectedSourceFetchTests {
     private static SourceRecord row(String id, String code, String modified) {
         return new SourceRecord("kto-tourapi-korean", "areaBasedList2", Map.of(
                 "contentid", id, "lclsSystm3", code, "modifiedtime", modified));
+    }
+
+    private static SourceRecord legacyRow(String id, String type, String cat1, String cat2, String cat3) {
+        return new SourceRecord("kto-tourapi-korean", "areaBasedList2", Map.of(
+                "contentid", id, "contenttypeid", type, "cat1", cat1, "cat2", cat2, "cat3", cat3));
     }
 
     private static final class RecordingObserver implements SelectedSourceFetch.Observer {

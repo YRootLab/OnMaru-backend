@@ -312,6 +312,30 @@ public final class JdbcTourApiCatalogPublisher {
         }
     }
 
+    /** Read-only rescue input for source selection; the publish guard still checks every public relation. */
+    public Map<String, String> verifiedPublicPlaceSources() {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     SELECT DISTINCT source.contentid, source.title
+                     FROM onmaru.k_content_public_relations relation
+                     JOIN onmaru.catalog_active_datasets active ON active.dataset = 'kto-korean-tour'
+                     JOIN onmaru.catalog_place_versions place
+                       ON place.revision_id = active.revision_id AND place.place_id = relation.place_id
+                     JOIN onmaru.catalog_kto_korean_content_versions source
+                       ON source.revision_id = place.revision_id
+                      AND source.source_ref_id = place.source_ref_id
+                     WHERE place.status = 'ACTIVE'
+                     """)) {
+            var result = new LinkedHashMap<String, String>();
+            try (var rows = statement.executeQuery()) {
+                while (rows.next()) result.put(rows.getString(1), rows.getString(2));
+            }
+            return Map.copyOf(result);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("failed to resolve verified K-Contents rescue sources", exception);
+        }
+    }
+
     private UUID findActiveRevision(Connection connection) throws SQLException {
         try (var statement = connection.prepareStatement("""
                 SELECT revision_id FROM onmaru.catalog_active_datasets WHERE dataset = ?
@@ -400,7 +424,6 @@ public final class JdbcTourApiCatalogPublisher {
             revision.setObject(1, session.revisionId());
             revision.executeUpdate();
         }
-        deleteInactiveCatalogRevisions(connection, activeRevisionId);
     }
 
     public void fail(PublishSession session, String errorCode, Instant failedAt) {
@@ -739,6 +762,7 @@ public final class JdbcTourApiCatalogPublisher {
             int quarantined,
             int skipped
     ) throws SQLException {
+        assertVerifiedKContentsPlacesPreserved(connection, revisionId);
         publishMapInfoProjection(connection, revisionId, publishedAt);
         try (var revision = connection.prepareStatement("""
                 UPDATE onmaru.catalog_dataset_revisions
@@ -774,7 +798,29 @@ public final class JdbcTourApiCatalogPublisher {
             run.setObject(3, runId);
             run.executeUpdate();
         }
-        deleteInactiveCatalogRevisions(connection, revisionId);
+        // Keep the previous published revision for cutover verification and rollback.
+        // The retention job removes old inactive revisions after the rollback window.
+    }
+
+    /** A catalog replacement must not orphan an already public filming relation. */
+    private void assertVerifiedKContentsPlacesPreserved(Connection connection, UUID revisionId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT count(DISTINCT relation.place_id)
+                FROM onmaru.k_content_public_relations relation
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM onmaru.catalog_place_versions place
+                    WHERE place.revision_id = ? AND place.place_id = relation.place_id
+                      AND place.status = 'ACTIVE'
+                )
+                """)) {
+            statement.setObject(1, revisionId);
+            try (var rows = statement.executeQuery()) {
+                rows.next();
+                int missing = rows.getInt(1);
+                if (missing > 0)
+                    throw new SQLException("selected catalog omits " + missing + " verified K-Contents places");
+            }
+        }
     }
 
     /**
@@ -983,23 +1029,6 @@ public final class JdbcTourApiCatalogPublisher {
                 }
             }
         }
-    }
-
-    private void deleteInactiveCatalogRevisions(Connection connection, UUID activeRevisionId) throws SQLException {
-        var revisionIds = new ArrayList<UUID>();
-        try (var statement = connection.prepareStatement("""
-                SELECT id
-                FROM onmaru.catalog_dataset_revisions
-                WHERE dataset = ? AND id <> ?
-                FOR UPDATE
-                """)) {
-            statement.setString(1, DATASET);
-            statement.setObject(2, activeRevisionId);
-            try (var rows = statement.executeQuery()) {
-                while (rows.next()) revisionIds.add(rows.getObject(1, UUID.class));
-            }
-        }
-        for (var revisionId : revisionIds) deleteCatalogRevision(connection, revisionId);
     }
 
     private void deleteCatalogRevision(Connection connection, UUID revisionId) throws SQLException {

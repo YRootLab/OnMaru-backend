@@ -31,6 +31,13 @@ class DiscoveryProjectionTests {
         assertThat(DiscoveryProjection.facets(snapshot,filter).get("type").toString()).contains("DRAMA").doesNotContain("MOVIE");
         assertThat(DiscoveryProjection.facets(snapshot,filter).get("workTagCode").toString()).contains("ROMANCE").doesNotContain("ACTION");
         assertThat(DiscoveryProjection.topics(snapshot)).hasSize(6);
+        assertThat(DiscoveryProjection.detail(place).get("placeSummaryPoints")).isEqualTo(List.of());
+        var summarized=new Place(place.id(),place.internalId(),place.name(),place.regionCode(),place.regionName(),
+                place.role(),place.address(),place.latitude(),place.longitude(),place.description(),
+                List.of("궁궐 · 전통 공간·문화유산", "위치: 서울", "촬영 근거 조사 중"),
+                place.lclsSystm2(),place.lclsSystm3(),place.taxonomyLabel(),false,0,false,false,List.of());
+        assertThat(DiscoveryProjection.detail(summarized).get("placeSummaryPoints"))
+                .isEqualTo(summarized.placeSummaryPoints());
     }
     @Test void keysetSortDoesNotDependOnCurrentRelations() {
         var place=new Place("p-tourapi-1",UUID.randomUUID(),"궁궐","11","서울","CORE_TRADITIONAL_PLACE",null,null,null,null,

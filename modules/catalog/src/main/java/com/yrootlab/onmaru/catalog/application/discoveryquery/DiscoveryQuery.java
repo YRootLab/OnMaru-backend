@@ -32,9 +32,19 @@ public final class DiscoveryQuery {
                            Set<String> workTags, Set<String> relationTags, Set<String> artistIds) {}
     public record Place(String id, UUID internalId, String name, String regionCode, String regionName,
                         String role, String address, Double latitude, Double longitude, String description,
+                        List<String> placeSummaryPoints,
                         String lclsSystm2, String lclsSystm3, String taxonomyLabel,
                         boolean odiiLinked, int storyCount, boolean saveAvailable, boolean savedByMe,
                         List<Relation> relations) {
+        public Place(String id, UUID internalId, String name, String regionCode, String regionName,
+                     String role, String address, Double latitude, Double longitude, String description,
+                     String lclsSystm2, String lclsSystm3, String taxonomyLabel,
+                     boolean odiiLinked, int storyCount, boolean saveAvailable, boolean savedByMe,
+                     List<Relation> relations) {
+            this(id, internalId, name, regionCode, regionName, role, address, latitude, longitude,
+                    description, List.of(), lclsSystm2, lclsSystm3, taxonomyLabel, odiiLinked,
+                    storyCount, saveAvailable, savedByMe, relations);
+        }
         public Set<String> topics() {
             var topics = new java.util.LinkedHashSet<String>();
             if ("CORE_TRADITIONAL_PLACE".equals(role)) topics.add(TOPICS.get(0));
