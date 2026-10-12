@@ -413,7 +413,7 @@ SELECT
     t.tags,
     t.public_place_id,
     t.place_name,
-    NULL AS region_code,
+    COALESCE(p.sigungu_code, '11110') AS region_code,
     t.latitude,
     t.longitude
 FROM temp_seed_reviews t
