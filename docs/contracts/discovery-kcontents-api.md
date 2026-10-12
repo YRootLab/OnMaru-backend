@@ -50,7 +50,7 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 
 현재 W2/W3의 저장 역할은 세 가지로 동결되어 있다. `PALACE`, `HANOK_CAFE`는 설명용 예시이며 실제 `placeRole` facet 코드가 아니다. 전통 주제는 승인된 역할과 공식 TourAPI 분류가 직접 지지할 때만 부여한다. 세부 장소 역할은 별도의 검수·저장 모델이 도입되기 전까지 제목으로 추론하지 않는다.
 
-초기 주제 코드는 `TRADITIONAL_SPACE_HERITAGE`, `TRADITIONAL_EXPERIENCE`, `TRADITIONAL_FOOD_TEA`, `K_DRAMA`, `K_MOVIE`, `K_POP_MV`다. 주제는 장소 역할 또는 검증된 작품 관계에서 계산하며 단순 TourAPI 소분류와 동일하지 않다. 한 장소가 여러 주제에 포함될 수 있다. `VARIETY`는 작품 타입과 관계 조회에는 지원하지만, 독립 공개 주제는 데이터 규모·FE 합의 후 활성화한다. 0건 주제는 `active:false`로 반환하고 FE가 노출 여부를 결정한다.
+초기 주제 코드는 `TRADITIONAL_SPACE_HERITAGE`, `TRADITIONAL_EXPERIENCE`, `TRADITIONAL_FOOD_TEA`, `K_DRAMA`, `K_MOVIE`, `K_POP_MV`, `K_ARTIST`다. 주제는 장소 역할 또는 검증된 작품 관계에서 계산하며 단순 TourAPI 소분류와 동일하지 않다. 한 장소가 여러 주제에 포함될 수 있다. `K_ARTIST`는 아이돌·아티스트 방문/촬영 장소를 포함한다. `VARIETY`는 작품 타입과 관계 조회에는 지원하지만, 독립 공개 주제는 데이터 규모·FE 합의 후 활성화한다. 0건 주제는 `active:false`로 반환하고 FE가 노출 여부를 결정한다.
 
 ```json
 {
@@ -81,7 +81,7 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 | `regionCode` | 행정구역 코드, 선택 | 지역명 문자열 대신 안정된 코드 |
 | `placeRole` | 게시된 장소 역할 코드, 선택 | 현재 승인 registry의 `CORE_TRADITIONAL_PLACE`, `TRADITIONAL_EXPERIENCE`, `SURROUNDING_CULTURE`만 실제 게시한다. `topic`과 별도 축 |
 | `workId` | 작품 ID, 선택 | 그 작품과 공개 촬영 관계가 있는 장소 |
-| `type` | `DRAMA|MOVIE|VARIETY|MUSIC_VIDEO`, 선택 | 작품 타입. K-주제와 상충하면 빈 결과 |
+| `type` | `DRAMA|MOVIE|VARIETY|MUSIC_VIDEO|ARTIST`, 선택 | 작품 타입. K-주제와 상충하면 빈 결과 |
 | `artistId` | 아티스트 ID, 선택 | 출처로 확인된 크레딧이 있는 작품만 |
 | `workTagCodes`, `relationTagCodes` | 쉼표 구분 canonical 코드, 선택 | 검증된 작품/관계 태그 |
 | `odiiLinked` | boolean, 선택 | 소리마루 연계 여부 |
@@ -210,7 +210,7 @@ FE의 독립 페이지·섹션 레이아웃은 FE가 정한다. 서버는 고정
 
 `GET /api/v1/places/{placeId}/k-contents?type=DRAMA&limit=20&cursor=...`
 
-`type` 선택 필터와 공통 커서 규칙을 지원한다. 응답의 `items[]`는 **작품–장소–관계 타입당 한 항목**이며 `relationId`, `relationType=FILMING_LOCATION`, `work`(`workId`, 제목, 타입, 연도), `contextSummary?`, `relationTags[]`, `evidence[]`, `evidenceCount`, `verifiedAt`을 포함한다. `evidence[]`는 공개 가능한 출처 최대 5개를 신뢰도·명시성 순으로 보여주고, 나머지는 내부 보존한다. 출처 항목은 `sourceTitle`, `sourceUrl`, `sourceType`, `publisherName?`, `checkedAt`이다. 저작권에 영향을 줄 수 있는 기사 원문 전체, 내부 confidence 숫자, 프롬프트, 검토 메모는 공개하지 않는다. 출처가 취소·철회되면 관계를 재검증하고 공개 조건을 잃은 관계는 목록·건수에서 함께 제외한다.
+`type` 선택 필터와 공통 커서 규칙을 지원한다. 응답의 `items[]`는 **작품–장소–관계 타입당 한 항목**이며 `relationId`, `relationType`(`FILMING_LOCATION` 또는 `VISIT_SPOT`), `work`(`workId`, 제목, 타입, 연도), `contextSummary?`, `relationTags[]`, `evidence[]`, `evidenceCount`, `verifiedAt`을 포함한다. `evidence[]`는 공개 가능한 출처 최대 5개를 신뢰도·명시성 순으로 보여주고, 나머지는 내부 보존한다. 출처 항목은 `sourceTitle`, `sourceUrl`, `sourceType`, `publisherName?`, `checkedAt`이다. 저작권에 영향을 줄 수 있는 기사 원문 전체, 내부 confidence 숫자, 프롬프트, 검토 메모는 공개하지 않는다. 출처가 취소·철회되면 관계를 재검증하고 공개 조건을 잃은 관계는 목록·건수에서 함께 제외한다.
 
 관계 응답의 `items`, `hasMore`, `nextCursor`, `catalogRevision`, `countsAsOf`, `matchingRelationCount`도 동일한 게시 revision을 기준으로 한다. 작품별 장소 목록은 5절의 `workId` 필터를 이용한다.
 
