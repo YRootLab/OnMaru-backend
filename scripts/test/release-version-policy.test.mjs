@@ -53,7 +53,7 @@ test('rejects a later patch when a skipped version is not listed', () => {
 test('the default skip list covers v0.3.44 and v0.3.45 so v0.3.46 is accepted after v0.3.43', () => {
   const release = ['v0.3.43'];
   assert.equal(formatVersion(validateCandidate(release, 'release/v0.3.46').candidate), 'v0.3.46');
-  assert.deepEqual(SKIPPED_RELEASE_VERSIONS, ['v0.3.44', 'v0.3.45']);
+  assert.deepEqual(SKIPPED_RELEASE_VERSIONS, ['v0.3.44', 'v0.3.45', 'v0.3.46']);
 });
 
 test('does not allow skipping across a different minor version', () => {
