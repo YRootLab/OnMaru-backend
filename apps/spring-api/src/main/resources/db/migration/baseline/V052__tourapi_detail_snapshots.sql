@@ -1,0 +1,34 @@
+-- onmaru-checksum: tourapi-detail-snapshots-v052-20261014
+-- Issue #737. TourAPI detail snapshots for batch collection (detailCommon2, detailIntro2).
+-- 상세 수집 결과. 공통(detailCommon2)은 객체, 운영 정보(detailIntro2)와 세부 항목(detailInfo2)은 배열로 저장한다.
+-- 공개 revision과 분리된 수집 전용 테이블이다.
+-- 장소별 최신 시도 1행을 유지하며, 일일 호출 상한은 last_attempted_at으로 센다.
+CREATE TABLE onmaru.tourapi_detail_snapshots (
+    content_id varchar PRIMARY KEY,
+    content_type_id varchar NOT NULL,
+    category varchar NOT NULL,
+    status varchar NOT NULL,
+    overview_length integer NOT NULL DEFAULT 0,
+    payload jsonb,
+    intro_payload jsonb,
+    info_payload jsonb,
+    payload_sha256 varchar,
+    error_code varchar,
+    attempts integer NOT NULL DEFAULT 0,
+    last_attempted_at timestamptz NOT NULL,
+    fetched_at timestamptz,
+    CONSTRAINT tourapi_detail_snapshots_status_ck CHECK (status IN ('OK', 'FAILED')),
+    CONSTRAINT tourapi_detail_snapshots_attempts_ck CHECK (attempts >= 0),
+    CONSTRAINT tourapi_detail_snapshots_overview_length_ck CHECK (overview_length >= 0),
+    CONSTRAINT tourapi_detail_snapshots_payload_object_ck CHECK (payload IS NULL OR jsonb_typeof(payload) = 'object'),
+    CONSTRAINT tourapi_detail_snapshots_intro_array_ck CHECK (intro_payload IS NULL OR jsonb_typeof(intro_payload) = 'array'),
+    CONSTRAINT tourapi_detail_snapshots_info_array_ck CHECK (info_payload IS NULL OR jsonb_typeof(info_payload) = 'array')
+);
+
+CREATE INDEX tourapi_detail_snapshots_attempted_idx
+    ON onmaru.tourapi_detail_snapshots (last_attempted_at);
+
+INSERT INTO onmaru_registry.migration_version_reservations (version,reserved_for,issue_number,description)
+VALUES ('052','TOURAPI_DETAIL_SNAPSHOTS',737,'TourAPI detail snapshots for common and intro payloads')
+ON CONFLICT (version) DO UPDATE SET reserved_for=EXCLUDED.reserved_for,
+    issue_number=EXCLUDED.issue_number, description=EXCLUDED.description;
