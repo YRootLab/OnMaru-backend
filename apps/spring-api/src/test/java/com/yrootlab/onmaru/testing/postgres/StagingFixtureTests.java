@@ -124,7 +124,7 @@ class StagingFixtureTests {
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.map_place_read_projection
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
-                    """)).isEqualTo(100);
+                    """)).isEqualTo(300);
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.community_visit_reviews
                     WHERE status = 'PUBLISHED' AND (
@@ -134,7 +134,7 @@ class StagingFixtureTests {
                         '54500000-0000-4000-8000-000000000112'
                       )
                     )
-                    """)).isEqualTo(65);
+                    """)).isEqualTo(150);
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.audio_story_versions
                     WHERE revision_id = '54500000-0000-4000-8000-000000000011'
@@ -170,7 +170,7 @@ class StagingFixtureTests {
                     SELECT row_count FROM onmaru.map_projection_publications
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
                       AND projection_name = 'map_place_read_projection'
-                    """)).isEqualTo(100);
+                    """)).isEqualTo(300);
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.map_scope_count_projection
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
@@ -210,9 +210,9 @@ class StagingFixtureTests {
         executeSeedForTestDatabase();
         executeSeedForTestDatabase();
 
-        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 65);
-        assertThat(reviews.sizes()).containsExactly(30, 30, 5);
-        assertThat(reviews.hasMore()).containsExactly(true, true, false);
+        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 150);
+        assertThat(reviews.sizes()).containsExactly(30, 30, 30, 30, 30);
+        assertThat(reviews.hasMore()).containsExactly(true, true, true, true, false);
         assertThat(reviews.ids()).containsExactlyInAnyOrderElementsOf(fixtureReviewIds())
                 .doesNotContain(HIDDEN_REVIEW_ID);
 
@@ -257,18 +257,19 @@ class StagingFixtureTests {
         executeSeedForTestDatabase();
         var allPlaceIds = new ArrayList<String>();
         var categories = List.of("SPOT", "CAFE", "MARKET");
-        var counts = List.of(34, 33, 33);
+        var counts = List.of(101, 100, 99);
         for (int i = 0; i < categories.size(); i++) {
             String category = categories.get(i);
             var places = readPublicPages("/api/v1/map/info/places", Map.of("category", category), "placeId", counts.get(i));
-            assertThat(places.sizes()).containsExactly(30, counts.get(i) - 30);
+            assertThat(places.sizes()).isEqualTo(pageSizes(counts.get(i)));
             assertThat(places.ids()).containsExactlyInAnyOrderElementsOf(fixtureMapIds(category));
             allPlaceIds.addAll(places.ids());
             for (int zoom : List.of(1, 6, 9, 11)) {
                 var viewport = publicGet("/api/v1/map/info/viewport", Map.of(
                         "bbox", "124,33,132,39", "zoomLevel", Integer.toString(zoom), "category", category));
+                // 뷰포트 결과 한도는 최대 60건이므로, 카테고리가 60건을 넘으면 확대 1에서도 CLUSTER로 바뀐다.
                 String mode = switch (zoom) {
-                    case 1 -> "PLACE";
+                    case 1 -> counts.get(i) > 60 ? "CLUSTER" : "PLACE";
                     case 6 -> "CLUSTER";
                     case 9 -> "DISTRICT";
                     default -> "REGION";
@@ -281,7 +282,7 @@ class StagingFixtureTests {
                 assertThat(represented).isEqualTo(counts.get(i).longValue());
             }
         }
-        assertThat(allPlaceIds).hasSize(100).doesNotHaveDuplicates();
+        assertThat(allPlaceIds).hasSize(300).doesNotHaveDuplicates();
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
             assertThat(allPlaceIds).containsExactlyInAnyOrderElementsOf(readIds(connection, """
                     SELECT public_id FROM onmaru.map_place_read_projection
@@ -356,7 +357,7 @@ class StagingFixtureTests {
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.community_visit_reviews
                     WHERE id::text LIKE '54500675-%' AND status = 'PUBLISHED'
-                    """)).isEqualTo(63);
+                    """)).isEqualTo(148);
         }
     }
 
@@ -369,7 +370,7 @@ class StagingFixtureTests {
                     INSERT INTO onmaru.community_visit_reviews
                       (id, member_id, place_id, text, status, created_at, mood, score, tags,
                        public_place_id, place_name, region_code, latitude, longitude)
-                    SELECT '54500675-0000-4000-8600-000000000064', member_id, place_id,
+                    SELECT '54500675-0000-4000-8600-000000000151', member_id, place_id,
                            '이전 fixture 범위의 후기', 'PUBLISHED', '2026-10-07T00:00:00Z', mood, score, tags,
                            public_place_id, place_name, region_code, latitude, longitude
                     FROM onmaru.community_visit_reviews
@@ -377,14 +378,14 @@ class StagingFixtureTests {
                     """);
             statement.executeUpdate("""
                     INSERT INTO onmaru.community_review_likes (review_id, member_id, created_at)
-                    VALUES ('54500675-0000-4000-8600-000000000064',
+                    VALUES ('54500675-0000-4000-8600-000000000151',
                             '54500000-0000-4000-8000-000000000101', '2026-10-07T01:00:00Z')
                     """);
             statement.executeUpdate("""
                     INSERT INTO onmaru.community_review_reports
                       (id, review_id, reporter_member_id, reason, detail, status, created_at)
                     VALUES ('12340000-0000-4000-8000-000000000301',
-                            '54500675-0000-4000-8600-000000000064',
+                            '54500675-0000-4000-8600-000000000151',
                             '54500000-0000-4000-8000-000000000101',
                             'OTHER', '잔존 fixture에 작성한 사용자 신고', 'OPEN', '2026-10-07T02:00:00Z')
                     """);
@@ -392,7 +393,7 @@ class StagingFixtureTests {
                     INSERT INTO onmaru.community_review_moderation_actions
                       (id, review_id, actor_type, actor_ref, previous_status, next_status, reason, created_at)
                     VALUES ('12340000-0000-4000-8000-000000000302',
-                            '54500675-0000-4000-8600-000000000064',
+                            '54500675-0000-4000-8600-000000000151',
                             'OPERATOR', 'staging-test-operator', 'PUBLISHED', 'HIDDEN',
                             '잔존 fixture에 남긴 검수 이력', '2026-10-07T03:00:00Z')
                     """);
@@ -401,26 +402,26 @@ class StagingFixtureTests {
         executeSeedForTestDatabase();
         executeSeedForTestDatabase();
 
-        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 65);
-        assertThat(reviews.sizes()).containsExactly(30, 30, 5);
+        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 150);
+        assertThat(reviews.sizes()).containsExactly(30, 30, 30, 30, 30);
         assertThat(reviews.ids()).containsExactlyInAnyOrderElementsOf(fixtureReviewIds())
-                .doesNotContain("54500675-0000-4000-8600-000000000064");
+                .doesNotContain("54500675-0000-4000-8600-000000000151");
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.community_visit_reviews
-                    WHERE id = '54500675-0000-4000-8600-000000000064'
+                    WHERE id = '54500675-0000-4000-8600-000000000151'
                       AND status = 'HIDDEN' AND text = '이전 fixture 범위의 후기'
                     """)).isEqualTo(1);
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.community_review_likes
-                    WHERE review_id = '54500675-0000-4000-8600-000000000064'
+                    WHERE review_id = '54500675-0000-4000-8600-000000000151'
                       AND member_id = '54500000-0000-4000-8000-000000000101'
                       AND created_at = '2026-10-07T01:00:00Z'
                     """)).isEqualTo(1);
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.community_review_reports
                     WHERE id = '12340000-0000-4000-8000-000000000301'
-                      AND review_id = '54500675-0000-4000-8600-000000000064'
+                      AND review_id = '54500675-0000-4000-8600-000000000151'
                       AND reporter_member_id = '54500000-0000-4000-8000-000000000101'
                       AND reason = 'OTHER' AND detail = '잔존 fixture에 작성한 사용자 신고'
                       AND status = 'OPEN' AND created_at = '2026-10-07T02:00:00Z'
@@ -429,7 +430,7 @@ class StagingFixtureTests {
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.community_review_moderation_actions
                     WHERE id = '12340000-0000-4000-8000-000000000302'
-                      AND review_id = '54500675-0000-4000-8600-000000000064'
+                      AND review_id = '54500675-0000-4000-8600-000000000151'
                       AND actor_type = 'OPERATOR' AND actor_ref = 'staging-test-operator'
                       AND previous_status = 'PUBLISHED' AND next_status = 'HIDDEN'
                       AND reason = '잔존 fixture에 남긴 검수 이력' AND created_at = '2026-10-07T03:00:00Z'
@@ -471,12 +472,12 @@ class StagingFixtureTests {
 
         executeSeedForTestDatabase();
 
-        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 91);
-        assertThat(reviews.sizes()).containsExactly(30, 30, 30, 1);
-        assertThat(reviews.hasMore()).containsExactly(true, true, true, false);
+        var reviews = readPublicPages("/api/v1/visit-reviews", Map.of("scope", "ALL"), "id", 176);
+        assertThat(reviews.sizes()).containsExactly(30, 30, 30, 30, 30, 26);
+        assertThat(reviews.hasMore()).containsExactly(true, true, true, true, true, false);
         assertThat(reviews.ids()).contains(USER_REVIEW_ID).containsAll(fixtureReviewIds());
         assertThat(reviews.ids().stream().filter(id -> id.startsWith("12340000-")).toList()).hasSize(26);
-        assertThat(reviews.ids().stream().filter(fixtureReviewIds()::contains).toList()).hasSize(65);
+        assertThat(reviews.ids().stream().filter(fixtureReviewIds()::contains).toList()).hasSize(150);
 
         try (var connection = DriverManager.getConnection(jdbcUrl(), "onmaru_test", "onmaru_test")) {
             assertThat(longValue(connection, """
@@ -499,7 +500,7 @@ class StagingFixtureTests {
             assertThat(longValue(connection, """
                     SELECT count(*) FROM onmaru.map_place_read_projection
                     WHERE revision_id = '54500000-0000-4000-8000-000000000010'
-                    """)).isEqualTo(100);
+                    """)).isEqualTo(300);
         }
     }
 
@@ -588,8 +589,17 @@ class StagingFixtureTests {
         var ids = new ArrayList<String>();
         ids.add("54500000-0000-4000-8000-000000000111");
         ids.add("54500000-0000-4000-8000-000000000112");
-        for (int n = 1; n <= 63; n++) ids.add("54500675-0000-4000-8600-%012d".formatted(n));
+        for (int n = 1; n <= 148; n++) ids.add("54500675-0000-4000-8600-%012d".formatted(n));
         return ids;
+    }
+
+    /** limit 30 기준으로 total건을 나눈 페이지 크기 목록. */
+    private static List<Integer> pageSizes(int total) {
+        var sizes = new ArrayList<Integer>();
+        for (int remaining = total; remaining > 0; remaining -= 30) {
+            sizes.add(Math.min(30, remaining));
+        }
+        return sizes;
     }
 
     private List<String> fixtureMapIds(String category) {
@@ -610,7 +620,7 @@ class StagingFixtureTests {
             }
             default -> throw new IllegalArgumentException(category);
         };
-        for (int n = firstGeneratedIndex; n <= 96; n += 3) ids.add("p-staging-generated-%03d".formatted(n));
+        for (int n = firstGeneratedIndex; n <= 296; n += 3) ids.add("p-staging-generated-%03d".formatted(n));
         return ids;
     }
 

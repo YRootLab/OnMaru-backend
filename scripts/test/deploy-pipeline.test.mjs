@@ -77,8 +77,8 @@ describe('container and staging release pipeline', () => {
     const feGuide = read('docs/operations/staging-fe-guide.md');
 
     for (const document of [readme, feGuide]) {
-      assert.match(document, /지도 장소 100건/);
-      assert.match(document, /공개 온기 후기 65건/);
+      assert.match(document, /지도 장소 300건/);
+      assert.match(document, /공개 온기 후기 150건/);
       assert.match(document, /Odii story 65건/);
       assert.match(document, /limit=30/);
       assert.match(document, /모든 행은 합성/);
