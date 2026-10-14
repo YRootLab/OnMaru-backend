@@ -33,7 +33,14 @@ export function candidateVersion(ref) {
   return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
 }
 
-export function validateCandidate(tags, ref) {
+/**
+ * 태그 없이 건너뛴 릴리스 버전 목록이다. 이 목록의 버전은 다음 릴리스가 건너뛸 수 있다.
+ * - v0.3.44: master에 릴리스되었지만 태그가 없다.
+ * - v0.3.45: 릴리스가 취소되었다.
+ */
+export const SKIPPED_RELEASE_VERSIONS = ['v0.3.44', 'v0.3.45'];
+
+export function validateCandidate(tags, ref, skippedVersions = SKIPPED_RELEASE_VERSIONS) {
   const latest = latestVersion(tags);
   if (!latest) throw new Error('No semantic version tag was found. A release must start from an approved baseline.');
 
@@ -41,14 +48,25 @@ export function validateCandidate(tags, ref) {
   if (!candidate) throw new Error(`Invalid release ref: ${ref}. Expected release/vX.Y.Z.`);
 
   const expected = nextPatch(latest);
-  if (compareVersions(candidate, expected) !== 0) {
+  if (compareVersions(candidate, expected) === 0) {
+    return { latest, expected, candidate };
+  }
+
+  // 건너뛰기는 expected부터 candidate 직전까지의 모든 버전이 명시 목록에 있을 때만 허용한다.
+  const skipped = new Set(skippedVersions);
+  const gapIsAllowed = compareVersions(candidate, expected) > 0
+    && candidate.major === expected.major
+    && candidate.minor === expected.minor
+    && Array.from({ length: candidate.patch - expected.patch }, (_, index) =>
+      formatVersion({ ...expected, patch: expected.patch + index })).every((version) => skipped.has(version));
+  if (!gapIsAllowed) {
     throw new Error(
       `Release version ${formatVersion(candidate)} is not the next patch after ${formatVersion(latest)}. `
-        + `Expected ${formatVersion(expected)}.`,
+        + `Expected ${formatVersion(expected)}, or a skip listed in SKIPPED_RELEASE_VERSIONS.`,
     );
   }
 
-  return { latest, expected, candidate };
+  return { latest, expected, candidate, skipped: formatVersion(expected) };
 }
 
 function repositoryTags() {
