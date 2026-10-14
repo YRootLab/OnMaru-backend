@@ -261,7 +261,7 @@ class StagingFixtureTests {
         for (int i = 0; i < categories.size(); i++) {
             String category = categories.get(i);
             var places = readPublicPages("/api/v1/map/info/places", Map.of("category", category), "placeId", counts.get(i));
-            assertThat(places.sizes()).containsExactly(30, counts.get(i) - 30);
+            assertThat(places.sizes()).isEqualTo(pageSizes(counts.get(i)));
             assertThat(places.ids()).containsExactlyInAnyOrderElementsOf(fixtureMapIds(category));
             allPlaceIds.addAll(places.ids());
             for (int zoom : List.of(1, 6, 9, 11)) {
@@ -590,6 +590,15 @@ class StagingFixtureTests {
         ids.add("54500000-0000-4000-8000-000000000112");
         for (int n = 1; n <= 148; n++) ids.add("54500675-0000-4000-8600-%012d".formatted(n));
         return ids;
+    }
+
+    /** limit 30 기준으로 total건을 나눈 페이지 크기 목록. */
+    private static List<Integer> pageSizes(int total) {
+        var sizes = new ArrayList<Integer>();
+        for (int remaining = total; remaining > 0; remaining -= 30) {
+            sizes.add(Math.min(30, remaining));
+        }
+        return sizes;
     }
 
     private List<String> fixtureMapIds(String category) {
