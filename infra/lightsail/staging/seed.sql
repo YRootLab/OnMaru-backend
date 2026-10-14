@@ -292,7 +292,7 @@ SELECT n,
        CASE WHEN n % 3 <> 0
          THEN 'https://picsum.photos/seed/onmaru-generated-' || lpad(n::text, 3, '0') || '/400/300'
        END AS thumbnail_url
-FROM generate_series(1, 96) AS series(n)
+FROM generate_series(1, 296) AS series(n)
 JOIN staging_fixture_regions region ON region.ord = (n - 1) % 4;
 
 INSERT INTO onmaru.catalog_place_identity (id, created_at)
@@ -375,7 +375,7 @@ SELECT n,
          ELSE ('54500675-0000-4000-8300-' || lpad((n - 29)::text, 12, '0'))::uuid
        END AS place_id,
        '2026-10-06T12:00:00Z'::timestamptz - (n - 1) * interval '1 minute' AS created_at
-FROM generate_series(1, 63) AS series(n);
+FROM generate_series(1, 148) AS series(n);
 -- 현재 생성 집합 밖의 공개 합성 후기만 숨긴다. identity와 사용자 좋아요·신고·audit는 보존한다.
 -- namespace 밖 사용자 후기는 변경하지 않으며, 이미 숨김/삭제된 잔존 후기의 상태도 유지한다.
 UPDATE onmaru.community_visit_reviews existing
