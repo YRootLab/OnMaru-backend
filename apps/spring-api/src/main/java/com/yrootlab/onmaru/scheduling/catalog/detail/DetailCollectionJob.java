@@ -41,7 +41,7 @@ public final class DetailCollectionJob {
             int failed = 0;
             String stoppedBy = null;
             for (DetailCollectionTarget target : targets) {
-                DetailFetchResult result = fetcher.fetch(target.contentId());
+                DetailFetchResult result = fetcher.fetch(target);
                 store.save(target, result, clock.instant());
                 if (result.status() == DetailFetchResult.Status.OK) {
                     ok++;

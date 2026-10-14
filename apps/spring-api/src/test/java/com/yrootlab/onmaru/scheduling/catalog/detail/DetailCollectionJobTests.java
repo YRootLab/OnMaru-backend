@@ -20,8 +20,8 @@ class DetailCollectionJobTests {
         var store = new FakeStore(750, true, targets(100));
         var fetched = new ArrayList<String>();
         var job = new DetailCollectionJob(new DetailCollectionPolicy(800), store,
-                contentId -> {
-                    fetched.add(contentId);
+                target -> {
+                    fetched.add(target.contentId());
                     return DetailFetchResult.ok(null);
                 }, CLOCK);
 
@@ -38,8 +38,8 @@ class DetailCollectionJobTests {
         var store = new FakeStore(800, true, targets(10));
         var fetched = new ArrayList<String>();
         var job = new DetailCollectionJob(new DetailCollectionPolicy(800), store,
-                contentId -> {
-                    fetched.add(contentId);
+                target -> {
+                    fetched.add(target.contentId());
                     return DetailFetchResult.ok(null);
                 }, CLOCK);
 
@@ -54,8 +54,8 @@ class DetailCollectionJobTests {
         var store = new FakeStore(0, true, targets(5));
         var fetched = new ArrayList<String>();
         var job = new DetailCollectionJob(new DetailCollectionPolicy(800), store,
-                contentId -> {
-                    fetched.add(contentId);
+                target -> {
+                    fetched.add(target.contentId());
                     return fetched.size() == 2
                             ? DetailFetchResult.failed("RATE_LIMITED", true)
                             : DetailFetchResult.ok(null);
@@ -75,8 +75,8 @@ class DetailCollectionJobTests {
         var store = new FakeStore(0, false, targets(5));
         var fetched = new ArrayList<String>();
         var job = new DetailCollectionJob(new DetailCollectionPolicy(800), store,
-                contentId -> {
-                    fetched.add(contentId);
+                target -> {
+                    fetched.add(target.contentId());
                     return DetailFetchResult.ok(null);
                 }, CLOCK);
 

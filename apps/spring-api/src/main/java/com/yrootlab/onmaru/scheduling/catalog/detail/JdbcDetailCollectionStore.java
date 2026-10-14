@@ -94,21 +94,28 @@ public final class JdbcDetailCollectionStore implements DetailCollectionStore {
 
     @Override
     public void save(DetailCollectionTarget target, DetailFetchResult result, Instant attemptedAt) {
-        JsonNode payload = result.payload();
-        String payloadJson = payload == null ? null : payload.toString();
+        DetailPayloads payloads = result.payloads();
+        JsonNode common = payloads == null ? null : payloads.common();
+        String commonJson = common == null ? null : common.toString();
+        String introJson = payloads == null || payloads.intro() == null ? null : payloads.intro().toString();
+        String infoJson = payloads == null || payloads.info() == null ? null : payloads.info().toString();
+        String digestSource = commonJson == null ? null : commonJson + "\n" + introJson + "\n" + infoJson;
         boolean ok = result.status() == DetailFetchResult.Status.OK;
         try (Connection connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
                      INSERT INTO onmaru.tourapi_detail_snapshots
                          (content_id, content_type_id, category, status, overview_length, payload,
-                          payload_sha256, error_code, attempts, last_attempted_at, fetched_at)
-                     VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, 1, ?, ?)
+                          intro_payload, info_payload, payload_sha256, error_code, attempts,
+                          last_attempted_at, fetched_at)
+                     VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?, 1, ?, ?)
                      ON CONFLICT (content_id) DO UPDATE SET
                          content_type_id = EXCLUDED.content_type_id,
                          category = EXCLUDED.category,
                          status = EXCLUDED.status,
                          overview_length = EXCLUDED.overview_length,
                          payload = EXCLUDED.payload,
+                         intro_payload = EXCLUDED.intro_payload,
+                         info_payload = EXCLUDED.info_payload,
                          payload_sha256 = EXCLUDED.payload_sha256,
                          error_code = EXCLUDED.error_code,
                          attempts = tourapi_detail_snapshots.attempts + 1,
@@ -119,12 +126,14 @@ public final class JdbcDetailCollectionStore implements DetailCollectionStore {
             statement.setString(2, target.contentTypeId());
             statement.setString(3, target.category());
             statement.setString(4, result.status().name());
-            statement.setInt(5, ok ? overviewLength(payload) : 0);
-            statement.setString(6, payloadJson);
-            statement.setString(7, payloadJson == null ? null : sha256(payloadJson));
-            statement.setString(8, result.errorCode());
-            statement.setTimestamp(9, Timestamp.from(attemptedAt));
-            statement.setTimestamp(10, ok ? Timestamp.from(attemptedAt) : null);
+            statement.setInt(5, ok ? overviewLength(common) : 0);
+            statement.setString(6, commonJson);
+            statement.setString(7, introJson);
+            statement.setString(8, infoJson);
+            statement.setString(9, digestSource == null ? null : sha256(digestSource));
+            statement.setString(10, result.errorCode());
+            statement.setTimestamp(11, Timestamp.from(attemptedAt));
+            statement.setTimestamp(12, ok ? Timestamp.from(attemptedAt) : null);
             statement.executeUpdate();
         } catch (SQLException exception) {
             throw databaseFailure(exception);
