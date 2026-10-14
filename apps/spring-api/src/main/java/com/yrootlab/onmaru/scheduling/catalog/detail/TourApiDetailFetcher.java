@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.net.URI;
 
 /**
- * 한 장소의 상세 세 응답(detailCommon2, detailIntro2, detailInfo2)을 호출한다.
+ * 한 장소의 상세 두 응답(detailCommon2, detailIntro2)을 호출한다. detailInfo2는 일괄 수집 대상이 아니다.
  * 기능별 일일 한도는 호출 기능마다 따로 적용되므로, 장소당 기능별 호출은 각 1회다.
  */
 public final class TourApiDetailFetcher implements DetailFetcher {
@@ -37,12 +37,8 @@ public final class TourApiDetailFetcher implements DetailFetcher {
             if (intro.failure() != null) {
                 return intro.failure();
             }
-            Part info = get("detailInfo2",
-                    uris.detailInfo(target.contentId(), target.contentTypeId()), true);
-            if (info.failure() != null) {
-                return info.failure();
-            }
-            return DetailFetchResult.ok(new DetailPayloads(common.node(), intro.node(), info.node()));
+            // detailInfo2(세부 항목)는 일괄 수집하지 않는다. 사용자 조회 시 필요할 때만 불러온다.
+            return DetailFetchResult.ok(new DetailPayloads(common.node(), intro.node(), null));
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return DetailFetchResult.failed("INTERRUPTED", true);
