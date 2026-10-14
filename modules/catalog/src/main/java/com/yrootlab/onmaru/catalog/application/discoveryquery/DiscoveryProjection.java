@@ -99,7 +99,8 @@ public final class DiscoveryProjection {
     public static Map<String,Object> card(Place place,Filters filters) {
         var value=new LinkedHashMap<String,Object>();
         value.put("placeId",place.id());value.put("name",place.name());value.put("region",region(place));
-        value.put("placeRoles",roles(place));value.put("topics",place.topics());value.put("placeImage",null);
+        value.put("placeRoles",roles(place));value.put("topics",place.topics());
+        value.put("placeImage",place.imageUrl()==null||place.imageUrl().isBlank()?null:Map.of("url",place.imageUrl()));
         value.put("odiiLinked",place.odiiLinked());
         var relations=place.relations().stream().filter(r->relationMatches(r,filters,null)).toList();
         var featured=relations.isEmpty()?null:relations.getFirst();

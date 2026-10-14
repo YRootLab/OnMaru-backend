@@ -50,7 +50,8 @@ class JdbcDiscoveryReadStoreTests {
         assertThat(first.places().getFirst().regionName()).isEqualTo("서울특별시");
         assertThat(first.places().getFirst().saveAvailable()).isFalse();
         assertThat(first.places().getFirst().savedByMe()).isFalse();
-        assertThat(DiscoveryProjection.card(first.places().getFirst(),new Filters(null,null,null,null,null,null,Set.of(),Set.of(),null,"RELEVANCE",20)).get("placeImage")).isNull();
+        assertThat(DiscoveryProjection.card(first.places().getFirst(),new Filters(null,null,null,null,null,null,Set.of(),Set.of(),null,"RELEVANCE",20)).get("placeImage"))
+                .isEqualTo(Map.of("url","https://example.org/unreviewed.jpg"));
         assertThat(DiscoveryProjection.detail(first.places().getFirst()).get("images")).isEqualTo(java.util.List.of());
         UUID legacyRevision=UUID.randomUUID(),legacySource=UUID.randomUUID();
         jdbc.update("INSERT INTO onmaru.catalog_dataset_revisions(id,dataset,status,fetched_at,published_at) VALUES (?,'kto-korean-tour','PUBLISHED',now(),now())",legacyRevision);
