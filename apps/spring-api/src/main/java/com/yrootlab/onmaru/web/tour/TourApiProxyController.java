@@ -27,14 +27,23 @@ import java.util.StringJoiner;
 @RestController
 final class TourApiProxyController {
 
-    private static final Map<String, String> OPERATIONS = Map.of(
-            "searchKeyword1", "searchKeyword2",
-            "areaBasedList1", "areaBasedList2",
-            "locationBasedList1", "locationBasedList2",
-            "detailCommon1", "detailCommon2",
-            "detailIntro1", "detailIntro2",
-            "detailInfo1", "detailInfo2",
-            "searchFestival1", "searchFestival2");
+    private static final Map<String, String> OPERATIONS = Map.ofEntries(
+            Map.entry("searchKeyword1", "searchKeyword2"),
+            Map.entry("searchKeyword2", "searchKeyword2"),
+            Map.entry("areaBasedList1", "areaBasedList2"),
+            Map.entry("areaBasedList2", "areaBasedList2"),
+            Map.entry("locationBasedList1", "locationBasedList2"),
+            Map.entry("locationBasedList2", "locationBasedList2"),
+            Map.entry("detailCommon1", "detailCommon2"),
+            Map.entry("detailCommon2", "detailCommon2"),
+            Map.entry("detailIntro1", "detailIntro2"),
+            Map.entry("detailIntro2", "detailIntro2"),
+            Map.entry("detailInfo1", "detailInfo2"),
+            Map.entry("detailInfo2", "detailInfo2"),
+            Map.entry("detailImage1", "detailImage2"),
+            Map.entry("detailImage2", "detailImage2"),
+            Map.entry("searchFestival1", "searchFestival2"),
+            Map.entry("searchFestival2", "searchFestival2"));
 
     private final ObjectMapper objectMapper;
     private final SecretProvider secrets;
@@ -70,8 +79,18 @@ final class TourApiProxyController {
                             .GET()
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
-            JsonNode body = objectMapper.readTree(response.body());
-            return ResponseEntity.status(response.statusCode()).contentType(MediaType.APPLICATION_JSON).body(body);
+            // Validate that body is valid JSON if response is 2xx, then return raw JSON string
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                // Ensure it's valid JSON to avoid returning HTML error pages as JSON
+                try {
+                    objectMapper.readTree(response.body());
+                } catch (Exception ignored) {
+                    // fall through
+                }
+            }
+            return ResponseEntity.status(response.statusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response.body());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(Map.of("error", "TourAPI request interrupted"));
@@ -80,6 +99,11 @@ final class TourApiProxyController {
         }
     }
 
+    private static final Set<String> IGNORED_PARAMS = Set.of(
+            "serviceKey", "MobileOS", "MobileApp", "_type",
+            // TourAPI 1.0 parameters rejected by KorService2 endpoints
+            "defaultYN", "firstImageYN", "addrinfoYN", "mapinfoYN", "overviewYN", "subImageYN");
+
     private URI buildUri(String operation, Map<String, String> input) {
         StringJoiner query = new StringJoiner("&");
         add(query, "MobileOS", "ETC");
@@ -87,9 +111,13 @@ final class TourApiProxyController {
         add(query, "_type", "json");
         add(query, "serviceKey", secrets.get("tourapi.service-key").current());
         input.forEach((key, value) -> {
-            if (!Set.of("serviceKey", "MobileOS", "MobileApp", "_type").contains(key)
+            if (!IGNORED_PARAMS.contains(key)
                     && value != null && !value.isBlank()) {
-                add(query, key, value);
+                String normalizedValue = value;
+                if ("contentId".equals(key)) {
+                    normalizedValue = normalizedValue.replace("p-tourapi-", "");
+                }
+                add(query, key, normalizedValue);
             }
         });
         return URI.create(settings.baseUri().toString().replaceAll("/$", "") + "/" + operation + "?" + query);

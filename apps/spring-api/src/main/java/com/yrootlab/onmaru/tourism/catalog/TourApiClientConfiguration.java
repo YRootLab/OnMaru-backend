@@ -92,7 +92,7 @@ public class TourApiClientConfiguration {
                     ? URI.create("https://apis.data.go.kr/B551011/KorService2") : baseUri;
             mobileApp = mobileApp == null || mobileApp.isBlank() ? "OnMaru" : mobileApp;
             pageSize = pageSize == null ? 1000 : pageSize;
-            minimumInterval = minimumInterval == null ? Duration.ofHours(72) : minimumInterval;
+            minimumInterval = minimumInterval == null ? Duration.ofDays(14) : minimumInterval;
             if (pageSize < 1 || pageSize > 1000) {
                 throw new IllegalArgumentException("pageSize must be between 1 and 1000");
             }
