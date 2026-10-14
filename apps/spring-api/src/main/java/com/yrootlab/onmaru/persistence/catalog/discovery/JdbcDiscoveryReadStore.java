@@ -157,6 +157,7 @@ public final class JdbcDiscoveryReadStore {
                 if(parsed.isArray()) for(var point:parsed) if(point.isTextual()) b.placeSummaryPoints.add(point.asText());
             }
             b.taxonomyLabel=value(fields,"lclsSystm3Name");
+            b.imageUrl=value(fields,"firstimage");
             b.storyCount=row.getInt("story_count"); b.saveAvailable=row.getBoolean("save_available") && saveEligibility.isSaveable(b.id); b.saved=row.getBoolean("saved");
             return b;
         } catch (java.io.IOException failure) { throw new IllegalStateException("Invalid approved source record",failure); }
@@ -183,10 +184,10 @@ public final class JdbcDiscoveryReadStore {
     private static String value(JsonNode fields,String key) {var node=fields.path(key);return node.isMissingNode()||node.isNull()||node.asText().isBlank()?null:node.asText();}
     private static Double number(JsonNode fields,String key) {try {var value=value(fields,key);return value==null?null:Double.valueOf(value);}catch(NumberFormatException ignored){return null;}}
     private static final class Builder {
-        UUID internalId; String id,name,regionCode,regionName,role,address,description,lcls2,lcls3,taxonomyLabel;
+        UUID internalId; String id,name,regionCode,regionName,role,address,description,lcls2,lcls3,taxonomyLabel,imageUrl;
         Double latitude,longitude; int storyCount; boolean saveAvailable,saved;
         List<Relation> relations=new ArrayList<>(); List<String> placeSummaryPoints=new ArrayList<>();
         Place build(){return new Place(id,internalId,name,regionCode,regionName,role,address,latitude,longitude,description,
-                List.copyOf(placeSummaryPoints),lcls2,lcls3,taxonomyLabel,storyCount>0,storyCount,saveAvailable,saved,List.copyOf(relations));}
+                List.copyOf(placeSummaryPoints),imageUrl,lcls2,lcls3,taxonomyLabel,storyCount>0,storyCount,saveAvailable,saved,List.copyOf(relations));}
     }
 }
