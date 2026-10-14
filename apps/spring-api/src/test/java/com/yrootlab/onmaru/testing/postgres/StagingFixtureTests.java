@@ -267,8 +267,9 @@ class StagingFixtureTests {
             for (int zoom : List.of(1, 6, 9, 11)) {
                 var viewport = publicGet("/api/v1/map/info/viewport", Map.of(
                         "bbox", "124,33,132,39", "zoomLevel", Integer.toString(zoom), "category", category));
+                // 뷰포트 결과 한도는 최대 60건이므로, 카테고리가 60건을 넘으면 확대 1에서도 CLUSTER로 바뀐다.
                 String mode = switch (zoom) {
-                    case 1 -> "PLACE";
+                    case 1 -> counts.get(i) > 60 ? "CLUSTER" : "PLACE";
                     case 6 -> "CLUSTER";
                     case 9 -> "DISTRICT";
                     default -> "REGION";
