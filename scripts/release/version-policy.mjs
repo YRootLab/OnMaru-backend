@@ -37,8 +37,9 @@ export function candidateVersion(ref) {
  * 태그 없이 건너뛴 릴리스 버전 목록이다. 이 목록의 버전은 다음 릴리스가 건너뛸 수 있다.
  * - v0.3.44: master에 릴리스되었지만 태그가 없다.
  * - v0.3.45: 릴리스가 취소되었다.
+ * - v0.3.46: master에 릴리스되었지만 태그가 없다.
  */
-export const SKIPPED_RELEASE_VERSIONS = ['v0.3.44', 'v0.3.45'];
+export const SKIPPED_RELEASE_VERSIONS = ['v0.3.44', 'v0.3.45', 'v0.3.46'];
 
 export function validateCandidate(tags, ref, skippedVersions = SKIPPED_RELEASE_VERSIONS) {
   const latest = latestVersion(tags);
