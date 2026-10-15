@@ -119,7 +119,8 @@ public final class DiscoveryProjection {
         value.put("placeSummaryPoints",place.placeSummaryPoints());
         var source=new LinkedHashMap<String,Object>();source.put("provider","TOUR_API");source.put("lclsSystm2",place.lclsSystm2());
         source.put("lclsSystm3",place.lclsSystm3());source.put("labelKo",place.taxonomyLabel());value.put("sourceTaxonomy",source);
-        value.put("placeRoles",roles(place));value.put("topics",place.topics());value.put("images",List.of());
+        value.put("placeRoles",roles(place));value.put("topics",place.topics());
+        value.put("images",place.imageUrl()==null||place.imageUrl().isBlank()?List.of():List.of(place.imageUrl()));
         value.put("odii",Map.of("linked",place.odiiLinked(),"storyCount",place.storyCount()));
         value.put("kContents",Map.of("relationCount",place.relations().size(),"href","/api/v1/places/"+place.id()+"/k-contents"));
         value.put("saveAvailable",place.saveAvailable());value.put("savedByMe",place.saveAvailable()?place.savedByMe():null);

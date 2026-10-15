@@ -52,7 +52,7 @@ class JdbcDiscoveryReadStoreTests {
         assertThat(first.places().getFirst().savedByMe()).isFalse();
         assertThat(DiscoveryProjection.card(first.places().getFirst(),new Filters(null,null,null,null,null,null,Set.of(),Set.of(),null,"RELEVANCE",20)).get("placeImage"))
                 .isEqualTo(Map.of("url","https://example.org/unreviewed.jpg"));
-        assertThat(DiscoveryProjection.detail(first.places().getFirst()).get("images")).isEqualTo(java.util.List.of());
+        assertThat(DiscoveryProjection.detail(first.places().getFirst()).get("images")).isEqualTo(java.util.List.of("https://example.org/unreviewed.jpg"));
         UUID legacyRevision=UUID.randomUUID(),legacySource=UUID.randomUUID();
         jdbc.update("INSERT INTO onmaru.catalog_dataset_revisions(id,dataset,status,fetched_at,published_at) VALUES (?,'kto-korean-tour','PUBLISHED',now(),now())",legacyRevision);
         jdbc.update("INSERT INTO onmaru.catalog_active_datasets(dataset,revision_id,activated_at) VALUES ('kto-korean-tour',?,now())",legacyRevision);
