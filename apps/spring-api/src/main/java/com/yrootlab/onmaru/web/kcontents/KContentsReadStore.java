@@ -36,6 +36,26 @@ final class KContentsReadStore {
             """;
     private final NamedParameterJdbcTemplate db;
     private final TransactionTemplate snapshot;
+    private static final Map<String,String> ARTWORKS = loadArtworks();
+
+    private static Map<String,String> loadArtworks() {
+        try (var in = KContentsReadStore.class.getResourceAsStream("/kcontents/work-artworks.json")) {
+            if (in == null) return Map.of();
+            var tree = new com.fasterxml.jackson.databind.ObjectMapper().readTree(in);
+            var map = new java.util.HashMap<String,String>();
+            var it = tree.fields();
+            while (it.hasNext()) {
+                var entry = it.next();
+                var url = entry.getValue().path("workArtwork").asText(null);
+                if (url != null && !url.isBlank()) {
+                    map.put(entry.getKey(), url);
+                }
+            }
+            return Map.copyOf(map);
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
 
     KContentsReadStore(DataSource source) {
         this.db = new NamedParameterJdbcTemplate(source);
@@ -202,7 +222,7 @@ final class KContentsReadStore {
                 ORDER BY party.name,party.id
                 """,new MapSqlParameterSource("work",row.id()),(rs,n)->Map.of(
                 "artistId",rs.getObject(1,UUID.class),"name",rs.getString(2),"type",rs.getString(3))));
-        result.put("workArtwork",null);
+        result.put("workArtwork",ARTWORKS.get(row.id().toString()));
         result.put("publicPlaceCount",db.queryForObject(VISIBLE + "SELECT count(DISTINCT place_id) FROM public_relations WHERE k_content_id=:work",
                 params(revision).addValue("work",row.id()),Integer.class));
         result.put("workTags",db.query("""
