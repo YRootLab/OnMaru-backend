@@ -34,7 +34,7 @@ jobs:
             [ -n "$issue" ] || continue
             state=$(gh issue view "$issue" --repo "$REPO" --json state -q .state)
             if [ "$state" = "OPEN" ]; then
-              gh issue close "$issue" --repo "$REPO" --comment "PR #$PR_NUMBER가 develop에 병합되었습니다. 이 저장소는 기본 브랜치가 main이라 develop 대상 PR의 GitHub auto-close가 동작하지 않을 수 있어 post-merge workflow가 이슈를 종료합니다."
+              gh issue close "$issue" --repo "$REPO" --comment "PR #$PR_NUMBER가 develop에 병합되었습니다. 이 저장소는 기본 브랜치가 master라 develop 대상 PR의 GitHub auto-close가 동작하지 않을 수 있어 post-merge workflow가 이슈를 종료합니다."
             else
               echo "Issue #$issue is already $state"
             fi
