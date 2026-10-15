@@ -40,8 +40,9 @@ export function candidateVersion(ref) {
  * - v0.3.46: master에 릴리스되었지만 태그가 없다.
  * - v0.3.47: master에 릴리스되었지만 태그가 없다.
  * - v0.3.48: master에 릴리스되었지만 태그가 없다.
+ * - v0.3.49: master에 릴리스되었지만 태그가 없다.
  */
-export const SKIPPED_RELEASE_VERSIONS = ['v0.3.44', 'v0.3.45', 'v0.3.46', 'v0.3.47', 'v0.3.48'];
+export const SKIPPED_RELEASE_VERSIONS = ['v0.3.44', 'v0.3.45', 'v0.3.46', 'v0.3.47', 'v0.3.48', 'v0.3.49'];
 
 export function validateCandidate(tags, ref, skippedVersions = SKIPPED_RELEASE_VERSIONS) {
   const latest = latestVersion(tags);
