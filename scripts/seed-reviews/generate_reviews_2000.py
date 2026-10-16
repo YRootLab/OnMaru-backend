@@ -30,7 +30,8 @@ for i in range(55, 205):
     nickname = f"{random.choice(PREFIXES)} {random.choice(NOUNS)} {random.randint(10, 999)}"
     char_id = f"CHARACTER_{random.randint(1, 10):02d}"
     bg_id = f"BACKGROUND_{random.randint(1, 10):02d}"
-    created_days_ago = random.randint(15, 60)
+    # 유저 생성일은 올해 초 이전(290~350일 전)으로 설정하여 연초 작성 후기보다 앞서도록 함
+    created_days_ago = random.randint(290, 360)
     user_created_at = now - datetime.timedelta(days=created_days_ago)
     users.append({
         'id': member_id,
@@ -209,18 +210,38 @@ for i in range(TOTAL_REVIEWS):
     if random.random() < 0.4:
         tags.append("온마루")
 
-    # 시간 분산 (최근 30일 이내)
-    if i < 100:
+    # 방문 및 작성 일자 분산 (올해 1월 초 ~ 오늘 현재까지 폭넓게 분포)
+    # 1. 오늘 작성 (오늘 이야기 호환): 최근 10분 ~ 12시간 전 (50건)
+    if i < 50:
         mins = random.randint(10, 720)
         created_at = now - datetime.timedelta(minutes=mins)
-    elif i < 400:
-        hours = random.randint(12, 72)
+    # 2. 최근 1일 ~ 3일 전 (100건)
+    elif i < 150:
+        hours = random.randint(13, 72)
         created_at = now - datetime.timedelta(hours=hours, minutes=random.randint(0, 59))
-    elif i < 1000:
-        hours = random.randint(73, 168)
-        created_at = now - datetime.timedelta(hours=hours, minutes=random.randint(0, 59))
+    # 3. 최근 4일 ~ 7일 전 (150건)
+    elif i < 300:
+        days = random.randint(4, 7)
+        created_at = now - datetime.timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+    # 4. 최근 1~2주 전 (8~14일 전) (200건)
+    elif i < 500:
+        days = random.randint(8, 14)
+        created_at = now - datetime.timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+    # 5. 최근 3~4주 전 (15~30일 전, 1달 전) (300건)
+    elif i < 800:
+        days = random.randint(15, 30)
+        created_at = now - datetime.timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+    # 6. 최근 2~3개월 전 (31~90일 전) (400건)
+    elif i < 1200:
+        days = random.randint(31, 90)
+        created_at = now - datetime.timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+    # 7. 최근 4~6개월 전 (91~180일 전, 봄~초여름) (400건)
+    elif i < 1600:
+        days = random.randint(91, 180)
+        created_at = now - datetime.timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+    # 8. 올해 초 (181~285일 전, 1~4월 겨울/초봄) (400건)
     else:
-        days = random.randint(8, 30)
+        days = random.randint(181, 285)
         created_at = now - datetime.timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
 
     coords = place.get('coordinates') or {}
