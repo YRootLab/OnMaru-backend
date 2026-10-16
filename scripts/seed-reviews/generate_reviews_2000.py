@@ -245,8 +245,18 @@ for i in range(TOTAL_REVIEWS):
         created_at = now - datetime.timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
 
     coords = place.get('coordinates') or {}
-    lat = coords.get('lat') or place.get('lat', 37.5)
-    lng = coords.get('lng') or place.get('lng', 127.0)
+    base_lat = float(coords.get('lat') or place.get('lat', 37.5))
+    base_lng = float(coords.get('lng') or place.get('lng', 127.0))
+
+    # 자연스러운 방문 위치 분산 (마당, 처마 밑, 돌담길, 입구, 주변 골목 등 5m ~ 45m 반경 미세 분산)
+    import math
+    radius_m = random.uniform(5.0, 45.0)
+    angle = random.uniform(0, 2 * math.pi)
+    d_lat = (radius_m * math.cos(angle)) / 111000.0
+    d_lng = (radius_m * math.sin(angle)) / (111000.0 * math.cos(math.radians(base_lat)))
+    
+    lat = round(base_lat + d_lat, 6)
+    lng = round(base_lng + d_lng, 6)
 
     reviews.append({
         'id': rev_id,
@@ -340,7 +350,10 @@ SELECT
     t.longitude
 FROM temp_seed_reviews_2000 t
 JOIN onmaru.catalog_place_public_ids p ON p.public_id = t.public_place_id
-LEFT JOIN onmaru.map_place_read_projection mp ON mp.public_id = t.public_place_id
+LEFT JOIN (
+    SELECT DISTINCT ON (public_id) public_id, sigungu_code 
+    FROM onmaru.map_place_read_projection
+) mp ON mp.public_id = t.public_place_id
 ON CONFLICT (id) DO UPDATE SET
     text = EXCLUDED.text,
     mood = EXCLUDED.mood,
