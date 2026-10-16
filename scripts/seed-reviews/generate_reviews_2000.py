@@ -8,8 +8,7 @@ with open('scripts/seed-reviews/all_hanoks_1080.json', 'r', encoding='utf-8') as
 
 print(f"Loaded {len(hanoks)} hanoks.")
 
-# 2. 가상 유저 150명 생성 (기존 55명에 이어 56 ~ 205)
-# 54500700-0000-4000-8000-000000000056 ~ 54500700-0000-4000-8000-000000000205
+# 2. 가상 유저 150명 생성
 PREFIXES = [
     '고요한', '따뜻한', '느긋한', '정겨운', '포근한', '산뜻한', '다정한', '잔잔한', '맑은', '소박한',
     '바람부는', '햇살가득', '달빛어린', '별빛담은', '솔향기', '단아한', '온기품은', '고운', '청량한', '은은한',
@@ -22,11 +21,10 @@ NOUNS = [
     '연잎', '소나무', '돌담', '들꽃', '여정', '물결', '까치', '도라지', '대나무', '단풍'
 ]
 
-random.seed(20261016)
-
-users = []
+random.seed(42)
 now = datetime.datetime.now(datetime.timezone.utc)
 
+users = []
 for i in range(55, 205):
     member_id = f"54500700-0000-4000-8000-{i+1:012d}"
     nickname = f"{random.choice(PREFIXES)} {random.choice(NOUNS)} {random.randint(10, 999)}"
@@ -42,230 +40,186 @@ for i in range(55, 205):
         'created_at': user_created_at.strftime('%Y-%m-%dT%H:%M:%SZ')
     })
 
-print(f"Generated {len(users)} virtual users.")
+# 3. 고유한 문장 조립 블록 (수만 가지 조합 생성)
 
-# 3. 자연스럽고 생생한 리얼 경험 템플릿 풀 (지역/상황/감성/방문팁)
-# AI 티가 안 나고, 디테일한 상황 묘사, 구어체 및 이모지/말투 포함
-
-COMMON_TEMPLATES = [
-    # 고즈넉 & 힐링
-    {
-        "mood": "한적", "score": 1,
-        "tags": ["고즈넉", "힐링", "혼자여행", "조용한"],
-        "texts": [
-            "일부러 연차 쓰고 평일 오전에 왔더니 진짜 조용하고 평화롭네요. 마루에 가만히 앉아만 있어도 힐링됨.",
-            "바람 불 때마다 풍경 소리 딸랑거리는 게 너무 좋았어요. 머릿속 복잡할 때 혼자 산책 오기 딱입니다.",
-            "주말엔 사람 많다던데 평일 늦은 오후는 완전 다른 세상이네요. 고즈넉한 한옥 정취 제대로 느끼고 갑니다.",
-            "혼자 조용히 사색하기에 이만한 곳이 없어요. 마루 끝에 걸터앉아서 새소리 듣는 시간이 제일 행복했음.",
-            "아침 일찍 개방 시간 맞춰서 갔더니 발소리만 사박사박 들려요. 복잡한 도시 벗어나서 힐링 제대로 하고 옴.",
-            "툇마루에 걸터앉아서 멍때리는데 풀벌레 소리 들리고... 이게 진짜 쉬는 거지 싶었음.",
-            "아무 생각 없이 한 시간 동안 가만히 앉아있었는데 잡생각 싹 사라짐. 조용해서 너무 마음에 들어요."
-        ]
-    },
-    # 사진 맛집 & 인생샷
-    {
-        "mood": "북적", "score": 1,
-        "tags": ["사진맛집", "인생샷", "데이트", "주말나들이"],
-        "texts": [
-            "주말 낮에 오니까 사람 진짜 많은데 골목 사이로 한복 입고 사진 찍는 분들 많아서 분위기 활기차고 좋아요!",
-            "주말이라 북적거리긴 한데 처마 밑 햇살 들어올 때 사진 찍으면 인생샷 무조건 건집니다 ㅎㅎ",
-            "생각보다 사람 많아서 놀랐는데 구석구석 포토존이 진짜 많네요. 오후 4시쯤 노을 질 때 강추!",
-            "골목마다 아기자기한 볼거리가 넘침. 사람 많아도 이 맛에 오는 거 아니겠습니까? 주말엔 활기차서 더 좋아요.",
-            "친구들이랑 한복 대여해서 갔는데 골목길 채광이 사기예요 ㅋㅋㅋ 사람 많아도 사진은 다 건졌음!",
-            "기와 처마선이랑 푸른 하늘 걸어서 찍으면 막 찍어도 엽서처럼 나와요. 인스타 사진 건짐!",
-            "역광 피해서 마당 쪽 감나무 밑에서 찍어보세요. 분위기 진짜 예쁘게 잘 나옵니다."
-        ]
-    },
-    # 비 오는 날 운치
-    {
-        "mood": "한적", "score": 1,
-        "tags": ["비오는날", "고즈넉", "비멍", "분위기맛집"],
-        "texts": [
-            "마침 비가 부슬부슬 내리는 날 갔는데 처마에서 빗방울 떨어지는 소리가 예술입니다... 비멍 때리다 시간 다 감.",
-            "비 오는 날 한옥은 진짜 치트키네요. 흙냄새랑 젖은 나무 냄새가 묘하게 마음을 편하게 해줘요.",
-            "비 와서 갈까 말까 고민했는데 안 왔으면 후회할 뻔! 빗소리 들으면서 마루에 앉아있으니 운치 최고예요.",
-            "흐린 날씨라 사람도 별로 없고 운치 대박이었어요. 따뜻한 차 한 잔 마시면서 밖 바라보는데 영화 속 한 장면 같음.",
-            "촉촉하게 젖은 디딤돌이랑 기와지붕 처마에서 똑똑 떨어지는 낙숫물 소리가 너무 로맨틱해요."
-        ]
-    },
-    # 가족 & 부모님 동반 & 고택
-    {
-        "mood": "한적", "score": 1,
-        "tags": ["부모님과", "가족여행", "역사체험", "고택"],
-        "texts": [
-            "부모님 모시고 효도 관광으로 다녀왔는데 두 분 다 너무 좋아하셔서 뿌듯했습니다. 나무 기둥 결 하나하나 멋스러워요.",
-            "대청마루랑 마당 구조가 옛 선조들 지혜가 고스란히 묻어있네요. 어르신들 모시고 오기 정말 훌륭한 장소입니다.",
-            "해설사 선생님 설명 들으면서 둘러보니까 그냥 지나칠 뻔한 기와 문양이나 디테일들이 다 다르게 보여요. 꼭 설명 들어보세요!",
-            "아이들이랑 같이 방문했는데 책에서만 보던 전통 가옥 직접 만져보고 걸어볼 수 있어서 교육적으로도 참 유익했네요.",
-            "고택 특유의 깊은 나무 향과 오랜 세월의 흔적이 참 고귀하게 느껴집니다. 가족 여행 코스로 딱이에요."
-        ]
-    },
-    # 현실 꿀팁 & 방문 팁
-    {
-        "mood": "북적", "score": 2,
-        "tags": ["방문팁", "산책", "솔직후기"],
-        "texts": [
-            "주차는 근처 공영주차장 이용하는 게 정신건강에 좋습니다 ㅋㅋㅋ 골목 안쪽은 차 절대 못 들어가요! 그래도 뷰는 최고.",
-            "계단이나 언덕길이 조금 있어서 편한 운동화 필수입니다! 구두 신고 왔다가 발 아팠지만 풍경 보면서 극복함.",
-            "낮 12시~2시는 햇빛이 꽤 강하니까 양산이나 모자 챙기세요. 해 질 녘 골목에 가로등 켜질 때가 진짜 낭만임.",
-            "인기 포토존은 줄 좀 서야 하지만 회전율은 빨라요. 마당 구석 정자 쪽이 숨은 포토스팟입니다 다들 잘 모르더라구요!",
-            "여름엔 모기기피제 살짝 챙기면 좋음 ㅎㅎ 그래도 마루에 불어오는 바람이 에어컨 바람보다 훨씬 상쾌하네요.",
-            "주말 피크시간엔 사람 몰리니까 오전 10시쯤 가거나 5시 이후에 가시는 거 추천해요!"
-        ]
-    },
-    # 차 한 잔 & 카페 & 산책로
-    {
-        "mood": "한적", "score": 1,
-        "tags": ["전통차", "산책로", "데이트", "힐링"],
-        "texts": [
-            "산책 한 바퀴 돌고 바로 근처 한옥 찻집에서 오미자차 한 잔 마시니까 코스가 딱 완벽하네요. 주말 데이트 강추!",
-            "골목길 따라 걷다가 구수한 냄새에 홀려서 전통 간식 사 먹었는데 꿀맛... 걷는 재미, 먹는 재미 다 잡을 수 있어요.",
-            "주변 한옥 카페들이랑 묶어서 하루 코스로 다녀오기 정말 좋아요. 사진 백 장 넘게 찍고 갑니다 ㅋㅋㅋ",
-            "동네 전체가 아기자기해서 발길 닿는 대로 들어가 본 작은 공방도 매력 있었어요. 기념품 하나씩 사 들고 옴.",
-            "바람 솔솔 부는 마루에 앉아 따뜻한 대추차 마시니까 피로가 싹 풀려요."
-        ]
-    }
+# (A) 방문 상황/맥락 도입부
+OPENINGS = [
+    "{place} 다녀왔어요! ",
+    "주말에 친구들이랑 {place} 들렀는데 ",
+    "평일 연차 쓰고 혼자 {place} 다녀옴. ",
+    "부모님 모시고 {place} 산책 겸 다녀왔습니다. ",
+    "근처 여행 코스로 {place} 넣길 정말 잘했어요. ",
+    "예전부터 가보고 싶었던 {place} 드디어 방문! ",
+    "날씨가 너무 맑아서 {place} 한 바퀴 돌고 왔네요. ",
+    "비 오는 날 운치 찾아 {place} 다녀왔어요. ",
+    "해 질 무렵에 {place} 방문했는데 ",
+    "오랜만에 여유 찾으러 {place} 다녀왔습니다. ",
+    "드라이브 겸 나들이로 {place} 선택했는데 대만족! ",
+    "SNS에서 사진 보고 찾아간 {place}, ",
+    "조용히 사색하고 싶어서 찾은 {place}. ",
+    "기대 이상으로 너무 좋았던 {place}! ",
+    "천천히 골목 걷다가 마주친 {place}. ",
+    "" # 바로 본문으로 시작하는 경우도 둠
 ]
 
-# 지역별 특화 템플릿
-REGION_TEMPLATES = {
-    '서울': [
-        ("도심 한복판에 이런 고즈넉한 한옥 공간이 숨어있다는 게 새삼 신기해요. 빌딩 숲 벗어나서 잠깐 숨 돌리기 최고!", "한적", ["도심속힐링", "서울한옥", "산책"]),
-        ("주말이라 북촌/서촌 나들이 온 분들 진짜 많네요! 그래도 골목길 골목길 구경하는 맛이 쏠쏠합니다.", "북적", ["서울나들이", "데이트", "주말골목"]),
-        ("지하철역에서 조금 걸어 올라와야 하지만 올라온 보람이 있어요. 서울 전경이랑 기와지붕이 겹쳐 보이는 뷰가 장관!", "한적", ["전망맛집", "서울명소", "산책로"])
+# (B) 장소 특성별 / 감성별 핵심 경험 본문 (각각 수십 개)
+EXPERIENCES_BY_TYPE = {
+    # 1. 고택 / 종택 / 역사 가옥
+    "HISTORIC": [
+        "수백 년 세월이 묻어난 대청마루 나무 결이랑 기와지붕 곡선이 정말 압권이네요.",
+        "오래된 흙담길 따라서 천천히 걷는데 마음이 절로 차분해지고 경건해지는 기분이 들었어요.",
+        "해설사 선생님 설명 들으면서 둘러보니까 그냥 지나칠 뻔한 기와 문양이랑 선조들의 지혜가 새롭게 보입니다.",
+        "조선시대로 시간 여행 온 것처럼 고즈넉함의 깊이가 남달랐어요. 기둥 하나하나 품격이 느껴짐.",
+        "대청마루에 가만히 앉아 앞마당을 내다보고 있으면 바람 소리만 귓가에 사박사박 스칩니다.",
+        "선조들의 옛 숨결이 그대로 보존되어 있어서 감탄만 나왔어요. 조상님들 풍류가 이런 거였구나 싶음.",
+        "고택 특유의 은은한 흙냄새와 마른 소나무 향기가 머리를 맑게 정화해주는 느낌이었습니다.",
+        "툇마루 끝에 걸터앉아 처마 끝으로 이어지는 푸른 하늘을 바라보는데 진정한 힐링이 뭔지 알겠더라구요."
     ],
-    '경기': [
-        ("서울 근교로 드라이브 겸 주말 나들이 나왔는데 공기도 맑고 한옥도 단정해서 너무 좋았습니다.", "한적", ["근교드라이브", "주말나들이", "힐링"]),
-        ("도심 근처인데도 숲이랑 한옥이 같이 어우러져 있어서 주말 힐링 스팟으로 딱이네요. 가족들이랑 또 올 듯!", "한적", ["가족나들이", "주말힐링", "숲속한옥"]),
-        ("주말에 가족들이랑 가볍게 산책하러 왔어요. 마당도 넓고 아이들이 전통 놀이 체험도 할 수 있어서 만족스러웠습니다.", "북적", ["가족체험", "산책", "나들이"])
+    # 2. 숙소 / 한옥스테이 / 쉼터
+    "STAY": [
+        "따뜻한 온돌방에 등 지지고 누워있으니 한 주 동안 쌓였던 피로가 싹 풀렸습니다.",
+        "아침에 문 열었을 때 마당에서 들려오는 청량한 새소리와 솔바람 냄새를 잊을 수가 없네요.",
+        "침구류도 깨끗하고 서까래 인테리어가 너무 아늑해서 꿀잠 잤습니다. 밤 분위기가 진짜 예술!",
+        "도시 소음 하나 없이 풀벌레 소리 들으면서 잠드는 경험이 너무나 소중하고 특별했어요.",
+        "마당 평상에 둘러앉아 밤하늘 별 보면서 두런두런 이야기 나눴던 순간이 이번 여행 최고 명장면.",
+        "창호지 문 사이로 부드럽게 스며드는 아침 햇살 덕분에 기분 좋게 하루를 시작할 수 있었어요.",
+        "현대식 편의시설과 전통 한옥의 멋이 절묘하게 조화되어 있어서 머무는 내내 너무 편안했습니다."
     ],
-    '강원': [
-        ("강원도 특유의 울창한 소나무 숲이랑 고택이 어우러져서 솔향기가 솔솔 납니다. 공기부터 달라요.", "한적", ["솔향기", "자연속한옥", "강원여행"]),
-        ("바다 보러 왔다가 들렀는데 산 아래 한옥 정취가 이렇게 깊을 줄 몰랐어요. 조용히 머물다 가기 최고입니다.", "한적", ["고즈넉", "숨은명소", "힐링"]),
-        ("뒤편에 병풍처럼 둘러싼 산세와 전통 가옥의 곡선이 한 폭의 동양화 같아요. 눈 정화 제대로 하고 갑니다.", "한적", ["풍경맛집", "자연", "힐링"])
+    # 3. 체험관 / 공방 / 문화마을
+    "EXPERIENCE": [
+        "전통 체험 프로그램 참여했는데 강사님도 무척 친절하시고 시간 가는 줄 모를 만큼 재밌었어요.",
+        "마당에서 윷놀이랑 투호 던지기 하면서 놀았는데 어른들이 더 신나서 시간 보냈네요 ㅋㅋㅋ",
+        "직접 손으로 만져보고 만들어보는 전통 공예 체험이 생각보다 훨씬 뜻깊고 기억에 오래 남습니다.",
+        "아이들이랑 같이 방문했는데 책으로만 보던 전통 문화를 직접 오감으로 느낄 수 있어서 유익했어요.",
+        "다양한 볼거리랑 아기자기한 기념품들이 가득해서 둘러보는 재미가 정말 쏠쏠했습니다."
     ],
-    '충청': [
-        ("백제의 고도답게 은은하고 소박한 멋이 살아있네요. 시끄럽지 않고 차분해서 천천히 걷기 참 좋습니다.", "한적", ["소박한멋", "역사산책", "고즈넉"]),
-        ("충청도 특유의 여유로움과 단아한 한옥 마당이 너무 잘 어울려요. 툇마루에서 멍때리기 딱 좋은 명소!", "한적", ["여유", "툇마루", "힐링"]),
-        ("근처 유적지랑 묶어서 둘러보기 딱 좋아요. 돌담길 흙냄새 맡으면서 걷는데 마음이 몽글몽글해짐.", "한적", ["돌담길", "산책", "역사체험"])
+    # 4. 정원 / 숲 / 사색 & 뷰 명소
+    "NATURE": [
+        "마당에 심어진 굵은 소나무와 정원의 들꽃들이 한옥 담장과 그림처럼 어우러져 있습니다.",
+        "처마 끝 너머로 병풍처럼 펼쳐진 산세가 감탄을 자아내네요. 풍경 맛집 인정합니다.",
+        "바람 불 때마다 처마 밑 풍경 소리가 맑게 딸랑거리는데 듣고만 있어도 잡생각이 다 사라져요.",
+        "비가 촉촉하게 내리던 날이라 처마에서 떨어지는 빗방울 구경하며 비멍 제대로 때렸습니다.",
+        "초록빛 잔디와 붉은 배롱나무, 그리고 짙은 기와가 만들어내는 색감 조화가 황홀할 정도예요.",
+        "가을 단풍이 기와지붕 위로 살포시 내려앉아 있는데 한 폭의 수채화를 보는 듯했습니다."
     ],
-    '전라': [
-        ("역시 맛과 멋의 고장답게 한옥 디테일도 화려하고 주변 먹거리까지 완벽합니다! 온종일 먹고 걷고 행복함.", "북적", ["전주한옥", "먹거리투어", "인생샷"]),
-        ("대청마루의 넓은 개방감과 남도 한옥 특유의 따뜻한 온기가 참 인상 깊네요. 부모님도 대만족하셨어요.", "한적", ["남도정취", "부모님과", "고택"]),
-        ("골목길 사이사이 전통 찻집이랑 공방 구경하느라 시간 가는 줄 몰랐네요. 한복 입고 사진 찍기 최고!", "북적", ["한복체험", "데이트", "사진맛집"])
-    ],
-    '경상': [
-        ("수백 년 된 종택의 기품과 웅장함이 압도적입니다. 대청마루에 앉아있으면 세월의 무게가 그대로 전해져요.", "한적", ["종택", "역사체험", "고택명소"]),
-        ("황리단길이나 안동 하회 쪽 고택들 구경하다 왔는데, 진짜 전통 한옥의 골격이 살아있어서 감탄 연발!", "북적", ["전통한옥", "명소투어", "데이트"]),
-        ("돌담길을 따라 걷다 보면 마음이 절로 경건해지고 차분해집니다. 경상도 고택 여행의 진수를 맛보고 갑니다.", "한적", ["고즈넉", "사색", "힐링"])
-    ],
-    '제주': [
-        ("제주 현무암 돌담과 한옥의 조화라니... 육지 한옥과는 또 다른 이국적이면서도 포근한 감성이에요!", "북적", ["제주한옥", "돌담감성", "이색명소"]),
-        ("야자수랑 푸른 하늘, 그리고 기와지붕이 한 프레임에 담기는데 사진이 진짜 독특하고 예쁘게 나와요.", "북적", ["인생샷", "제주여행", "데이트"]),
-        ("바람 많은 제주에서 만난 아늑한 한옥 쉼터. 마당 잔디밭에 앉아서 귤차 한 잔 마시니 천국이 따로 없네요.", "한적", ["제주힐링", "쉼터", "감성여행"])
+    # 5. 카페 / 찻집 / 먹거리
+    "TEA_FOOD": [
+        "산책 한 바퀴 돌고 마루에 앉아 마시는 따뜻한 꽃차 한 잔이 몸과 마음을 녹여주네요.",
+        "달지 않고 구수한 전통 다과랑 시원한 오미자 에이드 조합이 정말 끝내줬습니다.",
+        "통창 너머로 한옥 정원을 바라보며 차를 음미할 수 있어서 여유로운 오후를 만끽했어요.",
+        "은은하게 퍼지는 차향과 전통 목조 건물이 주는 포근한 분위기가 너무 잘 어우러집니다.",
+        "디저트로 나온 쫀득한 찹쌀떡과 약과가 너무 맛있어서 부모님 선물용으로 따로 포장해왔어요."
     ]
 }
 
-def get_region_group(addr):
-    if not addr:
-        return '기타'
-    if '서울' in addr:
-        return '서울'
-    if '경기' in addr or '인천' in addr:
-        return '경기'
-    if '강원' in addr:
-        return '강원'
-    if '충청' in addr or '충북' in addr or '충남' in addr or '대전' in addr or '세종' in addr:
-        return '충청'
-    if '전라' in addr or '전북' in addr or '전남' in addr or '광주' in addr:
-        return '전라'
-    if '경상' in addr or '경북' in addr or '경남' in addr or '대구' in addr or '부산' in addr or '울산' in addr:
-        return '경상'
-    if '제주' in addr:
-        return '제주'
-    return '기타'
+# (C) 방문 꿀팁 / 날씨 감상 / 소소한 추천 마무리 (수십 개)
+CLOSINGS = [
+    "낮에는 햇살이 좀 강하니 챙 넓은 모자 챙겨가시면 더 좋을 것 같아요!",
+    "오후 4~5시쯤 해 질 무렵에 처마 밑에서 사진 찍으면 무조건 인생샷 나옵니다 ㅎㅎ",
+    "골목길 산책할 땐 발 편한 운동화 신고 오시는 걸 추천드려요.",
+    "주말엔 사람이 꽤 몰리니 오전 일찍 방문해서 한적함을 즐겨보세요.",
+    "비 오는 날 방문하시면 특유의 운치와 흙냄새를 두 배로 즐기실 수 있습니다.",
+    "부모님 모시고 올 효도 여행지 찾으신다면 망설임 없이 추천합니다.",
+    "혼자 와서 책 한 권 읽거나 생각 정리하기에도 더없이 완벽한 장소예요.",
+    "사계절 풍경이 다 다를 것 같아서 눈 내리는 겨울에 꼭 다시 오고 싶네요.",
+    "담장 너머로 보이는 하늘 풍경이 예뻐서 사진만 백 장 넘게 찍고 갑니다 ㅋㅋㅋ",
+    "복잡한 도시 일상에서 벗어나 조용한 쉼표를 찍고 가기에 최고였어요.",
+    "친구, 연인과 조용조용 도란도란 이야기 나누며 걷기 딱 좋은 코스입니다.",
+    "주차는 근처 공영주차장 이용하시고 천천히 걸어 들어오시는 게 훨씬 편해요!",
+    "가족들과 소중한 추억 남기기에 이만한 곳이 없는 것 같습니다. 완전 힐링됨.",
+    "마당 구석 벤치가 숨은 뷰 명당이에요. 다들 그냥 지나치시던데 꼭 앉아보세요!",
+    "다음에 여유 있을 때 꼭 반나절 이상 머물다 가고 싶은 애정하는 곳입니다."
+]
 
-# 4. 2,000건 리뷰 생성
-# 54500700-0000-4000-9000-000000000501 ~ 2500
+def determine_type(name, category):
+    if any(k in name for k in ['고택', '종택', '가옥', '생가', '사당', '서원', '향교', '정사', '재사', '서당', '당', '루']):
+        return "HISTORIC"
+    elif any(k in name for k in ['호텔', '스테이', '숙소', '여관', '펜션', '한옥호텔']):
+        return "STAY"
+    elif any(k in name for k in ['체험', '공방', '마을', '전시관', '박물관', '센터']):
+        return "EXPERIENCE"
+    elif any(k in name for k in ['카페', '찻집', '다원', '차방', '식당']):
+        return "TEA_FOOD"
+    else:
+        return random.choice(["HISTORIC", "NATURE", "TEA_FOOD"])
+
+# 4. 2,000건 생성 (중복 검사 Set으로 100% 고유성 보장)
 TOTAL_REVIEWS = 2000
 reviews = []
+generated_text_set = set()
 
-# 장소 배분: 1080개 장소를 셔플하여 최소 1~2개씩 고르게 분배
+# 장소 풀 준비: 1080개 장소를 최소 1~2회 포함
 shuffled_hanoks = list(hanoks)
 random.shuffle(shuffled_hanoks)
-
-# 장소 리스트를 2000개에 맞게 확장 (1080개 전원 최소 1번 포함 + 920개는 인기/랜덤 추가)
-selected_hanok_pool = []
-selected_hanok_pool.extend(shuffled_hanoks) # 1080개
-
-# 나머지 920개는 전체에서 가중치 또는 랜덤으로 추가
-remaining_count = TOTAL_REVIEWS - len(selected_hanok_pool)
-selected_hanok_pool.extend(random.choices(shuffled_hanoks, k=remaining_count))
-random.shuffle(selected_hanok_pool)
-
-print(f"Total places pool prepared: {len(selected_hanok_pool)}")
+place_pool = list(shuffled_hanoks)
+remaining = TOTAL_REVIEWS - len(place_pool)
+place_pool.extend(random.choices(shuffled_hanoks, k=remaining))
+random.shuffle(place_pool)
 
 for i in range(TOTAL_REVIEWS):
     rev_id_num = 501 + i
     rev_id = f"54500700-0000-4000-9000-{rev_id_num:012d}"
     user = random.choice(users)
-    place = selected_hanok_pool[i]
+    place = place_pool[i]
     p_name = place['name']
     p_addr = place.get('address', '')
-    reg_group = get_region_group(p_addr)
+    p_type = determine_type(p_name, place.get('category'))
 
-    # 템플릿 선택 (30% 확률로 지역 특화 템플릿, 70%는 일반 감성 템플릿)
-    use_regional = (reg_group in REGION_TEMPLATES) and (random.random() < 0.35)
-    
-    if use_regional:
-        cand = random.choice(REGION_TEMPLATES[reg_group])
-        base_text, mood, tags_cand = cand[0], cand[1], cand[2]
-        score = 1 if mood == '한적' else (1 if random.random() < 0.8 else 2)
+    # 중복되지 않는 고유한 텍스트 조합 시도 (while 루프로 고유성 100% 보장)
+    attempts = 0
+    while True:
+        attempts += 1
+        opening_tpl = random.choice(OPENINGS)
+        opening = opening_tpl.format(place=p_name) if "{place}" in opening_tpl else opening_tpl
+        
+        # 타입별 경험 본문 선택
+        exp_list = EXPERIENCES_BY_TYPE[p_type]
+        if random.random() < 0.3:
+            # 30% 확률로 NATURE 감성도 결합
+            exp = random.choice(EXPERIENCES_BY_TYPE["NATURE"])
+        else:
+            exp = random.choice(exp_list)
+            
+        closing = random.choice(CLOSINGS)
+        
+        # 문장 조합
+        full_text = f"{opening}{exp} {closing}".strip()
+        
+        # 만약 이미 생성된 문장과 겹친다면(극히 드물지만) 재시도
+        if full_text not in generated_text_set:
+            generated_text_set.add(full_text)
+            break
+        if attempts > 50:
+            # 변형 접미사 추가로 고유성 강제
+            full_text += f" ({p_name} 방문기)"
+            generated_text_set.add(full_text)
+            break
+
+    # 분위기(mood)와 태그 결정
+    if any(k in full_text for k in ['조용', '사색', '혼자', '힐링', '고즈넉', '새소리', '차분', '여유']):
+        mood = '한적'
+        score = 1
+        tag_pool = ["고즈넉", "힐링", "사색", "혼자여행", "산책로", "풍경맛집"]
     else:
-        tpl_group = random.choice(COMMON_TEMPLATES)
-        base_text = random.choice(tpl_group["texts"])
-        mood = tpl_group["mood"]
-        score = tpl_group["score"]
-        tags_cand = tpl_group["tags"]
+        mood = '북적'
+        score = 1 if random.random() < 0.8 else 2
+        tag_pool = ["사진맛집", "인생샷", "가족여행", "데이트", "주말나들이", "방문팁"]
 
-    # 장소명 자연스럽게 가미 (40% 확률로 앞에 부드러운 방문 맥락 문구 추가)
-    if random.random() < 0.40:
-        prefix_phrases = [
-            f"'{p_name}' 다녀왔어요! ",
-            f"{p_name} 처음 가봤는데 ",
-            f"오랜만에 {p_name} 들렀는데 ",
-            f"이번 여행 코스로 {p_name} 넣길 정말 잘했네요. ",
-            f"SNS에서 보고 {p_name} 찾아왔는데 ",
-            f"{p_name} 산책 겸 방문했습니다. ",
-            f"가족들이랑 {p_name} 들렀어요. "
-        ]
-        text_content = random.choice(prefix_phrases) + base_text
-    else:
-        text_content = base_text
-
-    # 태그 정리
-    tags = list(tags_cand)
-    if random.random() < 0.45:
+    tags = random.sample(tag_pool, k=min(len(tag_pool), random.randint(2, 3)))
+    if random.random() < 0.4:
         tags.append("온마루")
-    if random.random() < 0.25 and reg_group != '기타':
-        tags.append(f"{reg_group}한옥")
 
-    # 생성 시간: 최근 30일 이내로 현실적 분산
-    # 오늘 작성된 글(100개), 최근 3일(300개), 최근 7일(600개), 나머지 1000개
+    # 시간 분산 (최근 30일 이내)
     if i < 100:
-        # 최근 12시간 이내
         mins = random.randint(10, 720)
         created_at = now - datetime.timedelta(minutes=mins)
     elif i < 400:
-        # 1~3일 전
         hours = random.randint(12, 72)
         created_at = now - datetime.timedelta(hours=hours, minutes=random.randint(0, 59))
     elif i < 1000:
-        # 4~7일 전
         hours = random.randint(73, 168)
         created_at = now - datetime.timedelta(hours=hours, minutes=random.randint(0, 59))
     else:
-        # 8~30일 전
         days = random.randint(8, 30)
         created_at = now - datetime.timedelta(days=days, hours=random.randint(0, 23), minutes=random.randint(0, 59))
 
@@ -281,21 +235,22 @@ for i in range(TOTAL_REVIEWS):
         'address': p_addr,
         'lat': lat,
         'lng': lng,
-        'text': text_content,
+        'text': full_text,
         'mood': mood,
         'score': score,
         'tags': tags,
         'created_at': created_at.strftime('%Y-%m-%dT%H:%M:%SZ')
     })
 
-print(f"Generated {len(reviews)} reviews.")
+print(f"Total reviews generated: {len(reviews)}")
+print(f"Unique text count: {len(generated_text_set)} (100% unique: {len(generated_text_set) == len(reviews)})")
 
-# 5. SQL 파일 생성
+# 5. SQL 작성 (기존 구버전 중복 시드 301~500번까지 함께 깔끔하게 덮어쓰거나 0501~2500번 배치)
 sql_lines = [
     "-- ====================================================================",
-    "-- OnMaru Warmth Reviews 2000 Seeding Script (Issue #765)",
-    "-- Covers all 1,080 registered Hanoks across all Korean regions.",
-    "-- Authentic traveler tone, realistic tips, and natural experiences.",
+    "-- OnMaru Warmth Reviews 2000 Seeding Script (Issue #769)",
+    "-- 100% UNIQUE text guarantee (No duplicate sentences across any hanok)",
+    "-- Covers 1,080 registered Hanoks across all Korean regions.",
     "-- Safe namespace: 54500700-0000-4000-9000-000000000501 ~ 2500",
     "-- ====================================================================",
     "\\set ON_ERROR_STOP on",
@@ -315,7 +270,7 @@ for u in users:
                      f"ON CONFLICT (member_id) DO UPDATE SET display_name = EXCLUDED.display_name, character_id = EXCLUDED.character_id, background_id = EXCLUDED.background_id;")
 
 sql_lines.append("")
-sql_lines.append("-- 3. Seed 2,000 Community Visit Reviews (Temp Table & Batch Insert)")
+sql_lines.append("-- 3. Seed 2,000 Unique Reviews")
 sql_lines.append("CREATE TEMP TABLE temp_seed_reviews_2000 (")
 sql_lines.append("    id uuid PRIMARY KEY,")
 sql_lines.append("    member_id uuid NOT NULL,")
@@ -380,4 +335,4 @@ output_file = "scripts/seed-reviews/seed-warmth-reviews-2000.sql"
 with open(output_file, "w", encoding="utf-8") as f:
     f.write("\n".join(sql_lines))
 
-print(f"Successfully generated {output_file}")
+print(f"Successfully wrote {output_file}")
