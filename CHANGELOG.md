@@ -3,6 +3,19 @@
 ## Unreleased
 
 - Issue #668의 관리자 데이터 파이프라인 최근 scheduler 실행 상세, 실행 단건 조회, sanitized 실패 로그 cursor API와 실행별 `failureCount` 계약을 추가했다. 관리자 POST는 수집을 시작하지 않고 501을 반환한다.
+## [0.4.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.50...v0.4.0) (2026-10-16)
+
+
+### Features
+
+* **community:** 전국 한옥 1,080곳 대상 온기 후기 2,000건 시드 구축 ([#765](https://github.com/YRootLab/OnMaru-backend/issues/765)) ([#766](https://github.com/YRootLab/OnMaru-backend/issues/766)) ([f0d5163](https://github.com/YRootLab/OnMaru-backend/commit/f0d51639adc6eb4a865f3a7343b45ebc4db5d919))
+
+
+### Bug Fixes
+
+* **ci:** Issue Reconcile 종료 댓글의 기본 브랜치명을 master로 수정 ([#764](https://github.com/YRootLab/OnMaru-backend/issues/764)) ([46b1699](https://github.com/YRootLab/OnMaru-backend/commit/46b1699c0c4506644168ae809cd182990fe402ce))
+* **community:** 온기 후기 텍스트 중복 제거 및 2,000건 전건 고유 생성기 구축 ([#769](https://github.com/YRootLab/OnMaru-backend/issues/769)) ([#770](https://github.com/YRootLab/OnMaru-backend/issues/770)) ([a4f14ee](https://github.com/YRootLab/OnMaru-backend/commit/a4f14eec5ef3979b704bfbd76698b68687a523ac))
+
 ## [0.3.43](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.42...v0.3.43) (2026-10-06)
 
 
