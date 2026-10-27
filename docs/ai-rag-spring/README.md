@@ -5,6 +5,7 @@
 ## 문서
 
 - [백엔드 통합 PRD](backend-integration-prd.md): Spring/API·DB·보안·관측·배포 책임, 완료 기준, AI 저장소와의 구현 경계 및 순서.
+- [FastAPI 진행 상태 수신과 여정 SSE 중계 계약](fastapi-progress-callback.md): run-bound callback 인증·멱등성·ordinal·단계 매핑·SSE schema 버전/호환성·fixture 초안.
 - [여정 정형 조회 경계와 서비스 간 전송](journey-query-mcp.md): `PlaceQueryPort`와 SQL 권한 소유권, Spring↔FastAPI REST 기준선 및 관측 후 gRPC unary 비교, MCP tool discovery, grant·scope 정책.
 - [Quality Harness용 내부 MCP 도구 계약](quality-tools-mcp.md): Spring이 소유한 실행 관측과 공개 원천 상태를 AI 품질 하네스에 읽기 전용으로 제공하는 범위, 도구 schema, 인증, 실행·오류·감사 정책.
 - [AI 저장소와 Lightsail 배포 통합](repository-and-deployment.md): AI 코드와 Spring 인프라 저장소의 책임, 한 인스턴스 배포·릴리스 pairing·공존 검증 게이트.

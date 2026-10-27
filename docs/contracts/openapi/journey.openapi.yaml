@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OnMaru Journey API
-  version: 1.2.0-draft
+  version: 1.3.0-draft
   description: >-
     Current public contract for AI journey commands and snapshots. AI journey alone uses
     REST command plus SSE notification; PostgreSQL-backed snapshots remain authoritative.
@@ -32,7 +32,9 @@ paths:
       parameters: [ { $ref: '#/components/parameters/ExplorationId' } ]
       responses:
         '200':
-          description: Authoritative exploration snapshot
+          description: >-
+            Authoritative exploration snapshot. When latestRun is present, its sequence
+            is the current public SSE high-water mark for reconnect and duplicate filtering.
           headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }
           content: { application/json: { schema: { $ref: '#/components/schemas/ExplorationSnapshot' } } }
         '401': { $ref: '#/components/responses/Error' }
@@ -86,7 +88,9 @@ paths:
       parameters: [ { $ref: '#/components/parameters/ExplorationId' }, { $ref: '#/components/parameters/RunId' } ]
       responses:
         '200':
-          description: Authoritative run snapshot
+          description: >-
+            Authoritative run snapshot including the last committed Spring SSE sequence.
+            After reset or terminal notification, this snapshot determines the UI state.
           headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }
           content: { application/json: { schema: { $ref: '#/components/schemas/RunSnapshot' } } }
         '401': { $ref: '#/components/responses/Error' }
@@ -97,15 +101,78 @@ paths:
       description: >-
         Notification channel only. The client must GET run and exploration snapshots after
         terminal, reset, reconnect, or tab restore. Event payload follows journey-sse-event.schema.json.
+        Last-Event-ID is the Spring-assigned per-run sequence. If the requested cursor is
+        outside the replay window, ahead of the current sequence, or cannot be continued
+        after restart, the server emits reset without an id; the client fetches snapshots,
+        closes this EventSource, and opens a fresh stream without a stale cursor.
       parameters:
         - $ref: '#/components/parameters/ExplorationId'
         - $ref: '#/components/parameters/RunId'
         - name: Last-Event-ID
           in: header
           required: false
-          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+          description: Last Spring SSE sequence received by this EventSource; 0 is valid before the first event.
+          schema: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
       responses:
-        '200': { description: text/event-stream; event schema is a sibling JSON Schema. Auth expiry may close with auth_closed/data 0 instead of JSON, headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }, content: { text/event-stream: { schema: { type: string } } } }
+        '200':
+          description: >-
+            text/event-stream. A fresh stream emits the current RUNNING run.stage snapshot
+            once when stage is non-null (using its existing sequence, without incrementing
+            it); a QUEUED run may send heartbeat until it enters a stage. A terminal run
+            emits its terminal notification and closes. Auth expiry may close with
+            auth_closed/data 0 instead of JSON.
+          headers: { Cache-Control: { $ref: '#/components/headers/NoStore' } }
+          content:
+            text/event-stream:
+              schema: { type: string }
+              examples:
+                interpreting:
+                  summary: Input preparation mapped to the public interpretation stage
+                  value: |-
+                    id: 1
+                    event: run.stage
+                    data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f","sequence":1,"status":"RUNNING","stage":"INTERPRETING"}
+                retrieving:
+                  summary: Retrieval started
+                  value: |-
+                    id: 2
+                    event: run.stage
+                    data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f","sequence":2,"status":"RUNNING","stage":"RETRIEVING"}
+                selectingEvidence:
+                  summary: Evidence selection started
+                  value: |-
+                    id: 3
+                    event: run.stage
+                    data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f","sequence":3,"status":"RUNNING","stage":"SELECTING_EVIDENCE"}
+                generating:
+                  summary: Answer generation started
+                  value: |-
+                    id: 4
+                    event: run.stage
+                    data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f","sequence":4,"status":"RUNNING","stage":"GENERATING"}
+                validating:
+                  summary: FastAPI output check or Spring final validation
+                  value: |-
+                    id: 5
+                    event: run.stage
+                    data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f","sequence":5,"status":"RUNNING","stage":"VALIDATING"}
+                persisting:
+                  summary: Spring persistence started
+                  value: |-
+                    id: 6
+                    event: run.stage
+                    data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f","sequence":6,"status":"RUNNING","stage":"PERSISTING"}
+                reset:
+                  summary: Replay cursor cannot be resumed
+                  value: |-
+                    event: reset
+                    data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f"}
+                terminal:
+                  summary: Terminal is a notification; snapshot remains authoritative
+                  value: |-
+                    id: 7
+                    event: run.terminal
+                    data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f","sequence":7,"status":"COMPLETED","outcome":"PROPOSAL"}
         '404': { $ref: '#/components/responses/Error' }
   /explorations/{explorationId}/runs/{runId}/cancel:
     post:
@@ -300,7 +367,7 @@ components:
       additionalProperties: false
       required: [schemaVersion, explorationId, runId, stateVersion, runUrl, eventsUrl, snapshotUrl]
       properties:
-        schemaVersion: { type: string, const: '1.2' }
+        schemaVersion: { type: string, const: '1.3' }
         explorationId: { type: string, format: uuid }
         runId: { type: string, format: uuid }
         stateVersion: { type: integer, minimum: 0 }
@@ -310,7 +377,7 @@ components:
     RunSnapshot:
       type: object
       additionalProperties: false
-      required: [schemaVersion, runId, status, engine, degradedReason, stage, outcome, clarification, retryAfterMs, createdAt, startedAt, deadlineAt, error]
+      required: [schemaVersion, runId, status, engine, degradedReason, stage, sequence, outcome, clarification, retryAfterMs, createdAt, startedAt, deadlineAt, error]
       oneOf:
         - properties:
             status: { const: QUEUED }
@@ -321,7 +388,7 @@ components:
             error: { type: 'null' }
         - properties:
             status: { const: RUNNING }
-            stage: { type: string, enum: [INTERPRETING, RETRIEVING, VALIDATING, PERSISTING] }
+            stage: { type: string, enum: [INTERPRETING, RETRIEVING, SELECTING_EVIDENCE, GENERATING, VALIDATING, PERSISTING] }
             outcome: { type: 'null' }
             clarification: { type: 'null' }
             startedAt: { type: string, format: date-time }
@@ -350,12 +417,26 @@ components:
             clarification: { type: 'null' }
             error: { type: 'null' }
       properties:
-        schemaVersion: { type: string, const: '1.2' }
+        schemaVersion: { type: string, const: '1.3' }
         runId: { type: string, format: uuid }
         status: { type: string, enum: [QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED] }
         engine: { type: string, enum: [LLM, BASELINE] }
         degradedReason: { type: [string, 'null'], enum: [AI_QUOTA_EXCEEDED, AI_TIMEOUT, AI_INVALID_RESPONSE, AI_SERVICE_UNAVAILABLE, null] }
-        stage: { type: [string, 'null'], enum: [INTERPRETING, RETRIEVING, VALIDATING, PERSISTING, null] }
+        stage:
+          type: [string, 'null']
+          enum: [INTERPRETING, RETRIEVING, SELECTING_EVIDENCE, GENERATING, VALIDATING, PERSISTING, null]
+          description: >-
+            Public Spring-owned stage. FastAPI progress maps PREPARING_INPUT to
+            INTERPRETING, RETRIEVING to RETRIEVING, SELECTING_EVIDENCE to itself,
+            GENERATING to itself, and CHECKING_OUTPUT to VALIDATING. Spring final
+            validation remains VALIDATING; persistence is PERSISTING.
+        sequence:
+          type: integer
+          minimum: 0
+          description: >-
+            Highest Spring-owned per-run SSE event sequence committed with this snapshot.
+            QUEUED starts at 0; each new public event advances it once. A terminal snapshot
+            includes the sequence of its run.terminal event. FastAPI ordinal is never exposed.
         outcome: { type: [string, 'null'], enum: [INITIAL_BOARD, PROPOSAL, CLARIFICATION_REQUIRED, NO_RESULTS, null] }
         clarification:
           anyOf:
@@ -562,7 +643,7 @@ components:
       additionalProperties: false
       required: [schemaVersion, explorationId, stateVersion, board, pinnedRefs, excludedRefs, unavailableRefs, execution, latestRun, pendingProposal, recentHistory, updatedAt]
       properties:
-        schemaVersion: { type: string, const: '1.2' }
+        schemaVersion: { type: string, const: '1.3' }
         explorationId: { type: string, format: uuid }
         stateVersion: { type: integer, minimum: 0 }
         board: { anyOf: [ { $ref: '#/components/schemas/JourneyBoard' }, { type: 'null' } ] }

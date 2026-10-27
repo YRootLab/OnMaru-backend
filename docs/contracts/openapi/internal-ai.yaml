@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OnMaru Internal AI Service API
-  version: internal.ai.v1
+  version: internal.ai.v2
   description: >-
     Private Spring-to-FastAPI contract. Browser credentials, provider keys,
     raw user text, and member identity never cross this boundary.
@@ -9,6 +9,7 @@ servers:
   - url: /internal/v1
 tags:
   - name: JourneyProposal
+  - name: JourneyProgress
   - name: CorpusSync
 paths:
   /journey/proposals:
@@ -23,6 +24,7 @@ paths:
         - $ref: '#/components/parameters/RunId'
         - $ref: '#/components/parameters/Revision'
         - $ref: '#/components/parameters/Traceparent'
+        - $ref: '#/components/parameters/RunProgressToken'
       requestBody:
         required: true
         content:
@@ -42,6 +44,36 @@ paths:
           $ref: '#/components/responses/InternalAuthError'
         '422':
           $ref: '#/components/responses/InternalAuthError'
+  /ai/runs/{runId}/progress:
+    post:
+      tags: [JourneyProgress]
+      operationId: receiveInternalJourneyRunProgress
+      summary: Receive one FastAPI stage transition for an active Spring-owned run.
+      description: >-
+        A callback token is a short-lived run- and plan-bound capability minted
+        by Spring for the matching execution request. Identical ordinal replays
+        are idempotent; stale or terminal-run events never roll state back.
+        Delivery failure must not change the AI execution outcome.
+      security:
+        - RunProgressBearer: []
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Traceparent'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InternalRunProgressEvent' }
+      responses:
+        '202': { description: 'Event accepted or identical ordinal replay accepted idempotently.' }
+        '204': { description: 'Stale or post-terminal event ignored without changing the run snapshot.' }
+        '401': { $ref: '#/components/responses/InternalAuthError' }
+        '403': { $ref: '#/components/responses/InternalAuthError' }
+        '409': { description: 'Run is inactive, or ordinal was reused with a different event.' }
+        '422': { description: 'Event schema, path/body runId, planHash, or stage transition is invalid.' }
   /corpus/revisions/{revisionId}/manifest:
     get:
       tags: [CorpusSync]
@@ -119,6 +151,14 @@ components:
         Short-lived service token signed by Spring. Required claims are iss,
         sub, aud, scope, exp, and jti. FastAPI accepts current and previous
         service secrets only during the rotation overlap.
+    RunProgressBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: HS256-JWT
+      description: >-
+        Separate capability token for callbacks only. It is bound to one runId
+        and planHash, has scope journey.run.progress.write, aud spring-ai-progress,
+        and expires no later than the run deadline. It grants no other access.
   parameters:
     RequestId:
       name: X-Request-Id
@@ -151,6 +191,12 @@ components:
       schema:
         type: string
         pattern: '^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'
+    RunProgressToken:
+      name: X-Run-Progress-Token
+      in: header
+      required: false
+      description: Spring-minted callback capability; required only when progress reporting is enabled.
+      schema: { type: string, minLength: 1, maxLength: 4096 }
     RevisionId:
       name: revisionId
       in: path
@@ -182,11 +228,12 @@ components:
         - schemaVersion
         - requestId
         - runId
+        - planHash
         - candidateCount
       properties:
         schemaVersion:
           type: string
-          const: internal.ai.v1
+          const: internal.ai.v2
         requestId:
           type: string
           minLength: 1
@@ -195,6 +242,10 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+        planHash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+          description: Hash of the exact approved search plan executed by FastAPI.
         candidateCount:
           type: integer
           minimum: 0
@@ -219,7 +270,7 @@ components:
       properties:
         schemaVersion:
           type: string
-          const: internal.ai.v1
+          const: internal.ai.v2
         runId:
           type: string
           minLength: 1
@@ -244,6 +295,21 @@ components:
             type: string
             minLength: 1
             maxLength: 128
+    InternalRunProgressEvent:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, runId, planHash, ordinal, stage]
+      properties:
+        schemaVersion: { type: string, const: internal.ai.progress.v1 }
+        runId: { type: string, format: uuid }
+        planHash: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        ordinal: { type: integer, minimum: 1 }
+        stage:
+          type: string
+          enum: [PREPARING_INPUT, RETRIEVING, SELECTING_EVIDENCE, GENERATING, CHECKING_OUTPUT]
+      description: >-
+        FastAPI emits only stages actually entered. This event excludes user text,
+        document/source names, retrieved body, model draft, and internal reasoning.
     InternalError:
       type: object
       additionalProperties: false

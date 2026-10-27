@@ -3,9 +3,12 @@
 브라우저와 Spring 사이의 공개 계약, 그리고 Spring과 FastAPI 사이에서 유지해야 할 typed boundary를 보조한다. 구현 전에는 계약 초안이며, 실제 endpoint가 아니다.
 
 - [Public REST API](rest-api.md): 여정, 저장, 오류, idempotency, VisitReview 계약
+- [여정형 AI FE API 명세](journey-ai-api-spec.md): 시작·후속 turn·snapshot·SSE·복구·취소·저장까지 FE 연동 흐름
 - [스크린 속 한옥 (K-콘텐츠 연계) API](screen-hanok-api.md): K-드라마·영화·KPOP 촬영지 한옥 목록 조회 계약 (FE `KCultureThemeFeed` 전달용)
 - [Frontend handoff](frontend-handoff.md): FE 반영 범위와 전환 체크리스트
 - [`openapi/journey.openapi.yaml`](openapi/journey.openapi.yaml): AI 여정 REST command/snapshot/SSE와 SavedJourney endpoint OpenAPI 3.1 계약
+- [`openapi/internal-ai.yaml`](openapi/internal-ai.yaml): Spring↔FastAPI private REST와 run progress callback OpenAPI 계약
+- [`legacy/internal-ai.v1.yaml`](legacy/internal-ai.v1.yaml): 이전 `internal.ai.v1` 내부 실행 계약 호환 기준
 - [`fixtures/journey`](fixtures/journey): stateVersion, idempotency, 409 conflict, 비식별 저장·상세·삭제·재개 시나리오 fixture
 - [`openapi/r1.openapi.yaml`](openapi/r1.openapi.yaml): R1 한옥·장소·찜·월간 타임라인 OpenAPI 3.1 초안
 - [`openapi/identity-saved.openapi.yaml`](openapi/identity-saved.openapi.yaml): 인증·회원·SavedResource·월간 타임라인 OpenAPI 3.1 초안
@@ -13,7 +16,11 @@
 - [`openapi/map-info.openapi.yaml`](openapi/map-info.openapi.yaml): 정보모드 목록·viewport PLACE/CLUSTER/DISTRICT/REGION 계약
 - [`fixtures/map-info`](fixtures/map-info): 정보모드 목록·빈 결과·4개 render mode·부분 응답·오류 fixture
 - [`schemas/journey-sse-event.schema.json`](schemas/journey-sse-event.schema.json): 여정 진행 알림 event data JSON Schema
+- [`schemas/journey-sse-event.v1.2.schema.json`](schemas/journey-sse-event.v1.2.schema.json): 기존 여정 SSE 1.2 consumer용 호환 schema
 - [`fixtures/journey-sse-fixtures.json`](fixtures/journey-sse-fixtures.json): reconnect/reset/cancel contract fixture 목록
+- [`fixtures/journey-sse-v1.3`](fixtures/journey-sse-v1.3): 1.3 stage 6종, terminal, reset, sequence 0 heartbeat parsed-frame fixture
+- [`fixtures/journey-sse-fixtures.v1.2.json`](fixtures/journey-sse-fixtures.v1.2.json): 기존 여정 SSE 1.2 호환 fixture
+- [FastAPI progress callback 상세 계약](../ai-rag-spring/fastapi-progress-callback.md): callback 인증·멱등성·stage mapping·버전 rollout·fixture 기준
 - [`fixtures/r1`](fixtures/r1): R1 한옥·장소·찜 정상·빈·404·cursor·auth·unavailable 예제
 - [`fixtures/identity-saved`](fixtures/identity-saved): 인증 redirect/no-store, 회원 lifecycle, PLACE/ODII_STORY 저장 정상·권한·멱등 예제
 - [`fixtures/r2`](fixtures/r2): R2 지도·행정구역·Odii·관광 관측 정상·결측·error 예제

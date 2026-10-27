@@ -1,0 +1,438 @@
+openapi: 3.1.0
+info:
+  title: OnMaru Internal AI Service API
+  version: internal.ai.v1
+  description: >-
+    Private Spring-to-FastAPI contract. Browser credentials, provider keys,
+    raw user text, and member identity never cross this boundary.
+servers:
+  - url: /internal/v1
+tags:
+  - name: JourneyProposal
+  - name: CorpusSync
+paths:
+  /journey/proposals:
+    post:
+      tags: [JourneyProposal]
+      operationId: createInternalJourneyProposal
+      summary: Accept a bounded journey proposal request from Spring.
+      security:
+        - InternalServiceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/Revision'
+        - $ref: '#/components/parameters/Traceparent'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalJourneyProposalRequest'
+      responses:
+        '202':
+          description: Request authenticated and synchronously converted into a bounded proposal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalJourneyProposalResponse'
+        '401':
+          $ref: '#/components/responses/InternalAuthError'
+        '403':
+          $ref: '#/components/responses/InternalAuthError'
+        '422':
+          $ref: '#/components/responses/InternalAuthError'
+  /corpus/revisions/{revisionId}/manifest:
+    get:
+      tags: [CorpusSync]
+      operationId: getInternalCorpusManifest
+      summary: Return the revision-pinned corpus manifest exported by Spring.
+      security:
+        - InternalServiceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RevisionId'
+      responses:
+        '200':
+          description: Stable manifest of corpus documents and tombstones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCorpusManifest'
+        '401':
+          $ref: '#/components/responses/InternalAuthError'
+        '403':
+          $ref: '#/components/responses/InternalAuthError'
+  /corpus/revisions/{revisionId}/documents/{documentId}:
+    get:
+      tags: [CorpusSync]
+      operationId: getInternalCorpusDocument
+      summary: Return one manifest-listed corpus document.
+      security:
+        - InternalServiceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RevisionId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Corpus document whose hash must match the manifest entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCorpusDocument'
+        '401':
+          $ref: '#/components/responses/InternalAuthError'
+        '403':
+          $ref: '#/components/responses/InternalAuthError'
+        '404':
+          description: Revision or document is no longer active for export.
+  /corpus/revisions/{revisionId}/ack:
+    post:
+      tags: [CorpusSync]
+      operationId: acknowledgeInternalCorpusSync
+      summary: Record FastAPI corpus sync terminal status for idempotency and observability.
+      security:
+        - InternalServiceBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RevisionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalCorpusSyncAck'
+      responses:
+        '202':
+          description: ACK accepted.
+        '409':
+          description: ACK revision or manifest hash does not match a published corpus manifest.
+        '401':
+          $ref: '#/components/responses/InternalAuthError'
+        '403':
+          $ref: '#/components/responses/InternalAuthError'
+components:
+  securitySchemes:
+    InternalServiceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: HS256-JWT
+      description: >-
+        Short-lived service token signed by Spring. Required claims are iss,
+        sub, aud, scope, exp, and jti. FastAPI accepts current and previous
+        service secrets only during the rotation overlap.
+  parameters:
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    RunId:
+      name: X-Run-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    Revision:
+      name: X-Revision
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    Traceparent:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: '^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'
+    RevisionId:
+      name: revisionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 256
+  responses:
+    InternalAuthError:
+      description: Internal service authentication failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
+  schemas:
+    InternalJourneyProposalRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - requestId
+        - runId
+        - candidateCount
+      properties:
+        schemaVersion:
+          type: string
+          const: internal.ai.v1
+        requestId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        runId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        candidateCount:
+          type: integer
+          minimum: 0
+          maximum: 12
+        useRag:
+          type: boolean
+          default: false
+          description: Optional RAG activation request. FastAPI must fail closed unless the revision has an activation decision.
+        corpusRevisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Revision-pinned corpus identifier required when useRag is true.
+    InternalJourneyProposalResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - runId
+        - orderedRefs
+        - outcome
+      properties:
+        schemaVersion:
+          type: string
+          const: internal.ai.v1
+        runId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        orderedRefs:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+        outcome:
+          type: string
+          enum:
+            - PROPOSAL
+            - INITIAL_BOARD
+            - NO_RESULTS
+        ragEvidenceRefs:
+          type: array
+          description: Present only when optional RAG was requested; empty when the activation gate is closed.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+    InternalError:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - code
+        - message
+      properties:
+        schemaVersion:
+          type: string
+          const: internal.ai.v1
+        code:
+          type: string
+          enum:
+            - INTERNAL_AUTH_MISSING
+            - INTERNAL_AUTH_MALFORMED
+            - INTERNAL_AUTH_UNSUPPORTED_ALG
+            - INTERNAL_AUTH_BAD_SIGNATURE
+            - INTERNAL_AUTH_INVALID_ISSUER
+            - INTERNAL_AUTH_INVALID_AUDIENCE
+            - INTERNAL_AUTH_FORBIDDEN_SCOPE
+            - INTERNAL_AUTH_EXPIRED
+            - INTERNAL_AI_CONTRACT_INVALID
+        message:
+          type: string
+          minLength: 1
+          maxLength: 128
+    InternalCorpusManifest:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - revisionId
+        - publishedAt
+        - manifestHash
+        - documents
+      properties:
+        contractVersion:
+          type: string
+          const: '1.0'
+        revisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        publishedAt:
+          type: string
+          format: date-time
+        manifestHash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalCorpusManifestEntry'
+    InternalCorpusManifestEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - documentId
+        - kind
+        - state
+      properties:
+        documentId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        kind:
+          type: string
+          enum: [PLACE]
+        documentHash:
+          type:
+            - string
+            - 'null'
+          pattern: '^sha256:[0-9a-f]{64}$'
+        state:
+          type: string
+          enum: [UPSERT, TOMBSTONE]
+        contentUrl:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+          maxLength: 512
+    InternalCorpusDocument:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - revisionId
+        - documentId
+        - kind
+        - sourceId
+        - sourceRevision
+        - provenanceId
+        - category
+        - region
+        - publicationEligible
+        - text
+        - documentHash
+      properties:
+        contractVersion:
+          type: string
+          const: '1.0'
+        revisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        documentId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        kind:
+          type: string
+          enum: [PLACE]
+        sourceId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        sourceRevision:
+          type: string
+          minLength: 1
+          maxLength: 128
+        provenanceId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        category:
+          type: string
+          minLength: 1
+          maxLength: 64
+        region:
+          type: string
+          minLength: 1
+          maxLength: 64
+        publicationEligible:
+          type: boolean
+        text:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        documentHash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+    InternalCorpusSyncAck:
+      type: object
+      additionalProperties: false
+      required:
+        - contractVersion
+        - revisionId
+        - manifestHash
+        - status
+        - documentCount
+        - tombstoneCount
+        - embeddingProfile
+        - completedAt
+      properties:
+        contractVersion:
+          type: string
+          const: '1.0'
+        revisionId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        manifestHash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        status:
+          type: string
+          enum: [ACTIVE, REJECTED]
+        documentCount:
+          type: integer
+          minimum: 0
+        tombstoneCount:
+          type: integer
+          minimum: 0
+        embeddingProfile:
+          type: string
+          minLength: 1
+          maxLength: 128
+        completedAt:
+          type: string
+          format: date-time
+        errorCode:
+          type: string
+          enum:
+            - CORPUS_MANIFEST_FETCH_FAILED
+            - CORPUS_MANIFEST_INVALID
+            - CORPUS_MANIFEST_HASH_MISMATCH
+            - CORPUS_REVISION_CONFLICT
+            - CORPUS_OUT_OF_ORDER
+            - CORPUS_DOCUMENT_HASH_MISMATCH
+            - CORPUS_PARTIAL_FETCH

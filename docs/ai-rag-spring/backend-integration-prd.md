@@ -41,10 +41,13 @@
 ### BE-02 AI Engine 서비스 통합
 
 - Spring→FastAPI는 private REST를 기준선으로 구현한다. gRPC는 실제 trace에서 해당 hop이 병목임을 확인한 뒤 동일한 업무·인가·timeout 조건으로 unary 실험을 한다. MCP는 고정 plan/execute 호출을 대체하지 않는다.
+- FastAPI는 승인된 실행의 실제 진입 stage를 private `POST /internal/v1/ai/runs/{runId}/progress`로 Spring에 알린다. Spring은 활성 run 및 승인 `planHash`를 검증하고 기존 `run.stage` SSE에 반영한다. callback event schema·전용 token·중복/역순 처리·장애 격리는 [진행 callback 계약](fastapi-progress-callback.md)을 따른다.
+- 공개 run/SSE 계약은 `SELECTING_EVIDENCE`, `GENERATING` 단계를 수용하도록 1.3으로 올린다. `RunSnapshot.sequence`는 마지막 commit된 public SSE sequence를 담고 Spring이 SSE ID와 함께 관리한다. Spring은 재연결 복원을 계속 소유하며, 최종 결과는 GET snapshot이 정본이다. FE가 1.2/1.3 및 unknown stage fallback을 지원하기 전 새 stage 발행은 활성화하지 않는다.
 - 요청에는 contract version, run/conversation ID, trace context, 최소 필요 context, deadline을 포함한다. 회원 식별정보와 불필요한 개인정보는 제거/가명화한다.
 - timeout, 4xx/5xx 분류, 제한 재시도, cancellation, circuit/degraded 응답을 정의한다. 재시도는 idempotency key와 같은 승인 grant를 사용하고 검색 전략을 임의 변경하지 않는다.
 - AI Engine 장애 시 Spring은 명시적 degraded/failure 상태를 기록해 SSE를 정상 종료한다. 잘못된/출처 없는 응답을 성공으로 저장하지 않는다.
 - 완료 증거: Spring↔FastAPI contract test, 인증 거부·timeout·재시도·downstream 장애 테스트, staging end-to-end trace.
+- 추가 완료 증거: callback grant의 run/plan/scope/expiry 검증, ordinal 멱등·stale·terminal race, callback 실패 시 AI 결과 불변, 1.2/1.3 contract fixture 호환 검증.
 
 ### BE-03 정형 조회·권한 경계
 

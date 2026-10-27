@@ -1,6 +1,6 @@
 # Public REST API contract
 
-2026-09-12 구현 전 계약. `/api/v1`, HTTPS JSON, `schemaVersion: "1.2"`를 현재 지도/후기 계약으로 고정한다. 한옥 수결첩 계약은 `1.3`이다. 여정은 REST command와 SSE 알림을 함께 사용한다. 아직 배포된 API가 아니며, 계약·scaffold Issue는 먼저 발행할 수 있지만 각 기능 구현은 해당 OpenAPI와 FE fixture가 동결된 뒤 시작한다.
+2026-09-12 구현 전 계약. `/api/v1`, HTTPS JSON, `schemaVersion: "1.2"`를 현재 지도/후기 계약으로 고정한다. 여정 run/SSE 계약은 진행 단계 추가로 `1.3` 초안이며, 한옥 수결첩 계약은 `1.3`이다. 여정은 REST command와 SSE 알림을 함께 사용한다. 아직 배포된 API가 아니며, 계약·scaffold Issue는 먼저 발행할 수 있지만 각 기능 구현은 해당 OpenAPI와 FE fixture가 동결된 뒤 시작한다.
 
 ## 공통 계약
 
@@ -110,12 +110,13 @@ type Clarification = {
   allowFreeText:boolean;
 };
 type ClarificationAnswer = {clarificationId:string;choiceId:string|null;text:string|null};
-type RunAccepted = {schemaVersion:'1.2';explorationId:string;runId:string;
+type RunAccepted = {schemaVersion:'1.3';explorationId:string;runId:string;
   stateVersion:number;runUrl:string;eventsUrl:string;snapshotUrl:string};
 type RunSnapshot = {
-  schemaVersion:'1.2';runId:string;status:'QUEUED'|'RUNNING'|'COMPLETED'|'FAILED'|'CANCELLED';
+  schemaVersion:'1.3';runId:string;status:'QUEUED'|'RUNNING'|'COMPLETED'|'FAILED'|'CANCELLED';
   engine:'LLM'|'BASELINE'; degradedReason:'AI_QUOTA_EXCEEDED'|'AI_TIMEOUT'|'AI_INVALID_RESPONSE'|'AI_SERVICE_UNAVAILABLE'|null;
-  stage:'INTERPRETING'|'RETRIEVING'|'VALIDATING'|'PERSISTING'|null;
+  stage:'INTERPRETING'|'RETRIEVING'|'SELECTING_EVIDENCE'|'GENERATING'|'VALIDATING'|'PERSISTING'|null;
+  sequence:number; // last Spring-owned public SSE sequence; QUEUED starts at 0
   outcome:'INITIAL_BOARD'|'PROPOSAL'|'CLARIFICATION_REQUIRED'|'NO_RESULTS'|null;
   clarification:Clarification|null;retryAfterMs:number;createdAt:string;
   startedAt:string|null;deadlineAt:string;error:{code:string;requestId:string}|null;
@@ -133,19 +134,23 @@ type RunSnapshot = {
 
 ## SSE 진행 알림과 snapshot 복구
 
-SSE는 여정 run의 UX 채널이며 상태의 정답은 PostgreSQL run/snapshot이다. `events` endpoint는 `Cache-Control: no-store`, `Content-Type: text/event-stream`, 15초 heartbeat를 사용하고 다음 이벤트만 전송한다.
+SSE는 여정 run의 UX 채널이며 상태의 정답은 PostgreSQL run/snapshot이다. 현재 여정 run/SSE schemaVersion은 1.3 초안이다. RunAccepted, RunSnapshot, 이를 포함하는 ExplorationSnapshot만 여정 run 계약 버전을 1.3으로 올리며, 무관한 여정 저장·목록 schema는 별도 개정 전까지 기존 버전을 유지한다. `events` endpoint는 `Cache-Control: no-store`, `Content-Type: text/event-stream`, 15초 heartbeat를 사용하고 다음 이벤트만 전송한다.
 
 | event | data | 의미 |
 |---|---|---|
-| `run.stage` | `runId,status,stage,sequence` | QUEUED/RUNNING 및 해석·후보·제안·검증 진행 |
+| `run.stage` | `schemaVersion,runId,status,stage,sequence` | QUEUED/RUNNING 및 해석·검색·근거 선택·생성·검증·저장 진행 |
 | `run.text.delta` | `schemaVersion,runId,sequence,text` | 임시 narration. 각 delta 최대 512자, run 합계 최대 4,000자. run 상태를 바꾸지 않음 |
 | `run.terminal` | `runId,status,outcome,errorCode?,sequence` | COMPLETED/FAILED/CANCELLED 알림. 결과 본문은 포함하지 않음 |
 | `heartbeat` | `runId,sequence` | 연결 유지. 업무 상태 변경이 아님 |
 | `reset` | `runId` | replay buffer에 없는 `Last-Event-ID` 또는 서버 재시작. 즉시 GET 재동기화 |
 
-event ID는 run별 단조 증가 sequence다. 서버는 연결 시 현재 상태를 `run.stage`로 한 번 보낸 뒤, 메모리 replay buffer에 있는 event만 `Last-Event-ID` 이후로 재전송한다. 버퍼 밖 공백, deploy/restart, 401/404/410, network close에서는 FE가 지수 backoff로 한 번 재연결하고 `GET /runs/{runId}`와 `GET /explorations/{id}`를 읽어 정답을 다시 맞춘다. terminal 수신 뒤에도 snapshot을 GET으로 읽어 board를 렌더한다.
+`RunSnapshot`과 `RunAccepted` schemaVersion은 1.3이며, `ExplorationSnapshot`도 nested latestRun과 함께 1.3이다. 기존 1.2 SSE schema/fixture는 호환용으로 보존한다. 호환 client 배포 전에는 새 stage를 발행하지 않는다. `RunSnapshot.sequence`는 현재 snapshot과 원자적으로 commit된 마지막 public event sequence이며, QUEUED는 0이다.
 
-`run.text.delta`의 data는 `{schemaVersion:"1.2",runId,sequence,text}` 네 필드만 포함하고 stage·terminal과 같은 sequence를 사용한다. 문자 한도는 Unicode code point 기준이며 초과 부분, 빈 delta, terminal 이후 delta는 추가하지 않는다. text에는 표시용 narration만 담고 provider raw JSON·candidate refs·좌표·prompt·오류 원문은 전달하지 않는다. text를 로그나 telemetry attribute에 기록하지 않는다. narration 뒤 provider 실패나 reset이 발생해도 FE는 임시 문장으로 지도 결과를 확정하지 않고 terminal과 GET snapshot으로 복구한다.
+새 public stage·text delta·terminal 이벤트가 저장될 때 Spring이 run별 sequence를 1씩 증가시킨다. SSE `id`는 `data.sequence`와 항상 같으며, FastAPI 내부 ordinal은 이 sequence에 영향을 주지 않는다. heartbeat는 현재 sequence만 되풀이하며 증가시키지 않고, `reset`은 id/sequence가 없다. stage가 실제로 바뀌지 않은 재전송은 새 `run.stage`나 새 sequence를 만들지 않는다. 새 연결의 현재 stage bootstrap은 snapshot의 기존 sequence를 사용한다.
+
+같은 EventSource의 재연결에서는 브라우저가 보낸 `Last-Event-ID` 이후의 연속 이벤트를 replay buffer에서 오름차순 재생한다. cursor가 buffer 밖이거나 현재 sequence보다 앞서 있거나, 서버 재시작 등으로 연속 replay가 불가능하면 Spring은 `reset`을 보내고 stream을 이어 붙이지 않는다. FE는 EventSource를 닫고 GET run 및 exploration snapshot으로 복구한다. snapshot이 QUEUED/RUNNING이면 새 EventSource를 열어 stale cursor 없이 재구독하고, terminal이면 다시 구독하지 않는다. 새 연결의 현재 stage bootstrap은 snapshot sequence를 그대로 사용한다. FE reducer는 GET snapshot과 이미 처리한 sequence보다 같거나 작은 프레임을 중복 적용하지 않는다. 탭 복귀도 GET snapshot을 먼저 읽는다. terminal event는 알림만 제공하며, 수신 즉시 stream을 닫고 GET run과 exploration snapshot으로 최종 결과를 결정한다.
+
+`run.text.delta`의 data는 `{schemaVersion:"1.3",runId,sequence,text}` 네 필드만 포함한다. 각 새 delta는 같은 run의 event sequence를 한 번 증가시킨다. 문자 한도는 Unicode code point 기준이며 초과 부분, 빈 delta, terminal 이후 delta는 추가하지 않는다. text에는 표시용 narration만 담고 provider raw JSON·candidate refs·좌표·prompt·오류 원문은 전달하지 않는다. text를 로그나 telemetry attribute에 기록하지 않는다. narration 뒤 provider 실패나 reset이 발생해도 FE는 임시 문장으로 지도 결과를 확정하지 않고 terminal과 GET snapshot으로 복구한다.
 
 SSE 연결 종료는 cancel이 아니며, cancel은 명시 command만 상태를 바꾼다. 20초 deadline과 sweeper는 SSE 연결 유무와 무관하다. EventSource가 쓸 수 없는 환경에서는 1초 간격 GET polling을 **호환성 fallback**으로만 사용한다. POST 응답 유실은 같은 `Idempotency-Key`로 재송신한다.
 
@@ -161,7 +166,7 @@ SSE 연결 종료는 cancel이 아니며, cancel은 명시 command만 상태를 
 | JX 저장/재개 | saved resume | 새기기login→saved→resume→turn |
 | JX 제안/순서/SSE | version/pin/orderedRefs/events | A,C유지+B추가→A,B,C; replay 공백→GET 재동기화 |
 
-기계 판독 계약은 [방문 후기 OpenAPI](openapi/visit-reviews.openapi.json), [여정 OpenAPI](openapi/journey.openapi.yaml), [SSE parsed-frame JSON Schema](schemas/journey-sse-event.schema.json), [reconnect/reset fixture 목록](fixtures/journey-sse-fixtures.json)을 함께 제공한다. 구현 전에는 이 fixture를 FE reducer와 Spring serializer contract test로 실행한다. prose 검토를 runtime contract test 통과로 간주하지 않는다.
+기계 판독 계약은 [방문 후기 OpenAPI](openapi/visit-reviews.openapi.json), [여정 OpenAPI](openapi/journey.openapi.yaml), [SSE parsed-frame JSON Schema 1.3](schemas/journey-sse-event.schema.json), [SSE schema 1.2](schemas/journey-sse-event.v1.2.schema.json), [reconnect/reset fixture 목록 1.3](fixtures/journey-sse-fixtures.json), [SSE fixtures 1.2](fixtures/journey-sse-fixtures.v1.2.json)을 함께 제공한다. 구현 전에는 이 fixture를 FE reducer와 Spring serializer contract test로 실행한다. prose 검토를 runtime contract test 통과로 간주하지 않는다.
 
 ## 장소 방문 후기와 좋아요 상세 정책
 

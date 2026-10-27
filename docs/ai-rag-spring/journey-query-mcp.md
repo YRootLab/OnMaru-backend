@@ -2,6 +2,8 @@
 
 > 상태: 설계 제안, 구현 전. Spring `PlaceQueryPort`가 승인된 공개 장소 정형 조회를 소유한다. Spring↔FastAPI의 plan/execute 통신은 private REST 기준선을 유지하고, 실제 병목이 확인되면 unary gRPC를 비교한다. MCP는 agent tool discovery용이다. 이 설계는 DB 조회 API로 임의 SQL을 노출하거나 Spring MCP 서버가 LLM을 호출한다는 뜻이 아니다.
 
+FastAPI가 run 중 큰 단계에 진입했음을 Spring으로 알리는 callback 계약은 기존 REST orchestration의 일부로 [별도 정의](fastapi-progress-callback.md)한다. 이 callback도 REST로 구현·측정한 뒤 gRPC 전환을 판단하며, 브라우저 SSE 및 sequence/snapshot 소유권은 Spring에 둔다.
+
 ## 목적과 적용 범위
 
 AI Engine의 Query Processing Layer는 질문을 정규화하고 `Search Router`가 결정적으로 경로를 제안한다. Spring↔FastAPI의 plan/execute는 고정된 서비스 간 작업 계약이므로 private REST를 우선 구현한다. 운영 trace에서 이 hop의 지연이 유의미한 병목으로 확인될 때 동일 계약의 unary gRPC를 실험한다. 정형 장소 데이터가 필요한 `SQL_ONLY` 또는 `SQL_PLUS_RETRIEVAL`에서 AI Engine은 Spring `PlaceQueryPort` 기능을 별도 private adapter로 호출한다. REST가 기본 전송, MCP는 도구 발견·재사용을 위한 선택지다. BM25·pgvector·RRF·reranker는 AI Engine 내부 검색 코드로 남고 Spring tool/API에 노출하지 않는다.

@@ -8,6 +8,8 @@
 2. 여정 탐색, 저장, 공통 오류, 기존 VisitReview 상세는 [FE REST 계약](rest-api.md)을 따른다.
 3. 회원·소유권·보존 정책은 [인증·영속 모델·보존](../spring/identity-and-journey.md)을 따른다.
 
+여정형 AI를 구현하는 FE는 별도 통합 문서인 [여정형 AI API 명세](journey-ai-api-spec.md)를 기준으로 새 여정 생성, 기존 대화 이어가기, SSE 복구와 최종 snapshot 렌더링을 연동한다. 이 handoff의 아래 SSE 요약과 OpenAPI/schema/fixture가 충돌하면 기계 판독 계약을 우선하고 차이를 정리한다.
+
 ## Journey AI 429 응답 호환 필드 (#520)
 
 `POST /api/v1/explorations`, 호환 경로 `POST /api/journey-curator/explore`, `POST /api/v1/explorations/{explorationId}/turns`가 AI 사용량 또는 동시 실행 한도를 초과하면 HTTP 429를 반환한다. 기존 `code: "RATE_LIMITED"`를 유지하면서 FE 판별용 `classification: "RATE_LIMITED"`와 body `status: 429`를 함께 반환한다.
@@ -47,6 +49,51 @@ FE는 HTTP status와 `classification`으로 제한 안내를 표시할 수 있�
 | 익명 프로필 (#552) | 카카오 이름·이미지를 사용하지 않고 OnMaru 이름과 고정 character/background ID를 사용한다. | FE가 10개 캐릭터 자산과 10개 배경 HEX 매핑을 소유하며, 내 프로필 수정과 후기 작성자 표시를 구현한다. |
 | 여정 run 상태 | REST command + SSE 진행 알림 + snapshot 복구가 현재 MVP 통신이다. | `run.stage`/`run.terminal`을 표시하고, reconnect·`reset`·탭 복귀에는 GET run/snapshot으로 재동기화한다. |
 | AI 이용 한도와 장애 | 비회원 2회, 로그인 회원 5회/KST 일의 임시 Gemini 여정 한도를 둔다. | quota 소진·Gemini/FastAPI 실패 뒤에도 이미 해석한 후보가 있으면 같은 run을 `engine=BASELINE`으로 완료한다. FE는 raw 오류 대신 기본 탐색 결과를 표시한다. |
+
+## 여정 진행 SSE 1.3: FE 확정 계약
+
+여정 run API의 기준은 [Journey OpenAPI 1.3 초안](openapi/journey.openapi.yaml), frame은 [SSE JSON Schema 1.3](schemas/journey-sse-event.schema.json)과 [1.3 fixtures](fixtures/journey-sse-fixtures.json)다. Spring과 FastAPI는 서로 다른 단계 이름을 쓸 수 있지만 브라우저에는 기존 `run.stage` event만 전달한다. FastAPI progress payload, `planHash`, 내부 ordinal은 FE에 노출하지 않는다.
+
+### 공개 stage와 화면 문구 권장안
+
+| `run.stage.data.stage` | 의미 | FE 표시 문구 권장안 |
+|---|---|---|
+| `INTERPRETING` | Spring/FastAPI가 질문 입력을 정리함 (`PREPARING_INPUT`) | 질문에서 여행 조건을 정리하고 있어요. |
+| `RETRIEVING` | 장소·문서 검색 경로에 진입함 | 조건에 맞는 장소와 정보를 찾고 있어요. |
+| `SELECTING_EVIDENCE` | 검색 결과를 비교해 근거를 선택함 | 관련 정보를 비교해 근거를 고르고 있어요. |
+| `GENERATING` | 선택된 근거로 답변을 생성함 | 찾은 정보를 바탕으로 여정을 정리하고 있어요. |
+| `VALIDATING` | FastAPI 출력 점검 또는 Spring 최종 공개·근거 검증 | 장소 정보와 추천 근거를 확인하고 있어요. |
+| `PERSISTING` | Spring이 검증된 결과를 저장함 | 여정 결과를 준비하고 있어요. |
+
+문구는 진행 중임을 알려주는 설명이다. 단계 진입은 완료를 뜻하지 않으므로 완료형 문구, 남은 시간 추정, 검색 결과 수, 문서/출처명 또는 모델의 미검증 초안을 표시하지 않는다. 검색이나 생성이 생략된 경로에서는 해당 stage를 받지 않으며 FE도 빈 단계를 만들지 않는다.
+
+### `run.stage` event 예시
+
+```text
+id: 3
+event: run.stage
+data: {"schemaVersion":"1.3","runId":"c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f","sequence":3,"status":"RUNNING","stage":"SELECTING_EVIDENCE"}
+```
+
+SSE `id`와 `data.sequence`는 같은 Spring 발급 run별 정수다. FastAPI의 내부 ordinal과 무관하다. snapshot의 `RunSnapshot.sequence`는 마지막으로 commit된 public SSE sequence를 담는다. heartbeat는 현재 sequence를 되풀이하고 sequence를 증가시키지 않는다. reset은 `id` 없이 오며 sequence를 증가시키지 않는다.
+
+### 구독·복구·종료
+
+1. FE는 시작/후속 질문 POST의 `RunAccepted.eventsUrl`을 EventSource로 연다. 아직 stage가 없는 QUEUED run은 snapshot으로 상태를 보여주고, 첫 실제 stage event를 기다린다.
+2. 같은 EventSource가 네트워크 끊김 뒤 재연결하면 브라우저가 마지막으로 처리한 `Last-Event-ID`를 보낸다. replay buffer에 해당 cursor 이후의 연속 이벤트가 있으면 Spring이 오름차순 재전송한다. FE는 sequence가 현재 snapshot/화면 high-water 이하인 중복 프레임을 상태에 다시 적용하지 않는다.
+3. cursor가 buffer 밖이거나, 미래 sequence이거나, 서버 재시작으로 연속 replay가 불가능하면 Spring은 sequence 없는 `reset`을 보낸다. FE는 해당 EventSource를 닫고 `GET /explorations/{id}/runs/{runId}`와 `GET /explorations/{id}`를 다시 읽는다. snapshot이 QUEUED/RUNNING이면 화면을 복구한 뒤 새 EventSource를 만들어 구독한다. 새 연결에는 오래된 Last-Event-ID를 넘기지 않는다. 새 stream은 현재 RUNNING stage를 기존 sequence로 한 번 보내며, 이는 새로운 stage 전이나 sequence 증가가 아니다. snapshot이 terminal이면 결과를 렌더하고 재구독하지 않는다.
+4. 탭 복원도 먼저 GET run/exploration snapshot을 읽고 진행 중이면 SSE를 재구독한다. 오래된 stream의 임시 표시가 snapshot을 덮지 않도록 sequence를 비교한다.
+5. `run.terminal`은 상태 변경 알림일 뿐 결과 payload가 아니다. FE는 terminal event를 받으면 EventSource를 닫고 GET run과 exploration snapshot을 읽어 최종 상태·여정 결과를 렌더한다. terminal run에 새 구독이 오면 Spring은 terminal 알림 뒤 stream을 닫는다.
+6. `auth_closed`를 받거나 재연결이 401/404로 종료되면 stream을 닫고 기존 인증 복구 또는 접근 불가 흐름을 따른다. SSE 연결 종료 자체를 run 취소로 해석하지 않는다.
+
+`GET RunSnapshot.sequence`는 stage·terminal snapshot과 함께 저장된 마지막 public event cursor다. QUEUED는 0부터 시작하고 새 public event가 저장될 때 한 번 증가한다. 이 필드는 `RunAccepted`나 SSE의 event id로부터 추정하지 않는다. 최종 답변·board는 항상 GET snapshot이 기준이다.
+
+### 1.2 클라이언트 호환
+
+- 배포 순서는 FE parser가 schemaVersion 1.2와 1.3을 수용하고 새 stage enum을 추가한 뒤, Spring이 1.3 snapshot/SSE와 새 stage 발행을 활성화하는 순서다.
+- reducer는 stage를 closed union으로 바로 역직렬화해 스트림 전체를 실패시키지 않는다. 알 수 없는 stage 값은 일반 진행 문구(“여정을 준비하고 있어요.”)로 표시하고 연결을 유지한다. 이후 알려진 stage 및 `run.terminal`은 계속 처리한다.
+- v1.2 strict client는 1.3 `schemaVersion` 또는 새 enum을 검증 실패로 처리할 수 있으므로 새 stage 발행 전 FE compatibility release가 필요하다. 이전 1.2 SSE JSON Schema/fixture는 회귀 기준으로 보존한다.
+- stage 문자열은 UI 분기에서 보수적으로 처리하고 사용자에게 raw enum을 그대로 표시하지 않는다. 알려지지 않은 값을 개발 telemetry에 넣을 때도 cardinality를 제한하고 사용자/검색 데이터를 포함하지 않는다.
 
 ## 새 API: 모든 관광 장소를 하나의 찜으로 저장하기
 

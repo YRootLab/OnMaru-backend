@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-10-27 FastAPI 진행 callback과 여정 SSE 계약 초안
+
+- 사용자 결정에 따라 기존 private REST plan/execute를 유지하고, FastAPI → Spring private `POST /internal/v1/ai/runs/{runId}/progress` 계약을 설계했다. Spring은 활성 run·승인 planHash·ordinal을 검증해 현재 SSE `run.stage`에 반영한다. callback 실패는 AI 결과를 바꾸지 않는다. gRPC는 구현·계측 후 별도 판단한다.
+- 내부 이벤트는 `schemaVersion`, `runId`, `planHash`, AI 실행 ordinal, 실제 진입한 stage만 담는다. callback 전용 짧은 만료 run/plan-bound token을 실행 요청에 전달한다. Spring이 public SSE sequence·snapshot·reconnect를 계속 소유한다.
+- 새 상세 계약은 `docs/ai-rag-spring/fastapi-progress-callback.md`. OpenAPI/internal AI는 `internal.ai.v2` 및 progress event v1, 여정 RunAccepted/RunSnapshot/ExplorationSnapshot과 SSE는 1.3 초안으로 올렸다. 1.2 SSE schema/fixture와 internal AI v1 OpenAPI는 legacy 참조로 보존했다.
+- FE handoff/OpenAPI에 6개 public stage 문구, 실제 SSE 예시, sequence/high-water, Last-Event-ID replay, reset 후 새 EventSource, GET snapshot 복구·terminal 처리, 1.2 client fallback을 추가했다. RunSnapshot.sequence는 event sequence 복구를 위해 1.3 계약 필드로 추가했다.
+- AI Engine의 요청 지정 draft 경로는 로컬 clone과 origin branch에서 찾지 못했고 GitHub main URL도 404였다. 직접 diff는 불가하며 문서에 표시했다. 기존 BE draft와 현재 사용자 계약의 핵심 동작은 일치한다.
+- 변경은 문서와 contract fixture뿐이며 Java/Python/FE UI/검증 스크립트 코드는 구현하지 않았다. `python3 scripts/validate_contracts.py --root .` 및 `git diff --check` 통과. `bash scripts/verify-contracts`는 기존 `scripts/test/validate-journey-contract.py`가 RunSnapshot schemaVersion 1.2를 고정 가정하고 신규 필드 `sequence`를 invariant 샘플에 넣지 않아 실패한다. v1.3 구현 시 검증기와 호환 fixture를 함께 갱신해야 한다. 다음은 문서 리뷰 후 AI Engine과 Spring 구현 이슈/계약 테스트를 분해하는 것이다.
+
 ## 2026-10-22 AI 엔진 저장소 이전 및 같은 Lightsail 배포 연동
 
 - AI 설계 문서는 `YRootLab/onmaru-ai-engine` 저장소 `main`에 이전했고, backend의 `docs/ai-rag/README.md`는 포인터로 전환했다. AI 저장소 report builder도 AI 소유 문서만 묶도록 바꿨다. 과제 요구사항 PDF는 현재 backend 저장소에서 제거했다.
