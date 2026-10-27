@@ -62,6 +62,9 @@
 // 아래 DBML은 역사적 Odii 모델이며 새 migration의 전체 스키마가 아니다.
 // Journey durable run의 최신 논리 계약은 ./modules/discovery.dbml의
 // discovery_runs와 discovery_run_commands에 있다.
+// 홈 여정 RAG의 목표 corpus/revision/문서/청크/384차원 임베딩/철회 논리 모델은
+// ./modules/ai.dbml 및 AI 저장소의 RAG storage schema에 있다. 현재 운영 DDL이
+// 아니라 FastAPI 소유 ai schema migration의 구현 기준이다.
 // command receipt와 run mutation은 같은 PostgreSQL transaction에서 commit되어야 하며,
 // run snapshot이 SSE보다 우선하는 정답이다.
 // Retention cleanup ledger와 late saved write 차단은 V015 Flyway migration을

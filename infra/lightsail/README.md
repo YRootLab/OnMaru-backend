@@ -1,6 +1,6 @@
 # Lightsail 운영 및 Spring Blue-Green CD
 
-Issue #519에서 시작한 Lightsail 단일 인스턴스 구성과 Spring Blue-Green CD의 운영 기준이다. `nginx`만 호스트의 80/443 포트를 공개하고, Spring의 8080과 PostgreSQL의 5432는 외부 포트로 공개하지 않는다. Spring과 DB 사이에는 별도의 내부 네트워크를 둔다. FastAPI는 이 Compose에 추가하지 않고 별도 Lightsail과 독립된 CD로 운영한다.
+Issue #519에서 시작한 Lightsail 단일 인스턴스 구성과 Spring Blue-Green CD의 현재 운영 기준이다. `nginx`만 호스트의 80/443 포트를 공개하고, Spring의 8080과 PostgreSQL의 5432는 외부 포트로 공개하지 않는다. Spring과 DB 사이에는 별도의 내부 네트워크를 둔다. **현재 FastAPI는 Compose와 운영 배포에 포함되어 있지 않다.** AI 엔진 저장소 분리 후에도 서버를 분리하지 않고 기존 Lightsail을 2GB로 확장해 같은 호스트에 내부 전용 FastAPI container를 추가하는 것이 목표다. 이 통합 계획은 [Spring 측 AI-RAG 배포 설계](../../docs/ai-rag-spring/repository-and-deployment.md)와 [AI 저장소 분리 계획](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/repository-split-and-monitoring.md)에 있으며, 2GB 혼합 부하와 롤백 검증을 마치기 전까지 운영 배포로 간주하지 않는다.
 
 ## 서버 준비와 환경 파일
 
@@ -99,10 +99,13 @@ sudo ./production/install-deployer.sh /secure/path/onmaru-production-ci.pub
 | `production` environment | Secret | `PRODUCTION_DEPLOY_WEBHOOK_URL` | 성공·실패·no-op·rollback 결과를 받을 Discord/Slack 호환 webhook |
 | `production` environment | Variable | `PRODUCTION_SSH_KNOWN_HOSTS` | 별도 관리자 연결에서 fingerprint를 대조한 Lightsail SSH host key |
 
-승인 reviewer는 요구하지 않는다. `master` push는 Spring image build·Trivy scan·migration gate까지만 수행하고 운영 트래픽은 바꾸지 않는다. FastAPI image 단계는 `develop`의 스테이징 실행에만 남겨 두며, 별도 Lightsail CD가 생기기 전에는 운영 경로에 포함하지 않는다. 실제 운영 배포는 아래 두 경우에만 같은 검증 단계를 다시 통과한 뒤 Spring digest와 master SHA를 제한된 SSH principal에 전달한다. SSH 사용자는 임의 shell을 열 수 없고 `deploy <master-sha> <digest> <actor>` 명령만 실행할 수 있다.
+`master` push는 계속 Spring image build·Trivy scan·migration gate까지만 수행하고 운영 트래픽을 바꾸지 않는다. AI image는 `onmaru-ai-engine` 저장소가 별도 CI에서 빌드·검사하고 immutable digest를 발행한다. 이 저장소의 수동 `workflow_dispatch`에서 `deploy_ai=true`와 그 digest를 지정하면, 현재 backend `master`의 CI 상태를 확인하고 같은 제한 SSH deployer를 통해 기존 Lightsail의 private AI profile만 교체한다. 운영 SSH installer를 갱신한 뒤 사용할 수 있으며, Spring Blue-Green release와 AI-only 배포는 별도 동작이다.
+
+AI 배포 전에 backend의 Compose 변경을 `master`에 반영하고 Spring image를 배포해 Spring container에 `ONMARU_AI_BASE_URL`과 `ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT`가 주입되게 한다. 이후 2GB host upgrade와 staging 혼합 부하 gate를 마치고 서버 `.env`에서 `ONMARU_AI_ENABLED=true`로 켠다. AI 배포는 provider/internal-token secret 설정, 1.7GB 이상 `MemTotal`, 최소 512MB 가용 RAM 조건을 모두 만족해야 한다. 기본값은 비활성이다. AI 컨테이너는 `app` Docker network에서만 접근하고 호스트 port를 공개하지 않는다. health 실패 때 직전 실행 image digest를 복구한다. 수동 롤백은 직전 digest를 같은 `deploy_ai` 입력으로 다시 배포한다. GHCR AI package는 backend 저장소의 Actions token이 읽을 수 있도록 package access를 허용해야 한다.
 
 - 예약 배포: GitHub Actions cron `17 18 * * *`, 즉 매일 `03:17 KST`에 최신 `master`를 확인한다. GitHub Actions schedule은 정확한 시각을 보장하지 않으므로 실제 시작은 지연될 수 있다.
 - 즉시 배포: GitHub Actions의 `workflow_dispatch`를 UI 또는 `gh workflow run deploy.yml --ref master -f deploy_production=true`로 명시적으로 요청한다. 프로젝트의 `skills/onmaru-production-deploy/SKILL.md`도 이 dispatch만 호출한다. 단, 사용자가 `develop` 승격까지 명시한 경우에는 저장소 Git Flow로 `release/*`와 `master` 승격을 완료한 뒤 같은 dispatch를 호출한다.
+- AI-only 배포: `workflow_dispatch`에서 `deploy_ai=true`, `ai_image_digest=sha256:<64자리 소문자 hex>`를 입력한다. 이 작업은 Lightsail host 업그레이드 및 staging 공존 게이트 통과 후에만 `.env`에서 `ONMARU_AI_ENABLED=true`로 열고 수행한다.
 
 예약·수동 운영 실행은 image build보다 먼저 제한 SSH의 `status <master-sha>`를 호출한다. 같은 master SHA가 이미 배포됐고 checkout과 공개 health까지 일치하면 `deployed`를 반환하므로 image build·scan과 Blue-Green 중첩을 모두 건너뛴다. 상태가 다를 때만 immutable image를 build·scan하고 migration gate를 통과한다. `master` push 자체는 향후 배포할 artifact를 검증하기 위해 계속 build·scan하지만 트래픽은 바꾸지 않는다.
 

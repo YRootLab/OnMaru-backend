@@ -1,0 +1,293 @@
+{
+  "catalogVersion": "quality.tools.v1",
+  "protocol": "MCP",
+  "transport": "streamable-http",
+  "capabilities": {
+    "tools": true,
+    "resources": false,
+    "prompts": false,
+    "sampling": false,
+    "completions": false
+  },
+  "authentication": {
+    "audience": "onmaru-spring-quality-mcp",
+    "scopes": [
+      "quality.read.run",
+      "quality.read.source"
+    ]
+  },
+  "tools": [
+    {
+      "name": "quality_get_run_observation",
+      "title": "Read sanitized AI run observation",
+      "description": "Read the privacy-safe execution summary for one opaque OnMaru AI run ID. Never returns member identity, raw query, conversation, prompt, model output, address, or document/chunk body.",
+      "requiredScope": "quality.read.run",
+      "maxOutputBytes": 32768,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "runId"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "runId",
+          "observationStatus",
+          "traceCoverage",
+          "route",
+          "outcome",
+          "stages"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "run-observation.v1"
+          },
+          "runId": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128
+          },
+          "traceId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "observationStatus": {
+            "enum": [
+              "COMPLETE",
+              "PARTIAL"
+            ]
+          },
+          "traceCoverage": {
+            "enum": [
+              "AVAILABLE",
+              "SAMPLED_OUT",
+              "EXPORT_FAILED",
+              "EXPIRED",
+              "UNKNOWN"
+            ]
+          },
+          "route": {
+            "enum": [
+              "SQL_ONLY",
+              "LEXICAL_ONLY",
+              "DENSE_ONLY",
+              "HYBRID",
+              "SQL_PLUS_RETRIEVAL",
+              "CLARIFICATION",
+              "UNKNOWN"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "SUCCESS",
+              "DEGRADED",
+              "FAILED",
+              "CANCELLED",
+              "UNKNOWN"
+            ]
+          },
+          "corpusRevision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "configHash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "promptVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "stages": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "stage",
+                "status"
+              ],
+              "properties": {
+                "stage": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "status": {
+                  "enum": [
+                    "SUCCESS",
+                    "EMPTY",
+                    "DEGRADED",
+                    "FAILED",
+                    "SKIPPED"
+                  ]
+                },
+                "errorCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 64
+                },
+                "reasonCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 64
+                },
+                "durationMs": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "candidateCount": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "evidenceCount": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "quality_get_public_source_state",
+      "title": "Read public source publication state",
+      "description": "Read the canonical publication, license review, and revocation state for one source revision. Does not return source text or a license document.",
+      "requiredScope": "quality.read.source",
+      "maxOutputBytes": 4096,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sourceId",
+          "sourceRevision"
+        ],
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sourceId",
+          "sourceRevision",
+          "publicationState",
+          "licenseReviewState",
+          "revocationSequence"
+        ],
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sourceRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "publicationState": {
+            "enum": [
+              "PUBLISHED",
+              "REVOKED",
+              "NOT_PUBLISHED",
+              "UNKNOWN"
+            ]
+          },
+          "licenseReviewState": {
+            "enum": [
+              "APPROVED",
+              "PENDING",
+              "REJECTED",
+              "UNKNOWN"
+            ]
+          },
+          "revocationSequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "effectiveAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "reasonCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          }
+        }
+      }
+    }
+  ]
+}

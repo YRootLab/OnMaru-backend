@@ -1,5 +1,7 @@
 # FastAPI AI application architecture
 
+> **적용 상태:** 이 문서는 2026-09의 단발성 proposal 아키텍처와 공통 신뢰 경계를 설명한다. 홈 대화형 RAG의 기본 활성화, 대화·검색·3~5개 장소 정책은 [새 설계](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/README.md)와 [ADR-0017](../decisions/0017-home-journey-hybrid-rag.md)이 우선한다. 아래 optional RAG·최대 3개 표현은 과거 경로 설명이다.
+
 2026-09-12. 상태: 구현 전 설계. 이 문서는 OnMaru의 여정 탐색 AI를 제품 서비스로 운영하기 위한 application architecture, prompt/evaluation harness, provider 교체 경계를 정의한다. 문화 일반 Q&A와 문화 콘텐츠 페이지는 이번 범위가 아니다.
 
 > **예외**: "공급된 evidence 밖의 사실을 도입할 수 없다"는 §3의 원칙은 스크린 속 한옥(K-콘텐츠) 리서치 기능에 한해 명시적으로 완화된다 — [ADR-0010](../decisions/0010-screen-hanok-ai-auto-publish-without-review.md)을 참고할 것.

@@ -9,6 +9,7 @@ OnMaru ERD의 source of truth는 DBML이고, GitHub에서 사람이 볼 시각 �
 | 목적 | 기준 |
 |---|---|
 | 설계 원본 | `docs/database/schema.dbml`, `docs/database/modules/*.dbml` |
+| 홈 여정 RAG 목표 저장 계약 | [RAG 저장 스키마](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/rag-storage-schema.md), [AI DBML](modules/ai.dbml) |
 | 무료 웹 시각화 | Azimutt |
 | Azimutt import 파일 | `docs/database/azimutt/onmaru-schema.azimutt-strict.sql` |
 | GitHub 공유 이미지 | `docs/database/azimutt/exports/*.png` |
@@ -97,7 +98,7 @@ Node.js 22와 npm이 필요하다. 이 wrapper는 `scripts/dbml-toolchain/packag
 | `onmaru-erd-discovery-journey.png` | 자연어 탐색, 저장 여정, 월간 타임라인 흐름 공유 |
 | `onmaru-erd-map-community.png` | 지도 후기, 좋아요, 장소/지역 연결 공유 |
 | `onmaru-erd-operations-sync.png` | 새벽 3시 수집, checkpoint, lease, quarantine 복구 흐름 공유 |
-| `onmaru-erd-ai-rag.png` | optional RAG corpus/chunk/embedding 경계 공유 |
+| `onmaru-erd-ai-rag.png` | 홈 여정 RAG corpus/revision/chunk/embedding/철회 경계 공유 |
 
 자세한 view 추천은 [Azimutt README](azimutt/README.md)에 둔다.
 
@@ -144,7 +145,7 @@ Community는 짧은 방문 후기와 좋아요를 소유한다. 기존 Warmth mo
 
 Operations는 idempotency, admission counter/audit, 03:00 KST sync schedule/run/checkpoint/lease/watermark/quarantine을 소유한다.
 
-AI는 optional RAG 승인 후 사용하는 corpus/chunk/embedding schema다. MVP에서는 FastAPI에 DB credential을 주지 않으므로 실제 migration 대상이 아니다.
+AI는 새 홈 여정 RAG의 corpus/source/chunk/embedding·철회 schema 목표다. 현재 운영에는 pgvector/BM25 extension과 해당 migration이 아직 적용되지 않았다. 새 목표에서는 FastAPI에 업무 schema와 분리된 `ai` 전용 최소 권한 runtime/migration 계정을 주며, 비공개 TLS 연결·1GB 혼합 부하·복구 시험 후 운영 적용을 결정한다. [RAG 저장 스키마](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/rag-storage-schema.md)를 따른다.
 
 ## Intra-module relation
 
@@ -192,4 +193,4 @@ Community는 `catalog_place_identity`를 FK로 참조한다. 지도 후기의 �
 
 Operations는 여러 도메인의 sync를 orchestration하지만 도메인 데이터를 직접 소유하지 않는다. 실제 구현에서는 Operations가 Catalog table을 직접 수정하는 gateway가 아니라 sync job port를 통해 revision publish를 요청해야 한다.
 
-AI schema는 optional RAG 승인 후 사용한다. MVP에서는 FastAPI가 직접 DB에 쓰지 않고 Spring이 필요한 read projection을 제공한다. AI DB credential을 분리할 때는 별도 ADR과 migration 계획이 필요하다.
+AI schema의 새 홈 여정 RAG 목표는 [ADR-0017](../decisions/0017-home-journey-hybrid-rag.md)에 기록했다. Spring은 검수된 공개 projection/manifest를 제공하고 FastAPI는 분리된 `ai` 계정으로 자기 schema의 corpus·색인만 관리한다. 현재 실행 migration·DB 계정·비공개 연결은 구현 전이므로 문서의 논리 모델을 운영 DB 완료 증거로 간주하지 않는다.

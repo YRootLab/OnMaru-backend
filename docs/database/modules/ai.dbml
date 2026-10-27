@@ -1,61 +1,152 @@
-Table ai_documents [headercolor: #BAB0AC] {
-  document_id uuid [not null]
-  revision varchar [not null]
-  content_hash varchar [not null]
-  active boolean [not null]
-  source_type varchar [not null]
-  source_ref varchar [not null, note: 'Stable source identifier from Spring corpus export; not a DB FK']
-  metadata jsonb
+// Target logical model for onmaru-ai-engine/docs/ai-rag/rag-storage-schema.md.
+// ai_* names are DBML module names; executable FastAPI migration owns physical ai schema.
+// No pgvector/PostGIS production migration has been applied by this document.
+
+Table ai_corpus_revisions [headercolor: #BAB0AC] {
+  revision_id varchar [pk]
+  manifest_hash varchar [not null, unique]
+  source_revision varchar [not null]
+  state varchar [not null, note: 'BUILDING, VALIDATED, ACTIVE, RETIRED, REJECTED']
+  embedding_profile_id varchar [not null]
+  chunker_version varchar [not null]
+  dictionary_version varchar [not null]
+  document_count int [not null]
+  chunk_count int [not null]
+  created_at timestamptz [not null]
+  activated_at timestamptz
 
   Indexes {
-    (document_id, revision) [pk]
-    (source_type, source_ref)
+    (state, created_at)
+  }
+}
+
+Table ai_active_corpus [headercolor: #BAB0AC] {
+  singleton_id int [pk, note: 'Executable CHECK singleton_id = 1']
+  revision_id varchar [not null, unique]
+  revocation_sequence bigint [not null]
+  activated_at timestamptz [not null]
+}
+
+Table ai_documents [headercolor: #BAB0AC] {
+  revision_id varchar [not null]
+  document_id uuid [not null]
+  place_id uuid [not null, note: 'Spring canonical ID copy; no cross-schema FK']
+  source_type varchar [not null]
+  source_id varchar [not null]
+  source_revision varchar [not null]
+  title varchar [not null]
+  published_at timestamptz
+  collected_at timestamptz [not null]
+  license_code varchar [not null]
+  region_code varchar [not null]
+  category_code varchar [not null]
+  content_hash varchar [not null]
+  normalized_text text [not null]
+  eligibility_status varchar [not null]
+
+  Indexes {
+    (revision_id, document_id) [pk]
+    (revision_id, region_code, category_code, place_id)
+    (source_type, source_id, source_revision)
   }
 }
 
 Table ai_chunks [headercolor: #BAB0AC] {
-  chunk_id uuid [pk]
+  revision_id varchar [not null]
+  chunk_id uuid [not null]
   document_id uuid [not null]
-  revision varchar [not null]
-  position int [not null]
-  text text [not null]
-  offsets jsonb
+  ordinal int [not null]
+  start_offset int [not null]
+  end_offset int [not null]
+  chunk_text text [not null]
+  content_hash varchar [not null]
+  search_text text [not null, note: 'Executable migration adds pg_trgm GIN index']
 
   Indexes {
-    (document_id, revision, position) [unique]
+    (revision_id, chunk_id) [pk]
+    (revision_id, document_id, ordinal) [unique]
   }
 }
 
 Table ai_embeddings [headercolor: #BAB0AC] {
+  revision_id varchar [not null]
   chunk_id uuid [not null]
   embedding_profile_id varchar [not null]
-  vector vector [note: 'FastAPI-managed pgvector index; enabled only after RAG evaluation gate']
+  embedding vector(384) [not null, note: 'First multilingual-e5-small profile; cosine exact search']
+  normalized boolean [not null]
 
   Indexes {
-    (chunk_id, embedding_profile_id) [pk]
+    (revision_id, chunk_id, embedding_profile_id) [pk]
+  }
+}
+
+Table ai_revocation_events [headercolor: #BAB0AC] {
+  sequence bigint [pk]
+  scope varchar [not null, note: 'SOURCE_REVISION or PLACE']
+  source_type varchar
+  source_id varchar
+  source_revision varchar
+  place_id uuid
+  revoked_at timestamptz [not null]
+  reason_code varchar [not null]
+}
+
+Table ai_source_revocations [headercolor: #BAB0AC] {
+  source_type varchar [not null]
+  source_id varchar [not null]
+  source_revision varchar [not null]
+  last_sequence bigint [not null, unique]
+  revoked_at timestamptz [not null]
+
+  Indexes {
+    (source_type, source_id, source_revision) [pk]
+  }
+}
+
+Table ai_place_revocations [headercolor: #BAB0AC] {
+  place_id uuid [pk]
+  last_sequence bigint [not null, unique]
+  revoked_at timestamptz [not null]
+
+  Indexes {
+    revoked_at
   }
 }
 
 Table ai_corpus_sync_runs [headercolor: #BAB0AC] {
-  id uuid [pk]
-  source_revision varchar [not null]
-  source_manifest_hash varchar [not null]
-  status varchar [not null, note: 'RUNNING, SUCCEEDED, FAILED']
+  run_id uuid [pk]
+  revision_id varchar [not null]
+  manifest_hash varchar [not null]
+  state varchar [not null, note: 'RUNNING, SUCCEEDED, FAILED']
+  failure_stage varchar
+  document_count int [not null]
+  chunk_count int [not null]
+  embedding_count int [not null]
   started_at timestamptz [not null]
   finished_at timestamptz
   error_code varchar
 
   Indexes {
-    (source_revision, source_manifest_hash) [unique]
+    (revision_id, manifest_hash) [unique]
   }
 }
 
-TableGroup ai [color: #BAB0AC, note: 'FastAPI alone owns AI corpus sync, chunking, embedding, retrieval, and migrations in the ai schema. Spring exposes revision-pinned corpus exports but has no ai schema credential.'] {
+TableGroup ai [color: #BAB0AC, note: 'FastAPI owns public RAG corpus; Spring exports source revision and validates final publication eligibility.'] {
+  ai_corpus_revisions
+  ai_active_corpus
   ai_documents
   ai_chunks
   ai_embeddings
+  ai_revocation_events
+  ai_source_revocations
+  ai_place_revocations
   ai_corpus_sync_runs
 }
 
-Ref: ai_chunks.(document_id, revision) > ai_documents.(document_id, revision)
-Ref: ai_embeddings.chunk_id > ai_chunks.chunk_id
+Ref: ai_active_corpus.revision_id > ai_corpus_revisions.revision_id
+Ref: ai_documents.revision_id > ai_corpus_revisions.revision_id
+Ref: ai_chunks.(revision_id, document_id) > ai_documents.(revision_id, document_id)
+Ref: ai_embeddings.(revision_id, chunk_id) > ai_chunks.(revision_id, chunk_id)
+Ref: ai_corpus_sync_runs.revision_id > ai_corpus_revisions.revision_id
+Ref: ai_source_revocations.last_sequence > ai_revocation_events.sequence
+Ref: ai_place_revocations.last_sequence > ai_revocation_events.sequence

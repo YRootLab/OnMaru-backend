@@ -19,6 +19,14 @@ on:
         description: Roll production traffic back to the retained previous Spring slot
         type: boolean
         default: false
+      deploy_ai:
+        description: Replace the private AI engine container using an immutable GHCR digest
+        type: boolean
+        default: false
+      ai_image_digest:
+        description: Immutable digest published by onmaru-ai-engine (sha256:...)
+        type: string
+        default: ''
   push:
     branches:
       - master
@@ -449,8 +457,58 @@ jobs:
             onmaru-production-deployer@13.125.191.16 \
             "rollback $GITHUB_ACTOR"
 
+  production-ai-deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/master' &&
+      inputs.deploy_ai &&
+      !inputs.deploy_production &&
+      !inputs.rollback_production &&
+      vars.PRODUCTION_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+      checks: read
+    steps:
+      - name: Require successful CI verify for this backend master commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.name == "verify" and .conclusion == "success" and .app.slug == "github-actions")] | length')
+          test "$count" -ge 1 || { echo 'CI verify has not passed for this master commit.' >&2; exit 1; }
+
+      - name: Validate immutable AI image digest
+        env:
+          AI_DIGEST: ${{ inputs.ai_image_digest }}
+        run: |
+          [[ "$AI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo 'Expected an immutable sha256 digest.' >&2; exit 1; }
+
+      - name: Deploy AI image to the existing Lightsail host
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.PRODUCTION_SSH_KNOWN_HOSTS }}
+          AI_DIGEST: ${{ inputs.ai_image_digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS" && test -n "$GH_TOKEN"
+          key_file=$(mktemp)
+          trap 'rm -f "$key_file"' EXIT
+          chmod 600 "$key_file"
+          printf '%s\n' "$SSH_KEY" > "$key_file"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          printf '%s\n' "$GH_TOKEN" | ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
+            onmaru-production-deployer@13.125.191.16 \
+            "deploy-ai $AI_DIGEST $GITHUB_ACTOR"
+
   notify-production:
-    if: always() && needs.production-preflight.result != 'skipped'
+    if: always() && (needs.production-preflight.result != 'skipped' || needs.production-ai-deploy.result != 'skipped')
     runs-on: ubuntu-latest
     needs:
       - production-preflight
@@ -458,6 +516,7 @@ jobs:
       - migration-gate
       - production-deploy
       - production-rollback
+      - production-ai-deploy
     environment: production
     permissions:
       contents: read
@@ -472,9 +531,12 @@ jobs:
           MIGRATION_RESULT: ${{ needs.migration-gate.result }}
           DEPLOY_RESULT: ${{ needs.production-deploy.result }}
           ROLLBACK_RESULT: ${{ needs.production-rollback.result }}
+          AI_DEPLOY_RESULT: ${{ needs.production-ai-deploy.result }}
         run: |
           test -n "$WEBHOOK_URL"
-          if [ "$STATUS" = held ]; then
+          if [ "$AI_DEPLOY_RESULT" != skipped ]; then
+            outcome="ai-deploy-$AI_DEPLOY_RESULT"
+          elif [ "$STATUS" = held ]; then
             outcome=rollback-held
           elif [ "$PREFLIGHT_RESULT" != success ]; then
             outcome="preflight-$PREFLIGHT_RESULT"
@@ -489,7 +551,7 @@ jobs:
           else
             outcome="deploy-$DEPLOY_RESULT"
           fi
-          message="OnMaru production $outcome | preflight=$PREFLIGHT_RESULT build=$BUILD_RESULT migration=$MIGRATION_RESULT deploy=$DEPLOY_RESULT rollback=$ROLLBACK_RESULT | $GITHUB_SHA | $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          message="OnMaru production $outcome | preflight=$PREFLIGHT_RESULT build=$BUILD_RESULT migration=$MIGRATION_RESULT deploy=$DEPLOY_RESULT rollback=$ROLLBACK_RESULT ai=$AI_DEPLOY_RESULT | $GITHUB_SHA | $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           payload=$(jq -n --arg content "$message" --arg text "$message" '{content: $content, text: $text}')
           curl --fail --silent --show-error --retry 2 \
             -H 'Content-Type: application/json' \

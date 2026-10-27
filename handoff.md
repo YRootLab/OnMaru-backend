@@ -1,5 +1,127 @@
 # handoff.md
 
+## 2026-10-22 AI 엔진 저장소 이전 및 같은 Lightsail 배포 연동
+
+- AI 설계 문서는 `YRootLab/onmaru-ai-engine` 저장소 `main`에 이전했고, backend의 `docs/ai-rag/README.md`는 포인터로 전환했다. AI 저장소 report builder도 AI 소유 문서만 묶도록 바꿨다. 과제 요구사항 PDF는 현재 backend 저장소에서 제거했다.
+- 백엔드 후속 구현 범위는 `docs/ai-rag-spring/backend-integration-prd.md`에 통합했다. AI 저장소 문서는 목표 명세이며, 구현 완료를 뜻하지 않는다.
+- 기존 FastAPI baseline 74개 파일, 테스트/평가 자료를 AI 저장소 루트로 옮겼고 PR #1을 `eaaeb1f`로 merge했다. main CI의 첫 Trivy scan은 `certifi 2026.7.22`의 GHSA-6q48-6c7w-9gw2 취약점을 찾아 실패했다. `certifi>=2026.10.19`로 잠금한 PR #2를 `0db5035`로 merge했고 후속 CI의 test, image build, Trivy scan, SARIF upload가 통과했다. image digest는 `sha256:5486ab8624c6b85b0b010068163f824c95c5082443d055f896d8f43220d7e889`이다. 운영 배포에는 사용하지 않았다. 현재 baseline은 결정적 16차원/in-memory이며 목표 384차원 pgvector + BM25 RAG 구현을 의미하지 않는다. 로컬 pytest 305 passed/1 skipped, Ruff, mypy, eval contract 통과. 로컬 Docker daemon이 꺼져 local image build는 미실행이지만 GitHub CI build는 통과했다.
+- backend 인프라에 disabled-by-default `ai-engine` Compose profile을 추가했다. Spring의 내부 URL은 `http://ai-engine:8000`; FastAPI는 Docker 내부 `app` network 전용이고 host port를 publish하지 않는다. `.env.example` 기본 `ONMARU_AI_ENABLED=false`; 1.7GB 미만 host나 가용 RAM/secret 사전조건 미충족 시 deployer가 거부한다.
+- `deploy-ai` 제한 SSH 명령과 별도 digest-only `workflow_dispatch`를 추가했다. AI image 교체 health 확인 실패 시 기존 container/image digest를 복구한다. 운영 activation은 하지 않았다. 2GB Lightsail 업그레이드, staging 혼합 부하 검증, image CI merge/publication, GitHub package access 설정, 운영 `.env` 설정, 새 deployer installer 설치가 선행되어야 한다.
+- backend 검증: 배포 관련 Node test 20/20, `sh -n`, `docker compose ... config --quiet`, `python3 scripts/validate_contracts.py`, `git diff --check` 통과. 전체 Node test는 234개 중 232 pass/1 skip/1 fail이며 실패는 기존 `benchmark-compare.test.mjs`의 missing-result reason assertion이다. Spring Gradle test는 468개 중 44개가 Testcontainers의 Docker socket 미실행으로 초기화 실패하고 2개 skip했다. Docker daemon이 켜진 환경에서 `verify`와 host-level rollback rehearsal을 재실행해야 한다. Backend workspace의 넓은 기존 dirty changes는 보존하고 관련 파일만 수정했다.
+- AI 설계 문서는 이전됐지만 BE `ai/` 소스 경로와 CI 참조는 AI PR merge 후 후속 정리가 필요하다. PR merge 전 source를 지우면 기존 CI가 깨지므로 유지 중이다.
+
+## 2026-10-19 홈 여정 AI RAG 새 설계 정리 (#776)
+
+- 2026-10-22 MCP tool 설계 확장: Spring AI `@McpTool` 기반 online `journey_execute_approved_lookup`과 quality harness 전용 read-only tools를 분리해 제안했다. FastAPI query router는 deterministic이고, approved opaque grant가 있을 때만 Python MCP client가 fixed lookup을 호출한다. SQL_ONLY는 LLM/embedding/retrieval을 건너뛰며 SQL+retrieval은 MCP lookup과 내부 검색을 결합한다. 계약은 `docs/ai-rag-spring/journey-query-mcp.md`, `docs/contracts/mcp/journey-query-tools.v1.json`, ADR-0019 및 관련 README/PRD/query-processing/request lifecycle/diagram에 반영했다. ADR와 전체 MCP 구현은 미승인·미구현 제안 상태다.
+
+- 2026-10-22 명명 결정: 별도 Python 저장소는 `YRootLab/onmaru-ai-engine`, 그 안의 비동기 품질 개선 논리 모듈은 `onmaru_ai.quality_harness`로 표기한다. `docs/ai-rag/README.md`, 모듈 경계, 품질 감독 문서와 `docs/ai/README.md`에 반영했다. 현재 코드 `ai/`와 기존 `evals/`는 이동하지 않았고 GitHub 공개 빈 저장소는 2026-10-22에 생성했다. 공유 내부 계약·독립 CI·배포 경로 검증 뒤에 분리한다.
+- 2026-10-21 PRD/README 링크 점검: `docs/ai-rag/README.md`와 `prd.md`가 각각 같은 폴더의 다른 Markdown 15개 전부를 링크함을 확인했다. PRD의 제품 성공·인수 기준에 claim의 의미상 지지·보류, 기존 Grafana/Prometheus/OTel에서 단계/비용/유실 확인을 추가했다. `git diff --check`와 ADR 16건 통과. 구현 완료를 뜻하지 않는다.
+- 2026-10-21 `docs/ai/` 중복 문서 정리: `retrieval-and-rag.md`는 optional RAG와 reranker 후순위의 과거 초안이어서 제거했다. 참조하던 문서는 역사적 판단이면 ADR-0007, 새 구현 지침이면 `docs/ai-rag/`로 연결했다. `journey-guardrails.md`, `proposal-validation.md`, `evaluation-harness.md`는 기존 코드·공개 계약의 참조가 남아 유지한다. `application-architecture.md`, `corpus-sync-contract.md`, `gemini-provider-adapter.md`, `internal-service-authentication.md`는 공통 경계/기존 adapter 계약으로 유지한다. 변경된 Markdown 상대 링크 0건 누락, ADR 16건, `git diff --check` 통과. 전체 저장소 링크 검사에는 기존 입력 스냅샷의 깨진 링크가 남아 있으나 이번 변경 범위 밖이다.
+- 현재 브랜치: `docs/776-ai-rag-prd`. 이번 작업은 문서만 변경하며 코드·migration·운영 DB·배포는 건드리지 않았다.
+- **새 진입점:** `docs/ai-rag/README.md`는 심볼릭 링크가 아닌 일반 파일이며, 제품·오프라인/온라인 흐름·인프라·출시 순서를 종합한다. 상세 PRD, 아키텍처, API/저장 모델, 요청 생명주기, 보안·오남용, 운영·평가를 같은 폴더에 둔다. `docs/ai/`는 공통 AI 계약과 기존 구현의 역사적 설명으로 구분한다.
+- 사용자 결정: 회원 대화형 홈 여정 검색, 대화 재개와 홈/결과 목록, `/c/{threadId}`, 찜한 대화의 마이페이지 노출, 장소 3~5곳(부족하면 적게), SSE 진행 표시와 확정 snapshot, LLM 전송 시도 주 5회·월 15회, 첫 출시부터 lexical+pgvector 하이브리드 RAG. 회원 대화는 마지막 사용자 질문 뒤 6개월 보관하며 찜한 대화에도 동일하게 적용한다.
+- 2026-10-21 비용·역할 결정: 사용자 답변은 Google AI Studio의 Gemini API **무료 tier**를 사용한다. 월 7천 원 Antigravity CLI 구독은 운영자가 AWS에서 직접 수행하는 품질 분석·실험 검토용이다. 공식 FAQ상 개인 CLI를 타사 서비스 내부에 감싸는 방식은 지원되지 않으므로 회원 요청·상시 자동 supervisor에는 연결하지 않는다. 무료 tier의 Google 제품 개선용 데이터 처리 조건을 고지하고 전송 payload를 제한한다. 무료 quota 소진 시 유료 전환 없이 기본 탐색으로 종료한다.
+- 2026-10-21 품질 운영 결정: 정기 작업은 trace·gold 평가·실패 신호 집계와 운영자 검토 큐 생성까지만 자동으로 수행한다. Antigravity CLI 분석과 개선 실험은 사용자가 필요할 때 범위·quota/추가 비용을 검토하고 직접 시작한다. 제안만으로 실험·승격하지 않는다. 안전 사고 차단·경보는 예외 없이 자동 유지한다.
+- 2026-10-21 품질 알림 결정: 일반 품질 저하는 영속 검토 큐에 중복을 묶어 쌓고 매주 **Discord와 이메일 양쪽**의 요약 알림 및 Grafana 집계 대시보드에서 확인한다. 개별 항목은 기존 `/admin`의 `ADMIN` 전용 `/admin/ai-quality` 화면에서 열고 사용자가 선택해야 조사→실험→검토 파이프라인이 시작된다. 큐 항목은 최초 생성부터 최대 3개월 보관한다. 관리자 화면에서 Antigravity CLI를 서버가 실행하지 않고, 운영자가 비식별 패킷을 본인 세션에서 직접 분석한다.
+- 2026-10-21 용량·일정 결정: 기존 1GB/$7 Lightsail을 **2026-10-23 금요일 오후(KST)**에 스냅샷 기반 **2GB/$12 새 인스턴스**로 마이그레이션할 예정이다. 정확한 시각은 미정이며 아직 실행하지 않았다. 같은 새 호스트에 Spring·PostgreSQL/PostGIS/pgvector/BM25·Nginx·FastAPI·질문 임베딩·reranker를 모두 둔다. 문서 임베딩·재색인은 온라인 피크와 직렬화하고 2GB 모델 포함 혼합 부하를 출시 전에 검증한다. [마이그레이션 runbook](docs/operations/runbooks/lightsail-2gb-migration.md)에 DB 논리 backup·스냅샷·새 인스턴스 방화벽·고정 IP 전환·롤백 경계를 작성했다.
+- 운영 결정(2026-10-21 재수정): 별도 $5 벡터 DB·FastAPI 서버를 만들지 않는다. 동일 호스트 전용 Docker 네트워크·TLS·AI 전용 DB role과 공개 포트 미노출을 검증한다. PostgreSQL BM25 확장은 **첫 RAG 릴리스의 1차 후보**이고, Elasticsearch/OpenSearch는 별도 자원·비용이 필요하므로 현재 출시 구성에서 제외한다. 2GB 마이그레이션은 RAG 구현·출시와 별개로 검증한다.
+- ADR-0007은 ADR-0017로 대체했으며 삭제하지 않았다. 기존 AI/RAG 초안 중 중복·충돌하는 미커밋 파일은 새 설계로 내용을 이전한 뒤 제거했다. 기존 코드가 사용하는 단발 proposal/최대 3개 계약은 실제 전환 전까지 문서에서 역사적 구현 계약으로 표시한다.
+- 검증: 변경·신규 설계 문서의 상대 링크 0건 누락, `adr.py validate --dir docs/decisions --json` 16건 통과, `git diff --check` 통과. OpenAPI/SSE/schema와 실제 인프라 변경은 이번 문서 작업에 포함되지 않았다.
+- 후속 대조: 지금까지의 대화 결정을 `docs/ai-rag/README.md`의 결정 추적표로 매핑하고, 홈/결과 사이드바, SQL/RAG 라우팅 표, 확정 턴 기반 메모리 갱신, 60문항 초기 평가셋과 자동 평가 job 조건을 추가했다. `request-lifecycle.md`에는 요청 불변식·라우팅 우선순위·내부 envelope·SSE 상태·실패별 과금과 fallback을 명시했다.
+- AI application engineer 검토 반영: 질문 의미를 버전형 주제 code·canonical ID로 전달하고 표현 실패는 확인 질문으로 처리한다. 미검증 모델 토큰의 SSE 노출을 금지하고 확정 답변만 점진 표시한다. ledger 중단 복구, 긴급 철회 차단, 초기 품질·지연 게이트와 요청 예산, 개인정보 보존 정책의 운영 전 결정 게이트를 문서화했다.
+- 추가 구체화: `docs/ai-rag/question-understanding.md`에 코드·동의어·부정·복합·다턴 규칙, `rag-storage-schema.md`와 `docs/database/modules/ai.dbml`에 revision·문서·청크·vector(384)·철회 스키마, `grounding-and-review.md`에 claim별 허용/보류와 이중 검수, `evaluation-and-environment-tests.md`에 120문항 평가 및 로컬/staging 환경 시험 계약을 추가했다. Azimutt SQL 산출물도 재생성했다.
+- 이번 검증: DBML→PostgreSQL SQL 변환, Azimutt 산출물 생성, 로컬 Postgres Compose 설정, `bash scripts/verify-contracts`, ADR 16건 검사, 문서 상대 링크, `git diff --check` 통과. Docker daemon 미연결로 실제 pgvector 설치·SQL/부하 시험은 미실행이며 staging도 아직 측정하지 않았다.
+- 다음 단계: OpenAPI/SSE/schema 및 FE 계약 구현 작업 분해, 로컬/격리 스테이징의 pgvector·BM25·비공개 DB 연결·1GB 혼합 부하 검증. 실서버 변경은 아직 없다.
+
+> 아래 같은 날짜의 `홈 여정 탐색 AI·RAG 설계 정리`는 이번 개편 **이전의 세션 기록**이다. P0~P6, optional RAG, 위반 누적 쿨다운, $7 서버 유지 등의 제안을 현행 계획으로 사용하지 않는다.
+
+## 2026-10-19 홈 여정 탐색 AI·RAG 설계 정리 (문서 전용, 코드 변경 없음)
+
+- 상태: 설계 문서 5개 작성·수정 완료. 전부 **미커밋**이며 Issue도 아직 등록하지 않았다(AGENTS.md: 승인 후 Issue 생성 → 브랜치). 코드, migration, 운영·스테이징 DB는 건드리지 않았다.
+- 작업 위치: worktree `AI-RAG-planning`. 세션 시작 시점부터 `docs/ai/home-natural-language-search-design.md`가 untracked였다(이 세션에서 만든 파일 아님).
+
+### 변경 파일
+
+| 파일 | 상태 | 내용 |
+|---|---|---|
+| `docs/ai/home-natural-language-search-design.md` | untracked (기존) | 홈 자연어 검색 RAG 초안. 이번 세션에서는 참조만 했다. |
+| `docs/planning/journey-exploration/home-journey-flow-and-templates.md` | 신규 | 홈 구성 7블록, userflow 흐름도, 화면 상태 12종, 입력→템플릿 규칙, 템플릿 T1~T5, 슬롯 6종, 식사·숙소 처리, 소개글 스키마·검증, 열린 질문 6개, M1~M5 |
+| `docs/ai/conversation-boundary-policy.md` | 신규 | 세션 상태 기계(NORMAL→WARNED→LIMITED→COOLDOWN), 토론 불참 원칙, 공개 응답 코드 제안, 관측·개인정보, 테스트 요구, 열린 질문 5개. §4는 우회 기법 문서 참조로 교체 |
+| `docs/ai/prompt-attack-validation.md` | 신규 | 우회 기법 T-01~T-18 분류(구조 방어·탐지 신호·응답), 검증 파이프라인 8단계, 코퍼스 구성, 목표 수치, 회귀 게이트, 열린 질문 4개 |
+| `docs/ai/rag-implementation-plan.md` | 신규 | 목표·비목표, 현재 상태 표, P0~P6 단계별 exit 기준, 교차 관심사, 리스크, 열린 질문 5개, Issue 분해 초안 12건 |
+| `handoff.md` | 수정 | 이 항목 |
+
+### 정한 것 (결정)
+
+**1. 검색 방식**
+- 자연어는 LLM이 장소를 고르지 않는다. 규칙 사전(지역·테마·제외)으로 `JourneyIntent`를 만들고 SQL 하드 필터 + lexical/trigram으로 후보를 찾는다.
+- LLM은 P2 이후 후보의 **설명 문장**만 쓴다. 벡터(P3)는 P1 평가에서 nDCG@3이 +0.05 이상일 때만 켠다.
+
+**2. 여정 결과물**
+- 기본 결과는 **반나절 코스 보드**(슬롯 템플릿)다. N일 자동 일정은 후속(`journey-service-plan.md`, `product-prd.md` 근거).
+- 후보는 MVP에서 카드 최대 3개. 가드레일상 LLM 입력은 후보 최대 12개, 응답은 최대 3개 `orderedRefs`.
+
+**3. 템플릿 (T1~T5)**
+- T1 고요한 한옥 반나절, T2 한옥 체험 하루, T3 시장 걷기, T4 오디 이야기 산책(데이터 확인 후 활성), T5 한옥과 시장을 함께(명시 요청에서만).
+- **한옥 → 시장 고정 순서를 두지 않는다.** 시장은 자동으로 추가하지 않는다. 사용자가 "한옥만"이라고 하면 T5를 쓰지 않는다.
+- 슬롯이 비면 빈 칸을 허용 범위 밖 카테고리로 채우지 않고 템플릿을 제외하거나 THIN_RESULTS로 응답한다.
+
+**4. 음식·숙소**
+- 맛집 카드는 만들지 않는다. 식사 슬롯은 "점심은 주변에서 자유롭게" 고정 문구다.
+- 한옥 숙박은 허용 범위 안이고 일반 숙소는 밖이다. 숙박은 1일 코스 확장 때만 노출한다.
+- "근처 맛집"을 범위에 넣을지는 **제품 결정 대기**다. 현재 가드레일 허용 목록에 없다.
+
+**5. 소개글**
+- LLM이 쓰되 후보와 근거 안에서만 쓴다. 출력은 구조화 스키마(`templateId`, `slotLines`, `placeRef`, `evidenceRefs`)이고, 고유명사·후보 ID·금지 사실을 검증한다. 실패하면 템플릿 기본 문장을 쓴다. P2 이후 작업.
+
+**6. 대화 경계와 우회 방어**
+- 1차 방어는 **구조**다. LLM은 사용자 원문이나 대화 이력을 받지 않고 enum 값만 받는다.
+- 누수 경로 2개를 확인했다.
+  - `JourneyIntent.explicitConstraints: string[]`는 자유 문자열이다. **enum으로 바꿔야 한다**(P0 항목).
+  - RAG 원천 텍스트 속 지시문은 ingestion 단계에서 탐지하고, 데이터 블록에 표지를 붙인다.
+- 우회 기법 18종을 분류했다(역할극, 허구 프레임, 우선순위 조작, 권위 주장, 프롬프트 추출, 인코딩, 언어 전환, 분할, 구분자 위장, 다중 예시, 감정 압박, 토론 유도, 간접 인젝션, 위기 신호 등).
+- 위기 신호(T-12A)는 우회가 아니라 **안전 안내 경로**로 분리한다. 카운터를 올리지 않는다.
+- 탐지 규칙은 로그와 카운터용 보조 신호다. 탐지 실패가 유출로 이어지지 않도록 설계했다.
+- 공개 응답에는 어떤 기법에 걸렸는지 알려주지 않는다.
+- 기본 탐색과 저장 보드는 모든 상태에서 허용한다. 정책 위반으로 서비스 전체를 막지 않는다.
+- LLM 분류기는 intake에 쓰지 않는다. 오프라인 평가에만 쓸 수 있다.
+
+**7. 벡터와 인프라**
+- 임베딩은 별도 $5 서버를 만들지 않는다. 벡터 저장과 검색은 기존 PostgreSQL + pgvector를 쓴다. 임베딩 생성은 배치 작업 또는 외부 API로 한다.
+- 피벗 조건: 하루 변경분 800건 정도면 임베딩 비용은 하루 몇 원 수준으로 추정했다. 실제 요금은 확인이 필요하다.
+- **사실 교정 필요:** `handoff.md` 2026-10-01 항목에 따르면 운영 Lightsail(`onmaru-prod-seoul`)은 **$7 번들, 1 GB RAM**이며, 그 한 대에 Spring + PostGIS + Nginx가 함께 돈다. 이번 세션 답변에서 "$5 = 1GB"라고 말한 것은 확인되지 않은 기억이다. 현재 사양은 콘솔에서 확인해야 한다.
+- 그래서 pgvector를 올리기 전에 **메모리 측정이 먼저**다. 앱과 DB가 같은 박스에 있으므로, $12 업그레이드가 필요하면 DB만이 아니라 박스 전체를 올려야 한다. 플랜 변경 시 고정 IP와 스냅샷을 확인한다.
+- 스테이징은 AWS 온디맨드 staging을 유지한다. 릴리스 게이트(`deploy.yml` staging 배포와 smoke, Git Flow 검증)에 쓰이기 때문이다. 개발자의 일상 개발과 pgvector 실험은 **로컬 Docker**(Postgres+pgvector)로 한다. staging은 별도 database로 분리하고, 사용하지 않을 때는 재운다.
+
+### 해야 할 것 (순서)
+
+1. **사용자 승인 후 Issue 등록.** `rag-implementation-plan.md` §7의 12건을 P0부터 등록한다. 등록 전에는 브랜치를 따지 않는다.
+2. **P0 결정 확정.** 대화 경계 정책 열린 질문 5개, userflow 열린 질문 6개를 정한다. 특히 카운터 기준(게스트 토큰 vs 회원), 쿨다운 시간, 맛집 범위.
+3. **`explicitConstraints` enum 계약 전환.** 현행 가드레일 문서(`journey-guardrails.md`)와 `application-architecture.md`에 반영하고, provider 요청에 자유 문자열이 0건임을 테스트로 고정한다.
+4. **평가셋 60문항 작성.** 개발 40, held-out 20. 템플릿 선택 정답과 우회 공격 세트(기법당 20개 이상), 정상 세트 300문장 이상을 포함한다. 공격 문장은 문서에 옮기지 않고 접근 제한 경로에 둔다.
+5. **pgvector와 메모리 측정.** 로컬 Docker에서 pgvector 설치를 확인한다. 운영 `onmaru-prod-seoul`의 현재 메모리 여유와 OOM 기록을 확인한다. 결과로 $7 유지 또는 $12 전환을 정한다.
+6. **로컬 Docker 개발 환경.** `infra/local`에 Postgres+pgvector compose가 있는지 확인한다. 없다면 만든다. staging 재가동은 릴리스 검증에만 쓴다.
+7. **P1 규칙 검색 구현.** 지역 사전, SQL 필터, lexical/trigram, 템플릿 선택, 상태 기계 순으로 진행한다. 이 단계가 기본 경로이자 fallback이다.
+8. **P2 동기화와 철회.** `tourapi_detail_snapshots` 기준 revision export, FastAPI 동기화, tombstone 테스트(철회 항목 검색 결과 0건)를 exit 조건으로 둔다.
+9. **P3 벡터 실험.** 임베딩 정책(외부 API 허용 여부)을 확정한 뒤에만 시작한다. 판정 결과는 ADR 또는 평가 리포트에 남긴다.
+10. **P4 소개글과 이유 문장.** Gemini 어댑터를 opt-in으로 붙인다. claim support 사람 검토 0.90 이상이 조건이다.
+11. **P5 FE 연결.** 홈 API, 화면 상태 6종 구현, feature flag, staging fallback 검증.
+
+### 열린 위험
+
+- **단일 박스 메모리:** 운영 1 GB에 Spring, PostGIS, Nginx가 함께 있다(2026-10-05 기록: Spring 448 MiB, PostgreSQL 320 MiB, Nginx 64 MiB 제한). pgvector 추가 시 OOM 위험이 크다. 측정 전에는 벡터를 올리지 않는다.
+- **임베딩 데이터 처리 조건:** TourAPI 개요 본문을 외부 임베딩 API로 보내는 것이 약관상 가능한지 미확인이다. 확인 전에는 원문을 외부로 보내지 않는다.
+- **정책 오탐:** 정상 한국어가 차단될 수 있다. 구문 패턴 중심으로 설계했지만 실제 오탐률은 정상 세트로만 측정할 수 있다.
+- **다국어 탐지 한계:** 영어 중심 사전이므로 다른 언어는 구조와 출력 검증에 의존한다.
+- **홈 자연어 초안의 예시 질의:** `home-natural-language-search-design.md`의 예시 "비 오는 날 조용한 한옥 카페"는 P0 규칙으로 해석할 수 없는 주관 조건을 포함한다. 수정이 필요하다.
+- **원천 이용 조건:** TourAPI 개요 재노출과 K-Contents 발췌의 이용 조건은 미확인이다. 확인 전에는 출처 표기 중심으로 노출한다.
+
+### 검증 상태
+
+- 문서 작성 후 링크·표 형식을 눈으로 확인했다. 자동 검증(markdown lint, mermaid 렌더링, `verify-contracts`)은 돌리지 않았다.
+- 코드, 테스트, DB 변경이 없으므로 CI 영향은 없다. 문서 파일이 `docs/` 아래에 있으므로 PR에서 hygiene 검사가 돌 수 있다.
+- 다음 세션 시작 시 확인할 것: `git status`로 위 5개 파일과 기존 untracked 파일이 그대로 있는지, Issue 등록 여부.
+
 ## 2026-10-12 Issue #718 운영 INSERT 전 작품 조사
 
 - 사용자 지시: 11,083곳의 작품명을 먼저 찾아 검수하고 그 후 운영 INSERT를 진행한다. 운영 DB는 아직 변경하지 않았다.
@@ -283,3 +405,49 @@ git diff --check # 통과
 - #718 V050은 버전형 내부 라벨 배치와 활성 pointer를 추가한다. `prepare-kcontent-label-import.py`는 기본 ROLLBACK, 건수·해시 검증 가져오기 SQL을 생성한다. V050은 아직 운영에 배포되지 않았고 11,083개 라벨은 로컬에 있다. 기존 검증 26관계/17곳은 전부 새 후보에 포함된다. Gemini는 공식 후보의 장면 요약 초안 210개만 생성했고 원문 인용 검사 후 전부 REVIEW_REQUIRED(7개 빈 요약), 공개 0.
 - #717은 CI `verify` 통과 뒤 `develop`에 squash merge됐다(`ede5bb76`). 원래 stacked PR #719는 GitHub가 base 브랜치 삭제 때 자동 종료했으므로, #718 커밋을 `origin/develop` 위로 rebase하고 PR #720을 새로 열었다. #716 Issue는 운영 전환 완료 전까지 열어 둔다.
 - #718 추가 근거 감사: 공식 드라마·영화·예능·아티스트 유효 좌표 15,028행과 11,083곳 전수 대조. 기존 검증 17, 이름 동일 100m 이내 248/1km 이내 82, 이름 일부 일치 78, 근접한 다른 장소 1,344, 자료 내 근접 근거 없음 9,308, 좌표 없음 6. `tmp/kcontents-718/evidence-audits.jsonl`과 `labels-reviewed.jsonl`에 출처 행·제목·미디어 유형·거리·상태를 보존한다. 감사 SHA `dc037b536d82ac82ea38c133cc5657ba7648ca57120358df7630c0d56d9ce6cb`. 외부 추가 조사나 인간 검증 완료를 뜻하지 않는다. V050과 가져오기 도구는 결정 집합·근거 감사 SHA를 함께 확인한다.
+
+## AI RAG corpus 보존·GC 기획 (2026-10-20)
+
+- 브랜치 `docs/776-ai-rag-prd`. 사용자 요청에 따라 Issue 추가 생성 없이 `docs/ai-rag/corpus-lifecycle-and-gc.md`에 활성 1개·롤백 최대 2개, 30일 export, 180일 manifest, 365일 비본문 감사 기록, 철회 우선 삭제, GC 경합·복원, 384차원 색인 실측 조건을 정리했다.
+- `docs/ai-rag/README.md`, `rag-storage-schema.md`, `docs/ai/corpus-sync-contract.md`에서 새 정책을 연결했다. 실행 migration/DBML 및 GC job은 아직 구현 전이다. 당시 적은 `2GB 실측` 선행 조건은 2026-10-21 사용자 결정으로 폐기했고, 현행 1GB 혼합 부하·권리 검토·7일 백업 복원 실험을 먼저 수행한다.
+- `bash scripts/verify-contracts` 통과. 로컬 Docker 기반 pgvector 환경 실험은 수행하지 않았다.
+- 2026-10-21 설계 보완: `retrievalExpression`에 승인된 긍정/부정 검색 개념을 보존하고 원문 미전송 경계를 유지한다. BM25/vector 각 20개 검색 전후와 RRF 30개에서 장소·source 다양성을 제어하며, reranker 입력/동점/timeout/NaN 복귀와 후보 recall·장소 다양성 출시 gate를 문서화했다. 구현·모델 선정·실측은 남아 있다.
+- 2026-10-21 후속 문서 정리: `docs/ai-rag/supervised-agents.md`를 추가해 온라인 결정적 RAG와 오프라인 원천 검수·검색 실패 진단·실험/운영 제안 agent를 분리했다. `docs/ai-rag/README.md`, `operations-and-evaluation.md`, `docs/ai/README.md`, 최초 `docs/planning` 설계 3개 문서의 정본 링크를 맞췄다. agent 실행 권한은 읽기/제안 저장에 한정하며 자동 색인 승격·운영 변경은 설계하지 않았다.
+- 2026-10-21 AI RAG 문서 정합성 정리: `docs/planning/architecture-blueprint.md`, `data-api-design.md`, `docs/database/README.md`, `docs/database/azimutt/README.md`에서 새 홈 여정의 RAG를 optional로 보이게 하던 현행 설명을 정본에 맞게 수정했다. 당시 optional 검색 초안은 이후 중복 검토에서 제거하고, 과거 결정은 ADR-0007로 추적한다. `docs/ai-rag/README.md`의 관측 계약 링크를 보강했다. 상대 링크 0건 누락, ADR 16건, `bash scripts/verify-contracts`, `git diff --check` 통과. 코드·운영 인프라 변경 없음.
+- 2026-10-21 사용자 확인: Grafana·Prometheus·OpenTelemetry를 이미 사용한다. `docs/ai-rag/observability-contract.md`에 기존 경로 재사용, RAG 단계별 trace·저카디널리티 metric·dashboard/alert·전송 유실/비용 검증을 설계했다. 운영 Compose의 OTLP metrics는 저장소 기준 `false`이고 AI RAG 계측은 미구현이므로 실제 송신과 Grafana 조회는 별도 검증이 필요하다.
+- 2026-10-21 후속 설계 보강: reranker 500ms를 출시 합격선이 아닌 벤치마크 가정으로 낮추고 모델·후보 수별 품질/지연/메모리 실측 후 timeout을 결정한다. claim의 원천 offset/span·원자적 사실·시간/관계 검증과 오프라인 의미 판정기 평가를 추가했다. Spring OTel/Grafana 관측을 우선하고 Langfuse는 1GB 운영 서버 밖의 제한 pilot으로 검증한다.
+- 2026-10-21 운영 준비 재검토: 사용자 판단에 따라 2GB 선행 이전을 철회하고 현행 1GB의 메모리·복구·혼합 부하 실측 후 필요 시 증설로 변경했다. `docs/ai-rag/production-readiness-gaps.md`에 출시 차단 증거와 미확정 항목을 정리하고, 온라인 run의 config/revision 고정·감독 trace 수집률·격리 runner·승격/rollback 계약을 보강했다. 실제 인프라·모델 성능 시험은 아직 미실행이다.
+- 2026-10-21 RAG Quality Engineering 상세 설계: `docs/ai-rag/quality-engineering-agent.md`에 trace/평가 artifact, 다섯 책임의 상태 머신, 결정적 실패 탐지·Python 템플릿 보고서, 복합 원인에만 제한된 LLM 조사, 격리 반사실적 실험·도구 RBAC·비용·사람 승인·canary rollback을 정의했다. Naver API HUB는 오프라인 수집 후보로만, Langfuse/LangGraph/소형 오픈 모델은 별도 검증 후보로 두었다.
+# 2026-10-21 AI RAG 브리핑·질문 처리 설계 추가
+
+- 사용자 요청에 따라 `docs/ai-rag/reports/2026-10-21-system-briefing.html`에 사용자 경험, 데이터 준비, 질의별 SQL/BM25/vector/hybrid 계획, 온라인 응답, 근거 검증, 품질 감독, 2GB 운영 준비도를 종합했다.
+- `docs/ai-rag/query-processing.md`를 새로 두었다. 첫 출시의 정형 SQL·본문 hybrid 기본값과, 평가·사람 승인 뒤 단일 검색 경로를 활성화하는 조건을 구분한다. 외부 Wiki/API는 권리·신선도·철회 계약 전에는 온라인 검색에 넣지 않는다.
+- HTML 상대 링크 27개와 내부 anchor를 검사했고 누락 0건이다. `git diff --check` 및 ADR 16개 validate 통과. HTML은 목표 설계 보고서이며 RAG 구현·AWS 이전은 여전히 미실행이다.
+- 사용자 후속 요청으로 HTML을 요약에서 전체 설계 보고서로 확장했다. `docs/ai-rag/reports/build_system_briefing.py`가 23개 Markdown 원문을 HTML 내부 절로 묶고 문서 간 링크를 내부 anchor로 고친다. 문서별 원본 링크·본문 검색·접힘/펼침을 제공한다. 생성 두 번의 SHA-256 일치, 내부/상대 링크 235개 누락 0, ID 중복 0, JS 문법 검사, HTTP 200, `git diff --check`를 확인했다.
+- 2026-10-21 레이어 재설계: `docs/ai-rag/module-boundaries-and-pipelines.md`에 오프라인 Corpus 준비·온라인 응답·비동기 품질 감독의 논리 모듈, 소유자, 입력/출력 artifact, 실패·버전·권한 경계와 구현 순서를 상세화했다. `architecture.md`의 단축 도식을 normalization→planning→routing과 승인 검색 mode 분기로 교체하고 README·요청/SSE·OTel 계약을 맞췄다.
+- HTML 보고서는 Mermaid CLI로 원본 다이어그램을 로컬 SVG로 렌더링하고 앞부분에 4개 레이어 확대 그림을 추가했다. AI-RAG 목표·ADR·runbook·공통/현행 AI 계약 26개 본문을 포함한다. 중복 요약 `docs/ai-rag/supervised-agents.md`는 상세 품질 감독 정본으로 참조를 옮긴 뒤 제거했다. `docs/ai/`의 기존 proposal 관련 문서는 현행 공개 계약이 참조하므로 전환 참고자료로 유지한다.
+
+## 2026-10-22 AI 저장소 분리·관측 결정
+
+- **2026-10-22 실제 문서 이전:** AI-RAG 설계, diagrams, HTML report를 `YRootLab/onmaru-ai-engine` 기본 브랜치에 이전했다. 현재 정본은 [AI Engine docs/ai-rag](https://github.com/YRootLab/onmaru-ai-engine/tree/main/docs/ai-rag)다. 백엔드 `docs/ai-rag/`에는 정본 안내만 남기고 외부 참조를 AI 저장소 commit으로 연결했다. 원격 AI 저장소의 `main`에는 이전 문서가 있으며 runtime 코드/독립 CI/배포는 아직 BE의 `ai/`에 남아 있다.
+- **2026-10-22 보고서 빌더 분리:** `onmaru-ai-engine`의 `build_system_briefing.py`가 AI 소유 문서 21개만 읽도록 수정했다. Spring·ADR·DB·Lightsail 문서를 파일시스템 상대경로로 복사/번들하지 않고 소유 저장소 링크로 참조한다. ownership 회귀 테스트 추가, 보고서 재생성, Markdown 상대 링크 검사와 unit test 통과.
+- **단일 Lightsail 목표 반영:** 저장소 이전이 새 AWS 인스턴스 생성을 뜻하지 않는다. `onmaru-ai-engine`은 immutable FastAPI image를 발행하고, backend 저장소가 현재 Lightsail Compose/deployer에서 Spring·PostgreSQL·Nginx와 같은 host에 배포할 계획이다. 기존 production compose는 FastAPI를 아직 포함하지 않으며 2GB 혼합부하/rollback gate 미통과 상태다. Spring 측 구현 계약은 `docs/ai-rag-spring/repository-and-deployment.md`에 작성했다.
+- **후속 실행:** 현재 BE worktree에는 광범위한 미커밋 문서/DB 변경이 있으므로 선택 파일만 검토·commit할 것. 다음 runtime migration에서 임시 FastAPI baseline을 AI 저장소로 옮기고 독립 CI/image를 먼저 만든 뒤, BE의 ai/ path·CI/deploy workflow를 제거/연결한다. 그다음 Compose AI service와 제한 deployer의 digest/rollback 지원을 구현한다. 실제 Lightsail 변경·배포는 이 작업에서 수행하지 않는다.
+- `onmaru-ai-engine` 공개 빈 저장소를 생성했다. 현재 AI 코드·CI·배포 경로는 BE 저장소의 `ai/`를 사용한다. 코드와 문서 이전은 아직 실행하지 않았다.
+- `docs/ai-rag/repository-split-and-monitoring.md`에 BE의 제품·서비스 간 계약과 AI의 내부 구현 문서 정본, BE `docs/contracts/`의 내부 wire 계약, 독립 CI·이미지 digest·호환/rollback 검증을 선행하는 이전 순서를 고정했다.
+- 관측은 Grafana Cloud 통합 조회·경보, 기존 Prometheus 호환 metrics 경로 검증 후 단일 전송, Spring/FastAPI 직접 OTLP trace, 기존 구조화 로그, 영속 품질 artifact로 결정했다. 2GB 호스트에 Tempo·Loki·Langfuse를 상주시켜 시작하지 않는다.
+- 실제 계측의 차단 항목: Spring의 현재 all-zero `traceparent` parent ID와 FastAPI의 문자열 기반 correlation을 W3C OTel context 전파로 교체해야 한다. 운영 metrics 수집 경로와 Grafana Cloud traces 조회·사용량은 staging에서 확인해야 한다. 이 작업 전 통합 trace 완료를 주장하지 않는다.
+- 다음 단계는 현 BE 설계 commit을 고정한 뒤 AI 레포에 FastAPI 코드·AI 소유 문서·독립 CI를 옮기고, BE 링크·CI·배포·계약 fixture를 같은 전환 작업에서 검증하는 것이다. 전환 검증 뒤에만 BE `ai/`를 제거한다.
+- 2026-10-22 관측 후속: Claude Code 공식 OTel 문서와 NousResearch Hermes Agent의 공개 관측 코드/계약을 검토해 `repository-split-and-monitoring.md`에 요청 trace, 운영 metric, 재현 artifact의 역할을 명확히 했다. `observability-contract.md`에는 `traceId`와 영속 `runId`의 관계, provider 시도·SSE 재접속·비동기 작업·sampling/전송 실패 조사 경로를 추가했다. 실제 계측이나 Grafana 실측 완료를 뜻하지 않는다.
+- 2026-10-22 스키마 후속: `docs/ai-rag/telemetry-and-harness-schema.md`와 `schemas/run-observation.v1.schema.json`에 단계 enum·결과/오류/복귀 코드, Spring 단일 writer의 영속 관측 artifact, trace 유실·품질 하네스 자동 분류/사람 승인 경계를 고정했다. HTML 보고서에 새 문서를 포함했다. 구현·실제 artifact 발행은 아직 하지 않았다.
+- 2026-10-22 라우팅 결정: 사용자 요청에 따라 첫 AI RAG 출시부터 `SQL_ONLY`, `LEXICAL_ONLY`, `DENSE_ONLY`, `HYBRID`, `SQL_PLUS_RETRIEVAL`을 모두 활성화하도록 PRD·질문 처리·아키텍처·요청 생명주기·모듈 경계·평가·운영 준비·ADR-0017을 갱신했다. 각 route의 gold/오라우팅·2GB 부하 검증을 전체 출시 게이트로 두며 온라인 외부 Wiki/API는 여전히 미포함이다. 구현과 실측은 미완이다.
+- 2026-10-22 후속 설계: 기존 16차원/메모리 내 검색은 의도적인 임시 baseline으로 기록하고 목표 RAG의 결함으로 평가하지 않는다. 실측 수치는 구현·관측 후 축적한다. 첫 출시 평가 계획은 5개 route별 최소 300문항(개발 200/봉인 100)으로 넓히고 부정·다턴·권리·주입·개인정보·되묻기 사례를 중첩 태그로 설계했다.
+- Spring 질문 처리에서 허용된 원문 표현의 수식·어순·부정 범위를 비식별 `semanticQuery`에 보존해 FastAPI 로컬 BM25/embedding/reranker에 전달한다. provider·로그·trace에는 보내지 않고 핵심 의미나 비식별화가 불확실하면 한 가지 확인 질문으로 전환한다. 사용자에게는 조건이 충분하면 바로 답하고, 추천/수정/해설/비교/콘텐츠 연결 prompt와 검증된 3~5 장소 카드·문화 해설·이미지·출처·후속 chip을 제공하는 목표 계약을 `docs/ai-rag/conversation-and-prompt-design.md`에 추가했다. 구현은 아직 아니다.
+- 2026-10-22 HTML 브리핑 후속: 보고서 앞부분의 오래된 “BM25/vector 단독은 추후 활성화” 설명을 첫 출시 다섯 경로 계약으로 교정하고, 전체 세 파이프라인 지도와 합성 질의 → 단계별 Recall@K/MRR/nDCG → 실패 분류 → 검토 큐 → 운영자 실험/사람 승인 흐름을 추가했다. `evaluation-and-environment-tests.md`에는 공개 source 기반 합성 질문 제작, 독립 라벨링, split 누설 방지, 고정 version 절차를 명시했다. 보고서 29개 원문 포함, 내부/로컬 링크 누락 0, 중복 ID 0, 생성 2회 SHA 일치, `git diff --check` 통과. 코드는 변경하지 않았으며 평가 질문·실측은 아직 생성되지 않았다.
+- 2026-10-22 AI route 소유권 변경: 사용자의 명시 결정으로 `onmaru-ai-engine`이 비식별 `safeQuery`와 확정 구조화 맥락을 해석해 `PlanProposal`/route를 만든다. Spring은 회원·원문·공개 범위/필터·정형 SQL·최종 답변을 소유하고 계획을 승인한다. FastAPI plan 호출→Spring authority gate/SQL→필요 시 FastAPI execute의 두 단계 내부 계약, SQL_ONLY의 plan-only 동작, transient `semanticQuery`·planHash, OTel 단계와 RunObservation schema를 `docs/ai-rag/`와 ADR-0017에 반영했다. HTML 브리핑 29개 문서 재생성, 내부 링크/ID·JSON·`git diff --check` 검증 통과. 목표 설계이며 런타임 구현/계약 fixture는 후속 작업이다.
+- 2026-10-22 회원 대화 보존 결정 변경: 이전 6개월 자동 삭제 정책을 폐기하고 회원이 직접 삭제하거나 탈퇴할 때까지 대화·찜을 유지하는 목표 설계로 PRD·보안/보존·API/모델·모듈 경계·README·HTML 브리핑을 갱신했다. `expiresAt` 목표 응답 필드를 제거했다. 백업 최대 30일은 초기 제안이며 삭제 원장 재적용과 오래된 장소/출처의 현재 공개 자격 재확인은 유지한다. 실제 migration·개인정보 고지·삭제/복원 검증은 구현 전이다. HTML 내부 링크/ID·`git diff --check` 통과.
+- 2026-10-22 비개발자용 시각화 후속: `docs/ai-rag/reports/2026-10-21-system-briefing.html` 첫머리에 Mermaid 없는 5단계 사용자 여정(질문→이해→근거 검색→카드→이어가기), 단계별 접이식 내부 동작, 모호성/근거 부족 분기를 추가했다. 보고서의 단독 lexical/dense 경로가 배포 범위 밖이라는 오래된 문장을 첫 출시 범위로 바로잡고 README에 비개발자 브리핑 순서를 적었다. 29개 본문 포함, HTML 링크/중복 ID 0, 생성 두 번 SHA 일치, `git diff --check` 통과. 브라우저 육안 검사는 별도로 하지 않았다.
+- 2026-10-22 모듈별 시각화 재작업: 사용자의 교정에 따라 비개발자용 5단계 화면 스토리를 HTML 보고서에서 제거하고, `reports/module-flow.fragment.html`의 비 Mermaid 스윔레인으로 교체했다. 온라인 9단계는 Spring·AI 엔진·PostgreSQL·Gemini·Next.js 레이어의 입력/출력·조건부 실행을 보여 준다. Corpus 준비·비동기 품질 감독 모듈 체인을 같은 절에 넣고 README 안내를 변경했다. 보고서 29개 원문, 로컬/내부 링크 누락 0, 중복 ID 0, 두 번 생성 SHA 일치, `git diff --check` 통과. 브라우저 자동화 환경에는 브라우저가 없어 육안 검사는 못 했다.
+- 2026-10-22 구조도 정교화: Graphviz 자동 배치의 교차선과 화면 잘림을 해결하기 위해 `reports/diagrams/build_ai_engine_architecture.py`의 고정 배치 SVG로 교체했다. 클라이언트·AWS Lightsail 내부 Spring/FastAPI/PostgreSQL·외부 Gemini 경계를 분리하고, Spring 최종 검증→SSE→클라이언트 반환, SQL_ONLY 정형 경로, corpus 색인, 비동기 평가를 표시했다. HTML 이미지는 화면 너비에 맞춰 전체를 보이고 클릭하면 SVG 원본을 확대한다. PNG 렌더를 육안 확인했고, 보고서 두 번 생성 SHA 일치·내부/로컬 링크 누락 0·중복 ID 0·`git diff --check` 통과. 브라우저 실화면 검사는 미실행이다.
+- 2026-10-22 C4 구조도 상세화: `docs/ai-rag/diagrams/likec4/architecture.c4`에 OnMaru 시스템 경계, FE·Spring·FastAPI·PostgreSQL 컨테이너, 두 서버 내부 컴포넌트, Vercel/AWS 목표 배포, 사용자 온라인 plan→승인 실행→검증 SSE 시퀀스, 오프라인 corpus·quality harness 시퀀스를 모델링했다. C4-PlantUML 정적 도식 4장(컨테이너·배포·Spring·FastAPI)을 보고서에 추가했고 LikeC4 인터랙티브 사이트 링크를 걸었다. 목표 설계와 현재 미배포 상태를 명시했다. LikeC4 validation 0 errors, PlantUML SVG 4장 재생성, 보고서 29개 문서 포함 및 2회 SHA 동일, 내부/로컬 asset 누락 0·ID 중복 0·`git diff --check` 통과. C4 FastAPI 렌더를 PNG로 변환해 육안 확인했다.
+- 2026-10-22 질문 처리 네이밍 결정 반영: 상위 계층은 `Query Processing Layer`, 내부 단계는 `Query Preprocessing → Query Interpretation → Search Router`로 정리했다. 구현 검색기는 `Keyword Search (BM25)`와 `Semantic Search (Vector)`, 결합 단계는 `Hybrid Fusion (RRF)` 및 별도의 `Reranker`로 이름을 통일했다. 모듈 경계·질문 처리·요청/SSE·관측 span/schema·README·ADR 외 연관 설명·LikeC4/C4-PlantUML·HTML 정적 설명을 맞췄다. `LEXICAL_ONLY`/`DENSE_ONLY`는 계획 내부 enum으로 유지하고 설명명과 구분했다. LikeC4 validation 0 errors, PlantUML 렌더 4장 통과, HTML 29개 문서 포함·생성 안정성·ID/링크 검증 및 `git diff --check` 통과. 커스텀 메인 SVG와 FastAPI C4 SVG를 PNG 변환해 육안 확인했다.

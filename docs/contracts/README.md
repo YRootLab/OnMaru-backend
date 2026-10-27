@@ -19,5 +19,7 @@
 - [`fixtures/r2`](fixtures/r2): R2 지도·행정구역·Odii·관광 관측 정상·결측·error 예제
 - [`fixtures/saved-place-fixtures.json`](fixtures/saved-place-fixtures.json): 한옥·지도·Odii 연결 장소의 공통 찜 및 월간 타임라인 fixture
 - [`openapi/visit-reviews.openapi.json`](openapi/visit-reviews.openapi.json): 지도 후기 OpenAPI 3.1 초안
+- [`mcp/journey-query-tools.v1.json`](mcp/journey-query-tools.v1.json): 승인된 정형 여정 lookup을 FastAPI MCP client가 호출하는 Spring tool JSON Schema catalog
+- [`mcp/quality-tools.v1.json`](mcp/quality-tools.v1.json): 온디맨드 quality harness의 Spring read-only tool JSON Schema catalog
 
 구현 전 게이트: OpenAPI와 fixture를 실제 FE/BE serializer contract test로 연결하고, pagination/cursor, 인증 오류와 AI typed output을 검증한다.

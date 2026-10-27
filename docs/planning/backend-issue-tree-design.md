@@ -1,5 +1,7 @@
 # Backend 구현 Issue Tree 설계
 
+> 2026-09 구현 분해 기록. 아래 optional RAG 우선순위는 새 홈 여정 AI의 현재 범위가 아니다. [AI RAG 정본](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/README.md)의 BM25 + vector → RRF → reranker 설계와 [ADR-0017](../decisions/0017-home-journey-hybrid-rag.md)을 따른다.
+
 2026-09-13. `docs/toFE/**`의 FE 구현 작업은 제외하고, OnMaru backend 문서에 확정된 Spring Boot, FastAPI, PostgreSQL/PostGIS, 외부 데이터 수집, 공개 계약, 운영 요구를 GitHub Issue Graph로 옮기는 기준이다.
 
 ## 목표

@@ -2,6 +2,8 @@
 
 > **현재 설계 기준:** [문서 안내](../README.md)의 책임별 설계를 따른다. 이 문서는 데이터·API 기획의 근거이며, 구현 완료를 뜻하지 않는다.
 
+> **AI RAG 갱신:** 새 홈 여정의 구현 전 목표는 [AI RAG 정본](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/README.md)의 한국어 BM25 + vector → RRF → reranker와 [품질 감독](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/quality-engineering-agent.md) 경계를 따른다. 아래 오디 Q&A 절은 별도 후속 제안이며 홈 여정의 출시 정책으로 읽지 않는다.
+
 
 > 후속 정정: 실제 FE 도슨트는 `question+filters` 계약이다. [FE 감사](journey-exploration/fe-data-audit.md), [추천·관계 데이터 확장](journey-exploration/architecture-and-recommendation.md), [새 탐색 API/SSE](journey-exploration/fe-api-handoff.md)를 함께 읽는다. 선택 이야기 Q&A 제안과 현재 구현을 구분하며, durable exploration run은 기존 단일 요청의 취소 정책과 별도다.
 
@@ -25,11 +27,11 @@
 
 ## DB 선정
 
-**PostgreSQL + PostGIS**를 비즈니스 DB로 권고한다. 관계 제약, 근거리 쿼리, 복합 원본 키, batch upsert를 함께 처리한다. pgvector는 held-out 평가 후 승인하는 optional RAG 저장소이며 MVP에는 추가하지 않는다. MySQL + 별도 vector store는 팀의 운영 경험 또는 기존 인프라가 강할 때 대안이다. PostgreSQL + 별도 vector DB는 vector 작업량·격리 필요가 실제로 커졌을 때 대안이다.
+**PostgreSQL + PostGIS**를 비즈니스 DB로 사용한다. 관계 제약, 근거리 쿼리, 복합 원본 키, batch upsert를 함께 처리한다. 새 홈 여정 AI RAG 목표는 같은 PostgreSQL의 `ai` schema에 pgvector와 한국어 BM25 구현을 추가한다. 현행 운영 이미지에는 아직 포함되지 않았으며 1GB 공존·복구·품질 검증 전에는 운영을 전환하지 않는다. MySQL + 별도 vector store는 과거 대안이고, PostgreSQL + 별도 vector DB는 실제 격리 필요가 커졌을 때 재검토할 대안이다.
 
 Supabase는 관리형 PostgreSQL/Auth 후보일 뿐 확정이 아니다. 선택해도 Spring이 비즈니스 쓰기 권한과 invariants의 진입점이다. DB 접속 경로와 role/RLS 적용 대상은 배포 설계에서 명확히 한다. 브라우저에 DB 관리 권한을 노출하지 않는다.
 
-비즈니스 schema 예: `catalog`, `community`, `audio`, `insights`, `operations`. MVP FastAPI는 DB 접근이 없다. optional RAG 승인 시 AI는 `ai` schema와 별도 role. migration owner, Spring runtime, AI runtime, readonly 운영 role을 분리한다. 같은 Spring 프로세스의 context간 쓰기 소유권은 코드/CI로 강제하며 DB role만으로 완전 격리했다고 주장하지 않는다.
+비즈니스 schema 예: `catalog`, `community`, `audio`, `insights`, `operations`. 현재 배포된 FastAPI의 운영 DB 접근은 없으며, 새 홈 여정 RAG 목표는 `ai` schema의 별도 runtime/migration role과 비공개 TLS 접속이다. migration owner, Spring runtime, AI runtime, readonly 운영 role을 분리한다. 같은 Spring 프로세스의 context간 쓰기 소유권은 코드/CI로 강제하며 DB role만으로 완전 격리했다고 주장하지 않는다.
 
 ## 최신 회원·방문 후기·탐색·게시 모델
 
@@ -118,7 +120,7 @@ BCNF: source natural key와 curation position 후보키의 결정 종속성을 W
 | 언어별 story 목록 | (lang_code,status,id), spot_id FK index 후보 | 충분한 fixture로 planner 선택 확인 |
 | 최근 7일 방문자 | PK의 provider/region/date prefix | 조회와 중복 정정 upsert 검사 |
 | outbox 재시도 | (available_at,event_id) partial undelivered | 여러 worker claim의 중복/lease 만료 검사 |
-| RAG 선택 story revision | document/revision metadata B-tree + exact vector distance | 한국어 recall baseline, ANN 도입 전 비교 |
+| 후속 오디 대본 Q&A의 story revision | document/revision metadata B-tree + exact vector distance | 홈 여정 RAG와 별도 corpus·질문셋에서 한국어 recall baseline, ANN 도입 전 비교 |
 
 예시 query, runtime migration 아님:
 
@@ -176,7 +178,7 @@ TourAPI/Odii/DataLab은 하나의 generic DTO로 통합하지 않는다. 국문 
 
 ## RAG 파이프라인
 
-아래는 **후속 오디 대본 RAG** 설계다. 현재 여정 탐색의 우선 검색·청킹·평가 계약은 [retrieval](../ai/retrieval-and-rag.md)이며 vector 없는 baseline부터 시작한다. 오디 RAG의 첫 대상은 **선택한 오디 이야기의 검증된 대본**이다. 전체 웹 검색이나 모든 관광 데이터 ingestion은 초기 요구가 아니다. 짧은 대본은 통째로 context로 사용하는 baseline과 chunk retrieval을 비교한다.
+아래는 **후속 오디 대본 RAG**의 과거 별도 제안이다. 현재 홈 여정 탐색의 검색·청킹·평가 계약은 [AI RAG 정본](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/README.md)의 BM25+vector→RRF→reranker를 따른다. 오디 Q&A를 별도로 구현할 경우 첫 대상은 **선택한 오디 이야기의 검증된 대본**이고, 짧은 대본은 통째로 context로 사용하는 baseline과 chunk retrieval을 비교한다. 전체 웹 검색이나 모든 관광 데이터 ingestion을 오디 Q&A의 초기 요구로 간주하지 않는다.
 
 ```mermaid
 flowchart LR
@@ -199,7 +201,7 @@ Spring이 질문 시 전달한 revision이 indexed 상태가 아니면 Python은
 
 문단/문장 경계 기반 300~600 token, overlap 50~100을 실험 시작점으로 한다. 한국어 토크나이저와 대본 길이에 따라 조정한다. chunk는 문서 ID·revision·본문 offset·source URL을 가진다. 임베딩 profile은 provider/model/dimension/distance/normalization/chunkerVersion을 고정하며 서로 다른 profile의 벡터를 직접 비교하지 않는다. 모델 변경은 shadow index→eval→active pointer 전환으로 수행한다.
 
-초기 검색은 story/revision metadata filter + exact vector similarity다. 고유명사 검색은 한국어 fixture에 대한 keyword baseline과 비교한다. PostgreSQL 기본 FTS를 한국어 BM25라고 부르지 않는다. hybrid/reranker는 평가상 개선이 확인될 때 추가한다. [pgvector](https://github.com/pgvector/pgvector)의 ANN에서는 필터 후 결과 부족과 recall 저하를 점검해야 하므로 HNSW를 무조건 켜지 않는다.
+이 문단은 **후속 오디 Q&A에만 적용**한다. 초기 검색 후보는 story/revision metadata filter + exact vector similarity다. 고유명사 검색은 한국어 fixture에 대한 keyword baseline과 비교한다. PostgreSQL 기본 FTS를 한국어 BM25라고 부르지 않는다. 오디 Q&A의 hybrid/reranker 도입은 별도 평가로 정한다. 홈 여정 RAG에는 첫 출시부터 BM25+vector→RRF→reranker 목표를 적용한다. [pgvector](https://github.com/pgvector/pgvector)의 ANN에서는 필터 후 결과 부족과 recall 저하를 점검해야 하므로 HNSW를 무조건 켜지 않는다.
 
 LLM 입력은 시스템 지시와 source text를 분리한다. source text의 “이전 지시 무시”는 데이터로 취급한다. 외부 URL 자유 fetch/임의 SQL/tool execution은 제공하지 않는다. snippet·토큰·동시성·출력 길이를 제한한다. citation은 현재 허용된 chunk 집합에 포함되는지 서버에서 검증하며, reference가 존재한다는 것만으로 답변의 모든 주장이 사실이라고 인증하지 않는다.
 

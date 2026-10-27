@@ -18,7 +18,7 @@
 |---|---|---|---|
 | F01 | [API](../contracts/rest-api.md) typed clarification+answer | 설계 보완 | FE 질문렌더→같은탐색 후속run contract |
 | F02 | API EXCLUDE/UNEXCLUDE, pin충돌/version | 설계 보완 | 새로고침/재탐색에도 제외 유지 |
-| F03 | [검색](../ai/retrieval-and-rag.md) 지역선해석+모호함 질문 | 설계 보완 | 동명이인 지역/무지역/region불일치 fixture |
+| F03 | [당시 검색 결정](../decisions/0007-baseline-optional-rag.md) 지역선해석+모호함 질문 | 설계 보완 | 동명이인 지역/무지역/region불일치 fixture |
 | F04 | [데이터](../spring/identity-and-journey.md) identity/session/saved/FK/unique | 설계 보완 | 실제migration+동시login/save 검증 |
 | F05 | [실행](../operations/runtime-and-reliability.md) QUEUED2초/RUNNING20초 만료, GET/startup/sweeper | 설계 보완 | commit-dispatch 사이kill 후run해제 |
 | F06 | 실행 dataset revision+active pointer transaction | 설계 보완 | 마지막page실패 시 공개revision 불변 |

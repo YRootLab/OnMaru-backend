@@ -57,7 +57,7 @@ Azimutt에서 모든 테이블을 한 번에 정리하려고 하지 말고, 아�
 | `04-discovery-journey` | `discovery_`, `journey_`, 핵심 `catalog_` table | 자연어 탐색, 저장 여정, 월간 타임라인 흐름 확인 |
 | `05-map-community` | `community_`, `catalog_regions`, `catalog_place_identity` | 지역별 지도 후기, 좋아요, 장소 연결 확인 |
 | `06-operations-sync` | `operations_`, `catalog_dataset_revisions` | 새벽 3시 수집, checkpoint, lease, quarantine 복구 흐름 확인 |
-| `07-ai-rag` | `ai_`, 필요한 `catalog_` table | optional RAG corpus/chunk/embedding 경계 확인 |
+| `07-ai-rag` | `ai_`, 필요한 `catalog_` table | 새 홈 여정 RAG의 corpus/source/chunk/embedding·철회 목표 스키마 경계 확인. 실행 migration·extension 적용 여부는 별도 검증 |
 
 
 ## GitHub 공유용 PNG

@@ -29,7 +29,9 @@ Planning ──무엇을/왜/언제──> Decision ──무엇을 선택했나
 | [`contracts/`](contracts/README.md) | 공개 REST, FE handoff, OpenAPI, JSON Schema, fixtures | FE/BE 및 Spring/FastAPI가 함께 지켜야 할 계약. 현재는 일부 영역만 기계 계약이 있다. |
 | [`database/`](database/README.md) | DBML ERD, 도메인별 데이터 모델, migration/concurrency 설계 | DBML은 논리 설계 원본이다. 실행 SQL은 향후 `db/migration/`의 Flyway migration이 기준이 된다. |
 | [`spring/`](spring/README.md) | Spring의 catalog, identity, journey 등 책임별 설계 | Spring source가 아니라 구현 전 설계 문서다. 향후 source root `spring/`과 혼동하지 않는다. |
-| [`ai/`](ai/README.md) | FastAPI, provider boundary, prompt/eval, RAG·corpus sync | AI source가 아니라 구현 전 설계 문서다. 향후 source root `ai/`와 혼동하지 않는다. |
+| [`ai/`](ai/README.md) | FastAPI 공통 인증·provider·출력 검증과 기존 구현 계약 | 배포 중인 공통 service contract와 기존 구현을 보관한다. 새 AI-RAG 제품·엔진 상세는 `onmaru-ai-engine` 정본을 따른다. |
+| [`ai-rag/`](ai-rag/README.md) | AI-RAG 정본을 가리키는 이전 안내 | 제품·엔진 문서와 보고서는 [onmaru-ai-engine](https://github.com/YRootLab/onmaru-ai-engine/tree/main/docs/ai-rag)에 이전했다. 이 저장소에는 Spring 통합·계약·DB/배포 구현 계획을 [백엔드 통합 PRD](ai-rag-spring/backend-integration-prd.md)와 함께 유지한다. |
+| [`ai-rag-spring/`](ai-rag-spring/README.md) | Spring 측 AI-RAG 구현 및 운영 계약 | 이 저장소가 소유하는 backend 통합 PRD, MCP 경계, deployment contract다. |
 | [`operations/`](operations/README.md) | ingestion, LKG, run 복구, backup, observability, moderation | 운영 환경이 이미 구성됐다는 뜻이 아니라 공개 전 검증해야 할 절차다. |
 | [`api/`](api/) | 관광·행정 등 외부 API 조사와 원천 분석 | public API 계약이 아니다. 실제 provider response·quota·licence는 adapter 구현 중 재검증한다. |
 | [`specs/`](specs/) | FE 요구·data contract·traceability 입력 | 저장소 내부 [`reference-snapshots/planning-inputs`](reference-snapshots/README.md)를 가리키는 상대 symlink다. 원본 commit과 SHA-256은 manifest로 검증한다. |
@@ -51,9 +53,9 @@ Planning ──무엇을/왜/언제──> Decision ──무엇을 선택했나
 
 ### AI 여정 기능을 구현할 때
 
-1. [AI 설계](ai/README.md), [AI guardrail](ai/journey-guardrails.md), [내부 인증](ai/internal-service-authentication.md)을 읽는다.
+1. 새 홈 여정 기능은 [AI RAG 설계](https://github.com/YRootLab/onmaru-ai-engine/blob/main/docs/ai-rag/README.md)를, 서비스 공통 경계는 [AI 계약](ai/README.md)과 [내부 인증](ai/internal-service-authentication.md)을 읽는다.
 2. [여정 OpenAPI](contracts/openapi/journey.openapi.yaml)와 SSE fixture/schema를 FE reducer·Spring serializer test에 연결한다.
-3. baseline을 먼저 제공한다. RAG는 [corpus sync contract](ai/corpus-sync-contract.md)와 평가·비용·지연 gate를 통과한 뒤에만 활성화한다.
+3. 기존 배포 계약은 baseline-first였으나 새 홈 여정 AI 릴리스는 [하이브리드 RAG](https://github.com/YRootLab/onmaru-ai-engine/blob/main/docs/ai-rag/architecture.md)를 기본으로 설계한다. [corpus sync contract](ai/corpus-sync-contract.md)와 공개·권리·평가·용량 gate를 통과해야 출시한다.
 
 ### 운영 또는 공개 write를 열기 전
 
@@ -71,7 +73,7 @@ Spring Boot
     | tourism ingestion adapters, PostgreSQL/PostGIS ownership
     | private typed request/response
 FastAPI
-    | AI input policy, provider adapter, optional RAG/corpus ingestion
+    | AI input policy, provider adapter, home journey hybrid RAG/corpus ingestion
     | provider SDK only
 Gemini or future provider
 ```

@@ -1,5 +1,7 @@
 # AI proposal validation 계약
 
+> **현행 기존 proposal 계약:** 아래 최대 3개·closed schema는 현재 구현에 대응한다. 새 홈 여정의 3~5개와 임시 SSE 응답은 [새 PRD](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/prd.md)에 따라 별도 버전 계약으로 확장해야 한다.
+
 ## 책임 경계
 
 `ai/src/onmaru_ai/proposal`은 Gemini를 포함한 provider의 JSON을 신뢰하지 않고 두 단계로 검증한다.

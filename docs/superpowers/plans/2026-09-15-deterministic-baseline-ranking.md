@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Source of truth는 GitHub Issue #97, `docs/decisions/0007-baseline-optional-rag.md`, `docs/ai/retrieval-and-rag.md`다.
+- Source of truth는 GitHub Issue #97, `docs/decisions/0007-baseline-optional-rag.md`, 당시 검색 계약을 기록한 ADR-0007과 구현 코드다.
 - active dataset revision, region, public eligibility, tombstone, exclusions, evidence provenance는 ranking 전에 hard filter한다.
 - 점수는 `0.45L + 0.25T + 0.20E + 0.10D`이고 feature가 없을 때 재가중하지 않는다.
 - 정렬 tie-breaker는 canonical ref 오름차순이며 입력 순서에 의존하지 않는다.

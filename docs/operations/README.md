@@ -8,7 +8,8 @@
 - [DataLab 지역 원천 코드](datalab-region-source-codes.md): 공식 코드 검증·registry 상태·staging smoke와 복구 절차
 - [Secret loading runbook](runbooks/secrets.md): server-only secret loading, rotation overlap, log redaction drill
 - [PostgreSQL restore runbook](runbooks/restore.md): encrypted full backup, isolated restore, deletion ledger replay, RPO/RTO evidence
+- [Lightsail 2GB 인스턴스 마이그레이션](runbooks/lightsail-2gb-migration.md): 2026-10-23 오후 예정인 스냅샷 이전·DB 백업·고정 IP 전환·롤백 절차
 - [Deprecated: Render·Neon → Lightsail 전환 이력](runbooks/lightsail-render-cutover.md): 완료된 과거 cutover 의사결정과 절차 보존용 문서
-- [Lightsail 운영 및 Spring Blue-Green CD](../../infra/lightsail/README.md): 1GB 호스트의 제한된 Blue-Green 배포, 분리된 DB 역할, TLS, rollback, backup 절차
+- [Lightsail 운영 및 Spring Blue-Green CD](../../infra/lightsail/README.md): 현재 1GB 호스트의 제한된 Blue-Green 배포, 분리된 DB 역할, TLS, rollback, backup 절차. 2GB 이전은 위 runbook 기준
 
 구현 전 게이트: hosting, secret manager, scheduler, 실제 rate limit, restore drill, alert/trace 보존 정책을 확정한다.

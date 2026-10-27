@@ -9,18 +9,20 @@
 - [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
 - [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
 - [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
-- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
 - [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
 - [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
 - [ADR-0014 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0014-visit-review-catalog-identity-snapshot-clean.md)
 - [ADR-0015 — DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다](0015-datalab-visitor-revision.md)
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 
 ### 제안됨
 - [ADR-0011 — Spring Boot startup에서 Flyway가 schema migration을 소유한다](0011-spring-boot-flyway-startup-migrations.md)
-- [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
+- [ADR-0018 — 품질 하네스가 Spring 소유 사실을 읽는 내부 MCP tool 경계를 제안한다](0018-quality-harness-spring-mcp-tools.md)
+- [ADR-0019 — AI Engine은 Spring MCP로 승인된 여정 정형 조회를 호출한다](0019-journey-query-mcp-tools.md)
 
 ### 대체됨
+- [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
 - [ADR-0012 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0012-visit-review-catalog-identity.md)
 - [ADR-0013 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0013-visit-review-catalog-identity-snapshot.md)
 
@@ -29,6 +31,9 @@
 ### ai
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
+- [ADR-0018 — 품질 하네스가 Spring 소유 사실을 읽는 내부 MCP tool 경계를 제안한다](0018-quality-harness-spring-mcp-tools.md)
+- [ADR-0019 — AI Engine은 Spring MCP로 승인된 여정 정형 조회를 호출한다](0019-journey-query-mcp-tools.md)
 
 ### architecture
 - [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
@@ -68,9 +73,6 @@
 ### dataset-revision
 - [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
 
-### deployment
-- [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
-
 ### evaluation
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
 
@@ -80,9 +82,6 @@
 ### gemini
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
 
-### git-flow
-- [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
-
 ### grafana
 - [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
 
@@ -91,6 +90,9 @@
 
 ### insights
 - [ADR-0015 — DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다](0015-datalab-visitor-revision.md)
+
+### journey
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 
 ### k-content
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
@@ -106,7 +108,6 @@
 
 ### operations
 - [ADR-0011 — Spring Boot startup에서 Flyway가 schema migration을 소유한다](0011-spring-boot-flyway-startup-migrations.md)
-- [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
 
 ### ownership
 - [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
@@ -126,14 +127,12 @@
 ### process
 - [ADR-0001 — 아키텍처 결정을 기록한다](0001-record-architecture-decisions.md)
 
-### production
-- [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
-
 ### publication
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
 
 ### rag
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 
 ### reliability
 - [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
@@ -168,9 +167,6 @@
 - [ADR-0014 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0014-visit-review-catalog-identity-snapshot-clean.md)
 
 ## 영향 경로별
-
-### `.github/workflows/deploy.yml`
-- [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
 
 ### `AGENTS.md`
 - [ADR-0002 — Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다](0002-spring-business-fastapi-ai.md)
@@ -217,12 +213,16 @@
 ### `db/`
 - [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
 
+### `onmaru-ai-engine/docs/ai-rag/`
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
+
 ### `docs/ai/`
 - [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
 - [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
 - [ADR-0009 — Grafana Cloud를 MVP 관측성과 alert 상태의 기준으로 사용한다](0009-grafana-cloud-observability.md)
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 
 ### `docs/architecture/`
 - [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
@@ -231,11 +231,13 @@
 - [ADR-0005 — 여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다](0005-rest-sse-run-lifecycle.md)
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
 - [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 
 ### `docs/database/`
 - [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
 - [ADR-0006 — fenced dataset revision으로 마지막 정상 데이터를 원자적으로 게시한다](0006-atomic-dataset-publication.md)
 - [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 
 ### `docs/decisions/`
 - [ADR-0001 — 아키텍처 결정을 기록한다](0001-record-architecture-decisions.md)
@@ -264,7 +266,7 @@
 - [ADR-0011 — Spring Boot startup에서 Flyway가 schema migration을 소유한다](0011-spring-boot-flyway-startup-migrations.md)
 
 ### `infra/lightsail/`
-- [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
+- [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 
 ### `modules/catalog/`
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
@@ -280,9 +282,6 @@
 ### `modules/insights/`
 - [ADR-0015 — DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다](0015-datalab-visitor-revision.md)
 
-### `skills/onmaru-production-deploy/`
-- [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
-
 ### `spring/`
 - [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
 - [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
@@ -294,7 +293,7 @@
 
 ## 시간순 (최신순)
 
-- 2026-10-04 — [ADR-0016 — 운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다](0016-production-deployment-window.md)
+- 2026-10-19 — [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 - 2026-09-25 — [ADR-0015 — DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다](0015-datalab-visitor-revision.md)
 - 2026-09-24 — [ADR-0012 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0012-visit-review-catalog-identity.md)
 - 2026-09-24 — [ADR-0013 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0013-visit-review-catalog-identity-snapshot.md)
@@ -317,6 +316,7 @@
 
 - ADR-0012 "VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다" → 대체됨 → ADR-0014 "VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다"
 - ADR-0013 "VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다" → 대체됨 → ADR-0014 "VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다"
+- ADR-0007 "검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다" → 대체됨 → ADR-0017 "홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다"
 
 ### 관련
 
@@ -349,6 +349,8 @@
 - ADR-0014 "VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다" 관련: ADR-0013 "VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다"
 - ADR-0015 "DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다" 관련: ADR-0004 "단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다"
 - ADR-0015 "DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다" 관련: ADR-0014 "VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다"
+- ADR-0017 "홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0017 "홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다" 관련: ADR-0007 "검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다"
 
 ```mermaid
 flowchart LR
@@ -367,7 +369,7 @@ flowchart LR
   ADR_0013["ADR-0013<br/>VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다"]
   ADR_0014["ADR-0014<br/>VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다"]
   ADR_0015["ADR-0015<br/>DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다"]
-  ADR_0016["ADR-0016<br/>운영 배포는 KST 03:17 예약 실행과 명시적 수동 실행으로 분리한다"]
+  ADR_0017["ADR-0017<br/>홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다"]
   ADR_0003 -.->|related| ADR_0002
   ADR_0004 -.->|related| ADR_0002
   ADR_0005 -.->|related| ADR_0002
@@ -399,4 +401,7 @@ flowchart LR
   ADR_0014 -->|supersedes| ADR_0013
   ADR_0015 -.->|related| ADR_0004
   ADR_0015 -.->|related| ADR_0014
+  ADR_0017 -.->|related| ADR_0002
+  ADR_0017 -.->|related| ADR_0007
+  ADR_0017 -->|supersedes| ADR_0007
 ```
