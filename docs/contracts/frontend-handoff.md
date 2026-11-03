@@ -277,7 +277,7 @@ FE 동작은 다음 정책을 따른다.
 
 여정 탐색은 REST command + SSE 진행 알림 + snapshot 복구다. FE는 `POST /explorations` 또는 `POST /explorations/{id}/turns` 뒤 `eventsUrl`을 구독하고, `run.terminal`, reconnect, `reset`, 탭 복귀에는 GET run/snapshot으로 상태를 재동기화한다. EventSource 미지원 환경만 polling fallback을 쓴다.
 
-`run.text.delta`는 `{schemaVersion:"1.2",runId,sequence,text}` 네 필드로 임시 narration을 전달한다. stage·terminal과 같은 replay sequence를 사용하며 delta당 최대 512자, run당 최대 4,000자다(Unicode code point 기준). FE는 text를 plain text로 표시하고 run 상태나 지도 후보를 갱신하지 않는다. 빈 delta, 한도 초과 부분과 terminal 이후 delta는 생략된다. 부분 narration 뒤 실패·reset이 와도 terminal과 GET snapshot이 최종 결과를 결정한다. provider raw JSON·refs·좌표·prompt·오류 원문을 narration으로 표시하지 않으며 FE도 text를 로그나 telemetry에 넣지 않는다.
+`run.text.delta`는 이전 SSE schema 호환용 임시 narration envelope로 보존한다. 여정 AI 첫 출시에서는 Spring이 발행하지 않고 FE도 표시하지 않는다. FE 진행 UI는 `run.stage`만 사용하며 assistant 응답은 GET transcript의 구조화 결과와 최종 exploration snapshot에서 렌더한다. narration 도입은 별도 계약 개정이 필요하다.
 
 새로 명확해진 상태는 다음과 같다.
 

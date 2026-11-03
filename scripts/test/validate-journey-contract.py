@@ -29,19 +29,25 @@ REQUIRED_PATHS = {
 }
 REQUIRED_SCHEMAS = {
     "ActionCommandRequest",
+    "ClarificationChoice",
     "ExplorationSnapshot",
+    "ExplorationPage",
+    "ExplorationTurnPage",
     "SavedJourneyBoard",
     "SavedJourney",
     "SavedJourneyPage",
     "ResumeSavedJourneyResponse",
+    "RunError",
     "Error",
 }
 REQUIRED_FIXTURES = {
+    "exploration-page-normal",
     "exploration-snapshot-normal",
     "exploration-snapshot-other-actor",
     "exploration-snapshot-unavailable-ref",
     "run-snapshot-queued",
     "run-snapshot-other-actor",
+    "exploration-turn-page-clarification",
     "action-pin-normal",
     "action-idempotency-replay",
     "action-version-conflict",
@@ -115,10 +121,11 @@ def validate_value(value: Any, schema: dict[str, Any], definitions: dict[str, An
 def validate_run_snapshot_invariants(definitions: dict[str, Any]) -> None:
     schema = {"$ref": "#/components/schemas/RunSnapshot"}
     base = {
-        "schemaVersion": "1.2",
+        "schemaVersion": "1.3",
         "runId": "7a111111-1111-4111-8111-111111111111",
         "engine": "LLM",
         "degradedReason": None,
+        "sequence": 0,
         "retryAfterMs": 0,
         "createdAt": "2026-09-16T00:00:00Z",
         "deadlineAt": "2026-09-16T00:00:30Z",
@@ -142,7 +149,7 @@ def validate_run_snapshot_invariants(definitions: dict[str, Any]) -> None:
             },
             "startedAt": "2026-09-16T00:00:00Z",
         },
-        {**base, "status": "FAILED", "stage": None, "outcome": None, "clarification": None, "startedAt": "2026-09-16T00:00:01Z", "error": {"code": "AI_TIMEOUT"}},
+        {**base, "status": "FAILED", "stage": None, "outcome": None, "clarification": None, "startedAt": "2026-09-16T00:00:01Z", "error": {"code": "AI_TIMEOUT", "requestId": "req-run-timeout"}},
         {**base, "status": "CANCELLED", "stage": None, "outcome": None, "clarification": None, "startedAt": "2026-09-16T00:00:01Z"},
     ]
     for index, snapshot in enumerate(valid_snapshots):

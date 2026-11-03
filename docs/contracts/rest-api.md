@@ -54,8 +54,11 @@ FE는 집계 선택 전 기존 결과를 유지하고, `이 지역 후기 보기
 
 | Method/path | 요청 필드 | 성공 |
 |---|---|---|
+| GET /explorations | limit 1..50 default20, cursor? | 200 대화 목록 `ExplorationPage`; member는 본인 및 유효 grant, guest는 본인 exploration만 |
 | POST /explorations | query, locale="ko-KR", regionCode? | 202 RunAccepted |
 | GET /explorations/{id} | 없음 | 200 ExplorationSnapshot |
+| DELETE /explorations/{id} | Idempotency-Key, CSRF | 204 즉시 숨김·active run 취소·삭제 queue 등록 |
+| GET /explorations/{id}/turns | limit 1..50 default20, cursor? | 200 sanitized transcript `ExplorationTurnPage`, 최신 turn부터 cursor paging |
 | POST /explorations/{id}/turns | clientTurnId UUID, baseVersion int>=0, query, clarificationAnswer? | 202 RunAccepted |
 | GET /explorations/{id}/runs/{runId} | 없음 | 200 RunSnapshot, 소유권과 run 소속 확인 |
 | GET /explorations/{id}/runs/{runId}/events | `Accept: text/event-stream`, `Last-Event-ID?` | SSE progress/terminal notification; 소유권과 run 소속 확인 |
@@ -139,7 +142,7 @@ SSE는 여정 run의 UX 채널이며 상태의 정답은 PostgreSQL run/snapshot
 | event | data | 의미 |
 |---|---|---|
 | `run.stage` | `schemaVersion,runId,status,stage,sequence` | QUEUED/RUNNING 및 해석·검색·근거 선택·생성·검증·저장 진행 |
-| `run.text.delta` | `schemaVersion,runId,sequence,text` | 임시 narration. 각 delta 최대 512자, run 합계 최대 4,000자. run 상태를 바꾸지 않음 |
+| `run.text.delta` | `schemaVersion,runId,sequence,text` | 기존 schema에 보존된 임시 narration envelope. 첫 출시에서는 발행하지 않음 |
 | `run.terminal` | `runId,status,outcome,errorCode?,sequence` | COMPLETED/FAILED/CANCELLED 알림. 결과 본문은 포함하지 않음 |
 | `heartbeat` | `runId,sequence` | 연결 유지. 업무 상태 변경이 아님 |
 | `reset` | `runId` | replay buffer에 없는 `Last-Event-ID` 또는 서버 재시작. 즉시 GET 재동기화 |
@@ -150,7 +153,7 @@ SSE는 여정 run의 UX 채널이며 상태의 정답은 PostgreSQL run/snapshot
 
 같은 EventSource의 재연결에서는 브라우저가 보낸 `Last-Event-ID` 이후의 연속 이벤트를 replay buffer에서 오름차순 재생한다. cursor가 buffer 밖이거나 현재 sequence보다 앞서 있거나, 서버 재시작 등으로 연속 replay가 불가능하면 Spring은 `reset`을 보내고 stream을 이어 붙이지 않는다. FE는 EventSource를 닫고 GET run 및 exploration snapshot으로 복구한다. snapshot이 QUEUED/RUNNING이면 새 EventSource를 열어 stale cursor 없이 재구독하고, terminal이면 다시 구독하지 않는다. 새 연결의 현재 stage bootstrap은 snapshot sequence를 그대로 사용한다. FE reducer는 GET snapshot과 이미 처리한 sequence보다 같거나 작은 프레임을 중복 적용하지 않는다. 탭 복귀도 GET snapshot을 먼저 읽는다. terminal event는 알림만 제공하며, 수신 즉시 stream을 닫고 GET run과 exploration snapshot으로 최종 결과를 결정한다.
 
-`run.text.delta`의 data는 `{schemaVersion:"1.3",runId,sequence,text}` 네 필드만 포함한다. 각 새 delta는 같은 run의 event sequence를 한 번 증가시킨다. 문자 한도는 Unicode code point 기준이며 초과 부분, 빈 delta, terminal 이후 delta는 추가하지 않는다. text에는 표시용 narration만 담고 provider raw JSON·candidate refs·좌표·prompt·오류 원문은 전달하지 않는다. text를 로그나 telemetry attribute에 기록하지 않는다. narration 뒤 provider 실패나 reset이 발생해도 FE는 임시 문장으로 지도 결과를 확정하지 않고 terminal과 GET snapshot으로 복구한다.
+`run.text.delta` schema는 이전/미래 호환을 위해 보존하지만 **첫 출시에서는 서버가 발행하지 않는다**. 첫 출시 FE는 `run.stage` 진행 이벤트와 GET snapshot의 구조화 결과만 렌더한다. narration 도입은 별도 versioned contract decision이 필요하다.
 
 SSE 연결 종료는 cancel이 아니며, cancel은 명시 command만 상태를 바꾼다. 20초 deadline과 sweeper는 SSE 연결 유무와 무관하다. EventSource가 쓸 수 없는 환경에서는 1초 간격 GET polling을 **호환성 fallback**으로만 사용한다. POST 응답 유실은 같은 `Idempotency-Key`로 재송신한다.
 

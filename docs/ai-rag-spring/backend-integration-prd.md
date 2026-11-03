@@ -33,8 +33,9 @@
 ### BE-01 공개 API·대화 지속성
 
 - AI Engine의 [대화 API·저장 계약](https://github.com/YRootLab/onmaru-ai-engine/blob/main/docs/ai-rag/contracts-and-data.md)과 기존 Spring API/FE 계약을 대조한다.
-- 사용자·conversation·turn·run 식별자, 이어하기, 재시도/idempotency, 삭제·보존, 비회원 정책을 Spring DB와 API schema에 반영한다.
-- 대화 목록/상세/재개/저장(찜) API는 회원 소유권을 매 요청 확인한다. 기존 대화 저장 기간은 만료시키지 않는 제품 정책을 기본으로 하되, 회원 탈퇴·사용자 삭제·법적 요청 등 삭제 조건을 정의하고 실행한다.
+- FE 공개 정본은 [여정형 AI API 명세](../contracts/journey-ai-api-spec.md)와 [Journey OpenAPI](../contracts/openapi/journey.openapi.yaml)다. `explorationId`를 대화 ID로 사용하며 별도 `threadId`를 두지 않는다. 대화 목록, transcript cursor paging, 명시적 삭제, 이어하기, idempotency 및 소유권 계약을 구현한다.
+- 회원 대화는 자동 만료하지 않고 사용자 삭제/탈퇴 시 삭제하며 guest 대화는 24시간 보존한다. grant는 접근·이어쓰기만 허용하고 guest 대화 삭제 권한을 넘기지 않는다. 대화 원문은 owner transcript용으로 보존하고 AI redacted context 및 telemetry와 분리한다.
+- 각 turn은 비동기 run과 연결하고 terminal 시 sanitized 구조화 assistant result snapshot을 저장해 과거 대화 카드 복원에 사용한다. 대화 목록/이력 조회와 snapshot은 회원·guest 소유권을 매 요청 확인한다.
 - SSE event name, sequence, replay cursor, terminal event, heartbeat, reconnect 이후 snapshot 복구와 중복 제거를 fixture로 계약 검증한다.
 - 완료 증거: OpenAPI/contract fixture, migration, 권한·idempotency·재접속 테스트, 기존 endpoint 호환 확인.
 

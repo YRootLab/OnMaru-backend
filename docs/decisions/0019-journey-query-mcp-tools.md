@@ -1,11 +1,11 @@
 ---
 id: ADR-0019
-title: Spring PlaceQueryPort에 정형 조회 adapter를 둔다
-status: proposed
+title: 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다
+status: accepted
 date: 2026-10-22
 locale: ko
 decision_makers:
-  - 사용자 검토 필요
+  - OnMaru 사용자 및 개발자
 related:
   - ADR-0002
   - ADR-0005
@@ -23,15 +23,15 @@ tags:
 retrospective: false
 ---
 
-# Spring PlaceQueryPort에 정형 조회 adapter를 둔다
+# 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다
 
 ## 상태와 맥락
 
-상태는 제안이다. 정형 조회 use case와 Spring AI MCP tool/FastAPI MCP client는 아직 구현되지 않았다. 현재 설계에서는 Search Router가 질문을 `SQL_ONLY`/`SQL_PLUS_RETRIEVAL`/본문 검색 route로 분기한다. Spring은 회원·정형 업무 DB·공개/철회 권한을 소유하고, FastAPI는 질문 처리·BM25/vector/RRF/reranker·근거 기반 생성을 소유한다.
+정형 조회 use case와 Spring AI MCP tool/FastAPI MCP client는 아직 구현되지 않았다. 현재 설계에서는 Search Router가 질문을 `SQL_ONLY`/`SQL_PLUS_RETRIEVAL`/본문 검색 route로 분기한다. Spring은 회원·정형 업무 DB·공개/철회 권한을 소유하고, FastAPI는 질문 처리·BM25/vector/RRF/reranker·근거 기반 생성을 소유한다.
 
 FastAPI가 정형 필드가 필요할 때 Spring의 canonical query service를 써야 하지만 업무 DB에 직접 접속하거나 SQL 문자열을 주고받아서는 안 된다. transport와 무관한 typed application port를 두고, 필요할 때 REST 또는 MCP inbound adapter를 연결한다. MCP 도입이 tool calling loop나 LLM 기반 route 선택을 뜻하지 않도록 한다.
 
-## 제안 결정
+## 결정
 
 - Spring application input port `PlaceQueryPort`는 grant-bound 공개 장소 lookup만 제공한다. application service가 권한 검증 후 고정 parameterized repository query를 실행한다. MCP adapter는 port에 위임하며 SQL·Repository 접근을 하지 않는다.
 - Spring↔FastAPI plan/execute 통신은 private REST를 기준선으로 구현·계측한다. 이 hop이 실제 병목으로 확인된 경우 동일한 typed contract의 gRPC unary를 우선 성능 비교하고, 이득이 입증될 때만 채택한다. 이는 bidirectional streaming 도입 결정이 아니다. `PlaceQueryPort`는 별도 정형 조회 경계이며, 그 transport 비교는 별도 실험으로 둔다. 여러 AI client/agent가 capability를 발견·재사용해야 하면 Spring AI MCP adapter를 tool surface로 사용한다. FastAPI `ApprovedPlanExecutor`는 결정적 typed invocation을 하며 online LLM tool loop를 실행하지 않는다.

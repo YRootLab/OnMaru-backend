@@ -15,11 +15,11 @@
 - [ADR-0014 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0014-visit-review-catalog-identity-snapshot-clean.md)
 - [ADR-0015 — DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다](0015-datalab-visitor-revision.md)
 - [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
+- [ADR-0018 — 품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다](0018-quality-harness-spring-mcp-tools.md)
+- [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
 
 ### 제안됨
 - [ADR-0011 — Spring Boot startup에서 Flyway가 schema migration을 소유한다](0011-spring-boot-flyway-startup-migrations.md)
-- [ADR-0018 — 품질 하네스가 Spring 소유 사실을 읽는 내부 MCP tool 경계를 제안한다](0018-quality-harness-spring-mcp-tools.md)
-- [ADR-0019 — AI Engine은 Spring MCP로 승인된 여정 정형 조회를 호출한다](0019-journey-query-mcp-tools.md)
 
 ### 대체됨
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
@@ -32,8 +32,8 @@
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
 - [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
-- [ADR-0018 — 품질 하네스가 Spring 소유 사실을 읽는 내부 MCP tool 경계를 제안한다](0018-quality-harness-spring-mcp-tools.md)
-- [ADR-0019 — AI Engine은 Spring MCP로 승인된 여정 정형 조회를 호출한다](0019-journey-query-mcp-tools.md)
+- [ADR-0018 — 품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다](0018-quality-harness-spring-mcp-tools.md)
+- [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
 
 ### architecture
 - [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
@@ -63,6 +63,7 @@
 - [ADR-0012 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0012-visit-review-catalog-identity.md)
 - [ADR-0013 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0013-visit-review-catalog-identity-snapshot.md)
 - [ADR-0014 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0014-visit-review-catalog-identity-snapshot-clean.md)
+- [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
 
 ### database-migration
 - [ADR-0011 — Spring Boot startup에서 Flyway가 schema migration을 소유한다](0011-spring-boot-flyway-startup-migrations.md)
@@ -93,9 +94,14 @@
 
 ### journey
 - [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
+- [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
 
 ### k-content
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
+
+### mcp
+- [ADR-0018 — 품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다](0018-quality-harness-spring-mcp-tools.md)
+- [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
 
 ### modular-monolith
 - [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
@@ -129,6 +135,9 @@
 
 ### publication
 - [ADR-0010 — 스크린 속 한옥\(K-콘텐츠\) 장소 매칭을 사람 검수 없이 출처 기반 자동 게시로 운영한다](0010-screen-hanok-ai-auto-publish-without-review.md)
+
+### quality-harness
+- [ADR-0018 — 품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다](0018-quality-harness-spring-mcp-tools.md)
 
 ### rag
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
@@ -213,8 +222,14 @@
 ### `db/`
 - [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
 
-### `onmaru-ai-engine/docs/ai-rag/`
+### `docs/ai-rag-spring/`
+- [ADR-0018 — 품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다](0018-quality-harness-spring-mcp-tools.md)
+- [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
+
+### `docs/ai-rag/`
 - [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
+- [ADR-0018 — 품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다](0018-quality-harness-spring-mcp-tools.md)
+- [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
 
 ### `docs/ai/`
 - [ADR-0003 — Spring 모듈 경계를 consumer-owned port와 제한된 bridge로 보호한다](0003-module-boundaries.md)
@@ -232,6 +247,10 @@
 - [ADR-0007 — 검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다](0007-baseline-optional-rag.md)
 - [ADR-0008 — Kakao 로그인은 opaque server session과 제한된 guest grant로 연결한다](0008-opaque-session-guest-grant.md)
 - [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
+- [ADR-0018 — 품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다](0018-quality-harness-spring-mcp-tools.md)
+
+### `docs/contracts/mcp/`
+- [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
 
 ### `docs/database/`
 - [ADR-0004 — 단일 PostgreSQL과 PostGIS에서 비즈니스 쓰기 소유권을 분리한다](0004-postgresql-ownership.md)
@@ -293,6 +312,8 @@
 
 ## 시간순 (최신순)
 
+- 2026-10-22 — [ADR-0018 — 품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다](0018-quality-harness-spring-mcp-tools.md)
+- 2026-10-22 — [ADR-0019 — 여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다](0019-journey-query-mcp-tools.md)
 - 2026-10-19 — [ADR-0017 — 홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다](0017-home-journey-hybrid-rag.md)
 - 2026-09-25 — [ADR-0015 — DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다](0015-datalab-visitor-revision.md)
 - 2026-09-24 — [ADR-0012 — VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다](0012-visit-review-catalog-identity.md)
@@ -351,6 +372,11 @@
 - ADR-0015 "DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다" 관련: ADR-0014 "VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다"
 - ADR-0017 "홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
 - ADR-0017 "홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다" 관련: ADR-0007 "검증된 데이터 baseline을 기본으로 하고 RAG는 평가 통과 후 활성화한다"
+- ADR-0018 "품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다" 관련: ADR-0017 "홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다"
+- ADR-0019 "여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다" 관련: ADR-0002 "Spring Boot 비즈니스 API와 FastAPI AI 역할을 분리한다"
+- ADR-0019 "여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다" 관련: ADR-0005 "여정 실행은 REST command, SSE 알림, DB snapshot으로 복구한다"
+- ADR-0019 "여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다" 관련: ADR-0017 "홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다"
+- ADR-0019 "여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다" 관련: ADR-0018 "품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다"
 
 ```mermaid
 flowchart LR
@@ -370,6 +396,8 @@ flowchart LR
   ADR_0014["ADR-0014<br/>VisitReview는 Catalog 내부 UUID를 참조하고 작성 시점의 공개 장소 snapshot을 보존한다"]
   ADR_0015["ADR-0015<br/>DataLab 방문자 관측은 전용 dataset revision으로 수집·활성화한다"]
   ADR_0017["ADR-0017<br/>홈 여정 대화에 PostgreSQL 하이브리드 RAG를 기본 경로로 사용한다"]
+  ADR_0018["ADR-0018<br/>품질 하네스는 Spring 소유 사실을 read-only MCP tool로 조회한다"]
+  ADR_0019["ADR-0019<br/>여정 정형 조회는 Spring PlaceQueryPort와 제한된 transport adapter를 사용한다"]
   ADR_0003 -.->|related| ADR_0002
   ADR_0004 -.->|related| ADR_0002
   ADR_0005 -.->|related| ADR_0002
@@ -404,4 +432,9 @@ flowchart LR
   ADR_0017 -.->|related| ADR_0002
   ADR_0017 -.->|related| ADR_0007
   ADR_0017 -->|supersedes| ADR_0007
+  ADR_0018 -.->|related| ADR_0017
+  ADR_0019 -.->|related| ADR_0002
+  ADR_0019 -.->|related| ADR_0005
+  ADR_0019 -.->|related| ADR_0017
+  ADR_0019 -.->|related| ADR_0018
 ```

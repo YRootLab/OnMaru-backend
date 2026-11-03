@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://onmaru.local/contracts/journey-sse-event.v1.3.schema.json",
   "title": "OnMaru parsed journey SSE frame v1.3",
-  "description": "The client parses id/event/data from text/event-stream, then validates this envelope. reset has no replay sequence.",
+  "description": "The client parses id/event/data from text/event-stream, then validates this envelope. reset has no replay sequence. run.text.delta is retained as a compatibility/future envelope and is not emitted in the first release.",
   "oneOf": [
     {
       "$ref": "#/$defs/stage"
