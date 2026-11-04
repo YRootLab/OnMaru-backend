@@ -35,6 +35,7 @@ x-spring-api: &spring-api
     ONMARU_TOURAPI_DETAIL_COLLECTION_RUN_ON_STARTUP: ${ONMARU_TOURAPI_DETAIL_COLLECTION_RUN_ON_STARTUP:-false}
     ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT:?Set the Odii service key in .env}
     ONMARU_SECRET_GEMINI_API_KEY_CURRENT: ${ONMARU_SECRET_GEMINI_API_KEY_CURRENT:?Set the Gemini API key in .env}
+    ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: ${ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:-}
     ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT: ${ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT:?Generate an OAuth signing secret in .env}
     ONMARU_SECRET_ADMIN_JWT_SIGNING_KEY_CURRENT: ${ONMARU_SECRET_ADMIN_JWT_SIGNING_KEY_CURRENT:?Generate the admin JWT signing secret in .env}
     ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT: ${ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT:?Generate an admin cursor signing secret in .env}
@@ -42,6 +43,7 @@ x-spring-api: &spring-api
     ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT: ${ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT:?Generate a moderation operator token in .env}
     ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT: ${ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT:?Generate a DataLab operations token in .env}
     ONMARU_OTLP_METRICS_ENABLED: "false"
+    ONMARU_AI_BASE_URL: http://ai-engine:8000
   depends_on:
     postgres:
       condition: service_healthy
@@ -128,6 +130,40 @@ services:
       <<: *spring-environment
       ONMARU_TOURAPI_SYNC_ON_STARTUP: "false"
       ONMARU_ODII_SYNC_ON_STARTUP: "false"
+
+  # Disabled until the existing Lightsail host is upgraded and mixed-load
+  # staging passes. Activation requires a digest-pinned image.
+  ai-engine:
+    image: ${ONMARU_AI_IMAGE:-ghcr.io/yrootlab/onmaru-ai-engine/ai-engine:disabled}
+    profiles: [ai-engine]
+    restart: unless-stopped
+    mem_limit: ${ONMARU_AI_MEMORY_LIMIT:-512m}
+    cpus: ${ONMARU_AI_CPU_LIMIT:-0.5}
+    expose:
+      - "8000"
+    environment:
+      ONMARU_SECRETS_SOURCE: environment
+      ONMARU_JOURNEY_GEMINI_ENABLED: ${ONMARU_JOURNEY_GEMINI_ENABLED:-false}
+      ONMARU_SCREEN_HANOK_RESEARCH_ENABLED: ${ONMARU_SCREEN_HANOK_RESEARCH_ENABLED:-false}
+      ONMARU_RAG_ENABLED: ${ONMARU_RAG_ENABLED:-false}
+      ONMARU_GEMINI_MODEL_NAME: ${ONMARU_GEMINI_MODEL_NAME:-gemini-2.5-flash}
+      ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT:-}
+      ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT:-}
+      ONMARU_SECRET_GEMINI_API_KEY_CURRENT: ${ONMARU_SECRET_GEMINI_API_KEY_CURRENT:-}
+      ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT: ${ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT:-}
+      ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT: ${ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT:-}
+      ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: ${ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:-}
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2).read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
 
   nginx:
     image: nginx:stable-alpine

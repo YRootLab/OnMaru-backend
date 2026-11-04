@@ -1,12 +1,12 @@
 {
-  "contractVersion": "1.2",
+  "contractVersion": "1.3",
   "response": {
     "schema": "journey-sse-event.schema",
     "body": {
       "id": "4",
       "event": "run.text.delta",
       "data": {
-        "schemaVersion": "1.2",
+        "schemaVersion": "1.3",
         "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
         "sequence": 4,
         "text": "전주의 한옥과 골목을 잇는 여정을 구성하고 있어요."
@@ -14,14 +14,231 @@
     }
   },
   "fixtures": [
-    {"name": "text-delta", "given": "narration arrives before the validated proposal", "then": ["run.text.delta contains exactly schemaVersion, runId, sequence, text", "stage and terminal share the monotonic sequence", "each delta is at most 512 Unicode characters and each run at most 4000", "run state does not change", "text is never logged or added to telemetry attributes", "terminal then GET snapshot decides the final result"]},
-    {"name": "accepted-opens-stream", "given": "POST succeeds", "then": ["RunAccepted.eventsUrl is present", "FE subscribes once", "GET snapshot remains render source"]},
-    {"name": "replay", "given": "Last-Event-ID 3 and buffer contains 4", "then": ["id 4 is delivered", "sequence remains monotonic"]},
-    {"name": "reset", "given": "Last-Event-ID is older than the buffer or process restarted", "then": ["reset contains runId", "FE GETs run then exploration before rendering"]},
-    {"name": "terminal", "given": "run.terminal COMPLETED", "then": ["FE closes stream", "FE GETs exploration snapshot", "terminal payload alone never renders board"]},
-    {"name": "provider-degraded-baseline", "given": "LLM quota, timeout, malformed response, or FastAPI failure after Spring candidate validation", "then": ["no second provider call", "same run is COMPLETED with engine BASELINE and a degradedReason", "FE renders the deterministic board as a basic exploration result"]},
-    {"name": "network-close", "given": "stream closes before terminal", "then": ["one exponential-backoff reconnect", "then GET run and exploration", "EventSource-unavailable client polls GET run at 1 second only until terminal"]},
-    {"name": "auth-expired", "given": "reconnect returns 401", "then": ["FE stops stream", "does not expose prior private data", "follows normal login recovery"]},
-    {"name": "cancel-race", "given": "cancel races completion", "then": ["one terminal snapshot wins by CAS", "SSE and GET return that same terminal state"]}
+    {
+      "name": "text-delta",
+      "given": "narration arrives before the validated proposal",
+      "then": [
+        "run.text.delta contains exactly schemaVersion, runId, sequence, text",
+        "stage and terminal share the monotonic sequence",
+        "each delta is at most 512 Unicode characters and each run at most 4000",
+        "run state does not change",
+        "text is never logged or added to telemetry attributes",
+        "terminal then GET snapshot decides the final result"
+      ]
+    },
+    {
+      "name": "accepted-opens-stream",
+      "given": "POST succeeds",
+      "then": [
+        "RunAccepted.eventsUrl is present",
+        "FE subscribes once",
+        "GET snapshot remains render source"
+      ]
+    },
+    {
+      "name": "replay",
+      "given": "Last-Event-ID 3 and replay buffer contains the contiguous event with sequence 4",
+      "then": [
+        "id 4 is delivered",
+        "sequence remains monotonic",
+        "SSE id equals data.sequence",
+        "RunSnapshot.sequence reports the committed high-water mark"
+      ]
+    },
+    {
+      "name": "reset",
+      "given": "Last-Event-ID is older than the buffer or process restarted",
+      "then": [
+        "reset contains runId",
+        "FE GETs run then exploration before rendering",
+        "reset has no id and does not advance sequence",
+        "FE closes the current EventSource, GETs run and exploration snapshots, then opens a fresh EventSource without a stale cursor",
+        "fresh RUNNING stage bootstrap uses the snapshot sequence without incrementing it"
+      ]
+    },
+    {
+      "name": "terminal",
+      "given": "run.terminal COMPLETED",
+      "then": [
+        "FE closes stream",
+        "FE GETs exploration snapshot",
+        "terminal payload alone never renders board",
+        "terminal data.sequence equals its SSE id and final RunSnapshot.sequence",
+        "GET run and exploration snapshots determine the final UI result"
+      ]
+    },
+    {
+      "name": "provider-degraded-baseline",
+      "given": "LLM quota, timeout, malformed response, or FastAPI failure after Spring candidate validation",
+      "then": [
+        "no second provider call",
+        "same run is COMPLETED with engine BASELINE and a degradedReason",
+        "FE renders the deterministic board as a basic exploration result"
+      ]
+    },
+    {
+      "name": "network-close",
+      "given": "stream closes before terminal",
+      "then": [
+        "one exponential-backoff reconnect",
+        "then GET run and exploration",
+        "EventSource-unavailable client polls GET run at 1 second only until terminal"
+      ]
+    },
+    {
+      "name": "auth-expired",
+      "given": "reconnect returns 401",
+      "then": [
+        "FE stops stream",
+        "does not expose prior private data",
+        "follows normal login recovery"
+      ]
+    },
+    {
+      "name": "cancel-race",
+      "given": "cancel races completion",
+      "then": [
+        "one terminal snapshot wins by CAS",
+        "SSE and GET return that same terminal state"
+      ]
+    },
+    {
+      "name": "fastapi-progress-stage-mapping",
+      "given": "FastAPI reports only a stage it actually entered with an active run and matching approved planHash",
+      "then": [
+        "PREPARING_INPUT maps to INTERPRETING",
+        "RETRIEVING maps to RETRIEVING",
+        "SELECTING_EVIDENCE maps to SELECTING_EVIDENCE",
+        "GENERATING maps to GENERATING",
+        "CHECKING_OUTPUT maps to VALIDATING",
+        "Spring final public validation remains VALIDATING and persistence remains PERSISTING",
+        "Spring assigns SSE sequence; FastAPI ordinal is never exposed as sequence"
+      ]
+    },
+    {
+      "name": "progress-skipped-stage",
+      "given": "a route does not execute retrieval or generation",
+      "then": [
+        "FastAPI emits no event for skipped stages",
+        "Spring does not synthesize missing stage transitions"
+      ]
+    },
+    {
+      "name": "progress-callback-replay-and-stale",
+      "given": "identical ordinal replay, lower ordinal, conflicting same ordinal, or callback after terminal",
+      "then": [
+        "identical replay is idempotent",
+        "lower ordinal and terminal-run callback never roll stage or sequence back",
+        "same ordinal with different stage is rejected",
+        "GET run snapshot remains the recovery authority"
+      ]
+    },
+    {
+      "name": "progress-event-delivery-failure",
+      "given": "FastAPI cannot deliver a stage callback",
+      "then": [
+        "AI execution continues according to its own result",
+        "callback failure is recorded as bounded telemetry",
+        "no callback failure changes a successful AI result to failure"
+      ]
+    },
+    {
+      "name": "v1.2-v1.3-compatibility-rollout",
+      "given": "client supports only journey contract 1.2",
+      "then": [
+        "backend does not emit 1.3-only stage values to that client",
+        "deploy compatible consumer before enabling 1.3 run/SSE snapshots",
+        "GET snapshot is authoritative after reconnect",
+        "updated FE accepts schemaVersion 1.2 and 1.3",
+        "unknown stage uses generic progress copy and does not close the stream",
+        "enable 1.3 emission only after compatible FE rollout"
+      ]
+    }
+  ],
+  "eventExamples": [
+    {
+      "name": "interpreting",
+      "id": "1",
+      "event": "run.stage",
+      "data": {
+        "schemaVersion": "1.3",
+        "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+        "sequence": 1,
+        "status": "RUNNING",
+        "stage": "INTERPRETING"
+      }
+    },
+    {
+      "name": "retrieving",
+      "id": "2",
+      "event": "run.stage",
+      "data": {
+        "schemaVersion": "1.3",
+        "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+        "sequence": 2,
+        "status": "RUNNING",
+        "stage": "RETRIEVING"
+      }
+    },
+    {
+      "name": "selecting-evidence",
+      "id": "3",
+      "event": "run.stage",
+      "data": {
+        "schemaVersion": "1.3",
+        "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+        "sequence": 3,
+        "status": "RUNNING",
+        "stage": "SELECTING_EVIDENCE"
+      }
+    },
+    {
+      "name": "generating",
+      "id": "4",
+      "event": "run.stage",
+      "data": {
+        "schemaVersion": "1.3",
+        "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+        "sequence": 4,
+        "status": "RUNNING",
+        "stage": "GENERATING"
+      }
+    },
+    {
+      "name": "validating",
+      "id": "5",
+      "event": "run.stage",
+      "data": {
+        "schemaVersion": "1.3",
+        "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+        "sequence": 5,
+        "status": "RUNNING",
+        "stage": "VALIDATING"
+      }
+    },
+    {
+      "name": "persisting",
+      "id": "6",
+      "event": "run.stage",
+      "data": {
+        "schemaVersion": "1.3",
+        "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+        "sequence": 6,
+        "status": "RUNNING",
+        "stage": "PERSISTING"
+      }
+    },
+    {
+      "name": "terminal",
+      "id": "7",
+      "event": "run.terminal",
+      "data": {
+        "schemaVersion": "1.3",
+        "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+        "sequence": 7,
+        "status": "COMPLETED",
+        "outcome": "PROPOSAL"
+      }
+    }
   ]
 }

@@ -2,6 +2,8 @@
 
 > **현재 설계 기준:** [문서 안내](../README.md)의 책임별 설계를 따른다. 이 문서는 최초 Blueprint와 검토 근거이며, 구현 완료를 뜻하지 않는다.
 
+> **AI RAG 갱신:** 아래 optional pgvector·reranker 보류는 최초 Blueprint의 판단이다. 새 홈 여정 AI 기능의 목표 아키텍처는 [AI RAG 정본](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/README.md)과 [ADR-0017](../decisions/0017-home-journey-hybrid-rag.md)을 따른다. agent는 [품질 감독 설계](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/quality-engineering-agent.md)의 오프라인 권한으로 범위를 제한한다.
+
 
 > 후속 제안: [이야기길 아키텍처 확장](journey-exploration/architecture-and-recommendation.md)은 다중 자원 콘텐츠와 선택 보존형 탐색 요구에 따라 content/discovery 경계를 추가한다. 아래 빈 recommendation 모듈 보류 판단은 최초 범위의 판단이며, 새 기능까지 제외한다는 뜻이 아니다.
 
@@ -38,9 +40,9 @@ flowchart LR
   BFF --> BOOT[Spring Boot 비즈니스 API]
   FE --> MAP[Kakao Maps SDK]
   FE --> CDN[검증된 음원 및 이미지 CDN]
-  BOOT --> PG[(PostgreSQL + PostGIS)]
+  BOOT --> PG[(PostgreSQL + PostGIS + ai schema)]
   BOOT -->|내부 HTTP 계약| AI[FastAPI RAG]
-  AI --> VEC[(AI 소유 pgvector 스키마)]
+  AI -->|비공개 TLS·AI 전용 role: 구현 목표| PG
   AI --> LLM[Embedding / LLM Provider]
   JOB[같은 Spring 배포의 수집 작업] --> EXT[TourAPI / Odii / DataLab]
   JOB --> PG
@@ -49,9 +51,9 @@ flowchart LR
   BOOT -. 측정 후 .-> CACHE[(선택 Redis)]
 ```
 
-위 VEC/outbox/CDN 그림은 장기 확장이다. MVP는 환경당 PostgreSQL+PostGIS DB 1개이며 FastAPI DB credential은 없다. 선택 RAG 승인 시 PG와 VEC는 한 PostgreSQL 인스턴스의 별도 schema/role이다. **공유 서버이지 공유 쓰기 모델이 아니다.** Spring은 AI 테이블에 직접 쓰지 않고 Python은 비즈니스 테이블에 직접 쓰지 않는다. Python 확장 부하가 DB를 압박하면 별도 인스턴스로 옮긴다.
+위 outbox/CDN 그림의 AI DB 경계는 **별도 벡터 DB가 아니라 기존 PostgreSQL의 `ai` schema**다. 현재 배포된 FastAPI DB credential과 pgvector/BM25 이미지는 없지만, 새 홈 여정 AI RAG 목표에서는 AI 전용 runtime/migration role과 같은 호스트 내부 Docker 네트워크·TLS 연결을 검증한 뒤 사용한다. **공유 서버이지 공유 쓰기 모델이 아니다.** Spring은 AI 테이블에 직접 쓰지 않고 Python은 비즈니스 테이블에 직접 쓰지 않는다. 사용자 결정에 따라 2026-10-23 오후 예정인 Lightsail 1GB/$7→2GB/$12 인스턴스 이전 후 Spring·DB·Nginx·FastAPI·임베딩·reranker를 새 단일 호스트에서 실행하는 것이 출시 조건이다. 모델 포함 2GB 공존 부하를 측정해 미통과 시 같은 서버 안에서 재설계하고 출시를 보류한다. [저장 스키마](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/rag-storage-schema.md)와 [운영 계획](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/operations-and-evaluation.md)을 따른다.
 
-현재 첫 출시 우선순위는 여정 탐색·카카오 로그인·저장이며 Spring+경량 FastAPI+PostgreSQL을 기준으로 한다. Vector와 색인 outbox는 선택 RAG 단계다. Spring 배포의 scheduled task는 다중 replica에서도 DB lease로 한 실행만 선출한다. 오디오 파일은 Spring이 전체 프록시하지 않는다.
+새 홈 여정 대화형 AI의 첫 릴리스 목표는 Spring+FastAPI+PostgreSQL에서 공개 corpus의 BM25+vector 검색, RRF, reranker, 근거 제한 답변이다. vector와 색인 revision 파이프라인은 구현 대상이며 아직 배포됐다는 뜻이 아니다. Spring 배포의 scheduled task는 다중 replica에서도 DB lease로 한 실행만 선출한다. 오디오 파일은 Spring이 전체 프록시하지 않는다.
 
 ## 4. Domain Boundary
 
@@ -235,7 +237,7 @@ Repository port는 `JpaRepository<T, ID>`의 복제가 아니다. `save`, `findB
 
 단순 reference/code 조회는 JDBC projection도 허용한다. 공간 SQL은 persistence 내부에 집중한다. mapper 생성 라이브러리는 실제 반복 비용을 측정한 뒤 도입한다. 한 개 JPA entity에 domain까지 합치면 파일 수는 줄지만 사용자 요구인 framework independence가 깨지므로 선택하지 않는다.
 
-PostgreSQL + PostGIS가 공간 검색과 정합성을 한 곳에서 제공한다. 평가로 도입이 승인된 optional RAG 단계에서만 pgvector를 같은 서버의 독립 schema에 추가한다. MySQL도 RDBMS 후보이나 이 프로젝트의 공간·벡터 조합을 위해 추가 기술이 늘어날 수 있다. Supabase는 PostgreSQL을 대체하는 엔진이 아니라 hosting/Auth 선택이며 별도 판단한다. Redis는 저장소의 정답이 아니다. 상세 모델은 [데이터 설계](data-api-design.md)를 따른다.
+PostgreSQL + PostGIS가 공간 검색과 정합성을 한 곳에서 제공한다. 새 홈 여정 AI RAG 목표에는 같은 DB의 `ai` schema에 pgvector와 검증된 BM25 구현을 추가한다. extension 공존·한국어 품질·목표 2GB 자원 게이트가 아직 미검증이므로 운영 변경은 시험 뒤에 진행한다. MySQL도 RDBMS 후보이나 이 프로젝트의 공간·벡터 조합을 위해 추가 기술이 늘어날 수 있다. Supabase는 PostgreSQL을 대체하는 엔진이 아니라 hosting/Auth 선택이며 별도 판단한다. Redis는 저장소의 정답이 아니다. 상세 모델은 [데이터 설계](data-api-design.md)를 따른다.
 
 ## 12. Architecture Enforcement
 

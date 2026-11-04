@@ -1119,42 +1119,110 @@ CREATE TABLE "operations_sync_quarantine" (
   PRIMARY KEY ("run_id", "record_key")
 );
 
+CREATE TABLE "ai_corpus_revisions" (
+  "revision_id" varchar PRIMARY KEY,
+  "manifest_hash" varchar UNIQUE NOT NULL,
+  "source_revision" varchar NOT NULL,
+  "state" varchar NOT NULL,
+  "embedding_profile_id" varchar NOT NULL,
+  "chunker_version" varchar NOT NULL,
+  "dictionary_version" varchar NOT NULL,
+  "document_count" int NOT NULL,
+  "chunk_count" int NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "activated_at" timestamp
+);
+
+CREATE TABLE "ai_active_corpus" (
+  "singleton_id" int PRIMARY KEY,
+  "revision_id" varchar UNIQUE NOT NULL,
+  "revocation_sequence" bigint NOT NULL,
+  "activated_at" timestamp NOT NULL
+);
+
 CREATE TABLE "ai_documents" (
+  "revision_id" varchar NOT NULL,
   "document_id" varchar(36) NOT NULL,
-  "revision" varchar NOT NULL,
-  "content_hash" varchar NOT NULL,
-  "active" boolean NOT NULL,
+  "place_id" varchar(36) NOT NULL,
   "source_type" varchar NOT NULL,
-  "source_ref" varchar NOT NULL,
-  "metadata" text,
-  PRIMARY KEY ("document_id", "revision")
+  "source_id" varchar NOT NULL,
+  "source_revision" varchar NOT NULL,
+  "title" varchar NOT NULL,
+  "published_at" timestamp,
+  "collected_at" timestamp NOT NULL,
+  "license_code" varchar NOT NULL,
+  "region_code" varchar NOT NULL,
+  "category_code" varchar NOT NULL,
+  "content_hash" varchar NOT NULL,
+  "normalized_text" text NOT NULL,
+  "eligibility_status" varchar NOT NULL,
+  PRIMARY KEY ("revision_id", "document_id")
 );
 
 CREATE TABLE "ai_chunks" (
-  "chunk_id" varchar(36) PRIMARY KEY,
+  "revision_id" varchar NOT NULL,
+  "chunk_id" varchar(36) NOT NULL,
   "document_id" varchar(36) NOT NULL,
-  "revision" varchar NOT NULL,
-  "position" int NOT NULL,
-  "text" text NOT NULL,
-  "offsets" text
+  "ordinal" int NOT NULL,
+  "start_offset" int NOT NULL,
+  "end_offset" int NOT NULL,
+  "chunk_text" text NOT NULL,
+  "content_hash" varchar NOT NULL,
+  "search_text" text NOT NULL,
+  PRIMARY KEY ("revision_id", "chunk_id")
 );
 
 CREATE TABLE "ai_embeddings" (
+  "revision_id" varchar NOT NULL,
   "chunk_id" varchar(36) NOT NULL,
   "embedding_profile_id" varchar NOT NULL,
-  "vector" text,
-  PRIMARY KEY ("chunk_id", "embedding_profile_id")
+  "embedding" text NOT NULL,
+  "normalized" boolean NOT NULL,
+  PRIMARY KEY ("revision_id", "chunk_id", "embedding_profile_id")
+);
+
+CREATE TABLE "ai_revocation_events" (
+  "sequence" bigint PRIMARY KEY,
+  "scope" varchar NOT NULL,
+  "source_type" varchar,
+  "source_id" varchar,
+  "source_revision" varchar,
+  "place_id" varchar(36),
+  "revoked_at" timestamp NOT NULL,
+  "reason_code" varchar NOT NULL
+);
+
+CREATE TABLE "ai_source_revocations" (
+  "source_type" varchar NOT NULL,
+  "source_id" varchar NOT NULL,
+  "source_revision" varchar NOT NULL,
+  "last_sequence" bigint UNIQUE NOT NULL,
+  "revoked_at" timestamp NOT NULL,
+  PRIMARY KEY ("source_type", "source_id", "source_revision")
+);
+
+CREATE TABLE "ai_place_revocations" (
+  "place_id" varchar(36) PRIMARY KEY,
+  "last_sequence" bigint UNIQUE NOT NULL,
+  "revoked_at" timestamp NOT NULL
 );
 
 CREATE TABLE "ai_corpus_sync_runs" (
-  "id" varchar(36) PRIMARY KEY,
-  "source_revision" varchar NOT NULL,
-  "source_manifest_hash" varchar NOT NULL,
-  "status" varchar NOT NULL,
+  "run_id" varchar(36) PRIMARY KEY,
+  "revision_id" varchar NOT NULL,
+  "manifest_hash" varchar NOT NULL,
+  "state" varchar NOT NULL,
+  "failure_stage" varchar,
+  "document_count" int NOT NULL,
+  "chunk_count" int NOT NULL,
+  "embedding_count" int NOT NULL,
   "started_at" timestamp NOT NULL,
   "finished_at" timestamp,
   "error_code" varchar
 );
+
+
+
 
 
 
@@ -1300,6 +1368,10 @@ COMMENT ON TABLE "discovery_run_commands" IS 'Durable command receipt. The execu
 
 
 COMMENT ON TABLE "operations_sync_runs" IS 'Latest-run migration index uses (dataset, COALESCE(started_at, scheduled_for) DESC, id DESC).';
+
+
+
+
 
 
 
@@ -1549,6 +1621,16 @@ ALTER TABLE "operations_sync_quarantine" ADD FOREIGN KEY ("run_id") REFERENCES "
 
 ALTER TABLE "operations_sync_failures" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id");
 
-ALTER TABLE "ai_chunks" ADD FOREIGN KEY ("document_id", "revision") REFERENCES "ai_documents" ("document_id", "revision");
+ALTER TABLE "ai_active_corpus" ADD FOREIGN KEY ("revision_id") REFERENCES "ai_corpus_revisions" ("revision_id");
 
-ALTER TABLE "ai_embeddings" ADD FOREIGN KEY ("chunk_id") REFERENCES "ai_chunks" ("chunk_id");
+ALTER TABLE "ai_documents" ADD FOREIGN KEY ("revision_id") REFERENCES "ai_corpus_revisions" ("revision_id");
+
+ALTER TABLE "ai_chunks" ADD FOREIGN KEY ("revision_id", "document_id") REFERENCES "ai_documents" ("revision_id", "document_id");
+
+ALTER TABLE "ai_embeddings" ADD FOREIGN KEY ("revision_id", "chunk_id") REFERENCES "ai_chunks" ("revision_id", "chunk_id");
+
+ALTER TABLE "ai_corpus_sync_runs" ADD FOREIGN KEY ("revision_id") REFERENCES "ai_corpus_revisions" ("revision_id");
+
+ALTER TABLE "ai_source_revocations" ADD FOREIGN KEY ("last_sequence") REFERENCES "ai_revocation_events" ("sequence");
+
+ALTER TABLE "ai_place_revocations" ADD FOREIGN KEY ("last_sequence") REFERENCES "ai_revocation_events" ("sequence");

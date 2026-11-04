@@ -102,7 +102,7 @@
 
 - **Slug:** `baseline-optional-rag`
 - **문제:** MVP optional model과 prod모델강제 조건이 충돌하며 순위/청킹 수치의 근거가 없다.
-- **확인 근거:** [retrieval-and-rag.md](../../ai/retrieval-and-rag.md), 원본 감사 관련 F01–F21.
+- **확인 근거:** [ADR-0007](../0007-baseline-optional-rag.md), 원본 감사 관련 F01–F21.
 - **결정 제안:** LIVE_CANONICAL+BASELINE 허용, hard-filter ranking, optional RAG 평가gate.
 - **주요 driver:** 비용과 사실근거를 통제하면서 품질개선을 측정 가능하게 함.
 - **감수할 단점:** 초기 의미검색 한계와 검수사전·held-out 평가 유지 비용.

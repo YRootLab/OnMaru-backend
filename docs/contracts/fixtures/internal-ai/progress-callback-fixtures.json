@@ -1,0 +1,26 @@
+{
+  "contractVersion": "internal.ai.progress.v1",
+  "requestTemplate": {
+    "method": "POST",
+    "path": "/internal/v1/ai/runs/c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f/progress",
+    "headers": { "Authorization": "Bearer <redacted-run-bound-progress-token>" },
+    "body": {
+      "schemaVersion": "internal.ai.progress.v1",
+      "runId": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+      "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "ordinal": 1,
+      "stage": "PREPARING_INPUT"
+    }
+  },
+  "fixtures": [
+    { "name": "progress-accepted", "given": "active run and approved plan match token and event", "then": ["202 accepted", "public run.stage is INTERPRETING", "Spring assigns public sequence", "GET snapshot contains the same stage"] },
+    { "name": "same-event-replay", "given": "same run, planHash, ordinal, and stage are delivered again", "then": ["idempotent success", "no duplicate stage transition", "no public sequence increment"] },
+    { "name": "same-ordinal-conflict", "given": "same ordinal is reused with another stage or planHash", "then": ["409 conflict", "snapshot and public sequence unchanged"] },
+    { "name": "stale-ordinal", "given": "callback ordinal is lower than the last accepted ordinal", "then": ["ignored as stale", "stage and snapshot do not roll back"] },
+    { "name": "terminal-run", "given": "callback arrives after completion, failure, or cancellation", "then": ["ignored", "terminal snapshot remains authoritative"] },
+    { "name": "wrong-run-or-plan", "given": "path/body/token runId or event/token/approved planHash differs", "then": ["reject callback", "do not mutate run or emit SSE"] },
+    { "name": "token-scope-expiry", "given": "callback token has wrong audience/scope or is expired", "then": ["401 or 403", "do not mutate run"] },
+    { "name": "callback-unavailable", "given": "Spring endpoint times out or returns 5xx", "then": ["FastAPI continues AI execution", "execution result is determined independently", "bounded non-sensitive telemetry records delivery failure"] },
+    { "name": "strict-minimal-payload", "given": "event contains extra fields or any user/source/document/model content", "then": ["reject schema", "do not persist or log payload content"] }
+  ]
+}

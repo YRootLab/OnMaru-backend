@@ -27,6 +27,7 @@ if ! id "$USER_NAME" >/dev/null 2>&1; then
 fi
 install -o root -g root -m 0755 "$DIR/deployer-command.sh" /usr/local/bin/onmaru-production-deploy-command
 install -o root -g root -m 0755 "$DIR/deploy-blue-green.sh" /usr/local/sbin/onmaru-production-deploy
+install -o root -g root -m 0755 "$DIR/deploy-ai-engine.sh" /usr/local/sbin/onmaru-production-ai-deploy
 install -o root -g root -m 0755 "$DIR/status-blue-green.sh" /usr/local/sbin/onmaru-production-deploy-status
 install -o root -g root -m 0755 "$DIR/rollback-blue-green.sh" /usr/local/sbin/onmaru-production-rollback
 install -d -o root -g root -m 0755 "/home/$USER_NAME/.ssh"
@@ -35,6 +36,7 @@ chown root:root "/home/$USER_NAME/.ssh/authorized_keys"
 chmod 0644 "/home/$USER_NAME/.ssh/authorized_keys"
 cat > "/etc/sudoers.d/$USER_NAME" <<'SUDOERS'
 onmaru-production-deployer ALL=(root) NOPASSWD: /usr/local/sbin/onmaru-production-deploy *
+onmaru-production-deployer ALL=(root) NOPASSWD: /usr/local/sbin/onmaru-production-ai-deploy *
 onmaru-production-deployer ALL=(root) NOPASSWD: /usr/local/sbin/onmaru-production-deploy-status *
 onmaru-production-deployer ALL=(root) NOPASSWD: /usr/local/sbin/onmaru-production-rollback *
 SUDOERS
