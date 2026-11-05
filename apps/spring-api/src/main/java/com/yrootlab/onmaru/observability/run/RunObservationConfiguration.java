@@ -17,15 +17,17 @@ import javax.sql.DataSource;
 public class RunObservationConfiguration {
 
     @Bean
-    @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean(RunObservationStore.class)
-    public RunObservationStore runObservationStore(DataSource dataSource, ObjectProvider<ObjectMapper> objectMapperProvider) {
+    public RunObservationStore runObservationStore(ObjectProvider<DataSource> dataSourceProvider, ObjectProvider<ObjectMapper> objectMapperProvider) {
         ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
-        return new JdbcRunObservationStore(dataSource, objectMapper);
+        DataSource dataSource = dataSourceProvider.getIfAvailable();
+        if (dataSource != null) {
+            return new JdbcRunObservationStore(dataSource, objectMapper);
+        }
+        return new com.yrootlab.onmaru.journey.observation.InMemoryRunObservationStore();
     }
 
     @Bean
-    @ConditionalOnBean(RunObservationStore.class)
     @ConditionalOnMissingBean(RunObservationQueryPort.class)
     public RunObservationQueryPort runObservationQueryPort(RunObservationStore runObservationStore) {
         return runObservationStore;
