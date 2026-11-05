@@ -65,6 +65,12 @@
 // 홈 여정 RAG의 목표 corpus/revision/문서/청크/384차원 임베딩/철회 논리 모델은
 // ./modules/ai.dbml 및 AI 저장소의 RAG storage schema에 있다. 현재 운영 DDL이
 // 아니라 FastAPI 소유 ai schema migration의 구현 기준이다.
+// AI PostgreSQL 런타임(#785)은 pgvector extension이 포함된 환경에서 ai 전용 스키마(`ai`)와
+// 최소 권한 그룹 역할(`onmaru_ai_runtime`, `onmaru_ai_migration`)을 운영한다.
+// AI runtime 계정은 `ai` schema에서만 DML(SELECT/INSERT/UPDATE/DELETE) 권한을 가지며,
+// `public`, `onmaru`, `onmaru_registry` 등 Spring 비즈니스 스키마에 대한 write 권한이 일체 금지된다.
+// AI migration 계정은 `ai` schema 내 DDL/DML 권한을 가지며, Spring Flyway 기동 경로와 격리되어
+// 독립 migration 아이덴티티 및 절차로만 DDL을 수행한다.
 // command receipt와 run mutation은 같은 PostgreSQL transaction에서 commit되어야 하며,
 // run snapshot이 SSE보다 우선하는 정답이다.
 // Retention cleanup ledger와 late saved write 차단은 V015 Flyway migration을
