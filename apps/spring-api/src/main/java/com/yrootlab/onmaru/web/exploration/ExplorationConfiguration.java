@@ -1,23 +1,36 @@
 package com.yrootlab.onmaru.web.exploration;
 
-import com.yrootlab.onmaru.journey.exploration.ExplorationService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.journey.exploration.ExplorationActorType;
+import com.yrootlab.onmaru.journey.exploration.ExplorationService;
+import com.yrootlab.onmaru.journey.exploration.ExplorationStore;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationRunDispatcher;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationStore;
+import com.yrootlab.onmaru.persistence.journey.exploration.JdbcExplorationStore;
 import com.yrootlab.onmaru.journey.actions.JourneyActionService;
 import com.yrootlab.onmaru.identity.guest.GuestGrantService;
 import com.yrootlab.onmaru.identity.guest.MemberExplorationAccess;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
+import javax.sql.DataSource;
 import java.time.Clock;
 
 @Configuration
 class ExplorationConfiguration {
 
     @Bean
-    InMemoryExplorationStore explorationStore() {
+    InMemoryExplorationStore inMemoryExplorationStore() {
         return new InMemoryExplorationStore();
+    }
+
+    @Bean
+    @Primary
+    @ConditionalOnProperty(name = "onmaru.journey.exploration.store", havingValue = "jdbc")
+    JdbcExplorationStore jdbcExplorationStore(DataSource dataSource, ObjectMapper objectMapper) {
+        return new JdbcExplorationStore(dataSource, objectMapper);
     }
 
     @Bean
@@ -37,7 +50,7 @@ class ExplorationConfiguration {
 
     @Bean
     ExplorationService explorationService(
-            InMemoryExplorationStore store,
+            ExplorationStore store,
             InMemoryExplorationRunDispatcher dispatcher,
             Clock clock,
             GuestGrantService guestGrantService,
