@@ -473,6 +473,15 @@
       "checksum": "journey-exploration-persistence-v053-20261105",
       "sha256": "efbe916def8f9bb7ea06f1c5d803f5d1bf34dc0b0c248a9e94015d9c7689268d",
       "description": "Exploration conversation state, turns persistence, and API 1.3 retention metadata"
+    },
+    {
+      "version": "054",
+      "reservedFor": "JOURNEY_RUN_OBSERVATIONS",
+      "issueNumber": 787,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V054__787_journey_run_observations.sql",
+      "checksum": "journey-run-observations-v054-20261105",
+      "sha256": "bd5cd22170e4c00ff8f4929be16b6167743bc1b316e57830528e301e5d76b25d",
+      "description": "Sanitized AI run observation projection store and stage trace reference"
     }
   ]
 }
