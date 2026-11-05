@@ -347,4 +347,34 @@ public final class ExplorationService {
         }
         eventSink.stage(run.id(), run.status().name(), run.stage());
     }
+
+
+    public ExplorationPage list(ExplorationActor actor, int limit, String cursor) {
+        validateActor(actor);
+        return store.list(actor, limit, cursor, clock.instant());
+    }
+
+    public ExplorationTurnPage listTurns(ExplorationActor actor, UUID explorationId, int limit, String cursor) {
+        ownedState(actor, explorationId);
+        return store.listTurns(explorationId, limit, cursor);
+    }
+
+    public boolean delete(ExplorationActor actor, UUID explorationId) {
+        validateActor(actor);
+        if (explorationId == null) {
+            throw new ExplorationNotFoundException();
+        }
+        var state = store.find(explorationId)
+                .filter(s -> accessPolicy.canAccess(actor, s))
+                .orElseThrow(ExplorationNotFoundException::new);
+        // Only actual owner can delete (grantee cannot delete)
+        if (!state.owner().equals(actor)) {
+            throw new ExplorationInputRejectedException("only owner can delete conversation");
+        }
+        return store.delete(actor, explorationId, clock.instant());
+    }
+
+    public void cleanupExpiredGuests() {
+        store.deleteExpiredGuests(clock.instant());
+    }
 }

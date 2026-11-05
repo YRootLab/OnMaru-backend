@@ -1335,4 +1335,84 @@ class ExplorationWebBoundaryTests {
             cancellations.clear();
         }
     }
+
+    @Test
+    void listExplorationsReturnsPagedConversationsForCurrentMember() throws Exception {
+        var sessionToken = "session-" + UUID.randomUUID();
+        var memberId = registerMemberSession(sessionToken);
+
+        mockMvc.perform(post("/api/v1/explorations")
+                        .cookie(new Cookie("__Host-onmaru-session", sessionToken))
+                        .cookie(CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"전주 여행 코스\",\"locale\":\"ko-KR\",\"regionCode\":\"region-jeonju\"}"))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/api/v1/explorations")
+                        .cookie(new Cookie("__Host-onmaru-session", sessionToken)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.schemaVersion").value("1.3"))
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items[0].lastUserQueryPreview").value("전주 여행 코스"));
+    }
+
+    @Test
+    void deleteExplorationHidesImmediatelyAndCancelsConversation() throws Exception {
+        var sessionToken = "session-" + UUID.randomUUID();
+        var memberId = registerMemberSession(sessionToken);
+
+        var responseJson = mockMvc.perform(post("/api/v1/explorations")
+                        .cookie(new Cookie("__Host-onmaru-session", sessionToken))
+                        .cookie(CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"전주 여행 코스\",\"locale\":\"ko-KR\",\"regionCode\":\"region-jeonju\"}"))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+
+        var node = new ObjectMapper().readTree(responseJson);
+        var explorationId = node.get("explorationId").asText();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/explorations/" + explorationId)
+                        .cookie(new Cookie("__Host-onmaru-session", sessionToken))
+                        .cookie(CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/explorations/" + explorationId)
+                        .cookie(new Cookie("__Host-onmaru-session", sessionToken)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listExplorationTurnsReturnsTranscriptHistory() throws Exception {
+        var sessionToken = "session-" + UUID.randomUUID();
+        var memberId = registerMemberSession(sessionToken);
+
+        var responseJson = mockMvc.perform(post("/api/v1/explorations")
+                        .cookie(new Cookie("__Host-onmaru-session", sessionToken))
+                        .cookie(CSRF_COOKIE)
+                        .header("X-CSRF-TOKEN", "csrf-token")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"전주 여행 코스\",\"locale\":\"ko-KR\",\"regionCode\":\"region-jeonju\"}"))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+
+        var node = new ObjectMapper().readTree(responseJson);
+        var explorationId = node.get("explorationId").asText();
+
+        mockMvc.perform(get("/api/v1/explorations/" + explorationId + "/turns")
+                        .cookie(new Cookie("__Host-onmaru-session", sessionToken)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.schemaVersion").value("1.3"))
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items[0].query").value("전주 여행 코스"))
+                .andExpect(jsonPath("$.items[0].response.status").isNotEmpty());
+    }
 }
