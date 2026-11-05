@@ -21,7 +21,7 @@ docker compose --env-file .env up -d postgres
 docker compose --env-file .env ps
 ```
 
-PostgreSQL 첫 초기화 시 `postgres/init/01-create-login-roles.sh`가 PostGIS extension, baseline migration에서 기대하는 `NOLOGIN` role groups, 각기 분리된 runtime/migration/readonly/backup login을 만든다. Flyway migration 로그인은 `onmaru_migration` 권한 그룹의 멤버이고 runtime login에는 DDL 권한을 주지 않는다. 초기화 SQL은 빈 named volume을 만들 때만 실행되므로 비밀번호 변경 후 기존 volume에 재실행되지 않는다.
+PostgreSQL 첫 초기화 시 `postgres/init/01-create-login-roles.sh`가 PostGIS extension, baseline migration에서 기대하는 `NOLOGIN` role groups, 각기 분리된 runtime/migration/readonly/backup login을 만든다. `postgres/init/02-create-ai-roles.sh`는 `vector` (pgvector) extension, `ai` schema, AI 최소 권한 역할(`onmaru_ai_runtime`, `onmaru_ai_migration`) 및 분리된 AI 로그인 계정을 멱등하게 구성한다. Flyway migration 로그인은 `onmaru_migration` 권한 그룹의 멤버이고 runtime login에는 DDL 권한을 주지 않는다. AI runtime login은 `ai` schema에서만 DML 권한을 가지며, `public` 및 Spring 업무 schema write가 철저히 차단된다. 초기화 SQL은 빈 named volume을 만들 때만 실행되므로 비밀번호 변경 후 기존 volume에 재실행되지 않는다.
 
 과거 Neon→AWS 초기 이관 절차는 **deprecated**다. 현재 운영 원본은 AWS PostgreSQL이므로 이 단계를 재실행하지 않는다. 새 빈 환경을 복구하거나 재구성할 때는 [PostgreSQL restore runbook](../../docs/operations/runbooks/restore.md)에 따라 승인된 최신 backup의 출처·checksum·보존 기한을 확인하고, 운영 복구 전에는 별도 승인을 받는다. 아래 helper는 기존 application schema가 있으면 복원을 거부한다. 기존 dump나 production volume은 임의로 덮어쓰거나 삭제하지 않는다.
 
