@@ -25,6 +25,10 @@ services:
       ONMARU_DB_READONLY_PASSWORD: ${ONMARU_DB_READONLY_PASSWORD:?Set the staging readonly password}
       ONMARU_DB_BACKUP_USER: ${ONMARU_DB_BACKUP_USER:?Set the staging backup user}
       ONMARU_DB_BACKUP_PASSWORD: ${ONMARU_DB_BACKUP_PASSWORD:?Set the staging backup password}
+      ONMARU_DB_AI_RUNTIME_USER: ${ONMARU_DB_AI_RUNTIME_USER:?Set the staging AI runtime user}
+      ONMARU_DB_AI_RUNTIME_PASSWORD: ${ONMARU_DB_AI_RUNTIME_PASSWORD:?Set the staging AI runtime password}
+      ONMARU_DB_AI_MIGRATION_USER: ${ONMARU_DB_AI_MIGRATION_USER:?Set the staging AI migration user}
+      ONMARU_DB_AI_MIGRATION_PASSWORD: ${ONMARU_DB_AI_MIGRATION_PASSWORD:?Set the staging AI migration password}
     command:
       - postgres
       - -c
@@ -37,7 +41,7 @@ services:
       - max_connections=16
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ../postgres/init/01-create-login-roles.sh:/docker-entrypoint-initdb.d/01-create-login-roles.sh:ro
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
       - ./seed.sql:/opt/onmaru/seed.sql:ro
     networks:
       - database

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "catalogVersion": "journey.query.tools.v1",
+  "protocol": "MCP",
+  "transport": "streamable-http",
+  "serverPath": "/internal/mcp/journey",
+  "authentication": {
+    "audience": "onmaru-spring-journey-mcp",
+    "scopes": ["journey.query.execute"]
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": false,
+    "prompts": false,
+    "sampling": false,
+    "completions": false
+  },
+  "limits": {
+    "maxCallsPerRun": 1,
+    "maxPlaces": 5,
+    "maxOutputBytes": 24576,
+    "grantTtlSeconds": 30,
+    "timeoutMs": 2000,
+    "connectTimeoutMs": 500,
+    "maxRetries": 1
+  },
+  "failureCodes": [
+    {"code": "SCOPE_DENIED", "retryable": false},
+    {"code": "INVALID_GRANT", "retryable": false},
+    {"code": "GRANT_EXPIRED", "retryable": false},
+    {"code": "GRANT_REVOKED", "retryable": false},
+    {"code": "GRANT_MISMATCH", "retryable": false},
+    {"code": "REVOCATION_STATE_STALE", "retryable": false},
+    {"code": "OUTPUT_LIMIT_EXCEEDED", "retryable": false},
+    {"code": "RATE_LIMITED", "retryable": false},
+    {"code": "UPSTREAM_UNAVAILABLE", "retryable": true}
+  ],
+  "tools": [
+    {
+      "name": "journey_execute_approved_lookup",
+      "title": "Execute an approved public place lookup",
+      "description": "Return the bounded, public place facts for a Spring-authorized query grant. Accepts no natural-language query, SQL, filters, member identity, arbitrary place IDs, or URL.",
+      "requiredScope": "journey.query.execute",
+      "maxOutputBytes": 24576,
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["queryGrantId"],
+        "properties": {
+          "queryGrantId": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "Opaque, short-lived grant issued by Spring after validating one ApprovedQueryPlan."
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "status", "planHash", "sourceRevocationSequence", "places"],
+        "properties": {
+          "schemaVersion": {"const": "journey.lookup.result.v1"},
+          "status": {
+            "type": "string",
+            "enum": ["OK", "NO_MATCH"]
+          },
+          "planHash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "sourceRevocationSequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "places": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["placeId", "publicPlaceId", "displayName", "regionCode", "categoryCode", "publicationStatus"],
+              "properties": {
+                "placeId": {"type": "string", "minLength": 1, "maxLength": 128},
+                "publicPlaceId": {"type": "string", "minLength": 1, "maxLength": 128},
+                "displayName": {"type": "string", "minLength": 1, "maxLength": 200},
+                "regionCode": {"type": "string", "minLength": 1, "maxLength": 32},
+                "categoryCode": {"type": "string", "minLength": 1, "maxLength": 64},
+                "publicAddress": {"type": "string", "maxLength": 300},
+                "openingHoursSummary": {"type": "string", "maxLength": 300},
+                "mediaAssetIds": {
+                  "type": "array",
+                  "maxItems": 5,
+                  "items": {"type": "string", "minLength": 1, "maxLength": 128}
+                },
+                "publicationStatus": {"const": "PUBLISHED"},
+                "sourceRevision": {"type": "string", "minLength": 1, "maxLength": 128}
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

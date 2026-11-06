@@ -1,5 +1,7 @@
 # 여정 AI의 안전한 입력·제안 harness
 
+> **기존 구현 계약 기록:** 이 문서의 게스트/일일 한도, 단발 proposal, 최대 3개 및 optional RAG는 새 홈 여정 AI RAG의 제품 정책이 아니다. [새 PRD](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/prd.md)와 [아키텍처](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/architecture.md)를 따른다. 배포 전 기존 코드의 동작은 별도로 확인한다.
+
 2026-09-12. 상태: 구현 전 설계 계약. 이 문서는 한옥·전통시장·Odii 기반 **여정 탐색**만 다룬다. 문화 일반 Q&A와 문화 콘텐츠 페이지는 [project roadmap](../../project-roadmap.md)의 장기 옵션이며 이 pipeline의 허용 기능이 아니다.
 
 오픈소스 패턴을 반영한 state/adapter/prompt/eval/tool 설계와 도입 순서는 [AI application architecture](application-architecture.md)를 따른다. 이 문서는 그 설계 중 public intake와 provider proposal contract를 구체화한다.

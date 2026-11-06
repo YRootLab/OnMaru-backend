@@ -19,7 +19,7 @@ OnMaru의 현재 설계는 **Spring Boot modular monolith가 비즈니스 정답
 | 데이터·동시성 | `docs/database/schema.dbml`, `docs/database/migration-and-concurrency.md`, `docs/spring/identity-and-journey.md` | 논리 스키마, DB 강제 제약, lock order, Testcontainers matrix가 정의됨 |
 | 공개 계약 | `docs/contracts/rest-api.md`, `docs/contracts/openapi/journey.openapi.yaml`, `docs/contracts/openapi/visit-reviews.openapi.json`, SSE schema/fixtures | 지도·후기와 여정의 current 계약이 존재하나 전체 API coverage는 불완전 |
 | 수집 파이프라인 | `docs/spring/catalog-ingestion.md`, `docs/operations/runtime-and-reliability.md` | lease/fence/LKG/revision publish/재시도 정책이 구체적 |
-| AI 파이프라인 | `docs/ai/application-architecture.md`, `journey-guardrails.md`, `corpus-sync-contract.md`, `internal-service-authentication.md`, `retrieval-and-rag.md` | 소유권·검증·fallback·RAG activation gate가 구체적 |
+| AI 파이프라인 | `docs/ai/application-architecture.md`, `journey-guardrails.md`, `corpus-sync-contract.md`, `internal-service-authentication.md`, `ADR-0007` | 소유권·검증·fallback·RAG activation gate가 구체적 |
 | 운영·보안 | `docs/operations/runtime-and-reliability.md`, `docs/operations/moderation.md` | backup, restore, OTel/Grafana, alert, moderation drill이 설계됨 |
 
 ## 3. Reconstructed Backend Architecture

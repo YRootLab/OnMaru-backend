@@ -2,15 +2,28 @@
   "name": "internal-ai-proposal-accepted",
   "request": {
     "method": "POST",
-    "path": "/internal/v1/journey/proposals"
+    "path": "/internal/v1/journey/proposals",
+    "headers": {
+      "X-Run-Progress-Token": "<redacted-run-bound-progress-token>"
+    },
+    "body": {
+      "schemaVersion": "internal.ai.v2",
+      "requestId": "req-ai-001",
+      "runId": "run-ai-001",
+      "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "candidateCount": 2
+    }
   },
   "response": {
     "status": 202,
     "schema": "InternalJourneyProposalResponse",
     "body": {
-      "schemaVersion": "internal.ai.v1",
+      "schemaVersion": "internal.ai.v2",
       "runId": "run-ai-001",
-      "orderedRefs": ["place:001", "place:002"],
+      "orderedRefs": [
+        "place:001",
+        "place:002"
+      ],
       "outcome": "PROPOSAL"
     }
   }

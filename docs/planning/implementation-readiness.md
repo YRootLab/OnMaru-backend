@@ -1,5 +1,7 @@
 # Implementation Readiness
 
+> **2026-10-19 AI 범위 변경:** 아래 FastAPI policy/RAG 행의 게스트·일일 한도와 optional activation은 과거 계획이다. 새 홈 여정 기능은 [AI RAG PRD](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/prd.md), [계약·데이터 설계](https://github.com/YRootLab/onmaru-ai-engine/blob/00847c174043ccf6d542a6ac15c595556ce8da3f/docs/ai-rag/contracts-and-data.md), [ADR-0017](../decisions/0017-home-journey-hybrid-rag.md)을 따른다. 나머지 표 역시 작성 시점의 착수 기록이며 현재 배포 사실은 코드·운영 증거로 확인한다.
+
 > **목적:** 이 문서는 구현 backlog가 아니다. 설계가 코드로 넘어가기 전에 닫아야 할 결정과 증거를 추적한다. 상태가 `열림`인 항목은 구현 Issue를 만들 때 선행 조건 또는 별도 결정 Issue가 된다.
 
 ## 현재 사실

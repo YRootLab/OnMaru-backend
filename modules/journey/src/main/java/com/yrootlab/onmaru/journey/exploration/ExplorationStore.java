@@ -24,4 +24,12 @@ public interface ExplorationStore {
             ExplorationRunStatus terminalStatus,
             ExplorationRunOutcome outcome,
             Instant finishedAt);
+
+    ExplorationPage list(ExplorationActor actor, int limit, String cursor, Instant now);
+
+    ExplorationTurnPage listTurns(UUID explorationId, int limit, String cursor);
+
+    boolean delete(ExplorationActor actor, UUID explorationId, Instant deletedAt);
+
+    void deleteExpiredGuests(Instant now);
 }

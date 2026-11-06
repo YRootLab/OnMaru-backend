@@ -15,9 +15,12 @@ public final class PostgresTestDatabase {
         try (var statement = connection.createStatement()) {
             statement.execute("DROP SCHEMA IF EXISTS onmaru CASCADE");
             statement.execute("DROP SCHEMA IF EXISTS onmaru_registry CASCADE");
+            statement.execute("DROP SCHEMA IF EXISTS ai CASCADE");
             statement.execute("DROP SCHEMA IF EXISTS public CASCADE");
             statement.execute("DROP ROLE IF EXISTS onmaru_runtime_login");
             statement.execute("DROP ROLE IF EXISTS onmaru_readonly_login");
+            statement.execute("DROP ROLE IF EXISTS onmaru_ai_runtime_login");
+            statement.execute("DROP ROLE IF EXISTS onmaru_ai_migration_login");
             statement.execute("""
                     DO $$
                     BEGIN
@@ -31,6 +34,8 @@ public final class PostgresTestDatabase {
             statement.execute("DROP ROLE IF EXISTS onmaru_readonly");
             statement.execute("DROP ROLE IF EXISTS onmaru_runtime");
             statement.execute("DROP ROLE IF EXISTS onmaru_migration");
+            statement.execute("DROP ROLE IF EXISTS onmaru_ai_runtime");
+            statement.execute("DROP ROLE IF EXISTS onmaru_ai_migration");
             statement.execute("CREATE SCHEMA public");
             statement.execute("GRANT ALL ON SCHEMA public TO public");
             statement.execute("CREATE EXTENSION IF NOT EXISTS postgis");

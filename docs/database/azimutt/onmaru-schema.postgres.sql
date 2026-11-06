@@ -1205,38 +1205,103 @@ CREATE TABLE "operations_sync_quarantine" (
   PRIMARY KEY ("run_id", "record_key")
 );
 
+CREATE TABLE "ai_corpus_revisions" (
+  "revision_id" varchar PRIMARY KEY,
+  "manifest_hash" varchar UNIQUE NOT NULL,
+  "source_revision" varchar NOT NULL,
+  "state" varchar NOT NULL,
+  "embedding_profile_id" varchar NOT NULL,
+  "chunker_version" varchar NOT NULL,
+  "dictionary_version" varchar NOT NULL,
+  "document_count" int NOT NULL,
+  "chunk_count" int NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "activated_at" timestamptz
+);
+
+CREATE TABLE "ai_active_corpus" (
+  "singleton_id" int PRIMARY KEY,
+  "revision_id" varchar UNIQUE NOT NULL,
+  "revocation_sequence" bigint NOT NULL,
+  "activated_at" timestamptz NOT NULL
+);
+
 CREATE TABLE "ai_documents" (
+  "revision_id" varchar NOT NULL,
   "document_id" uuid NOT NULL,
-  "revision" varchar NOT NULL,
-  "content_hash" varchar NOT NULL,
-  "active" boolean NOT NULL,
+  "place_id" uuid NOT NULL,
   "source_type" varchar NOT NULL,
-  "source_ref" varchar NOT NULL,
-  "metadata" jsonb,
-  PRIMARY KEY ("document_id", "revision")
+  "source_id" varchar NOT NULL,
+  "source_revision" varchar NOT NULL,
+  "title" varchar NOT NULL,
+  "published_at" timestamptz,
+  "collected_at" timestamptz NOT NULL,
+  "license_code" varchar NOT NULL,
+  "region_code" varchar NOT NULL,
+  "category_code" varchar NOT NULL,
+  "content_hash" varchar NOT NULL,
+  "normalized_text" text NOT NULL,
+  "eligibility_status" varchar NOT NULL,
+  PRIMARY KEY ("revision_id", "document_id")
 );
 
 CREATE TABLE "ai_chunks" (
-  "chunk_id" uuid PRIMARY KEY,
+  "revision_id" varchar NOT NULL,
+  "chunk_id" uuid NOT NULL,
   "document_id" uuid NOT NULL,
-  "revision" varchar NOT NULL,
-  "position" int NOT NULL,
-  "text" text NOT NULL,
-  "offsets" jsonb
+  "ordinal" int NOT NULL,
+  "start_offset" int NOT NULL,
+  "end_offset" int NOT NULL,
+  "chunk_text" text NOT NULL,
+  "content_hash" varchar NOT NULL,
+  "search_text" text NOT NULL,
+  PRIMARY KEY ("revision_id", "chunk_id")
 );
 
 CREATE TABLE "ai_embeddings" (
+  "revision_id" varchar NOT NULL,
   "chunk_id" uuid NOT NULL,
   "embedding_profile_id" varchar NOT NULL,
-  "vector" vector,
-  PRIMARY KEY ("chunk_id", "embedding_profile_id")
+  "embedding" vector(384) NOT NULL,
+  "normalized" boolean NOT NULL,
+  PRIMARY KEY ("revision_id", "chunk_id", "embedding_profile_id")
+);
+
+CREATE TABLE "ai_revocation_events" (
+  "sequence" bigint PRIMARY KEY,
+  "scope" varchar NOT NULL,
+  "source_type" varchar,
+  "source_id" varchar,
+  "source_revision" varchar,
+  "place_id" uuid,
+  "revoked_at" timestamptz NOT NULL,
+  "reason_code" varchar NOT NULL
+);
+
+CREATE TABLE "ai_source_revocations" (
+  "source_type" varchar NOT NULL,
+  "source_id" varchar NOT NULL,
+  "source_revision" varchar NOT NULL,
+  "last_sequence" bigint UNIQUE NOT NULL,
+  "revoked_at" timestamptz NOT NULL,
+  PRIMARY KEY ("source_type", "source_id", "source_revision")
+);
+
+CREATE TABLE "ai_place_revocations" (
+  "place_id" uuid PRIMARY KEY,
+  "last_sequence" bigint UNIQUE NOT NULL,
+  "revoked_at" timestamptz NOT NULL
 );
 
 CREATE TABLE "ai_corpus_sync_runs" (
-  "id" uuid PRIMARY KEY,
-  "source_revision" varchar NOT NULL,
-  "source_manifest_hash" varchar NOT NULL,
-  "status" varchar NOT NULL,
+  "run_id" uuid PRIMARY KEY,
+  "revision_id" varchar NOT NULL,
+  "manifest_hash" varchar NOT NULL,
+  "state" varchar NOT NULL,
+  "failure_stage" varchar,
+  "document_count" int NOT NULL,
+  "chunk_count" int NOT NULL,
+  "embedding_count" int NOT NULL,
   "started_at" timestamptz NOT NULL,
   "finished_at" timestamptz,
   "error_code" varchar
@@ -1456,11 +1521,17 @@ CREATE INDEX ON "operations_sync_failures" ("run_id", "occurred_at", "id");
 
 CREATE INDEX ON "operations_sync_quarantine" ("expires_at");
 
-CREATE INDEX ON "ai_documents" ("source_type", "source_ref");
+CREATE INDEX ON "ai_corpus_revisions" ("state", "created_at");
 
-CREATE UNIQUE INDEX ON "ai_chunks" ("document_id", "revision", "position");
+CREATE INDEX ON "ai_documents" ("revision_id", "region_code", "category_code", "place_id");
 
-CREATE UNIQUE INDEX ON "ai_corpus_sync_runs" ("source_revision", "source_manifest_hash");
+CREATE INDEX ON "ai_documents" ("source_type", "source_id", "source_revision");
+
+CREATE UNIQUE INDEX ON "ai_chunks" ("revision_id", "document_id", "ordinal");
+
+CREATE INDEX ON "ai_place_revocations" ("revoked_at");
+
+CREATE UNIQUE INDEX ON "ai_corpus_sync_runs" ("revision_id", "manifest_hash");
 
 COMMENT ON COLUMN "identity_external_accounts"."provider" IS 'KAKAO active for MVP; GOOGLE/NAVER can be added through allowlist';
 
@@ -1526,11 +1597,19 @@ COMMENT ON TABLE "operations_sync_runs" IS 'Latest-run migration index uses (dat
 
 COMMENT ON COLUMN "operations_sync_failures"."message" IS 'Sanitized; no credentials, personal data, or upstream payload';
 
-COMMENT ON COLUMN "ai_documents"."source_ref" IS 'Stable source identifier from Spring corpus export; not a DB FK';
+COMMENT ON COLUMN "ai_corpus_revisions"."state" IS 'BUILDING, VALIDATED, ACTIVE, RETIRED, REJECTED';
 
-COMMENT ON COLUMN "ai_embeddings"."vector" IS 'FastAPI-managed pgvector index; enabled only after RAG evaluation gate';
+COMMENT ON COLUMN "ai_active_corpus"."singleton_id" IS 'Executable CHECK singleton_id = 1';
 
-COMMENT ON COLUMN "ai_corpus_sync_runs"."status" IS 'RUNNING, SUCCEEDED, FAILED';
+COMMENT ON COLUMN "ai_documents"."place_id" IS 'Spring canonical ID copy; no cross-schema FK';
+
+COMMENT ON COLUMN "ai_chunks"."search_text" IS 'Executable migration adds pg_trgm GIN index';
+
+COMMENT ON COLUMN "ai_embeddings"."embedding" IS 'First multilingual-e5-small profile; cosine exact search';
+
+COMMENT ON COLUMN "ai_revocation_events"."scope" IS 'SOURCE_REVISION or PLACE';
+
+COMMENT ON COLUMN "ai_corpus_sync_runs"."state" IS 'RUNNING, SUCCEEDED, FAILED';
 
 ALTER TABLE "identity_oauth_states" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
@@ -1776,6 +1855,16 @@ ALTER TABLE "operations_sync_quarantine" ADD FOREIGN KEY ("run_id") REFERENCES "
 
 ALTER TABLE "operations_sync_failures" ADD FOREIGN KEY ("run_id") REFERENCES "operations_sync_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "ai_chunks" ADD FOREIGN KEY ("document_id", "revision") REFERENCES "ai_documents" ("document_id", "revision") DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE "ai_active_corpus" ADD FOREIGN KEY ("revision_id") REFERENCES "ai_corpus_revisions" ("revision_id") DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE "ai_embeddings" ADD FOREIGN KEY ("chunk_id") REFERENCES "ai_chunks" ("chunk_id") DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE "ai_documents" ADD FOREIGN KEY ("revision_id") REFERENCES "ai_corpus_revisions" ("revision_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "ai_chunks" ADD FOREIGN KEY ("revision_id", "document_id") REFERENCES "ai_documents" ("revision_id", "document_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "ai_embeddings" ADD FOREIGN KEY ("revision_id", "chunk_id") REFERENCES "ai_chunks" ("revision_id", "chunk_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "ai_corpus_sync_runs" ADD FOREIGN KEY ("revision_id") REFERENCES "ai_corpus_revisions" ("revision_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "ai_source_revocations" ADD FOREIGN KEY ("last_sequence") REFERENCES "ai_revocation_events" ("sequence") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "ai_place_revocations" ADD FOREIGN KEY ("last_sequence") REFERENCES "ai_revocation_events" ("sequence") DEFERRABLE INITIALLY IMMEDIATE;

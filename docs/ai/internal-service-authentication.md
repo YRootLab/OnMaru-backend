@@ -31,3 +31,10 @@ Spring's bounded FastAPI call has connect/total deadlines from the journey run b
 5. Test alert and resolve notification arrive in Grafana, Discord, and the critical email route.
 
 A future operations assistant can consume redacted, read-only Grafana aggregates to classify likely provider/auth/corpus incidents and link a runbook. It cannot retrieve secrets, mutate databases, invoke Gemini, rotate keys, acknowledge alerts, or change admission limits.
+
+
+## Run progress callback capability
+
+The existing one-use service bearer above remains the Spring-to-FastAPI execution credential. It is not reused for FastAPI-to-Spring progress callbacks. For the callback contract, Spring mints a separate short-lived capability bound to one active `runId` and the exact approved `planHash`, with audience `spring-ai-progress` and scope `journey.run.progress.write`. Its expiry is at most 60 seconds and never later than the run deadline.
+
+Unlike the one-use execution JWT, this capability may authorize multiple progress events for that single run; callback event `ordinal` supplies idempotency and ordering. It grants no query, corpus, MCP, quality, or result-write permission. Spring rechecks active run, plan hash, token claims, and event ordering for every callback. The token must never be logged. Full wire and state-transition details live in [the progress callback contract](../ai-rag-spring/fastapi-progress-callback.md).

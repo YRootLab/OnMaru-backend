@@ -14,10 +14,10 @@
 | identity.guests | id PK, token_hash UNIQUE, expires_at, revoked_at | expiry |
 | identity.oauth_states | state_hash PK, guest_id nullable FK, browser_nonce_hash, exploration_id nullable, return_path, expires_at, consumed_at | expiry |
 | identity.exploration_grants | member_id FK, exploration_id FK, expires_at; PK(member_id,exploration_id) | expiry |
-| discovery.explorations | id PK, owner_member_id XOR owner_guest_id FK, state_version>=0, board JSONB nullable, pinned_refs JSONB, excluded_refs JSONB, region_id nullable, expires_at, deleted_at | owner+updated_at |
+| discovery.explorations | id PK, owner_member_id XOR owner_guest_id FK, state_version>=0, board JSONB nullable, pinned_refs JSONB, excluded_refs JSONB, region_id nullable, expires_at (guest only; NULL for member), deleted_at | owner+updated_at |
 | discovery.runs | id PK, exploration_id FK, actor_key, base_version, status, stage nullable, outcome nullable, clarification JSONB nullable, created_at, deadline_at, started_at nullable, generation, error_code nullable, engine | partial UNIQUE(exploration_id) WHERE status IN ('QUEUED','RUNNING'); partial UNIQUE(actor_key) same filter; deadline_at partial |
 | discovery.proposals | id PK, run_id UNIQUE FK, exploration_id FK, base_version, ordered_refs, reasons/evidence JSONB, expires_at, status PENDING/APPLIED/DISMISSED/INVALIDATED | exploration_id,status |
-| discovery.turns | id PK, exploration_id FK, client_turn_id, query, created_at; UNIQUE(exploration_id,client_turn_id) | exploration_id,created_at |
+| discovery.turns | id PK, exploration_id FK, client_turn_id, run_id nullable FK, owner-visible original query, response_snapshot JSONB nullable, created_at; UNIQUE(exploration_id,client_turn_id) | exploration_id,created_at DESC,id DESC; run_id UNIQUE WHERE NOT NULL |
 | journey.saved_journeys | id PK, member_id FK, source_exploration_id nullable FK ON DELETE SET NULL, source_version, saved_at, title, snapshot JSONB, snapshot_hash; UNIQUE(member_id,source_exploration_id,source_version) | member_id,saved_at DESC,id DESC |
 | journey.saved_resources | id PK, member_id FK, resource_type PLACE/ODII_STORY, resource_id, saved_at; UNIQUE(member_id,resource_type,resource_id) | member_id,resource_type,saved_at DESC,id DESC |
 | community.visit_reviews | id PK, member_id FK, place_id FK, text, status, created_at, deleted_at nullable; text trim nonempty <=300 Unicode code points, 최대5줄 | published(created_at DESC,id DESC), published(place_id,created_at DESC,id DESC) |
@@ -27,13 +27,15 @@
 
 JSONB board/proposal은 API schemaVersion과 schema validation으로 검증한다. JSON 내부 ref는 SQL FK로 보호되지 않으므로 저장 transaction에서 catalog eligibility/evidence를 재검증한다. 최대3개 후보의 불변 snapshot에 사용하며 회원·시간·상태 검색 칼럼을 JSON에 숨기지 않는다.
 
+`discovery.turns.query`는 작성자 화면의 원문 transcript를 보존하며 query normalization/PII masking 결과로 덮어쓰지 않는다. AI에는 별도 redacted context를 전달하고 로그/trace/metrics/quality tools에는 원문을 기록하지 않는다. turn 수락 시 `run_id`를 연결하고 `response_snapshot`은 pending으로 둔다. run terminal commit 시 공개 schema에 맞춘 compact 구조화 결과(board/proposal/clarification/safe error)를 같은 업무 경계에서 기록해 과거 답변 복원에 사용한다. 임의 프롬프트·chain-of-thought·provider raw response는 저장하지 않는다.
+
 ### 실행 DDL에서 반드시 강제할 제약
 
 DBML은 논리 모델이고, 아래 제약은 migration SQL과 integration test에서 반드시 구현한다. application validator만으로 대체하지 않는다.
 
 | 대상 | DDL 제약 | 검증 사례 |
 |---|---|---|
-| `discovery.explorations` | `(owner_member_id IS NULL) <> (owner_guest_id IS NULL)` CHECK | owner 없음·둘 다 있음 INSERT 실패 |
+| `discovery.explorations` | `(owner_member_id IS NULL) <> (owner_guest_id IS NULL)` CHECK 및 owner type별 expires_at 제약(guest는 만료 시각, member는 NULL) | owner 없음·둘 다 있음 INSERT 실패; member 자동 만료 금지 |
 | `discovery.runs` | `status IN ('QUEUED','RUNNING')`에 대한 `(exploration_id)` 및 `(actor_key)` partial UNIQUE | 같은 actor/exploration의 동시 start 중 하나만 성공 |
 | `discovery.runs` | status/stage/outcome/deadline 호환 CHECK와 generation CAS update predicate | terminal run 재시작·만료 뒤 완료 실패 |
 | `operations.admission` | scope row를 `SELECT ... FOR UPDATE`로 잠그고 run insert/consumed·active_count 갱신을 한 transaction으로 처리 | quota 경계 동시 요청에서 초과 승인 0 |
@@ -84,7 +86,7 @@ JPA entity 간 타 context 연관 대신 scalar ID와 `ResourceEligibilityPort`�
 | 데이터 | 수명 / 삭제 책임 |
 |---|---|
 | guest credential·exploration | 생성 후 24h; 만료 즉시 접근 차단, hourly cleanup 24h 이내 물리 삭제 |
-| member 임시 exploration·원문 turn | 마지막 변경 후 7일; saved snapshot과 별개 |
+| member exploration·turn 대화 | 자동 만료 없음. 사용자가 대화를 삭제하거나 회원 탈퇴 시 삭제 queue에 등록하고 24시간 이내 물리 삭제; saved snapshot과 별개 |
 | run/proposal | exploration과 함께 삭제, proposal 적용 유효기간 생성 후 10분 |
 | saved journey | 회원이 삭제/탈퇴할 때까지; 계정당 100개 상한, 초과 409 SAVE_LIMIT |
 | saved resource | 회원이 삭제/탈퇴하거나 직접 해제할 때까지; 계정당 PLACE 300개, ODII_STORY 300개 상한, 초과 409 SAVE_LIMIT |

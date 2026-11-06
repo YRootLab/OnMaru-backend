@@ -45,7 +45,8 @@ function toAzimuttStrictSql(postgresSql) {
   ];
 
   for (const [fromType, toType] of typeReplacements) {
-    sql = sql.replace(new RegExp(`("[^"]+"\\s+)${fromType}\\b`, 'gi'), `$1${toType}`);
+    const typePattern = fromType === 'vector' ? 'vector(?:\\(\\d+\\))?' : `${fromType}\\b`;
+    sql = sql.replace(new RegExp(`("[^"]+"\\s+)${typePattern}`, 'gi'), `$1${toType}`);
   }
 
   for (const enumName of enumNames) {

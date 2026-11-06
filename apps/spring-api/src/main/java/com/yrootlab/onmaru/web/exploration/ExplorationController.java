@@ -147,6 +147,60 @@ public final class ExplorationController {
         return runAccepted(response);
     }
 
+
+    @Operation(
+            summary = "대화형 여정 탐색 목록 조회",
+            description = "현재 사용자가 접근 가능한 여정 대화 목록을 최신순으로 커서 페이징 조회합니다."
+    )
+    @GetMapping("/api/v1/explorations")
+    ResponseEntity<com.yrootlab.onmaru.journey.exploration.ExplorationPage> list(
+            @org.springframework.web.bind.annotation.RequestParam(name = "limit", required = false, defaultValue = "20") int limit,
+            @org.springframework.web.bind.annotation.RequestParam(name = "cursor", required = false) String cursor,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
+            @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
+        var actor = actorResolver.resolve(sessionToken, guestToken).actor();
+        var page = explorationService.list(actor, limit, cursor);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(page);
+    }
+
+    @Operation(
+            summary = "대화형 여정 탐색 삭제",
+            description = "지정된 여정 대화를 삭제(소프트 삭제)하고 진행 중인 비동기 run을 취소합니다. 오직 소유자만 삭제할 수 있습니다."
+    )
+    @org.springframework.web.bind.annotation.DeleteMapping("/api/v1/explorations/{explorationId}")
+    ResponseEntity<Void> delete(
+            @PathVariable UUID explorationId,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
+            @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
+        var actor = actorResolver.resolve(sessionToken, guestToken).actor();
+        boolean deleted = explorationService.delete(actor, explorationId);
+        if (!deleted) {
+            return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+        }
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+    }
+
+    @Operation(
+            summary = "여정 대화 transcript (턴 이력) 커서 페이징 조회",
+            description = "여정 대화에 기록된 사용자의 원문 질문 및 구조화된 어시스턴트 응답 스냅샷(TurnResponse) 이력을 조회합니다."
+    )
+    @GetMapping("/api/v1/explorations/{explorationId}/turns")
+    ResponseEntity<com.yrootlab.onmaru.journey.exploration.ExplorationTurnPage> listTurns(
+            @PathVariable UUID explorationId,
+            @org.springframework.web.bind.annotation.RequestParam(name = "limit", required = false, defaultValue = "20") int limit,
+            @org.springframework.web.bind.annotation.RequestParam(name = "cursor", required = false) String cursor,
+            @Parameter(description = "회원 세션 쿠키", hidden = true)
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionToken,
+            @Parameter(description = "게스트 토큰 쿠키", hidden = true)
+            @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
+        var actor = actorResolver.resolve(sessionToken, guestToken).actor();
+        var page = explorationService.listTurns(actor, explorationId, limit, cursor);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(page);
+    }
     @Operation(
             summary = "AI 여정 탐색 상태 및 스냅샷 조회",
             description = "탐색 세션 ID를 기반으로 현재 확정된 코스, 제안 목록, 장소 상세 하이드레이션 데이터, 액션 상태를 조회합니다."

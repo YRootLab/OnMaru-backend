@@ -21,7 +21,7 @@ FE 컴포넌트 구현과 `docs/toFE/**`는 제외한다. 공개 OpenAPI·fixtur
 | REST command·SSE·snapshot·멱등성 | ADR-0005, `rest-api.md` | F06, F09, J01~J11 |
 | 공개 command rate-limit·admission | `rest-api.md`, `identity-and-journey.md`, operations DBML | F08, I01, M03, M05, J01, J09 |
 | baseline·Gemini·guardrail·평가 | ADR-0007, `journey-guardrails.md` | AI02~AI06 |
-| optional corpus sync·RAG | `corpus-sync-contract.md`, `retrieval-and-rag.md` | AI07~AI09 |
+| optional corpus sync·RAG | `corpus-sync-contract.md`, `ADR-0007` | AI07~AI09 |
 | 보안·secret·보존·탈퇴 | `identity-and-journey.md`, `runtime-and-reliability.md` | I03~I04, O03, O08 |
 | 관측성·Grafana·moderation | ADR-0009, `runtime-and-reliability.md`, `moderation.md` | M05, M08, O01~O02 |
 | migration/backup/restore/load/outage/release | `migration-and-concurrency.md`, `runtime-and-reliability.md` | D08, M09, O04~O09 |

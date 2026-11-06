@@ -14,7 +14,7 @@
 |---|---|---|
 | 제품/요구 | [backend PRD](../planning/backend-prd.md), [readiness](../planning/implementation-readiness.md) | 현재 MVP 범위는 명확해졌으나 과거 MVP 전달서와 충돌 |
 | 경계 | [module boundaries](../architecture/module-boundaries.md), [ADR drafts](../decisions/drafts/foundation-architecture.md) | Spring/FastAPI 역할과 modular monolith 방향은 적절 |
-| AI | [application architecture](../ai/application-architecture.md), [guardrails](../ai/journey-guardrails.md), [retrieval](../ai/retrieval-and-rag.md) | provider/RAG 경계는 강함, corpus export contract는 미정 |
+| AI | [application architecture](../ai/application-architecture.md), [guardrails](../ai/journey-guardrails.md), [당시 검색 결정](../decisions/0007-baseline-optional-rag.md) | provider/RAG 경계는 강함, corpus export contract는 미정 |
 | API | [REST contract](../contracts/rest-api.md), [VisitReview OpenAPI](../contracts/openapi/visit-reviews.openapi.json) | 지도/후기는 1.2로 개선, 여정 REST/SSE OpenAPI는 없음 |
 | 데이터 | [identity/journey](../spring/identity-and-journey.md), [DBML](../database/schema.dbml) | 논리 제약은 명확, executable DDL과 concurrency proof 없음 |
 | 운영 | [runtime/reliability](../operations/runtime-and-reliability.md), [catalog ingestion](../spring/catalog-ingestion.md) | LKG/SSE/외부 API release gate는 좋음, hosting/runbook은 미정 |

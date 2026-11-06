@@ -81,6 +81,30 @@ describe('Lightsail production blue-green deployment', () => {
     assert.doesNotMatch(installer, /NOPASSWD:\s+ALL/);
   });
 
+  it('keeps the AI engine private and exposes a digest-only, memory-gated deploy path', () => {
+    const compose = read('infra/lightsail/compose.yaml');
+    const command = read('infra/lightsail/production/deployer-command.sh');
+    const installer = read('infra/lightsail/production/install-deployer.sh');
+    const deploy = read('infra/lightsail/production/deploy-ai-engine.sh');
+
+    assert.match(compose, /ai-engine:[\s\S]*?profiles:\s*\[ai-engine\]/);
+    assert.match(compose, /ONMARU_AI_BASE_URL:\s*http:\/\/ai-engine:8000/);
+    assert.match(compose, /ai-engine:[\s\S]*?expose:/);
+    assert.doesNotMatch(compose.slice(compose.indexOf('  ai-engine:'), compose.indexOf('  nginx:')), /ports:/);
+    assert.match(compose, /no-new-privileges:true/);
+    assert.match(command, /deploy-ai <ai-image-digest> <github-actor>/);
+    assert.match(installer, /onmaru-production-ai-deploy/);
+    assert.match(deploy, /ONMARU_AI_ENABLED.*true/);
+    assert.match(deploy, /MemTotal/);
+    assert.match(deploy, /sha256:/);
+    assert.match(deploy, /AI image health check timed out/);
+    assert.match(deploy, /rollback/);
+    const workflow = read('.github/workflows/deploy.yml');
+    assert.match(workflow, /production-ai-deploy:[\s\S]*?inputs\.deploy_ai/);
+    assert.match(workflow, /ai_image_digest:[\s\S]*?sha256/);
+    assert.match(workflow, /deploy-ai \$AI_DIGEST \$GITHUB_ACTOR/);
+  });
+
   it('checks production state before rebuilding an already deployed master', () => {
     const workflow = read('.github/workflows/deploy.yml');
     const statusPath = 'infra/lightsail/production/status-blue-green.sh';
@@ -260,7 +284,7 @@ describe('Lightsail production blue-green deployment', () => {
     assert.match(guide, /expand.*contract/is);
     assert.match(guide, /스테이징.*중지/is);
     assert.match(guide, /swap.*RAM.*아니/is);
-    assert.match(guide, /FastAPI.*별도 Lightsail/is);
+    assert.match(guide, /FastAPI.*같은 호스트/is);
     assert.match(guide, /03:17 KST/);
     assert.match(guide, /workflow_dispatch/);
     assert.match(guide, /Repository Variable[\s\S]*PRODUCTION_DEPLOY_ENABLED/);
