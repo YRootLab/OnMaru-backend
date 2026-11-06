@@ -8,6 +8,7 @@
 - [r1/README.md](r1/README.md): R1 한옥 카탈로그 및 TourAPI 공공데이터 동기화 릴리스 증적
 - [r2/README.md](r2/README.md): R2 지도, 사용자 후기, Odii 오디오 및 Cloudflare R2 연동 증적
 - [journey/README.md](journey/README.md): R3 Journey AI 탐색, SSE 실시간 스트리밍, OpenAPI 및 Fallback 증적
+- [journey/staging-2gb-gate-790.md](journey/staging-2gb-gate-790.md): AI 통합 Staging·2GB 공존 및 Rollback Gate 증적 (#790)
 - [grafana-o02-checklist.md](grafana-o02-checklist.md): O02 Grafana Cloud 대시보드 및 Alert 라우팅 검증 체크리스트
 - [benchmark.md](benchmark.md): Release tag부터 benchmark manifest, artifact link, promotion gate까지의 W4 증적
 - [ci-observability.md](ci-observability.md): #555 CI evidence→OTLP→Grafana 왕복 검증, 로컬 재현 및 Cloud pending 체크리스트
