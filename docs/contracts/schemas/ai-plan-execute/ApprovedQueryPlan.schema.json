@@ -1,0 +1,256 @@
+{
+  "$defs": {
+    "HardFilters": {
+      "additionalProperties": false,
+      "properties": {
+        "filterHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Filterhash",
+          "type": "string"
+        },
+        "publicOnly": {
+          "const": true,
+          "title": "Publiconly",
+          "type": "boolean"
+        },
+        "placeIds": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Placeids"
+        },
+        "regionCodes": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Regioncodes"
+        },
+        "categoryCodes": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Categorycodes"
+        },
+        "pinnedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Pinnedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "excludedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Excludedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "filterHash",
+        "publicOnly",
+        "placeIds",
+        "regionCodes",
+        "categoryCodes",
+        "pinnedPlaceIds",
+        "excludedPlaceIds"
+      ],
+      "title": "HardFilters",
+      "type": "object"
+    },
+    "Versions": {
+      "additionalProperties": false,
+      "properties": {
+        "corpusRevision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Corpusrevision",
+          "type": "string"
+        },
+        "configHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Confighash",
+          "type": "string"
+        },
+        "questionDictionaryVersion": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Questiondictionaryversion",
+          "type": "string"
+        },
+        "sourceRevocationSequence": {
+          "minimum": 0,
+          "title": "Sourcerevocationsequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "corpusRevision",
+        "configHash",
+        "questionDictionaryVersion",
+        "sourceRevocationSequence"
+      ],
+      "title": "Versions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "ai-approved-plan.v1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "planVersion": {
+      "const": "ai-query-plan.v1",
+      "title": "Planversion",
+      "type": "string"
+    },
+    "runId": {
+      "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
+      "title": "Runid",
+      "type": "string"
+    },
+    "approvedPlanHash": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "title": "Approvedplanhash",
+      "type": "string"
+    },
+    "approvedRoute": {
+      "enum": [
+        "SQL_ONLY",
+        "LEXICAL_ONLY",
+        "DENSE_ONLY",
+        "HYBRID",
+        "SQL_PLUS_RETRIEVAL",
+        "CLARIFY_OR_SCOPE"
+      ],
+      "title": "Approvedroute",
+      "type": "string"
+    },
+    "approvedRetrievalMode": {
+      "enum": [
+        "NONE",
+        "LEXICAL_ONLY",
+        "DENSE_ONLY",
+        "HYBRID"
+      ],
+      "title": "Approvedretrievalmode",
+      "type": "string"
+    },
+    "approvedFilters": {
+      "$ref": "#/$defs/HardFilters"
+    },
+    "approvedCanonicalFields": {
+      "items": {
+        "enum": [
+          "PUBLIC_ADDRESS",
+          "REGION_CODE",
+          "CATEGORY_CODE",
+          "PUBLIC_STATUS"
+        ],
+        "type": "string"
+      },
+      "maxItems": 4,
+      "title": "Approvedcanonicalfields",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "semanticQuery": {
+      "anyOf": [
+        {
+          "maxLength": 240,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Semanticquery"
+    },
+    "versions": {
+      "$ref": "#/$defs/Versions"
+    },
+    "queryGrantId": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Querygrantid"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "planVersion",
+    "runId",
+    "approvedPlanHash",
+    "approvedRoute",
+    "approvedRetrievalMode",
+    "approvedFilters",
+    "approvedCanonicalFields",
+    "semanticQuery",
+    "versions",
+    "queryGrantId"
+  ],
+  "title": "ApprovedQueryPlan",
+  "type": "object"
+}

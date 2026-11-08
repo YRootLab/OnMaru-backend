@@ -4,6 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.integration.ai.AiIntegrationProperties;
 import com.yrootlab.onmaru.integration.ai.HttpAiProposalClient;
+import com.yrootlab.onmaru.integration.ai.HttpAiPlanExecuteClient;
+import com.yrootlab.onmaru.integration.ai.plan.AiPlanWireCodec;
+import com.yrootlab.onmaru.integration.ai.plan.DefaultPlanAuthorityGate;
+import com.yrootlab.onmaru.journey.worker.plan.AiPlanExecuteClient;
+import com.yrootlab.onmaru.journey.worker.plan.PlanAuthorityGate;
+import com.yrootlab.onmaru.journey.worker.plan.PlanExecuteAiProposalClient;
+import com.yrootlab.onmaru.journey.worker.plan.JourneyPlanExecutionPorts.*;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFactory;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenProperties;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenSigner;
@@ -29,6 +36,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -94,6 +102,7 @@ class JourneyWorkerConfiguration {
 
     @Bean
     @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "false", matchIfMissing = true)
     AiProposalClient aiProposalClient(
             ObjectProvider<ObjectMapper> objectMapperProvider,
             AiIntegrationProperties properties,
@@ -111,6 +120,35 @@ class JourneyWorkerConfiguration {
                 telemetry,
                 streamingEnabled,
                 unaryFallbackEnabled);
+    }
+
+    @Bean
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    AiPlanWireCodec aiPlanWireCodec() { return new AiPlanWireCodec(); }
+
+    @Bean
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    PlanAuthorityGate planAuthorityGate(AiPlanWireCodec codec) { return new DefaultPlanAuthorityGate(codec); }
+
+    @Bean
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    AiPlanExecuteClient aiPlanExecuteClient(AiIntegrationProperties properties, AiPlanWireCodec codec,
+            SecretProvider secrets, Clock clock) {
+        return new HttpAiPlanExecuteClient(HttpClient.newBuilder().connectTimeout(properties.timeout()).build(),
+                codec, properties.baseUrl(), secrets, properties.timeout(), clock);
+    }
+
+    @Bean
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    AiProposalClient planExecuteAiProposalClient(AiPlanExecuteClient client, PlanAuthorityGate gate,
+            SafeQueryFactory requests, CurrentVersions versions, ApprovedBindingStore bindings,
+            QueryGrantIssuer grants, ProgressCapabilityIssuer progress, ExecutionResultMapper mapper,
+            Clock clock) {
+        return new PlanExecuteAiProposalClient(client, gate, requests, versions, bindings, grants, progress, mapper, clock);
     }
 
     @Bean

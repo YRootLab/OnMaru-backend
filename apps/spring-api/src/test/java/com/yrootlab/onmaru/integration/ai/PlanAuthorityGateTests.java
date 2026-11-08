@@ -47,6 +47,15 @@ class PlanAuthorityGateTests {
         ((ObjectNode) expanded.get("proposedFilters")).putNull("regionCodes");
         var expandedPlan = codec.readPlan(mapper.writeValueAsBytes(expanded));
         assertThatThrownBy(() -> gate.approve(request, expandedPlan, request.versions())).isInstanceOf(AiProposalException.class);
+
+        var pinnedExpansion = original.deepCopy();
+        ((com.fasterxml.jackson.databind.node.ArrayNode) pinnedExpansion.path("proposedFilters").path("pinnedPlaceIds"))
+                .add("place-2");
+        var unhashedPinnedExpansion = codec.readPlan(mapper.writeValueAsBytes(pinnedExpansion));
+        pinnedExpansion.put("planHash", codec.planHash(unhashedPinnedExpansion));
+        var pinnedExpansionPlan = codec.readPlan(mapper.writeValueAsBytes(pinnedExpansion));
+        assertThatThrownBy(() -> gate.approve(request, pinnedExpansionPlan, request.versions()))
+                .isInstanceOf(AiProposalException.class);
     }
 
     @Test

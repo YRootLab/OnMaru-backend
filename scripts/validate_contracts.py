@@ -122,7 +122,7 @@ def collect_openapi_contracts(root: Path) -> list[dict[str, Any]]:
         document = load_document(path)
         if not isinstance(document, dict):
             fail(f"{path.relative_to(root)} must contain an OpenAPI object")
-        validate(document)
+        validate(document, base_uri=path.resolve().as_uri())
         components = document.get("components", {})
         component_schemas = components.get("schemas", {}) if isinstance(components, dict) else {}
         if not isinstance(component_schemas, dict):

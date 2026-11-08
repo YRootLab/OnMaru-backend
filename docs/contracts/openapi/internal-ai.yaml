@@ -12,6 +12,82 @@ tags:
   - name: JourneyProgress
   - name: CorpusSync
 paths:
+  /journey/plan:
+    post:
+      tags: [JourneyProposal]
+      operationId: planInternalJourney
+      summary: Propose a bounded query plan without execution authority.
+      description: >-
+        Rollout flag defaults off. Uses journey.plan:write service scope. A valid
+        nonzero W3C trace/span, X-Run-Id, X-Request-Id and X-Deadline-At are required.
+        Spring independently validates run/version/hash/filter authority before execution.
+      security: [{ InternalServiceBearer: [] }]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/PlanExecuteTraceparent'
+        - $ref: '#/components/parameters/DeadlineAt'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/ai-plan-execute/SafeQueryRequest.schema.json' }
+      responses:
+        '200':
+          description: Immutable plan proposal. It is not permission to query or publish.
+          content:
+            application/json:
+              schema: { $ref: '../schemas/ai-plan-execute/PlanProposal.schema.json' }
+        '401': { $ref: '#/components/responses/InternalAuthError' }
+        '403': { $ref: '#/components/responses/InternalAuthError' }
+        '409': { description: Run/version/plan conflict; no automatic replay. }
+        '422': { description: Closed payload or correlation contract invalid. }
+        '503': { description: Service or production wiring unavailable. }
+        '504': { description: Run deadline exceeded. }
+  /journey/execute:
+    post:
+      tags: [JourneyProposal]
+      operationId: executeInternalJourney
+      summary: Execute the exact Spring-approved plan once.
+      description: >-
+        Requires journey.execute:write service scope. Uses the same trace ID as
+        plan with a new nonzero span ID and cannot extend the run deadline.
+        SQL routes require a Spring-issued queryGrantId; non-SQL routes forbid it.
+        Returned artifacts remain untrusted until Spring final validation and persistence.
+      security: [{ InternalServiceBearer: [] }]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/PlanExecuteTraceparent'
+        - $ref: '#/components/parameters/DeadlineAt'
+        - $ref: '#/components/parameters/RunProgressToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/ai-plan-execute/ApprovedQueryPlan.schema.json' }
+      responses:
+        '200':
+          description: Run/plan/version-bound result; final artifact mapping is implemented by Issue 811.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [schemaVersion, runId, planHash, versions, proposal, evidence]
+                properties:
+                  schemaVersion: { type: string, const: ai-execute-result.v1 }
+                  runId: { type: string, format: uuid }
+                  planHash: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+                  versions: { $ref: '../schemas/ai-plan-execute/ApprovedQueryPlan.schema.json#/$defs/Versions' }
+                  proposal: { type: [object, 'null'] }
+                  evidence: { type: [object, 'null'] }
+        '401': { $ref: '#/components/responses/InternalAuthError' }
+        '403': { $ref: '#/components/responses/InternalAuthError' }
+        '409': { description: Missing/mismatched/consumed plan; no automatic replay. }
+        '422': { description: Closed payload or correlation contract invalid. }
+        '503': { description: Service or production wiring unavailable. }
+        '504': { description: Run deadline exceeded. }
   /journey/proposals:
     post:
       tags: [JourneyProposal]
@@ -160,6 +236,17 @@ components:
         and planHash, has scope journey.run.progress.write, aud spring-ai-progress,
         and expires no later than the run deadline. It grants no other access.
   parameters:
+    PlanExecuteTraceparent:
+      name: traceparent
+      in: header
+      required: true
+      description: Version 00 W3C trace context with nonzero trace ID and span ID.
+      schema: { type: string, pattern: '^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$' }
+    DeadlineAt:
+      name: X-Deadline-At
+      in: header
+      required: true
+      schema: { type: string, format: date-time }
     RequestId:
       name: X-Request-Id
       in: header

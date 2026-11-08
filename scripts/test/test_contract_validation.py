@@ -131,6 +131,29 @@ def test_contract_validator_accepts_valid_contract_tree(tmp_path: Path) -> None:
     validator.validate_contracts(root)
 
 
+def test_contract_validator_resolves_external_schema_relative_to_openapi_file(
+    tmp_path: Path,
+) -> None:
+    validator = load_validator()
+    root = create_contract_tree(tmp_path)
+    external_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["message"],
+        "properties": {"message": {"type": "string"}},
+    }
+    write_json(root / "docs/contracts/schemas/greeting.json", external_schema)
+    openapi = minimal_openapi()
+    openapi["paths"]["/greetings"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"] = {"$ref": "../schemas/greeting.json"}
+    write_yaml(root / "docs/contracts/openapi/greeting.openapi.yaml", openapi)
+
+    contracts = validator.collect_openapi_contracts(root)
+
+    assert [contract["path"].name for contract in contracts] == ["greeting.openapi.yaml"]
+
+
 def test_contract_validator_requires_manifested_stamp_openapi(tmp_path: Path) -> None:
     validator = load_validator()
     root = create_contract_tree(tmp_path)

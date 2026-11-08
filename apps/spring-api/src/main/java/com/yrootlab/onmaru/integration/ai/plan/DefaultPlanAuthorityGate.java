@@ -26,7 +26,8 @@ public final class DefaultPlanAuthorityGate implements PlanAuthorityGate {
             Filters proposed = plan.proposedFilters(), bounds = request.authorityBounds().filters();
             require(proposed.publicOnly() && bounds.publicOnly() && proposed.filterHash().equals(bounds.filterHash()));
             subset(proposed.placeIds(), bounds.placeIds()); subset(proposed.regionCodes(), bounds.regionCodes()); subset(proposed.categoryCodes(), bounds.categoryCodes());
-            require(proposed.pinnedPlaceIds().containsAll(bounds.pinnedPlaceIds()) && proposed.excludedPlaceIds().containsAll(bounds.excludedPlaceIds()));
+            require(proposed.pinnedPlaceIds().equals(bounds.pinnedPlaceIds())
+                    && proposed.excludedPlaceIds().containsAll(bounds.excludedPlaceIds()));
             require(java.util.Collections.disjoint(proposed.pinnedPlaceIds(), proposed.excludedPlaceIds()));
             require(proposed.placeIds() == null || proposed.placeIds().containsAll(proposed.pinnedPlaceIds()));
             var question = plan.questionFrame(); var expression = plan.retrievalExpression();
