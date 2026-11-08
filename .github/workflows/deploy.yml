@@ -11,6 +11,10 @@ on:
         description: Prepare the verified develop image on sleeping Lightsail staging
         type: boolean
         default: false
+      staging_ai_image_digest:
+        description: Immutable onmaru-ai-engine digest for staging (sha256:...)
+        type: string
+        default: ''
       deploy_production:
         description: Deploy the latest master to production now
         type: boolean
@@ -299,9 +303,11 @@ jobs:
           SSH_KEY: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ vars.STAGING_SSH_KNOWN_HOSTS }}
           SPRING_DIGEST: ${{ needs.build-and-scan-images.outputs.spring-digest }}
+          STAGING_AI_DIGEST: ${{ inputs.staging_ai_image_digest }}
           GH_TOKEN: ${{ github.token }}
         run: |
           test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS" && test -n "$SPRING_DIGEST" && test -n "$GH_TOKEN"
+          [[ "$STAGING_AI_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo 'Expected an immutable staging AI sha256 digest.' >&2; exit 1; }
           key_file=$(mktemp)
           trap 'rm -f "$key_file"' EXIT
           chmod 600 "$key_file"
@@ -310,10 +316,14 @@ jobs:
           chmod 700 ~/.ssh
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          protocol=$(ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
+            onmaru-staging-deployer@13.125.191.16 "version")
+          test "$protocol" = staging-ai-v1 || { echo "Unsupported staging deployer protocol: $protocol" >&2; exit 1; }
           printf '%s\n' "$GH_TOKEN" | ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
             onmaru-staging-deployer@13.125.191.16 \
-            "deploy $GITHUB_SHA $SPRING_DIGEST $GITHUB_ACTOR"
+            "deploy $GITHUB_SHA $SPRING_DIGEST $STAGING_AI_DIGEST $GITHUB_ACTOR"
 
   staging-smoke:
     if: >-

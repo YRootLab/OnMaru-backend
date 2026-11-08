@@ -9,8 +9,13 @@ if ! flock -n 9; then
     echo "Another staging start/stop is in progress; retry shortly." >&2
     exit 1
 fi
+exec 8>/run/onmaru-ai-lifecycle.lock
+if ! flock -n 8; then
+    echo "Another production or staging AI lifecycle operation is in progress; retry shortly." >&2
+    exit 1
+fi
 DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-docker compose --project-directory "$DIR" --env-file "$DIR/.env" -f "$DIR/compose.yaml" stop spring-api postgres
+docker compose --project-directory "$DIR" --env-file "$DIR/.env" -f "$DIR/compose.yaml" stop spring-api staging-ai-engine postgres
 if [ "${1:-}" != --from-timer ]; then
     systemctl stop onmaru-staging-auto-stop.timer || true
 fi
