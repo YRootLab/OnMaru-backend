@@ -15,6 +15,13 @@ if ! flock -n 8; then
     echo "Another production or staging AI lifecycle operation is in progress; retry shortly." >&2
     exit 1
 fi
+PRODUCTION_AI_DEPLOYER=/usr/local/sbin/onmaru-production-ai-deploy
+if ! grep -q '/run/onmaru-ai-lifecycle.lock' "$PRODUCTION_AI_DEPLOYER" 2>/dev/null; then
+    if ! grep -qx 'ONMARU_AI_ENABLED=false' /opt/onmaru/repo/infra/lightsail/.env 2>/dev/null; then
+        echo "Production AI deployment must remain disabled until its installed deployer supports the shared lifecycle lock." >&2
+        exit 1
+    fi
+fi
 DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ENV="$DIR/.env"
 COMPOSE="$DIR/compose.yaml"

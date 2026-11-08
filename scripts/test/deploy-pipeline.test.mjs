@@ -231,6 +231,9 @@ describe('container and staging release pipeline', () => {
     for (const script of [start, stop, productionAi]) {
       assert.match(script, /\/run\/onmaru-ai-lifecycle\.lock/);
     }
+    assert.match(start, /onmaru-production-ai-deploy/);
+    assert.match(start, /ONMARU_AI_ENABLED=false/);
+    assert.match(start, /Production AI deployment must remain disabled/);
     assert.match(productionAi, /onmaru-staging-staging-ai-engine-1/);
     assert.match(productionAi, /Staging AI is running/);
   });
