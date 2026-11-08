@@ -515,6 +515,54 @@ class StagingFixtureTests {
         }
     }
 
+    @Test
+    void mapInfoPlacesSortByDistanceAcrossPagesAndRejectsMissingCoordinates() throws Exception {
+        executeSeedForTestDatabase();
+        if (publicApi == null) initializePublicApi();
+        double lat = 37.5665;
+        double lng = 126.9780;
+        var distances = new ArrayList<Double>();
+        var ids = new ArrayList<String>();
+        String cursor = null;
+        do {
+            var request = get("/api/v1/map/info/places")
+                    .param("category", "SPOT").param("sort", "DISTANCE")
+                    .param("lat", Double.toString(lat)).param("lng", Double.toString(lng))
+                    .param("limit", "30");
+            if (cursor != null) request.param("cursor", cursor);
+            var page = new ObjectMapper().readTree(publicApi.perform(request)
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+            for (var item : page.path("items")) {
+                ids.add(item.path("placeId").asText());
+                distances.add(haversineMeters(lat, lng,
+                        item.path("coordinates").path("lat").asDouble(),
+                        item.path("coordinates").path("lng").asDouble()));
+            }
+            cursor = page.path("nextCursor").isNull() ? null : page.path("nextCursor").asText();
+            assertThat(distances.size()).as("pages must not run past the fixture").isLessThanOrEqualTo(101);
+        } while (cursor != null);
+
+        assertThat(ids).hasSize(101).doesNotHaveDuplicates();
+        assertThat(ids).containsExactlyInAnyOrderElementsOf(fixtureMapIds("SPOT"));
+        // ST_Distance uses the geography (ellipsoidal) model, haversine is spherical: allow 0.5% drift.
+        for (int i = 1; i < distances.size(); i++) {
+            assertThat(distances.get(i)).as("index %d", i)
+                    .isGreaterThanOrEqualTo(distances.get(i - 1) * 0.995);
+        }
+
+        publicApi.perform(get("/api/v1/map/info/places")
+                        .param("category", "SPOT").param("sort", "DISTANCE").param("lat", Double.toString(lat)))
+                .andExpect(status().isBadRequest());
+    }
+
+    private static double haversineMeters(double lat1, double lng1, double lat2, double lng2) {
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return 2 * 6_371_000 * Math.asin(Math.sqrt(a));
+    }
+
     private PublicPages readPublicPages(String path, Map<String, String> params, String idField, int total) throws Exception {
         var pagedIds = new ArrayList<String>();
         var pageSizes = new ArrayList<Integer>();
