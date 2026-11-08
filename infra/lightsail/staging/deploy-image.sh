@@ -2,25 +2,29 @@
 set -eu
 
 # Installed as a root-owned copy in /usr/local/sbin by install-deployer.sh.
-if [ "$(id -u)" -ne 0 ] || [ "$#" -ne 3 ]; then
-    echo "Usage: deploy-image.sh <develop-sha> <spring-image-digest> <github-actor>" >&2
+if [ "$(id -u)" -ne 0 ] || [ "$#" -ne 4 ]; then
+    echo "Usage: deploy-image.sh <develop-sha> <spring-image-digest> <ai-image-digest> <github-actor>" >&2
     exit 2
 fi
 SHA=$1
-DIGEST=$2
-ACTOR=$3
+SPRING_DIGEST=$2
+AI_DIGEST=$3
+ACTOR=$4
 case "$SHA" in *[!0-9a-f]*|'') echo "Invalid commit SHA" >&2; exit 2;; esac
 [ "${#SHA}" -eq 40 ] || { echo "Invalid commit SHA length" >&2; exit 2; }
-case "$DIGEST" in sha256:*) ;; *) echo "Invalid image digest" >&2; exit 2;; esac
-HEX=${DIGEST#sha256:}
-case "$HEX" in *[!0-9a-f]*|'') echo "Invalid image digest" >&2; exit 2;; esac
-[ "${#HEX}" -eq 64 ] || { echo "Invalid image digest length" >&2; exit 2; }
+for DIGEST in "$SPRING_DIGEST" "$AI_DIGEST"; do
+    case "$DIGEST" in sha256:*) ;; *) echo "Invalid image digest" >&2; exit 2;; esac
+    HEX=${DIGEST#sha256:}
+    case "$HEX" in *[!0-9a-f]*|'') echo "Invalid image digest" >&2; exit 2;; esac
+    [ "${#HEX}" -eq 64 ] || { echo "Invalid image digest length" >&2; exit 2; }
+done
 case "$ACTOR" in *[!A-Za-z0-9_-]*|'') echo "Invalid GitHub actor" >&2; exit 2;; esac
 
 DIR=/opt/onmaru/staging-repo/infra/lightsail/staging
 REPO=/opt/onmaru/staging-repo
 ENV=$DIR/.env
-IMAGE=ghcr.io/yrootlab/onmaru-backend/spring-api@$DIGEST
+SPRING_IMAGE=ghcr.io/yrootlab/onmaru-backend/spring-api@$SPRING_DIGEST
+AI_IMAGE=ghcr.io/yrootlab/onmaru-ai-engine/ai-engine@$AI_DIGEST
 exec 9>/run/onmaru-staging.lock
 flock -n 9 || { echo "Another staging operation is in progress" >&2; exit 1; }
 [ "$(stat -c %a "$ENV")" = 600 ] || { echo "Staging .env must have mode 600" >&2; exit 1; }
@@ -51,25 +55,33 @@ IFS= read -r GH_TOKEN || { echo "Missing temporary GHCR token" >&2; exit 1; }
 [ -n "$GH_TOKEN" ] || { echo "Missing temporary GHCR token" >&2; exit 1; }
 printf '%s\n' "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin >/dev/null
 unset GH_TOKEN
-docker pull "$IMAGE" >/dev/null
-docker image inspect "$IMAGE" >/dev/null
-ONMARU_SPRING_IMAGE="$IMAGE" docker compose --project-directory "$DIR" --env-file "$ENV" -f "$DIR/compose.yaml" config --quiet
+docker pull "$SPRING_IMAGE" >/dev/null
+docker pull "$AI_IMAGE" >/dev/null
+docker image inspect "$SPRING_IMAGE" >/dev/null
+docker image inspect "$AI_IMAGE" >/dev/null
+ONMARU_SPRING_IMAGE="$SPRING_IMAGE" ONMARU_AI_IMAGE="$AI_IMAGE" docker compose --project-directory "$DIR" --env-file "$ENV" -f "$DIR/compose.yaml" config --quiet
 
 runuser -u ubuntu -- git -C "$REPO" merge --ff-only --quiet "$SHA"
-python3 - "$ENV" "$IMAGE" <<'PY'
+python3 - "$ENV" "$SPRING_IMAGE" "$AI_IMAGE" <<'PY'
 from pathlib import Path
 import os
 import sys
 import tempfile
 
 path = Path(sys.argv[1])
-image = sys.argv[2]
+spring_image = sys.argv[2]
+ai_image = sys.argv[3]
 lines = path.read_text().splitlines(keepends=True)
-matches = [i for i, line in enumerate(lines) if line.startswith("ONMARU_SPRING_IMAGE=")]
-if len(matches) != 1:
+spring_matches = [i for i, line in enumerate(lines) if line.startswith("ONMARU_SPRING_IMAGE=")]
+ai_matches = [i for i, line in enumerate(lines) if line.startswith("ONMARU_AI_IMAGE=")]
+if len(spring_matches) != 1:
     raise SystemExit("Expected exactly one ONMARU_SPRING_IMAGE entry")
-old = lines[matches[0]].strip().split("=", 1)[1]
-lines[matches[0]] = f"ONMARU_SPRING_IMAGE={image}\n"
+if len(ai_matches) != 1:
+    raise SystemExit("Expected exactly one ONMARU_AI_IMAGE entry")
+old_spring = lines[spring_matches[0]].strip().split("=", 1)[1]
+old_ai = lines[ai_matches[0]].strip().split("=", 1)[1]
+lines[spring_matches[0]] = f"ONMARU_SPRING_IMAGE={spring_image}\n"
+lines[ai_matches[0]] = f"ONMARU_AI_IMAGE={ai_image}\n"
 fd, temp_name = tempfile.mkstemp(prefix=".env.", dir=path.parent)
 try:
     os.fchmod(fd, 0o600)
@@ -77,10 +89,15 @@ try:
         output.writelines(lines)
         output.flush()
         os.fsync(output.fileno())
-    history = Path("/var/lib/onmaru/staging-previous-image")
-    history.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    history.write_text(old + "\n")
-    history.chmod(0o600)
+    history_dir = Path("/var/lib/onmaru")
+    history_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    for name, value in (
+        ("staging-previous-image", old_spring),
+        ("staging-previous-ai-image", old_ai),
+    ):
+        history = history_dir / name
+        history.write_text(value + "\n")
+        history.chmod(0o600)
     os.replace(temp_name, path)
 except BaseException:
     if os.path.exists(temp_name):
@@ -88,4 +105,4 @@ except BaseException:
     raise
 PY
 docker compose --project-directory "$DIR" --env-file "$ENV" -f "$DIR/compose.yaml" config --quiet
-printf 'Prepared staging image %s for develop %s; staging remains stopped.\n' "$DIGEST" "$SHA"
+printf 'Prepared staging Spring %s and AI %s for develop %s; staging remains stopped.\n' "$SPRING_DIGEST" "$AI_DIGEST" "$SHA"

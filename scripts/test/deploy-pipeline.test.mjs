@@ -174,6 +174,33 @@ describe('container and staging release pipeline', () => {
     assert.match(workflow, /environment:\s+staging/);
   });
 
+  it('prepares an immutable AI digest through the restricted staging deployer', () => {
+    const workflow = read('.github/workflows/deploy.yml');
+    const deployer = read('infra/lightsail/staging/deploy-image.sh');
+    const command = read('infra/lightsail/staging/deployer-command.sh');
+    const installer = read('infra/lightsail/staging/install-deployer.sh');
+
+    assert.match(workflow, /staging_ai_image_digest:/);
+    assert.match(workflow, /STAGING_AI_DIGEST: \$\{\{ inputs\.staging_ai_image_digest \}\}/);
+    assert.match(workflow, /\^sha256:\[0-9a-f\]\{64\}\$/);
+    assert.match(
+      workflow,
+      /deploy \$GITHUB_SHA \$SPRING_DIGEST \$STAGING_AI_DIGEST \$GITHUB_ACTOR/,
+    );
+
+    assert.match(deployer, /\[ "\$#" -ne 4 \]/);
+    assert.match(deployer, /AI_IMAGE=ghcr\.io\/yrootlab\/onmaru-ai-engine\/ai-engine@\$AI_DIGEST/);
+    assert.match(deployer, /docker pull "\$SPRING_IMAGE"/);
+    assert.match(deployer, /docker pull "\$AI_IMAGE"/);
+    assert.match(deployer, /ONMARU_AI_IMAGE/);
+    assert.match(deployer, /Expected exactly one ONMARU_AI_IMAGE entry/);
+    assert.match(deployer, /ONMARU_AI_IMAGE="\$AI_IMAGE" docker compose/);
+    assert.doesNotMatch(deployer, /onmaru-production-ai-deploy/);
+
+    assert.match(command, /onmaru-staging-deploy-image "\$2" "\$3" "\$4" "\$5"/);
+    assert.match(installer, /onmaru-staging-deploy-image \*/);
+  });
+
   it('runs release and CI workflows from the master production branch', () => {
     const releasePlease = read('.github/workflows/release-please.yml');
     const ci = read('.github/workflows/ci.yml');
