@@ -145,6 +145,8 @@ class InternalAiProgressControllerTests {
         var b64 = Base64.getUrlEncoder().withoutPadding();
         var header = b64.encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
         var claimsJson = objectMapper.writeValueAsString(Map.of(
+                "aud", HmacProgressCapabilityIssuer.AUDIENCE,
+                "scope", HmacProgressCapabilityIssuer.SCOPE,
                 "runId", runId.toString(),
                 "planHash", planHash,
                 "exp", expiry.getEpochSecond()

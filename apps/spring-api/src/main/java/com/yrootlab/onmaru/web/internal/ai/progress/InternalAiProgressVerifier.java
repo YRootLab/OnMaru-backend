@@ -53,7 +53,12 @@ public final class InternalAiProgressVerifier {
 
             JsonNode claims = OBJECT_MAPPER.readTree(BASE64.decode(parts[1]));
             long exp = claims.path("exp").asLong(0);
-            if (Instant.ofEpochSecond(exp).isBefore(clock.instant())) {
+            if (!clock.instant().isBefore(Instant.ofEpochSecond(exp))) {
+                return false;
+            }
+
+            if (!HmacProgressCapabilityIssuer.AUDIENCE.equals(claims.path("aud").asText())
+                    || !HmacProgressCapabilityIssuer.SCOPE.equals(claims.path("scope").asText())) {
                 return false;
             }
 
@@ -64,7 +69,7 @@ public final class InternalAiProgressVerifier {
 
             if (expectedPlanHash != null) {
                 String tokenPlanHash = claims.path("planHash").asText(null);
-                if (tokenPlanHash != null && !expectedPlanHash.equalsIgnoreCase(tokenPlanHash)) {
+                if (tokenPlanHash == null || !expectedPlanHash.equals(tokenPlanHash)) {
                     return false;
                 }
             }
