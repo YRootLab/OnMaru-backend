@@ -989,6 +989,19 @@ CREATE TABLE "discovery_runs" (
   "engine" varchar NOT NULL
 );
 
+CREATE TABLE "journey_query_grants" (
+  "token_hash" char(64) PRIMARY KEY,
+  "run_id" uuid UNIQUE NOT NULL,
+  "plan_hash" varchar(80) NOT NULL,
+  "filters" jsonb NOT NULL,
+  "canonical_fields" jsonb NOT NULL,
+  "versions" jsonb NOT NULL,
+  "max_places" int NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "expires_at" timestamptz NOT NULL,
+  "consumed_at" timestamptz
+);
+
 CREATE TABLE "discovery_run_commands" (
   "actor_key" varchar NOT NULL,
   "operation" varchar NOT NULL,
@@ -1836,6 +1849,8 @@ ALTER TABLE "insights_target_place_links" ADD FOREIGN KEY ("target_id") REFERENC
 ALTER TABLE "discovery_runs" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "discovery_run_commands" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "journey_query_grants" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "discovery_proposals" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id") DEFERRABLE INITIALLY IMMEDIATE;
 
