@@ -352,13 +352,14 @@ jobs:
       - name: Run staging smoke contract
         env:
           STAGING_SPRING_URL: ${{ vars.STAGING_SPRING_URL }}
+          STAGING_AI_URL: ${{ vars.STAGING_AI_URL }}
         run: |
           node --test scripts/test/deploy-pipeline.test.mjs
           test -f infra/staging/release-plan.json
           test "$STAGING_SPRING_URL" = 'https://staging-api.onmaru.site'
+          test "$STAGING_AI_URL" = 'https://staging-ai.onmaru.site'
           curl --fail --silent --show-error --output /dev/null "$STAGING_SPRING_URL/auth/csrf"
-          # AI staging service is not provisioned yet. Re-enable this check with Issue #490
-          # after registering a real STAGING_AI_URL and connecting the AI image deployment.
+          curl --fail --silent --show-error --output /dev/null "$STAGING_AI_URL/ready"
 
   rollback-on-failure:
     runs-on: ubuntu-latest

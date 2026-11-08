@@ -182,8 +182,13 @@ describe('container and staging release pipeline', () => {
     );
     assert.match(workflow, /staging-smoke:/);
     assert.match(workflow, /STAGING_SPRING_URL/);
-    assert.match(workflow, /AI staging service is not provisioned yet/);
-    assert.doesNotMatch(workflow, /\$\{\{ vars\.STAGING_AI_URL \}\}/);
+    assert.match(workflow, /STAGING_AI_URL: \$\{\{ vars\.STAGING_AI_URL \}\}/);
+    assert.match(workflow, /test "\$STAGING_AI_URL" = 'https:\/\/staging-ai\.onmaru\.site'/);
+    assert.match(
+      workflow,
+      /curl --fail --silent --show-error --output \/dev\/null "\$STAGING_AI_URL\/ready"/,
+      'staging smoke must probe the AI readiness endpoint like the release benchmark does',
+    );
     assert.match(workflow, /curl --fail --silent --show-error/);
     assert.match(workflow, /rollback-on-failure:/);
     assert.match(workflow, /environment:\s+staging/);
