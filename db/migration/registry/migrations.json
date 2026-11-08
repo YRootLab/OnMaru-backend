@@ -482,6 +482,15 @@
       "checksum": "journey-run-observations-v054-20261105",
       "sha256": "bd5cd22170e4c00ff8f4929be16b6167743bc1b316e57830528e301e5d76b25d",
       "description": "Sanitized AI run observation projection store and stage trace reference"
+    },
+    {
+      "version": "056",
+      "reservedFor": "JOURNEY_QUERY_GRANT",
+      "issueNumber": 810,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V056__810_journey_query_grants.sql",
+      "checksum": "journey-query-grant-v056-20261109",
+      "sha256": "056d5c8d7220cd4fc204f2fd6124ab66b5b84c9d6964f2e268de344ddec86d63",
+      "description": "Run-bound approved query grant store with hash-only reference and one-time consumption"
     }
   ]
 }
