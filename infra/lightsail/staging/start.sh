@@ -10,6 +10,11 @@ if ! flock -n 9; then
     echo "Another staging start/stop is in progress; retry shortly." >&2
     exit 1
 fi
+exec 8>/run/onmaru-ai-lifecycle.lock
+if ! flock -n 8; then
+    echo "Another production or staging AI lifecycle operation is in progress; retry shortly." >&2
+    exit 1
+fi
 DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ENV="$DIR/.env"
 COMPOSE="$DIR/compose.yaml"

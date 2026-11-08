@@ -28,6 +28,10 @@ AI_IMAGE=ghcr.io/yrootlab/onmaru-ai-engine/ai-engine@$AI_DIGEST
 exec 9>/run/onmaru-staging.lock
 flock -n 9 || { echo "Another staging operation is in progress" >&2; exit 1; }
 [ "$(stat -c %a "$ENV")" = 600 ] || { echo "Staging .env must have mode 600" >&2; exit 1; }
+AI_IMAGE_ENTRY_COUNT=$(grep -c '^ONMARU_AI_IMAGE=' "$ENV" || true)
+[ "$AI_IMAGE_ENTRY_COUNT" -eq 1 ] || { echo "Expected exactly one ONMARU_AI_IMAGE entry before deployment" >&2; exit 1; }
+AI_TOKEN_ENTRY_COUNT=$(grep -c '^ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT=..*' "$ENV" || true)
+[ "$AI_TOKEN_ENTRY_COUNT" -eq 1 ] || { echo "Expected exactly one non-empty internal AI service token" >&2; exit 1; }
 [ "$(runuser -u ubuntu -- git -C "$REPO" branch --show-current)" = develop ] || {
     echo "Staging checkout must be on develop" >&2; exit 1;
 }
@@ -48,9 +52,11 @@ runuser -u ubuntu -- git -C "$REPO" merge-base --is-ancestor HEAD "$SHA" || {
 }
 
 DOCKER_CONFIG=$(mktemp -d /run/onmaru-staging-ghcr.XXXXXX)
+TARGET_COMPOSE=$(mktemp /run/onmaru-staging-compose.XXXXXX.yaml)
 chmod 700 "$DOCKER_CONFIG"
 export DOCKER_CONFIG
-trap 'rm -rf "$DOCKER_CONFIG"' EXIT HUP INT TERM
+trap 'rm -rf "$DOCKER_CONFIG"; rm -f "$TARGET_COMPOSE"' EXIT HUP INT TERM
+runuser -u ubuntu -- git -C "$REPO" show "$SHA:infra/lightsail/staging/compose.yaml" > "$TARGET_COMPOSE"
 IFS= read -r GH_TOKEN || { echo "Missing temporary GHCR token" >&2; exit 1; }
 [ -n "$GH_TOKEN" ] || { echo "Missing temporary GHCR token" >&2; exit 1; }
 printf '%s\n' "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin >/dev/null
@@ -59,7 +65,7 @@ docker pull "$SPRING_IMAGE" >/dev/null
 docker pull "$AI_IMAGE" >/dev/null
 docker image inspect "$SPRING_IMAGE" >/dev/null
 docker image inspect "$AI_IMAGE" >/dev/null
-ONMARU_SPRING_IMAGE="$SPRING_IMAGE" ONMARU_AI_IMAGE="$AI_IMAGE" docker compose --project-directory "$DIR" --env-file "$ENV" -f "$DIR/compose.yaml" config --quiet
+ONMARU_SPRING_IMAGE="$SPRING_IMAGE" ONMARU_AI_IMAGE="$AI_IMAGE" docker compose --project-directory "$DIR" --env-file "$ENV" -f "$TARGET_COMPOSE" config --quiet
 
 runuser -u ubuntu -- git -C "$REPO" merge --ff-only --quiet "$SHA"
 python3 - "$ENV" "$SPRING_IMAGE" "$AI_IMAGE" <<'PY'

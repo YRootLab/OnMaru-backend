@@ -316,6 +316,10 @@ jobs:
           chmod 700 ~/.ssh
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          protocol=$(ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
+            onmaru-staging-deployer@13.125.191.16 "version")
+          test "$protocol" = staging-ai-v1 || { echo "Unsupported staging deployer protocol: $protocol" >&2; exit 1; }
           printf '%s\n' "$GH_TOKEN" | ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
             onmaru-staging-deployer@13.125.191.16 \

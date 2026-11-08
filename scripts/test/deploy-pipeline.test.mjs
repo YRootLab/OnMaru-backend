@@ -201,6 +201,40 @@ describe('container and staging release pipeline', () => {
     assert.match(installer, /onmaru-staging-deploy-image \*/);
   });
 
+  it('fails closed across staging bootstrap and shared AI lifecycle operations', () => {
+    const workflow = read('.github/workflows/deploy.yml');
+    const deployer = read('infra/lightsail/staging/deploy-image.sh');
+    const command = read('infra/lightsail/staging/deployer-command.sh');
+    const start = read('infra/lightsail/staging/start.sh');
+    const stop = read('infra/lightsail/staging/stop.sh');
+    const productionAi = read('infra/lightsail/production/deploy-ai-engine.sh');
+    const readme = read('infra/lightsail/staging/README.md');
+
+    assert.match(command, /version\)\n\s+printf 'staging-ai-v1/);
+    assert.match(workflow, /"version"\)/);
+    assert.match(workflow, /test "\$protocol" = staging-ai-v1/);
+    assert.match(readme, /staging-ai-v1/);
+    assert.match(readme, /install-deployer\.sh/);
+    assert.match(readme, /ONMARU_AI_IMAGE/);
+    assert.match(readme, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT/);
+
+    const envPrecheck = deployer.indexOf("grep -c '^ONMARU_AI_IMAGE='");
+    const merge = deployer.indexOf('merge --ff-only');
+    assert.ok(envPrecheck >= 0 && envPrecheck < merge, 'AI env bootstrap must precede checkout mutation');
+    assert.match(deployer, /git -C "\$REPO" show "\$SHA:infra\/lightsail\/staging\/compose\.yaml"/);
+    assert.match(deployer, /-f "\$TARGET_COMPOSE" config --quiet/);
+    assert.ok(
+      deployer.indexOf('-f "$TARGET_COMPOSE" config --quiet') < merge,
+      'target Compose must render before checkout mutation',
+    );
+
+    for (const script of [start, stop, productionAi]) {
+      assert.match(script, /\/run\/onmaru-ai-lifecycle\.lock/);
+    }
+    assert.match(productionAi, /onmaru-staging-staging-ai-engine-1/);
+    assert.match(productionAi, /Staging AI is running/);
+  });
+
   it('runs release and CI workflows from the master production branch', () => {
     const releasePlease = read('.github/workflows/release-please.yml');
     const ci = read('.github/workflows/ci.yml');

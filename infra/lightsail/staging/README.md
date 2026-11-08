@@ -15,10 +15,13 @@
 스테이징을 중지한 상태에서만 새 이미지를 준비한다. GitHub Actions의 `Build Images and Deploy`를 `develop` ref로 수동 실행하며 `deploy_staging=true`를 선택한다. 이 작업은 같은 commit의 `CI / verify`, 이미지 취약점 검사, migration gate가 모두 통과한 뒤에만 진행된다. 이미지와 migration 파일을 해당 `develop` commit으로 맞추지만 스테이징 컨테이너는 시작하지 않는다. FE의 다음 `start`에서 Flyway와 Spring이 새 버전으로 기동한다.
 
 ```bash
-gh workflow run deploy.yml --ref develop -f deploy_staging=true
+gh workflow run deploy.yml --ref develop -f deploy_staging=true \
+  -f staging_ai_image_digest=sha256:50121191624330efe2d3749604be608dab5e0e6d6bd714f11f2358c5bffe4b6d
 ```
 
-최초 설정에는 GitHub `staging` 환경에 `STAGING_DEPLOY_SSH_KEY` secret과 `STAGING_SSH_KNOWN_HOSTS` variable이 필요하다. 운영자 개인 SSH 키를 GitHub에 올리지 않는다. CI 전용 Ed25519 키 쌍을 생성해 개인키만 GitHub 환경 secret에 등록하고, 서버에는 공개키만 전달해 `sudo staging/install-deployer.sh /path/to/ci.pub`를 실행한다. 설치 스크립트는 전용 계정에 배포 명령 하나만 허용하며, 일반 셸·운영 Compose 접근 권한을 주지 않는다. 서버 host key는 기존에 신뢰한 SSH 연결의 fingerprint와 대조한 뒤 GitHub variable에 고정한다. CI의 단기 GHCR token은 SSH 표준 입력으로만 전달되고 서버의 임시 Docker 인증 디렉터리는 이미지 pull 후 삭제된다.
+최초 설정에는 GitHub `staging` 환경에 `STAGING_DEPLOY_SSH_KEY` secret과 `STAGING_SSH_KNOWN_HOSTS` variable이 필요하다. 운영자 개인 SSH 키를 GitHub에 올리지 않는다. CI 전용 Ed25519 키 쌍을 생성해 개인키만 GitHub 환경 secret에 등록하고, 서버에는 공개키만 전달해 `sudo staging/install-deployer.sh /path/to/ci.pub`를 실행한다. 기존 배포 계정이 있어도 AI digest 인자를 지원하는 root-owned 스크립트로 갱신하기 위해 이 설치 명령을 다시 실행한다. 제한 SSH로 `version`을 호출했을 때 `staging-ai-v1`이 출력되는지 확인한 뒤 workflow를 실행한다. 설치 스크립트는 전용 계정에 배포 명령 하나만 허용하며, 일반 셸·운영 Compose 접근 권한을 주지 않는다. 서버 host key는 기존에 신뢰한 SSH 연결의 fingerprint와 대조한 뒤 GitHub variable에 고정한다. CI의 단기 GHCR token은 SSH 표준 입력으로만 전달되고 서버의 임시 Docker 인증 디렉터리는 이미지 pull 후 삭제된다.
+
+기존 서버의 `staging/.env`에는 첫 AI 배포 전에 `staging/.env.example`을 기준으로 `ONMARU_AI_IMAGE`(불변 digest), `ONMARU_AI_MEMORY_LIMIT=512m`, 스테이징 전용 `ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT` 및 AI DB role 값을 추가하고 mode `600`을 유지한다. 내부 AI token은 운영 값과 공유하지 않는다.
 
 실행 중인 스테이징에 새 이미지를 적용하려 하면 배포가 실패하므로 FE가 테스트를 마치고 `stop`한 뒤 다시 실행한다. 배포 스크립트는 이전 이미지 참조를 `/var/lib/onmaru/staging-previous-image`에 보관한다. 배포 실패나 새 버전 기동 실패 시 운영자가 원인과 migration 호환성을 확인한 뒤 이전 이미지로 되돌린다. DB migration은 자동 역적용되지 않는다.
 
