@@ -1,4 +1,12 @@
 # handoff.md
+## 2026-11-09 AI staging readiness 검증 재활성화 (#490)
+
+- 브랜치 `feature/490-6`, 기준 `develop` merge `847b32f1` (#814). #491의 임시 스킵(`9a32b787`)을 역변경해 `Staging Deploy` staging smoke가 `STAGING_AI_URL/ready`를 다시 검증한다. Spring과 같은 도메인 고정 가드(`https://staging-ai.onmaru.site`)를 추가했다.
+- 공개 AI 진입점은 `staging-ai.onmaru.site`의 `/ready`만 허용하는 nginx TLS 프록시다(`nginx/staging-ai-site.conf`, 기타 경로 404). staging AI는 host port publish 금지(#807)를 유지하며 내부 AI API는 앱 네트워크의 `staging-ai-engine:8000`으로만 접근한다. production compose는 `NGINX_STAGING_AI_SITE_CONFIG`로 이 가상호스트를 선택하고 기본값은 `staging-ai-bootstrap.conf`(HTTP ACME+503)라서 연산자가 전환하기 전까지 운영 Nginx 동작은 변하지 않는다.
+- GitHub `staging` 환경에 `STAGING_AI_URL=https://staging-ai.onmaru.site` variable을 등록했다. `benchmark-release.yml`은 이미 같은 `vars.STAGING_AI_URL` + `/ready` 계약을 갖고 있어 deploy smoke·benchmark·계약 테스트가 동일 계약으로 수렴했다.
+- 남은 운영 작업(코드 밖, README 7단계로 문서화): `staging-ai.onmaru.site` A 레코드 추가 → certbot 인증서 발급 → 운영 `.env`에 `NGINX_STAGING_AI_SITE_CONFIG=./nginx/staging-ai-site.conf` 설정 후 Nginx 재생성 → staging 기동 상태에서 `run_staging_smoke=true` 수동 실행. 참고로 현재 Cloudflare 권한 DNS에서 `staging-api.onmaru.site`도 NXDOMAIN이라 Spring smoke도 DNS 재등록 전에는 실패한다.
+- 검증: `node --test scripts/test/deploy-pipeline.test.mjs` 11/11 PASS, 전체 `scripts/test/*.test.mjs` 238 tests / 237 pass / 0 fail / 1 skip, `git diff --check` PASS, deploy.yml YAML 파싱 PASS. 로컬 nginx 미설치로 conf syntax 검사는 서버 `nginx -t`에서 수행한다.
+
 
 ## 2026-11-09 Spring AI plan/execute authority 경로 구현 (#808)
 
