@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpServer;
 import com.yrootlab.onmaru.config.secrets.FakeSecretProvider;
 import com.yrootlab.onmaru.integration.ai.plan.AiPlanWireCodec;
 import com.yrootlab.onmaru.journey.worker.AiProposalException;
+import com.yrootlab.onmaru.journey.worker.WorkerDegradedReason;
 import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.*;
 import org.junit.jupiter.api.*;
 
@@ -27,6 +28,7 @@ class HttpAiPlanExecuteClientTests {
     private PlanProposal proposal;
     private byte[] planBody;
     private int responseStatus = 200;
+    private long responseDelayMillis;
     private byte[] executeBody;
 
     @BeforeEach void start() throws Exception {
@@ -41,6 +43,10 @@ class HttpAiPlanExecuteClientTests {
         server.createContext("/", exchange -> {
             paths.add(exchange.getRequestURI().getPath()); headers.add(exchange.getRequestHeaders());
             exchange.getRequestBody().readAllBytes();
+            if (responseDelayMillis > 0) {
+                try { Thread.sleep(responseDelayMillis); }
+                catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+            }
             byte[] body = exchange.getRequestURI().getPath().endsWith("plan") ? planBody : executeBody;
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(responseStatus, body.length);
@@ -92,6 +98,33 @@ class HttpAiPlanExecuteClientTests {
         responseStatus=409;
         assertThatThrownBy(() -> client.execute(approved,context,null)).isInstanceOf(AiProposalException.class);
         assertThat(paths).hasSize(3);
+    }
+
+    @Test void mapsHttpFailuresToStableDegradedReasonsWithoutRetry() {
+        var client = client(Duration.ofSeconds(1));
+        var context = new CallContext("req-808",safe.runId(),"1".repeat(32),now.plusSeconds(20));
+        for (var expected : Map.of(
+                422, WorkerDegradedReason.AI_INVALID_RESPONSE,
+                429, WorkerDegradedReason.AI_QUOTA_EXCEEDED,
+                504, WorkerDegradedReason.AI_TIMEOUT,
+                409, WorkerDegradedReason.AI_SERVICE_UNAVAILABLE).entrySet()) {
+            responseStatus = expected.getKey();
+            assertThatThrownBy(() -> client.plan(safe, context))
+                    .isInstanceOfSatisfying(AiProposalException.class,
+                            exception -> assertThat(exception.degradedReason()).isEqualTo(expected.getValue()));
+        }
+        assertThat(paths).hasSize(4);
+    }
+
+    @Test void timesOutAnInFlightResponseAndDoesNotRetry() {
+        responseDelayMillis = 250;
+        var client = client(Duration.ofMillis(30));
+        var context = new CallContext("req-808",safe.runId(),"1".repeat(32),now.plusSeconds(20));
+
+        assertThatThrownBy(() -> client.plan(safe, context))
+                .isInstanceOfSatisfying(AiProposalException.class,
+                        exception -> assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_TIMEOUT));
+        assertThat(paths).containsExactly("/internal/v1/journey/plan");
     }
 
     private HttpAiPlanExecuteClient client(Duration timeout) {

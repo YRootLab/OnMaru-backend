@@ -71,6 +71,41 @@ class PlanAuthorityGateTests {
                 .isInstanceOf(AiProposalException.class);
     }
 
+    @Test
+    void rejectsSchemaInvalidIdentifiersDuplicatesOversizedFiltersAndQueryGrant() throws Exception {
+        var fixture = fixture("sql_only");
+        var request = codec.readSafeQuery(mapper.writeValueAsBytes(fixture.path("context").get("request")));
+
+        var duplicate = (ObjectNode) fixture.get("payload").deepCopy();
+        ((com.fasterxml.jackson.databind.node.ArrayNode) duplicate.path("proposedFilters").path("excludedPlaceIds"))
+                .add("place-9");
+        assertThatThrownBy(() -> gate.approve(request, rehashed(duplicate), request.versions()))
+                .isInstanceOf(AiProposalException.class);
+
+        var oversized = (ObjectNode) fixture.get("payload").deepCopy();
+        var excluded = (com.fasterxml.jackson.databind.node.ArrayNode) oversized.path("proposedFilters").path("excludedPlaceIds");
+        excluded.removeAll();
+        for (int index = 0; index <= 1_000; index++) excluded.add("place-" + index);
+        assertThatThrownBy(() -> gate.approve(request, rehashed(oversized), request.versions()))
+                .isInstanceOf(AiProposalException.class);
+
+        var malformed = (ObjectNode) fixture.get("payload").deepCopy();
+        ((com.fasterxml.jackson.databind.node.ArrayNode) malformed.path("proposedFilters").path("excludedPlaceIds"))
+                .add("contains space");
+        assertThatThrownBy(() -> gate.approve(request, rehashed(malformed), request.versions()))
+                .isInstanceOf(AiProposalException.class);
+
+        var plan = codec.readPlan(mapper.writeValueAsBytes(fixture.get("payload")));
+        assertThatThrownBy(() -> new ApprovedPlanBinding(plan).forExecution("contains space"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private PlanProposal rehashed(ObjectNode document) throws Exception {
+        var withoutUpdatedHash = codec.readPlan(mapper.writeValueAsBytes(document));
+        document.put("planHash", codec.planHash(withoutUpdatedHash));
+        return codec.readPlan(mapper.writeValueAsBytes(document));
+    }
+
     private com.fasterxml.jackson.databind.JsonNode fixture(String route) throws Exception {
         try (var stream = getClass().getResourceAsStream("/ai-plan-execute/accepted-plan-" + route + ".json")) {
             return mapper.readTree(stream);

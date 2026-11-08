@@ -51,7 +51,7 @@ public final class PlanExecuteAiProposalClient implements AiProposalClient {
                     || !plan.planHash().equals(result.planHash()) || !plan.versions().equals(result.versions())) throw invalid();
             return mapper.map(binding,result,candidates);
         } catch(AiProposalException e) { throw e; }
-        catch(RuntimeException e) { throw invalid(); }
+        catch(RuntimeException e) { throw unavailable(); }
     }
 
     private synchronized void reserve(UUID runId) {
@@ -63,4 +63,5 @@ public final class PlanExecuteAiProposalClient implements AiProposalClient {
             throw new AiProposalException(WorkerDegradedReason.AI_TIMEOUT);
     }
     private static AiProposalException invalid() { return new AiProposalException(WorkerDegradedReason.AI_INVALID_RESPONSE); }
+    private static AiProposalException unavailable() { return new AiProposalException(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE); }
 }

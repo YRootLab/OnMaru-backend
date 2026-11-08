@@ -53,6 +53,8 @@ public final class AiJourneyContracts {
         public ApprovedQueryPlan forExecution(String queryGrantId) {
             if (plan.route().requiresLookup() != (queryGrantId != null && !queryGrantId.isBlank()))
                 throw new IllegalArgumentException("query grant does not match route");
+            if (queryGrantId != null && !queryGrantId.matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}"))
+                throw new IllegalArgumentException("invalid query grant");
             return new ApprovedQueryPlan("ai-approved-plan.v1", plan.planVersion(), plan.runId(), plan.planHash(),
                     plan.route(), plan.retrievalMode(), plan.proposedFilters(), plan.requestedCanonicalFields(),
                     plan.semanticQuery(), plan.versions(), queryGrantId);

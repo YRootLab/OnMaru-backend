@@ -10,9 +10,18 @@ import com.yrootlab.onmaru.journey.run.JourneyRunStatus;
 import com.yrootlab.onmaru.journey.run.JourneyRunStore;
 import com.yrootlab.onmaru.journey.run.RunCommandReceipt;
 import com.yrootlab.onmaru.journey.run.RunCommandResult;
+import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.CallContext;
+import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.ExecutionResult;
+import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.PlanProposal;
+import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.SafeQueryRequest;
+import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.ApprovedQueryPlan;
+import com.yrootlab.onmaru.journey.worker.plan.AiPlanExecuteClient;
+import com.yrootlab.onmaru.journey.worker.plan.PlanExecuteAiProposalClient;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +109,43 @@ class JourneyWorkerServiceTests {
         assertThat(outcome).isEqualTo(JourneyWorkerOutcome.COMPLETED_BASELINE);
         assertThat(resultStore.commands.get(0).engine()).isEqualTo(JourneyResultEngine.BASELINE);
         assertThat(resultStore.commands.get(0).degradedReason()).isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+    }
+
+    @Test
+    void planExecuteTimeoutFlowsThroughWorkerBaselinePersistence() {
+        var planExecuteClient = new PlanExecuteAiProposalClient(
+                new AiPlanExecuteClient() {
+                    @Override
+                    public PlanProposal plan(SafeQueryRequest safeQuery, CallContext context) {
+                        throw new AiProposalException(WorkerDegradedReason.AI_TIMEOUT);
+                    }
+
+                    @Override
+                    public ExecutionResult execute(ApprovedQueryPlan plan, CallContext context, String progressToken) {
+                        throw new AssertionError("execute must not run after plan timeout");
+                    }
+                },
+                (safeQuery, plan, versions) -> { throw new AssertionError("authority gate must not run"); },
+                (workerRequest, candidates) -> new SafeQueryRequest(
+                        "ai-safe-query.v1", workerRequest.runId(), "safe query", null, null, null, null),
+                () -> { throw new AssertionError("versions must not be read"); },
+                (binding, deadline) -> { throw new AssertionError("binding must not be stored"); },
+                (binding, deadline) -> { throw new AssertionError("grant must not be issued"); },
+                (binding, deadline) -> { throw new AssertionError("progress token must not be issued"); },
+                (binding, result, candidates) -> { throw new AssertionError("result must not be mapped"); },
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        var service = new JourneyWorkerService(
+                runStore,
+                ignored -> new CandidatePayload(
+                        "dataset-2026-09-16", List.of(new JourneyCandidate("place:001"))),
+                planExecuteClient,
+                candidates -> new JourneyWorkerPlan(List.of("place:001"), "INITIAL_BOARD"),
+                resultStore,
+                telemetry);
+
+        assertThat(service.process(request)).isEqualTo(JourneyWorkerOutcome.COMPLETED_BASELINE);
+        assertThat(resultStore.commands.get(0).degradedReason()).isEqualTo(WorkerDegradedReason.AI_TIMEOUT);
+        assertThat(resultStore.commands.get(0).engine()).isEqualTo(JourneyResultEngine.BASELINE);
     }
 
     @Test

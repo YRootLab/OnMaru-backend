@@ -50,6 +50,21 @@ class PlanExecuteAiProposalClientTests {
         assertThat(calls).containsExactly("plan");
     }
 
+    @Test void classifiesSpringOwnedPortFailureAsUnavailableInsteadOfMalformedAiResponse() throws Exception {
+        var fixture=fixture();
+        var client=new PlanExecuteAiProposalClient(new AiPlanExecuteClient() {
+            public PlanProposal plan(SafeQueryRequest request,CallContext context) { return fixture.plan; }
+            public ExecutionResult execute(ApprovedQueryPlan request,CallContext context,String token) { throw new AssertionError(); }
+        }, new DefaultPlanAuthorityGate(codec),(request,candidates)->fixture.safe,
+                ()->fixture.safe.versions(), (binding,deadline)->{throw new IllegalStateException("database unavailable");},
+                (b,d)->{throw new AssertionError();}, (b,d)->{throw new AssertionError();},
+                (b,r,c)->{throw new AssertionError();},Clock.fixed(now,ZoneOffset.UTC));
+
+        assertThatThrownBy(()->client.propose(request(fixture.safe.runId()),new CandidatePayload("corpus-1",List.of())))
+                .isInstanceOfSatisfying(AiProposalException.class,
+                        exception -> assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE));
+    }
+
     private JourneyWorkerRequest request(UUID runId) { return new JourneyWorkerRequest(runId,UUID.randomUUID(),"member:1",1,"corpus-1","SEOUL","private raw query",1,"req-808","1".repeat(32),now.plusSeconds(20)); }
     private record Fixture(SafeQueryRequest safe,PlanProposal plan) { }
     private Fixture fixture() throws Exception {
