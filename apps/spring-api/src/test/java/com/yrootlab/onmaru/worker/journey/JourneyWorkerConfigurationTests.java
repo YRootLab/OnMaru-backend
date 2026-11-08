@@ -23,6 +23,10 @@ import java.time.Clock;
 import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.yrootlab.onmaru.journey.worker.AiProposalClient;
+import com.yrootlab.onmaru.integration.ai.HttpAiProposalClient;
+import com.yrootlab.onmaru.journey.worker.plan.PlanExecuteAiProposalClient;
+import com.yrootlab.onmaru.journey.worker.plan.JourneyPlanExecutionPorts.*;
 
 class JourneyWorkerConfigurationTests {
 
@@ -42,7 +46,32 @@ class JourneyWorkerConfigurationTests {
             assertThat(context).hasSingleBean(BaselinePlanner.class);
             assertThat(context).hasSingleBean(JourneyRunStore.class);
             assertThat(context).hasSingleBean(JourneyResultStore.class);
+            assertThat(context.getBean(AiProposalClient.class)).isInstanceOf(HttpAiProposalClient.class);
         });
+    }
+
+    @Test
+    void planExecuteFlagFailsClosedWithoutProductionAuthorityAndCapabilityPorts() {
+        contextRunner.withPropertyValues("onmaru.ai.plan-execute-enabled=true").run(context -> {
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure()).hasRootCauseInstanceOf(org.springframework.beans.factory.NoSuchBeanDefinitionException.class);
+        });
+    }
+
+    @Test
+    void selectsPlanExecuteOnlyWhenAllProductionExtensionPortsAreSupplied() {
+        contextRunner.withPropertyValues("onmaru.ai.plan-execute-enabled=true")
+                .withBean(SafeQueryFactory.class, () -> (request,candidates) -> { throw new UnsupportedOperationException(); })
+                .withBean(CurrentVersions.class, () -> () -> { throw new UnsupportedOperationException(); })
+                .withBean(ApprovedBindingStore.class, () -> (binding, deadline) -> { throw new UnsupportedOperationException(); })
+                .withBean(QueryGrantIssuer.class, () -> (binding,deadline) -> { throw new UnsupportedOperationException(); })
+                .withBean(ProgressCapabilityIssuer.class, () -> (binding,deadline) -> { throw new UnsupportedOperationException(); })
+                .withBean(ExecutionResultMapper.class, () -> (binding,result,candidates) -> { throw new UnsupportedOperationException(); })
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(AiProposalClient.class);
+                    assertThat(context.getBean(AiProposalClient.class)).isInstanceOf(PlanExecuteAiProposalClient.class);
+                });
     }
 
     @Test

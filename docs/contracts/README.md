@@ -9,6 +9,7 @@
 - [Frontend handoff](frontend-handoff.md): FE 반영 범위와 전환 체크리스트
 - [`openapi/journey.openapi.yaml`](openapi/journey.openapi.yaml): AI 여정 REST command/snapshot/SSE와 SavedJourney endpoint OpenAPI 3.1 계약
 - [`openapi/internal-ai.yaml`](openapi/internal-ai.yaml): Spring↔FastAPI private REST와 run progress callback OpenAPI 계약
+- [`schemas/ai-plan-execute`](schemas/ai-plan-execute/README.md): 고정 AI commit의 plan/execute schema, hash 알고리즘, rollout 의존 port
 - [`legacy/internal-ai.v1.yaml`](legacy/internal-ai.v1.yaml): 이전 `internal.ai.v1` 내부 실행 계약 호환 기준
 - [`fixtures/journey`](fixtures/journey): 대화 목록·turn transcript clarification, stateVersion, idempotency, 권한·저장·삭제·재개 시나리오 fixture
 - [`openapi/r1.openapi.yaml`](openapi/r1.openapi.yaml): R1 한옥·장소·찜·월간 타임라인 OpenAPI 3.1 초안

@@ -1,0 +1,259 @@
+{
+  "name": "accepted-plan-sql_only",
+  "model": "PlanProposal",
+  "payload": {
+    "schemaVersion": "ai-plan-proposal.v1",
+    "planVersion": "ai-query-plan.v1",
+    "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+    "route": "SQL_ONLY",
+    "retrievalMode": "NONE",
+    "reasonCodes": [
+      "COMPOSITE_QUERY"
+    ],
+    "questionFrame": {
+      "operation": "RECOMMEND",
+      "targetPlaceIds": [],
+      "subjectConceptCodes": [
+        "QUIET"
+      ]
+    },
+    "retrievalExpression": {
+      "positiveConceptCodes": [
+        "QUIET"
+      ],
+      "negativeConceptCodes": [],
+      "publicEntityIds": []
+    },
+    "requestedCanonicalFields": [
+      "PUBLIC_ADDRESS"
+    ],
+    "proposedFilters": {
+      "filterHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "publicOnly": true,
+      "placeIds": [
+        "place-1",
+        "place-2"
+      ],
+      "regionCodes": [
+        "SEOUL"
+      ],
+      "categoryCodes": [
+        "HANOK"
+      ],
+      "pinnedPlaceIds": [
+        "place-1"
+      ],
+      "excludedPlaceIds": [
+        "place-9"
+      ]
+    },
+    "semanticQuery": null,
+    "versions": {
+      "corpusRevision": "corpus-1",
+      "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "questionDictionaryVersion": "questions-1",
+      "sourceRevocationSequence": 7
+    },
+    "limits": {
+      "bm25K": 20,
+      "vectorK": 20,
+      "rerankK": 30,
+      "evidenceK": 12,
+      "maxPlaces": 5
+    },
+    "clarification": null,
+    "planHash": "sha256:0b66d8144edf8cc38a7d0a7786cf6019e065d5dc97e6bc82efa6d32a29991d9b"
+  },
+  "expected": "ACCEPT",
+  "schemaValid": true,
+  "context": {
+    "request": {
+      "schemaVersion": "ai-safe-query.v1",
+      "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+      "safeQuery": "한적한 한옥을 알려 줘",
+      "confirmedContext": {
+        "regionCode": "SEOUL",
+        "pinnedPlaceIds": [
+          "place-1"
+        ],
+        "excludedPlaceIds": [
+          "place-9"
+        ],
+        "lastConfirmedPlaceIds": []
+      },
+      "authorityBounds": {
+        "filters": {
+          "filterHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "publicOnly": true,
+          "placeIds": [
+            "place-1",
+            "place-2"
+          ],
+          "regionCodes": [
+            "SEOUL"
+          ],
+          "categoryCodes": [
+            "HANOK"
+          ],
+          "pinnedPlaceIds": [
+            "place-1"
+          ],
+          "excludedPlaceIds": [
+            "place-9"
+          ]
+        },
+        "allowedCanonicalFields": [
+          "PUBLIC_ADDRESS",
+          "REGION_CODE"
+        ]
+      },
+      "versions": {
+        "corpusRevision": "corpus-1",
+        "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "questionDictionaryVersion": "questions-1",
+        "sourceRevocationSequence": 7
+      },
+      "limits": {
+        "bm25K": 20,
+        "vectorK": 20,
+        "rerankK": 30,
+        "evidenceK": 12,
+        "maxPlaces": 5
+      }
+    },
+    "proposal": {
+      "schemaVersion": "ai-plan-proposal.v1",
+      "planVersion": "ai-query-plan.v1",
+      "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+      "route": "SQL_ONLY",
+      "retrievalMode": "NONE",
+      "reasonCodes": [
+        "COMPOSITE_QUERY"
+      ],
+      "questionFrame": {
+        "operation": "RECOMMEND",
+        "targetPlaceIds": [],
+        "subjectConceptCodes": [
+          "QUIET"
+        ]
+      },
+      "retrievalExpression": {
+        "positiveConceptCodes": [
+          "QUIET"
+        ],
+        "negativeConceptCodes": [],
+        "publicEntityIds": []
+      },
+      "requestedCanonicalFields": [
+        "PUBLIC_ADDRESS"
+      ],
+      "proposedFilters": {
+        "filterHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "publicOnly": true,
+        "placeIds": [
+          "place-1",
+          "place-2"
+        ],
+        "regionCodes": [
+          "SEOUL"
+        ],
+        "categoryCodes": [
+          "HANOK"
+        ],
+        "pinnedPlaceIds": [
+          "place-1"
+        ],
+        "excludedPlaceIds": [
+          "place-9"
+        ]
+      },
+      "semanticQuery": null,
+      "versions": {
+        "corpusRevision": "corpus-1",
+        "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "questionDictionaryVersion": "questions-1",
+        "sourceRevocationSequence": 7
+      },
+      "limits": {
+        "bm25K": 20,
+        "vectorK": 20,
+        "rerankK": 30,
+        "evidenceK": 12,
+        "maxPlaces": 5
+      },
+      "clarification": null,
+      "planHash": "sha256:0b66d8144edf8cc38a7d0a7786cf6019e065d5dc97e6bc82efa6d32a29991d9b"
+    },
+    "approved": {
+      "schemaVersion": "ai-approved-plan.v1",
+      "planVersion": "ai-query-plan.v1",
+      "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+      "approvedPlanHash": "sha256:0b66d8144edf8cc38a7d0a7786cf6019e065d5dc97e6bc82efa6d32a29991d9b",
+      "approvedRoute": "SQL_ONLY",
+      "approvedRetrievalMode": "NONE",
+      "approvedFilters": {
+        "filterHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "publicOnly": true,
+        "placeIds": [
+          "place-1",
+          "place-2"
+        ],
+        "regionCodes": [
+          "SEOUL"
+        ],
+        "categoryCodes": [
+          "HANOK"
+        ],
+        "pinnedPlaceIds": [
+          "place-1"
+        ],
+        "excludedPlaceIds": [
+          "place-9"
+        ]
+      },
+      "approvedCanonicalFields": [
+        "PUBLIC_ADDRESS"
+      ],
+      "semanticQuery": null,
+      "versions": {
+        "corpusRevision": "corpus-1",
+        "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "questionDictionaryVersion": "questions-1",
+        "sourceRevocationSequence": 7
+      },
+      "queryGrantId": "grant-1"
+    },
+    "currentVersions": {
+      "corpusRevision": "corpus-1",
+      "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "questionDictionaryVersion": "questions-1",
+      "sourceRevocationSequence": 7
+    },
+    "revokedSources": [],
+    "evidence": {
+      "schemaVersion": "ai-evidence-set.v1",
+      "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+      "planHash": "sha256:5b378f462da239732826ee9d9f9e0a535fe95aa1d1ffb02cdc0a5a4fa935baba",
+      "versions": {
+        "corpusRevision": "corpus-1",
+        "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "questionDictionaryVersion": "questions-1",
+        "sourceRevocationSequence": 7
+      },
+      "allowedPlaceIds": [
+        "place-1"
+      ],
+      "evidence": [
+        {
+          "evidenceId": "evidence-1",
+          "chunkId": "chunk-1",
+          "placeId": "place-1",
+          "sourceId": "source-1",
+          "sourceRevision": "source-r1",
+          "startOffset": 0,
+          "endOffset": 12
+        }
+      ]
+    }
+  }
+}

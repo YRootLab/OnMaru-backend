@@ -1,5 +1,13 @@
 # handoff.md
 
+## 2026-11-09 Spring AI plan/execute authority 경로 구현 (#808)
+
+- 브랜치 `feature/808-ai-plan-execute-client`, 기준 `develop` merge `002f2149` (#812). #812의 staging AI v0.1.1 격리 배포 기반은 required `verify` 통과 후 병합됐고 #807은 live E2E가 남아 OPEN이다.
+- AI Engine commit `6db985459e8aecea7dc918c273998fc89202528c`의 plan/execute schema와 fixture를 고정했다. Spring은 safe query bounds, plan hash, versions, filters, canonical fields를 재검증하고 operation별 JWT scope, deadline, request/run/trace header로 호출한다.
+- `ONMARU_AI_PLAN_EXECUTE_ENABLED=false`가 production/staging 기본값이다. ON 상태에서는 #809~#811이 제공할 durable binding, progress capability, query grant, result mapper port가 모두 없으면 startup이 fail-closed한다.
+- 다음 단계: 독립 코드 리뷰 반영 → focused Gradle/contract/Compose 검증 → PR 생성 및 required `verify`. #808 병합 뒤 #809와 #810을 병렬 시작하고, #811에서 Snapshot/E2E를 연결한다.
+- 운영 주의: #809~#811 및 AI Engine production composition root가 완료되기 전에는 plan/execute flag와 production AI를 활성화하지 않는다.
+
 ## 2026-11-08 AI Engine staging 병렬 연동 착수 (#807)
 
 - 브랜치 `feature/807-ai-engine-staging-e2e`. AI Engine v0.1.1 tag는 commit `6db985459e8aecea7dc918c273998fc89202528c`, GHCR digest는 `sha256:50121191624330efe2d3749604be608dab5e0e6d6bd714f11f2358c5bffe4b6d`로 검증했다.

@@ -84,6 +84,7 @@ describe('container and staging release pipeline', () => {
       /ONMARU_AI_IMAGE=ghcr\.io\/yrootlab\/onmaru-ai-engine\/ai-engine@sha256:50121191624330efe2d3749604be608dab5e0e6d6bd714f11f2358c5bffe4b6d/,
     );
     assert.match(envExample, /ONMARU_AI_MEMORY_LIMIT=512m/);
+    assert.match(envExample, /ONMARU_AI_PLAN_EXECUTE_ENABLED=false/);
     assert.match(envExample, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT=REPLACE_WITH_UNIQUE_RANDOM_SECRET/);
 
     assert.match(compose, /^  staging-ai-engine:\n/m);
@@ -91,6 +92,7 @@ describe('container and staging release pipeline', () => {
     assert.match(compose, /mem_limit: \$\{ONMARU_AI_MEMORY_LIMIT:-512m\}/);
     assert.match(compose, /http:\/\/127\.0\.0\.1:8000\/ready/);
     assert.match(compose, /ONMARU_AI_BASE_URL: http:\/\/staging-ai-engine:8000/);
+    assert.match(compose, /ONMARU_AI_PLAN_EXECUTE_ENABLED: \$\{ONMARU_AI_PLAN_EXECUTE_ENABLED:-false\}/);
     assert.match(compose, /ONMARU_SPRING_BASE_URL: http:\/\/staging-api:8080/);
     assert.match(compose, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: \$\{ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:\?Set the staging internal AI service token\}/);
 
@@ -117,6 +119,19 @@ describe('container and staging release pipeline', () => {
       [],
       'staging .env.example must define every required Compose variable',
     );
+  });
+
+  it('keeps the plan execute rollout disabled in production and staging by default', () => {
+    for (const [composePath, envPath] of [
+      ['infra/lightsail/compose.yaml', 'infra/lightsail/.env.example'],
+      ['infra/lightsail/staging/compose.yaml', 'infra/lightsail/staging/.env.example'],
+    ]) {
+      assert.match(read(envPath), /^ONMARU_AI_PLAN_EXECUTE_ENABLED=false$/m);
+      assert.match(
+        read(composePath),
+        /ONMARU_AI_PLAN_EXECUTE_ENABLED: \$\{ONMARU_AI_PLAN_EXECUTE_ENABLED:-false\}/,
+      );
+    }
   });
 
   it('documents pagination-sized staging fixtures for FE verification', () => {
