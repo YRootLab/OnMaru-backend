@@ -1,5 +1,14 @@
 # handoff.md
 
+## 2026-11-08 AI Engine staging 병렬 연동 착수 (#807)
+
+- 브랜치 `feature/807-ai-engine-staging-e2e`. AI Engine v0.1.1 tag는 commit `6db985459e8aecea7dc918c273998fc89202528c`, GHCR digest는 `sha256:50121191624330efe2d3749604be608dab5e0e6d6bd714f11f2358c5bffe4b6d`로 검증했다.
+- `ce73b924`: staging 전용 `staging-ai-engine`, 512m, private 8000, `/ready`, staging secret, production AI 동시 실행 fail-closed, coordinated start/stop/status를 추가했다. `.env.example`의 기존 누락 AI DB 계정 4개도 회귀 테스트로 보완했다.
+- `5e043c56`: `staging_ai_image_digest` workflow input을 제한 SSH deployer로 전달해 Spring/AI 두 immutable image를 pull·inspect하고 staging `.env`를 원자적으로 갱신하도록 구현했다. production AI deploy는 실행하지 않았다.
+- 검증: staging AI focused Node test PASS, Compose config PASS, shell syntax PASS, deploy pipeline Node test 9/9 PASS, `git diff --check` PASS.
+- AI v0.1.1에는 callback/lookup/engine class와 unit test는 있으나 기본 `create_app()` production composition root가 없다. AI 팀에는 v0.1.2 production wiring과 Spring v0.3.54 cross-repository test를 요청한다.
+- BE 실제 runtime은 legacy `/internal/v1/journey/proposals[/stream]`만 사용한다. 새 plan/execute client, progress capability 발급과 durable receiver, authenticated query grant, 최종 result→Snapshot mapper를 독립 Issue graph로 분해해야 한다. full live E2E와 AWS staging 기동은 양측 runtime wiring이 완료될 때까지 차단한다.
+
 ## 2026-10-27 FastAPI 진행 callback과 여정 SSE 계약 초안
 
 - 사용자 결정에 따라 기존 private REST plan/execute를 유지하고, FastAPI → Spring private `POST /internal/v1/ai/runs/{runId}/progress` 계약을 설계했다. Spring은 활성 run·승인 planHash·ordinal을 검증해 현재 SSE `run.stage`에 반영한다. callback 실패는 AI 결과를 바꾸지 않는다. gRPC는 구현·계측 후 별도 판단한다.
