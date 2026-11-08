@@ -903,6 +903,16 @@ CREATE TABLE "discovery_runs" (
   "engine" varchar NOT NULL
 );
 
+CREATE TABLE "journey_run_ai_bindings" (
+  "run_id" varchar(36) PRIMARY KEY,
+  "plan_hash" varchar(80) NOT NULL,
+  "last_ordinal" int NOT NULL DEFAULT 0,
+  "last_stage" varchar(32),
+  "bound_at" timestamp NOT NULL,
+  "expires_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
+);
+
 CREATE TABLE "journey_query_grants" (
   "token_hash" char(64) PRIMARY KEY,
   "run_id" varchar(36) UNIQUE NOT NULL,
@@ -1617,6 +1627,8 @@ ALTER TABLE "discovery_runs" ADD FOREIGN KEY ("exploration_id") REFERENCES "disc
 ALTER TABLE "discovery_run_commands" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
 
 ALTER TABLE "journey_query_grants" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
+
+ALTER TABLE "journey_run_ai_bindings" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
 
 ALTER TABLE "discovery_proposals" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
 

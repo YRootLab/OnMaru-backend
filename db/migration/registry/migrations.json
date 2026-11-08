@@ -484,6 +484,15 @@
       "description": "Sanitized AI run observation projection store and stage trace reference"
     },
     {
+      "version": "055",
+      "reservedFor": "JOURNEY_RUN_AI_PROGRESS",
+      "issueNumber": 809,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V055__809_journey_run_ai_progress.sql",
+      "checksum": "journey-run-ai-progress-v055-20261109",
+      "sha256": "46caf3c3b271cd72ee0fa2cacc9c8efd684299f8374ffa3cf68fe8776710bab9",
+      "description": "Run-bound approved plan binding and durable AI progress ordinal projection"
+    },
+    {
       "version": "056",
       "reservedFor": "JOURNEY_QUERY_GRANT",
       "issueNumber": 810,
