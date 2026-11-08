@@ -194,14 +194,30 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
                      SELECT id, exploration_id, actor_key, base_version, status::text, stage, outcome,
-                            created_at, deadline_at, started_at, generation, error_code, engine
+                            created_at, deadline_at, started_at, generation, error_code, engine,
+                            (SELECT b.last_stage FROM onmaru.journey_run_ai_bindings b
+                              WHERE b.run_id = discovery_runs.id) AS ai_stage
                      FROM onmaru.discovery_runs
                      WHERE id = ? AND actor_key = ?
                      """)) {
             statement.setObject(1, runId);
             statement.setString(2, actorKey);
             try (var result = statement.executeQuery()) {
-                return result.next() ? Optional.of(snapshot(result)) : Optional.empty();
+                if (!result.next()) {
+                    return Optional.empty();
+                }
+                var snapshot = snapshot(result);
+                var aiStage = result.getString("ai_stage");
+                if (snapshot.status() != JourneyRunStatus.RUNNING || aiStage == null) {
+                    return Optional.of(snapshot);
+                }
+                // Same rule as the SSE publisher: the effective stage is the furthest of worker and AI progress.
+                var effective = furthest(snapshot.stage(), JourneyRunStage.valueOf(aiStage));
+                return Optional.of(new JourneyRunSnapshot(
+                        snapshot.id(), snapshot.explorationId(), snapshot.actorKey(), snapshot.baseVersion(),
+                        snapshot.status(), effective, snapshot.outcome(), snapshot.createdAt(),
+                        snapshot.deadlineAt(), snapshot.startedAt(), snapshot.generation(),
+                        snapshot.errorCode(), snapshot.engine()));
             }
         } catch (SQLException exception) {
             throw databaseFailure(exception);
@@ -384,6 +400,11 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                 result.getInt("generation"),
                 result.getString("error_code"),
                 result.getString("engine"));
+    }
+
+    private static JourneyRunStage furthest(JourneyRunStage left, JourneyRunStage right) {
+        if (left == null) return right;
+        return left.ordinal() >= right.ordinal() ? left : right;
     }
 
     private boolean isActiveRunConflict(SQLException exception) {
