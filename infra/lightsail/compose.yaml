@@ -44,6 +44,7 @@ x-spring-api: &spring-api
     ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT: ${ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT:?Generate a DataLab operations token in .env}
     ONMARU_OTLP_METRICS_ENABLED: "false"
     ONMARU_AI_BASE_URL: http://ai-engine:8000
+    ONMARU_AI_PLAN_EXECUTE_ENABLED: ${ONMARU_AI_PLAN_EXECUTE_ENABLED:-false}
   depends_on:
     postgres:
       condition: service_healthy
