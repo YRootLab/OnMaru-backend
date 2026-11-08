@@ -10,7 +10,7 @@ if ! flock -n 9; then
     exit 1
 fi
 DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-docker compose --project-directory "$DIR" --env-file "$DIR/.env" -f "$DIR/compose.yaml" stop spring-api postgres
+docker compose --project-directory "$DIR" --env-file "$DIR/.env" -f "$DIR/compose.yaml" stop spring-api staging-ai-engine postgres
 if [ "${1:-}" != --from-timer ]; then
     systemctl stop onmaru-staging-auto-stop.timer || true
 fi

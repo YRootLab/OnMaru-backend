@@ -32,7 +32,7 @@ compose() {
 started=0
 cleanup_on_error() {
     if [ "$started" -eq 1 ]; then
-        compose stop spring-api postgres || true
+        compose stop spring-api staging-ai-engine postgres || true
     fi
 }
 trap cleanup_on_error EXIT
@@ -41,7 +41,12 @@ if [ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{e
     echo "Production PostgreSQL is not healthy; leave staging asleep." >&2
     exit 1
 fi
-if [ "$(compose ps spring-api --format '{{.Health}}')" = healthy ]; then
+if [ "$(docker inspect --format '{{.State.Running}}' onmaru-lightsail-ai-engine-1 2>/dev/null || true)" = true ]; then
+    echo "Production AI is running; leave staging AI asleep." >&2
+    exit 1
+fi
+if [ "$(compose ps spring-api --format '{{.Health}}')" = healthy ] && \
+   [ "$(compose ps staging-ai-engine --format '{{.Health}}')" = healthy ]; then
     systemctl restart onmaru-staging-auto-stop.timer
     printf 'Staging is already ready; automatic stop was renewed for 2 hours.\n'
     exit 0
@@ -57,6 +62,15 @@ if [ "$(compose ps postgres --format '{{.Health}}')" != healthy ]; then
     exit 1
 fi
 compose --profile migration run --rm migrate migrate
+compose up -d staging-ai-engine
+for i in $(seq 1 30); do
+    if [ "$(compose ps staging-ai-engine --format '{{.Health}}')" = healthy ]; then break; fi
+    sleep 2
+done
+if [ "$(compose ps staging-ai-engine --format '{{.Health}}')" != healthy ]; then
+    echo "Staging AI did not become healthy." >&2
+    exit 1
+fi
 compose up -d spring-api
 for i in $(seq 1 60); do
     if [ "$(compose ps spring-api --format '{{.Health}}')" = healthy ]; then break; fi

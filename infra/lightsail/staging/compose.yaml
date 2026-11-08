@@ -84,6 +84,38 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  staging-ai-engine:
+    image: ${ONMARU_AI_IMAGE:?Set an immutable staging AI image digest}
+    restart: "no"
+    mem_limit: ${ONMARU_AI_MEMORY_LIMIT:-512m}
+    cpus: 0.5
+    expose:
+      - "8000"
+    environment:
+      ONMARU_SECRETS_SOURCE: environment
+      ONMARU_JOURNEY_GEMINI_ENABLED: "true"
+      ONMARU_SCREEN_HANOK_RESEARCH_ENABLED: "false"
+      ONMARU_RAG_ENABLED: "false"
+      ONMARU_GEMINI_MODEL_NAME: gemini-2.5-flash
+      ONMARU_SPRING_BASE_URL: http://staging-api:8080
+      ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT:?Set the staging TourAPI key}
+      ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT:?Set the staging Odii key}
+      ONMARU_SECRET_GEMINI_API_KEY_CURRENT: ${ONMARU_SECRET_GEMINI_API_KEY_CURRENT:?Set the staging Gemini key}
+      ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT: ${ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT:?Set the staging OAuth secret}
+      ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT: ${ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT:?Set the staging OTLP placeholder}
+      ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: ${ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:?Set the staging internal AI service token}
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2).read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+
   spring-api:
     image: ${ONMARU_SPRING_IMAGE:?Set an immutable staging Spring image tag}
     restart: "no"
@@ -114,6 +146,7 @@ services:
       ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT:?Set the staging TourAPI key}
       ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT:?Set the staging Odii key}
       ONMARU_SECRET_GEMINI_API_KEY_CURRENT: ${ONMARU_SECRET_GEMINI_API_KEY_CURRENT:?Set the staging Gemini key}
+      ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: ${ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:?Set the staging internal AI service token}
       ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT: ${ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT:?Generate a staging OAuth signing key}
       ONMARU_SECRET_ADMIN_JWT_SIGNING_KEY_CURRENT: ${ONMARU_SECRET_ADMIN_JWT_SIGNING_KEY_CURRENT:?Generate a staging admin JWT key}
       ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT: ${ONMARU_SECRET_ADMIN_CURSOR_SIGNING_KEY_CURRENT:?Generate a staging admin cursor key}
@@ -121,6 +154,7 @@ services:
       ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT: ${ONMARU_SECRET_MODERATION_OPERATOR_TOKEN_CURRENT:?Generate a staging moderation key}
       ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT: ${ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT:?Generate a staging DataLab token}
       ONMARU_OTLP_METRICS_ENABLED: "false"
+      ONMARU_AI_BASE_URL: http://staging-ai-engine:8000
       ONMARU_TOURAPI_SYNC_ON_STARTUP: "false"
       ONMARU_ODII_SYNC_ON_STARTUP: "false"
       ONMARU_TOURAPI_SYNC_CRON: "-"
@@ -130,6 +164,8 @@ services:
       ONMARU_RETENTION_CLEANUP_CRON: "-"
     depends_on:
       postgres:
+        condition: service_healthy
+      staging-ai-engine:
         condition: service_healthy
     networks:
       app:

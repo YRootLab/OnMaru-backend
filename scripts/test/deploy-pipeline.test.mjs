@@ -72,6 +72,53 @@ describe('container and staging release pipeline', () => {
     assert.match(compose, /ONMARU_ODII_SYNC_ON_STARTUP:\s*["']false["']/);
   });
 
+  it('isolates staging AI with an immutable image and coordinated lifecycle', () => {
+    const compose = read('infra/lightsail/staging/compose.yaml');
+    const envExample = read('infra/lightsail/staging/.env.example');
+    const start = read('infra/lightsail/staging/start.sh');
+    const stop = read('infra/lightsail/staging/stop.sh');
+    const status = read('infra/lightsail/staging/status.sh');
+
+    assert.match(
+      envExample,
+      /ONMARU_AI_IMAGE=ghcr\.io\/yrootlab\/onmaru-ai-engine\/ai-engine@sha256:50121191624330efe2d3749604be608dab5e0e6d6bd714f11f2358c5bffe4b6d/,
+    );
+    assert.match(envExample, /ONMARU_AI_MEMORY_LIMIT=512m/);
+    assert.match(envExample, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT=REPLACE_WITH_UNIQUE_RANDOM_SECRET/);
+
+    assert.match(compose, /^  staging-ai-engine:\n/m);
+    assert.match(compose, /image: \$\{ONMARU_AI_IMAGE:\?Set an immutable staging AI image digest\}/);
+    assert.match(compose, /mem_limit: \$\{ONMARU_AI_MEMORY_LIMIT:-512m\}/);
+    assert.match(compose, /http:\/\/127\.0\.0\.1:8000\/ready/);
+    assert.match(compose, /ONMARU_AI_BASE_URL: http:\/\/staging-ai-engine:8000/);
+    assert.match(compose, /ONMARU_SPRING_BASE_URL: http:\/\/staging-api:8080/);
+    assert.match(compose, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: \$\{ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:\?Set the staging internal AI service token\}/);
+
+    const aiService = compose.slice(
+      compose.indexOf('  staging-ai-engine:'),
+      compose.indexOf('\n  spring-api:'),
+    );
+    assert.match(aiService, /expose:\n\s+- ["']8000["']/);
+    assert.doesNotMatch(aiService, /\n\s+ports:/);
+
+    assert.match(start, /onmaru-lightsail-ai-engine-1/);
+    assert.match(start, /compose up -d staging-ai-engine/);
+    assert.match(start, /compose ps staging-ai-engine --format '\{\{\.Health\}\}'/);
+    assert.match(start, /compose stop spring-api staging-ai-engine postgres/);
+    assert.match(stop, /stop spring-api staging-ai-engine postgres/);
+    assert.match(status, /staging-ai-engine/);
+
+    const requiredVariables = [...compose.matchAll(/\$\{([A-Z0-9_]+):\?/g)].map((match) => match[1]);
+    const exampleVariables = new Set(
+      [...envExample.matchAll(/^([A-Z0-9_]+)=/gm)].map((match) => match[1]),
+    );
+    assert.deepEqual(
+      [...new Set(requiredVariables)].filter((name) => !exampleVariables.has(name)),
+      [],
+      'staging .env.example must define every required Compose variable',
+    );
+  });
+
   it('documents pagination-sized staging fixtures for FE verification', () => {
     const readme = read('infra/lightsail/staging/README.md');
     const feGuide = read('docs/operations/staging-fe-guide.md');
