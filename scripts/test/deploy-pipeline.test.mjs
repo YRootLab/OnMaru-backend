@@ -72,6 +72,68 @@ describe('container and staging release pipeline', () => {
     assert.match(compose, /ONMARU_ODII_SYNC_ON_STARTUP:\s*["']false["']/);
   });
 
+  it('isolates staging AI with an immutable image and coordinated lifecycle', () => {
+    const compose = read('infra/lightsail/staging/compose.yaml');
+    const envExample = read('infra/lightsail/staging/.env.example');
+    const start = read('infra/lightsail/staging/start.sh');
+    const stop = read('infra/lightsail/staging/stop.sh');
+    const status = read('infra/lightsail/staging/status.sh');
+
+    assert.match(
+      envExample,
+      /ONMARU_AI_IMAGE=ghcr\.io\/yrootlab\/onmaru-ai-engine\/ai-engine@sha256:50121191624330efe2d3749604be608dab5e0e6d6bd714f11f2358c5bffe4b6d/,
+    );
+    assert.match(envExample, /ONMARU_AI_MEMORY_LIMIT=512m/);
+    assert.match(envExample, /ONMARU_AI_PLAN_EXECUTE_ENABLED=false/);
+    assert.match(envExample, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT=REPLACE_WITH_UNIQUE_RANDOM_SECRET/);
+
+    assert.match(compose, /^  staging-ai-engine:\n/m);
+    assert.match(compose, /image: \$\{ONMARU_AI_IMAGE:\?Set an immutable staging AI image digest\}/);
+    assert.match(compose, /mem_limit: \$\{ONMARU_AI_MEMORY_LIMIT:-512m\}/);
+    assert.match(compose, /http:\/\/127\.0\.0\.1:8000\/ready/);
+    assert.match(compose, /ONMARU_AI_BASE_URL: http:\/\/staging-ai-engine:8000/);
+    assert.match(compose, /ONMARU_AI_PLAN_EXECUTE_ENABLED: \$\{ONMARU_AI_PLAN_EXECUTE_ENABLED:-false\}/);
+    assert.match(compose, /ONMARU_SPRING_BASE_URL: http:\/\/staging-api:8080/);
+    assert.match(compose, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: \$\{ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:\?Set the staging internal AI service token\}/);
+
+    const aiService = compose.slice(
+      compose.indexOf('  staging-ai-engine:'),
+      compose.indexOf('\n  spring-api:'),
+    );
+    assert.match(aiService, /expose:\n\s+- ["']8000["']/);
+    assert.doesNotMatch(aiService, /\n\s+ports:/);
+
+    assert.match(start, /onmaru-lightsail-ai-engine-1/);
+    assert.match(start, /compose up -d staging-ai-engine/);
+    assert.match(start, /compose ps staging-ai-engine --format '\{\{\.Health\}\}'/);
+    assert.match(start, /compose stop spring-api staging-ai-engine postgres/);
+    assert.match(stop, /stop spring-api staging-ai-engine postgres/);
+    assert.match(status, /staging-ai-engine/);
+
+    const requiredVariables = [...compose.matchAll(/\$\{([A-Z0-9_]+):\?/g)].map((match) => match[1]);
+    const exampleVariables = new Set(
+      [...envExample.matchAll(/^([A-Z0-9_]+)=/gm)].map((match) => match[1]),
+    );
+    assert.deepEqual(
+      [...new Set(requiredVariables)].filter((name) => !exampleVariables.has(name)),
+      [],
+      'staging .env.example must define every required Compose variable',
+    );
+  });
+
+  it('keeps the plan execute rollout disabled in production and staging by default', () => {
+    for (const [composePath, envPath] of [
+      ['infra/lightsail/compose.yaml', 'infra/lightsail/.env.example'],
+      ['infra/lightsail/staging/compose.yaml', 'infra/lightsail/staging/.env.example'],
+    ]) {
+      assert.match(read(envPath), /^ONMARU_AI_PLAN_EXECUTE_ENABLED=false$/m);
+      assert.match(
+        read(composePath),
+        /ONMARU_AI_PLAN_EXECUTE_ENABLED: \$\{ONMARU_AI_PLAN_EXECUTE_ENABLED:-false\}/,
+      );
+    }
+  });
+
   it('documents pagination-sized staging fixtures for FE verification', () => {
     const readme = read('infra/lightsail/staging/README.md');
     const feGuide = read('docs/operations/staging-fe-guide.md');
@@ -120,11 +182,80 @@ describe('container and staging release pipeline', () => {
     );
     assert.match(workflow, /staging-smoke:/);
     assert.match(workflow, /STAGING_SPRING_URL/);
-    assert.match(workflow, /AI staging service is not provisioned yet/);
-    assert.doesNotMatch(workflow, /\$\{\{ vars\.STAGING_AI_URL \}\}/);
+    assert.match(workflow, /STAGING_AI_URL: \$\{\{ vars\.STAGING_AI_URL \}\}/);
+    assert.match(workflow, /test "\$STAGING_AI_URL" = 'https:\/\/staging-ai\.onmaru\.site'/);
+    assert.match(
+      workflow,
+      /curl --fail --silent --show-error --output \/dev\/null "\$STAGING_AI_URL\/ready"/,
+      'staging smoke must probe the AI readiness endpoint like the release benchmark does',
+    );
     assert.match(workflow, /curl --fail --silent --show-error/);
     assert.match(workflow, /rollback-on-failure:/);
     assert.match(workflow, /environment:\s+staging/);
+  });
+
+  it('prepares an immutable AI digest through the restricted staging deployer', () => {
+    const workflow = read('.github/workflows/deploy.yml');
+    const deployer = read('infra/lightsail/staging/deploy-image.sh');
+    const command = read('infra/lightsail/staging/deployer-command.sh');
+    const installer = read('infra/lightsail/staging/install-deployer.sh');
+
+    assert.match(workflow, /staging_ai_image_digest:/);
+    assert.match(workflow, /STAGING_AI_DIGEST: \$\{\{ inputs\.staging_ai_image_digest \}\}/);
+    assert.match(workflow, /\^sha256:\[0-9a-f\]\{64\}\$/);
+    assert.match(
+      workflow,
+      /deploy \$GITHUB_SHA \$SPRING_DIGEST \$STAGING_AI_DIGEST \$GITHUB_ACTOR/,
+    );
+
+    assert.match(deployer, /\[ "\$#" -ne 4 \]/);
+    assert.match(deployer, /AI_IMAGE=ghcr\.io\/yrootlab\/onmaru-ai-engine\/ai-engine@\$AI_DIGEST/);
+    assert.match(deployer, /docker pull "\$SPRING_IMAGE"/);
+    assert.match(deployer, /docker pull "\$AI_IMAGE"/);
+    assert.match(deployer, /ONMARU_AI_IMAGE/);
+    assert.match(deployer, /Expected exactly one ONMARU_AI_IMAGE entry/);
+    assert.match(deployer, /ONMARU_AI_IMAGE="\$AI_IMAGE" docker compose/);
+    assert.doesNotMatch(deployer, /onmaru-production-ai-deploy/);
+
+    assert.match(command, /onmaru-staging-deploy-image "\$2" "\$3" "\$4" "\$5"/);
+    assert.match(installer, /onmaru-staging-deploy-image \*/);
+  });
+
+  it('fails closed across staging bootstrap and shared AI lifecycle operations', () => {
+    const workflow = read('.github/workflows/deploy.yml');
+    const deployer = read('infra/lightsail/staging/deploy-image.sh');
+    const command = read('infra/lightsail/staging/deployer-command.sh');
+    const start = read('infra/lightsail/staging/start.sh');
+    const stop = read('infra/lightsail/staging/stop.sh');
+    const productionAi = read('infra/lightsail/production/deploy-ai-engine.sh');
+    const readme = read('infra/lightsail/staging/README.md');
+
+    assert.match(command, /version\)\n\s+printf 'staging-ai-v1/);
+    assert.match(workflow, /"version"\)/);
+    assert.match(workflow, /test "\$protocol" = staging-ai-v1/);
+    assert.match(readme, /staging-ai-v1/);
+    assert.match(readme, /install-deployer\.sh/);
+    assert.match(readme, /ONMARU_AI_IMAGE/);
+    assert.match(readme, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT/);
+
+    const envPrecheck = deployer.indexOf("grep -c '^ONMARU_AI_IMAGE='");
+    const merge = deployer.indexOf('merge --ff-only');
+    assert.ok(envPrecheck >= 0 && envPrecheck < merge, 'AI env bootstrap must precede checkout mutation');
+    assert.match(deployer, /git -C "\$REPO" show "\$SHA:infra\/lightsail\/staging\/compose\.yaml"/);
+    assert.match(deployer, /-f "\$TARGET_COMPOSE" config --quiet/);
+    assert.ok(
+      deployer.indexOf('-f "$TARGET_COMPOSE" config --quiet') < merge,
+      'target Compose must render before checkout mutation',
+    );
+
+    for (const script of [start, stop, productionAi]) {
+      assert.match(script, /\/run\/onmaru-ai-lifecycle\.lock/);
+    }
+    assert.match(start, /onmaru-production-ai-deploy/);
+    assert.match(start, /ONMARU_AI_ENABLED=false/);
+    assert.match(start, /Production AI deployment must remain disabled/);
+    assert.match(productionAi, /onmaru-staging-staging-ai-engine-1/);
+    assert.match(productionAi, /Staging AI is running/);
   });
 
   it('runs release and CI workflows from the master production branch', () => {

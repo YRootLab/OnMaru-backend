@@ -1,4 +1,39 @@
 # handoff.md
+## 2026-11-09 #586 잔여 2개 항목 개선과 SSH host key 인시던트 대응
+
+- 인시던트(#819): 11-06부터 scheduled production deploy가 `Host key verification failed`로 연속 실패. 서버 host key가 11-05 마지막 성공 배포 이후 변경(배너 `Ubuntu-3ubuntu13.19`→`13.20`). `PRODUCTION_SSH_KNOWN_HOSTS`·`STAGING_SSH_KNOWN_HOSTS`를 keyscan 키로 갱신 완료. 운영자는 Lightsail 콘솔에서 지문 `SHA256:bEn0kJlxwbrzR+Wrc55lYkB9Ga/nTXEdKbLoFt5tB7w` 대조가 필요하고, 서버를 재생성한 사유 확인도 남았다.
+- #586 잔여 항목 개선(브랜치 `feature/586-ssh-firewall-restore-drill`):
+  - `infra/backup/test/run-production-restore-drill` 추가: 운영 실제 backup artifact를 일회성 격리 container에 복원하고 `production-restore-*.json` 증적을 남긴다. restore runner(`bin/restore-drill`)는 변경 없이 재사용한다. gate: Flyway history count·최근 migration version, PostGIS version, 대표 table row count, RPO/RTO, integrity.
+  - `infra/lightsail/ssh-firewall/apply-ssh-firewall.sh` 추가: Lightsail 방화벽에서 TCP/22 규칙만 다루는 status/restrict(/32)/open-ssh/close-ssh 도구. 단, GitHub Actions runner IP는 고정이 아니고 Actions CIDR은 IPv4 5천+라 방화벽 allowlist로 CI SSH를 살릴 수 없어, 아웃바운드 터널(Tailscale/Cloudflare Tunnel)로 CI 배포 경로를 이전한 뒤 close-ssh하는 설계를 runbook에 문서화했다.
+  - `docs/operations/runbooks/restore.md`에 운영 backup 격리 복원 증적 절차를, `docs/operations/release-evidence/backup/README.md`에 증적 규약을 추가했다.
+- 남은 실행(운영자): ① 콘솔 지문 대조(#819) ② 터널 방식 결정 후 CI 배포 경로 이전 ③ 방화벽 restrict→close-ssh 적용 ④ 서버에서 운영 backup drill 실행 후 증적 커밋 → #586 종료.
+- 검증: 신규 Node 테스트 6/6 PASS, 두 shell script `sh -n` PASS.
+
+## 2026-11-09 AI staging readiness 검증 재활성화 (#490)
+
+- 브랜치 `feature/490-ai-staging-readiness`, 기준 `develop` merge `847b32f1` (#814). #491의 임시 스킵(`9a32b787`)을 역변경해 `Staging Deploy` staging smoke가 `STAGING_AI_URL/ready`를 다시 검증한다. Spring과 같은 도메인 고정 가드(`https://staging-ai.onmaru.site`)를 추가했다.
+- 공개 AI 진입점은 `staging-ai.onmaru.site`의 `/ready`만 허용하는 nginx TLS 프록시다(`nginx/staging-ai-site.conf`, 기타 경로 404). staging AI는 host port publish 금지(#807)를 유지하며 내부 AI API는 앱 네트워크의 `staging-ai-engine:8000`으로만 접근한다. production compose는 `NGINX_STAGING_AI_SITE_CONFIG`로 이 가상호스트를 선택하고 기본값은 `staging-ai-bootstrap.conf`(HTTP ACME+503)라서 연산자가 전환하기 전까지 운영 Nginx 동작은 변하지 않는다.
+- GitHub `staging` 환경에 `STAGING_AI_URL=https://staging-ai.onmaru.site` variable을 등록했다. `benchmark-release.yml`은 이미 같은 `vars.STAGING_AI_URL` + `/ready` 계약을 갖고 있어 deploy smoke·benchmark·계약 테스트가 동일 계약으로 수렴했다.
+- 남은 운영 작업(코드 밖, README 7단계로 문서화): `staging-ai.onmaru.site` A 레코드 추가 → certbot 인증서 발급 → 운영 `.env`에 `NGINX_STAGING_AI_SITE_CONFIG=./nginx/staging-ai-site.conf` 설정 후 Nginx 재생성 → staging 기동 상태에서 `run_staging_smoke=true` 수동 실행. 참고로 현재 Cloudflare 권한 DNS에서 `staging-api.onmaru.site`도 NXDOMAIN이라 Spring smoke도 DNS 재등록 전에는 실패한다.
+- 검증: `node --test scripts/test/deploy-pipeline.test.mjs` 11/11 PASS, 전체 `scripts/test/*.test.mjs` 238 tests / 237 pass / 0 fail / 1 skip, `git diff --check` PASS, deploy.yml YAML 파싱 PASS. 로컬 nginx 미설치로 conf syntax 검사는 서버 `nginx -t`에서 수행한다.
+
+
+## 2026-11-09 Spring AI plan/execute authority 경로 구현 (#808)
+
+- 브랜치 `feature/808-ai-plan-execute-client`, 기준 `develop` merge `002f2149` (#812). #812의 staging AI v0.1.1 격리 배포 기반은 required `verify` 통과 후 병합됐고 #807은 live E2E가 남아 OPEN이다.
+- AI Engine commit `6db985459e8aecea7dc918c273998fc89202528c`의 plan/execute schema와 fixture를 고정했다. Spring은 safe query bounds, plan hash, versions, filters, canonical fields를 재검증하고 operation별 JWT scope, deadline, request/run/trace header로 호출한다.
+- `ONMARU_AI_PLAN_EXECUTE_ENABLED=false`가 production/staging 기본값이다. ON 상태에서는 #809~#811이 제공할 durable binding, progress capability, query grant, result mapper port가 모두 없으면 startup이 fail-closed한다.
+- 다음 단계: 독립 코드 리뷰 반영 → focused Gradle/contract/Compose 검증 → PR 생성 및 required `verify`. #808 병합 뒤 #809와 #810을 병렬 시작하고, #811에서 Snapshot/E2E를 연결한다.
+- 운영 주의: #809~#811 및 AI Engine production composition root가 완료되기 전에는 plan/execute flag와 production AI를 활성화하지 않는다.
+
+## 2026-11-08 AI Engine staging 병렬 연동 착수 (#807)
+
+- 브랜치 `feature/807-ai-engine-staging-e2e`. AI Engine v0.1.1 tag는 commit `6db985459e8aecea7dc918c273998fc89202528c`, GHCR digest는 `sha256:50121191624330efe2d3749604be608dab5e0e6d6bd714f11f2358c5bffe4b6d`로 검증했다.
+- `ce73b924`: staging 전용 `staging-ai-engine`, 512m, private 8000, `/ready`, staging secret, production AI 동시 실행 fail-closed, coordinated start/stop/status를 추가했다. `.env.example`의 기존 누락 AI DB 계정 4개도 회귀 테스트로 보완했다.
+- `5e043c56`: `staging_ai_image_digest` workflow input을 제한 SSH deployer로 전달해 Spring/AI 두 immutable image를 pull·inspect하고 staging `.env`를 원자적으로 갱신하도록 구현했다. production AI deploy는 실행하지 않았다.
+- 검증: staging AI focused Node test PASS, Compose config PASS, shell syntax PASS, deploy pipeline Node test 9/9 PASS, `git diff --check` PASS.
+- AI v0.1.1에는 callback/lookup/engine class와 unit test는 있으나 기본 `create_app()` production composition root가 없다. AI 팀에는 v0.1.2 production wiring과 Spring v0.3.54 cross-repository test를 요청한다.
+- BE 실제 runtime은 legacy `/internal/v1/journey/proposals[/stream]`만 사용한다. 새 plan/execute client, progress capability 발급과 durable receiver, authenticated query grant, 최종 result→Snapshot mapper를 독립 Issue graph로 분해해야 한다. full live E2E와 AWS staging 기동은 양측 runtime wiring이 완료될 때까지 차단한다.
 
 ## 2026-10-27 FastAPI 진행 callback과 여정 SSE 계약 초안
 

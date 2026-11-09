@@ -1,0 +1,217 @@
+{
+  "name": "accepted-evidenceset",
+  "model": "EvidenceSet",
+  "payload": {
+    "schemaVersion": "ai-evidence-set.v1",
+    "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+    "planHash": "sha256:5b378f462da239732826ee9d9f9e0a535fe95aa1d1ffb02cdc0a5a4fa935baba",
+    "versions": {
+      "corpusRevision": "corpus-1",
+      "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "questionDictionaryVersion": "questions-1",
+      "sourceRevocationSequence": 7
+    },
+    "allowedPlaceIds": [
+      "place-1"
+    ],
+    "evidence": [
+      {
+        "evidenceId": "evidence-1",
+        "chunkId": "chunk-1",
+        "placeId": "place-1",
+        "sourceId": "source-1",
+        "sourceRevision": "source-r1",
+        "startOffset": 0,
+        "endOffset": 12
+      }
+    ]
+  },
+  "expected": "ACCEPT",
+  "schemaValid": true,
+  "context": {
+    "request": {
+      "schemaVersion": "ai-safe-query.v1",
+      "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+      "safeQuery": "한적한 한옥을 알려 줘",
+      "confirmedContext": {
+        "regionCode": "SEOUL",
+        "pinnedPlaceIds": [
+          "place-1"
+        ],
+        "excludedPlaceIds": [
+          "place-9"
+        ],
+        "lastConfirmedPlaceIds": []
+      },
+      "authorityBounds": {
+        "filters": {
+          "filterHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "publicOnly": true,
+          "placeIds": [
+            "place-1",
+            "place-2"
+          ],
+          "regionCodes": [
+            "SEOUL"
+          ],
+          "categoryCodes": [
+            "HANOK"
+          ],
+          "pinnedPlaceIds": [
+            "place-1"
+          ],
+          "excludedPlaceIds": [
+            "place-9"
+          ]
+        },
+        "allowedCanonicalFields": [
+          "PUBLIC_ADDRESS",
+          "REGION_CODE"
+        ]
+      },
+      "versions": {
+        "corpusRevision": "corpus-1",
+        "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "questionDictionaryVersion": "questions-1",
+        "sourceRevocationSequence": 7
+      },
+      "limits": {
+        "bm25K": 20,
+        "vectorK": 20,
+        "rerankK": 30,
+        "evidenceK": 12,
+        "maxPlaces": 5
+      }
+    },
+    "proposal": {
+      "schemaVersion": "ai-plan-proposal.v1",
+      "planVersion": "ai-query-plan.v1",
+      "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+      "route": "HYBRID",
+      "retrievalMode": "HYBRID",
+      "reasonCodes": [
+        "COMPOSITE_QUERY"
+      ],
+      "questionFrame": {
+        "operation": "RECOMMEND",
+        "targetPlaceIds": [],
+        "subjectConceptCodes": [
+          "QUIET"
+        ]
+      },
+      "retrievalExpression": {
+        "positiveConceptCodes": [
+          "QUIET"
+        ],
+        "negativeConceptCodes": [],
+        "publicEntityIds": []
+      },
+      "requestedCanonicalFields": [],
+      "proposedFilters": {
+        "filterHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "publicOnly": true,
+        "placeIds": [
+          "place-1",
+          "place-2"
+        ],
+        "regionCodes": [
+          "SEOUL"
+        ],
+        "categoryCodes": [
+          "HANOK"
+        ],
+        "pinnedPlaceIds": [
+          "place-1"
+        ],
+        "excludedPlaceIds": [
+          "place-9"
+        ]
+      },
+      "semanticQuery": "한적한 한옥",
+      "versions": {
+        "corpusRevision": "corpus-1",
+        "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "questionDictionaryVersion": "questions-1",
+        "sourceRevocationSequence": 7
+      },
+      "limits": {
+        "bm25K": 20,
+        "vectorK": 20,
+        "rerankK": 30,
+        "evidenceK": 12,
+        "maxPlaces": 5
+      },
+      "clarification": null,
+      "planHash": "sha256:5b378f462da239732826ee9d9f9e0a535fe95aa1d1ffb02cdc0a5a4fa935baba"
+    },
+    "approved": {
+      "schemaVersion": "ai-approved-plan.v1",
+      "planVersion": "ai-query-plan.v1",
+      "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+      "approvedPlanHash": "sha256:5b378f462da239732826ee9d9f9e0a535fe95aa1d1ffb02cdc0a5a4fa935baba",
+      "approvedRoute": "HYBRID",
+      "approvedRetrievalMode": "HYBRID",
+      "approvedFilters": {
+        "filterHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "publicOnly": true,
+        "placeIds": [
+          "place-1",
+          "place-2"
+        ],
+        "regionCodes": [
+          "SEOUL"
+        ],
+        "categoryCodes": [
+          "HANOK"
+        ],
+        "pinnedPlaceIds": [
+          "place-1"
+        ],
+        "excludedPlaceIds": [
+          "place-9"
+        ]
+      },
+      "approvedCanonicalFields": [],
+      "semanticQuery": "한적한 한옥",
+      "versions": {
+        "corpusRevision": "corpus-1",
+        "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "questionDictionaryVersion": "questions-1",
+        "sourceRevocationSequence": 7
+      },
+      "queryGrantId": null
+    },
+    "currentVersions": {
+      "corpusRevision": "corpus-1",
+      "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "questionDictionaryVersion": "questions-1",
+      "sourceRevocationSequence": 7
+    },
+    "revokedSources": [],
+    "evidence": {
+      "schemaVersion": "ai-evidence-set.v1",
+      "runId": "45e6a7f5-31bc-469d-9e30-6f510a1dc497",
+      "planHash": "sha256:5b378f462da239732826ee9d9f9e0a535fe95aa1d1ffb02cdc0a5a4fa935baba",
+      "versions": {
+        "corpusRevision": "corpus-1",
+        "configHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "questionDictionaryVersion": "questions-1",
+        "sourceRevocationSequence": 7
+      },
+      "allowedPlaceIds": [
+        "place-1"
+      ],
+      "evidence": [
+        {
+          "evidenceId": "evidence-1",
+          "chunkId": "chunk-1",
+          "placeId": "place-1",
+          "sourceId": "source-1",
+          "sourceRevision": "source-r1",
+          "startOffset": 0,
+          "endOffset": 12
+        }
+      ]
+    }
+  }
+}

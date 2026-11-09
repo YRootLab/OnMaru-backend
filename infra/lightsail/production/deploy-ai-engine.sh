@@ -17,7 +17,7 @@ case "$ACTOR" in *[!A-Za-z0-9_-]*|'') echo "Invalid GitHub actor" >&2; exit 2;; 
 DIR=/opt/onmaru/repo/infra/lightsail
 ENV=$DIR/.env
 IMAGE=ghcr.io/yrootlab/onmaru-ai-engine/ai-engine@$DIGEST
-LOCK=/run/onmaru-ai-engine-deploy.lock
+LOCK=/run/onmaru-ai-lifecycle.lock
 OLD_IMAGE=
 PREVIOUS_ENV_IMAGE=
 PREVIOUS_CONTAINER_ID=
@@ -97,6 +97,10 @@ trap on_exit EXIT
 
 exec 9>"$LOCK"
 flock -n 9 || { echo "Another AI image deployment is in progress" >&2; exit 1; }
+if [ "$(docker inspect --format '{{.State.Running}}' onmaru-staging-staging-ai-engine-1 2>/dev/null || true)" = true ]; then
+    echo "Staging AI is running; stop staging before production AI deployment." >&2
+    exit 1
+fi
 [ -f "$ENV" ] && [ "$(stat -c %a "$ENV")" = 600 ] || { echo "Production .env must exist with mode 600" >&2; exit 1; }
 [ "$(sed -n 's/^ONMARU_AI_ENABLED=//p' "$ENV")" = true ] || { echo "AI deployment is disabled; enable it only after the 2GB staging gate" >&2; exit 1; }
 for key in ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT \

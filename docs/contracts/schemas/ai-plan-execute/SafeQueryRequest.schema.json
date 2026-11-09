@@ -1,0 +1,321 @@
+{
+  "$defs": {
+    "AuthorityBounds": {
+      "additionalProperties": false,
+      "properties": {
+        "filters": {
+          "$ref": "#/$defs/HardFilters"
+        },
+        "allowedCanonicalFields": {
+          "items": {
+            "enum": [
+              "PUBLIC_ADDRESS",
+              "REGION_CODE",
+              "CATEGORY_CODE",
+              "PUBLIC_STATUS"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "title": "Allowedcanonicalfields",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "filters",
+        "allowedCanonicalFields"
+      ],
+      "title": "AuthorityBounds",
+      "type": "object"
+    },
+    "ConfirmedContext": {
+      "additionalProperties": false,
+      "properties": {
+        "regionCode": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Regioncode"
+        },
+        "pinnedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Pinnedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "excludedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Excludedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "lastConfirmedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Lastconfirmedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "regionCode",
+        "pinnedPlaceIds",
+        "excludedPlaceIds",
+        "lastConfirmedPlaceIds"
+      ],
+      "title": "ConfirmedContext",
+      "type": "object"
+    },
+    "HardFilters": {
+      "additionalProperties": false,
+      "properties": {
+        "filterHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Filterhash",
+          "type": "string"
+        },
+        "publicOnly": {
+          "const": true,
+          "title": "Publiconly",
+          "type": "boolean"
+        },
+        "placeIds": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Placeids"
+        },
+        "regionCodes": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Regioncodes"
+        },
+        "categoryCodes": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Categorycodes"
+        },
+        "pinnedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Pinnedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "excludedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Excludedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "filterHash",
+        "publicOnly",
+        "placeIds",
+        "regionCodes",
+        "categoryCodes",
+        "pinnedPlaceIds",
+        "excludedPlaceIds"
+      ],
+      "title": "HardFilters",
+      "type": "object"
+    },
+    "RetrievalLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "bm25K": {
+          "const": 20,
+          "title": "Bm25K",
+          "type": "integer"
+        },
+        "vectorK": {
+          "const": 20,
+          "title": "Vectork",
+          "type": "integer"
+        },
+        "rerankK": {
+          "const": 30,
+          "title": "Rerankk",
+          "type": "integer"
+        },
+        "evidenceK": {
+          "const": 12,
+          "title": "Evidencek",
+          "type": "integer"
+        },
+        "maxPlaces": {
+          "const": 5,
+          "title": "Maxplaces",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bm25K",
+        "vectorK",
+        "rerankK",
+        "evidenceK",
+        "maxPlaces"
+      ],
+      "title": "RetrievalLimits",
+      "type": "object"
+    },
+    "Versions": {
+      "additionalProperties": false,
+      "properties": {
+        "corpusRevision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Corpusrevision",
+          "type": "string"
+        },
+        "configHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Confighash",
+          "type": "string"
+        },
+        "questionDictionaryVersion": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Questiondictionaryversion",
+          "type": "string"
+        },
+        "sourceRevocationSequence": {
+          "minimum": 0,
+          "title": "Sourcerevocationsequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "corpusRevision",
+        "configHash",
+        "questionDictionaryVersion",
+        "sourceRevocationSequence"
+      ],
+      "title": "Versions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "ai-safe-query.v1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "runId": {
+      "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
+      "title": "Runid",
+      "type": "string"
+    },
+    "safeQuery": {
+      "maxLength": 240,
+      "minLength": 1,
+      "title": "Safequery",
+      "type": "string"
+    },
+    "confirmedContext": {
+      "$ref": "#/$defs/ConfirmedContext"
+    },
+    "authorityBounds": {
+      "$ref": "#/$defs/AuthorityBounds"
+    },
+    "versions": {
+      "$ref": "#/$defs/Versions"
+    },
+    "limits": {
+      "$ref": "#/$defs/RetrievalLimits"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "runId",
+    "safeQuery",
+    "confirmedContext",
+    "authorityBounds",
+    "versions",
+    "limits"
+  ],
+  "title": "SafeQueryRequest",
+  "type": "object"
+}

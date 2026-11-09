@@ -61,6 +61,33 @@ Table discovery_runs [headercolor: #EDC948] {
   }
 }
 
+// #809: 승인된 plan 바인딩과 AI progress ordinal projection. 워커의 run generation/stage는 바꾸지 않는다.
+// last_ordinal은 CAS로만 증가하며, 스냅샷과 SSE는 워커 stage와 이 last_stage 중 더 앞선 단계를 쓴다.
+Table journey_run_ai_bindings [headercolor: #EDC948] {
+  run_id uuid [pk]
+  plan_hash varchar(80) [not null]
+  last_ordinal int [not null, default: 0]
+  last_stage varchar(32)
+  bound_at timestamptz [not null]
+  expires_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+
+// #810: 승인된 query grant. 원문 reference는 저장하지 않고 SHA-256 token_hash만 저장한다.
+// run당 1개(unique), 1회 소비(consumed_at), 만료는 min(grant 30초, run deadline)에 묶인다.
+Table journey_query_grants [headercolor: #EDC948] {
+  token_hash char(64) [pk]
+  run_id uuid [not null, unique]
+  plan_hash varchar(80) [not null]
+  filters jsonb [not null]
+  canonical_fields jsonb [not null]
+  versions jsonb [not null]
+  max_places int [not null]
+  created_at timestamptz [not null]
+  expires_at timestamptz [not null]
+  consumed_at timestamptz
+}
+
 Table discovery_run_commands [headercolor: #EDC948] {
   actor_key varchar [not null]
   operation varchar [not null]
@@ -121,6 +148,8 @@ TableGroup discovery [color: #EDC948, note: 'Natural-language exploration worksp
 
 Ref: discovery_runs.exploration_id > discovery_explorations.id
 Ref: discovery_run_commands.run_id > discovery_runs.id
+Ref: journey_query_grants.run_id > discovery_runs.id
+Ref: journey_run_ai_bindings.run_id > discovery_runs.id
 Ref: discovery_proposals.run_id > discovery_runs.id
 Ref: discovery_proposals.exploration_id > discovery_explorations.id
 Ref: discovery_turns.exploration_id > discovery_explorations.id

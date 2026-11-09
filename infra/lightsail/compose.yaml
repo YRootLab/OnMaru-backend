@@ -44,6 +44,11 @@ x-spring-api: &spring-api
     ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT: ${ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT:?Generate a DataLab operations token in .env}
     ONMARU_OTLP_METRICS_ENABLED: "false"
     ONMARU_AI_BASE_URL: http://ai-engine:8000
+    ONMARU_AI_PLAN_EXECUTE_ENABLED: ${ONMARU_AI_PLAN_EXECUTE_ENABLED:-false}
+    # Exploration state and run queue live in Postgres (discovery_runs); the drain loop works the QUEUED rows.
+    ONMARU_JOURNEY_EXPLORATION_STORE: jdbc
+    ONMARU_JOURNEY_WORKER_DRAIN_ENABLED: "true"
+    ONMARU_JOURNEY_WORKER_DRAIN_INTERVAL_MS: ${ONMARU_JOURNEY_WORKER_DRAIN_INTERVAL_MS:-1000}
   depends_on:
     postgres:
       condition: service_healthy
@@ -180,6 +185,7 @@ services:
     volumes:
       - ${NGINX_SITE_CONFIG:-./nginx/bootstrap.conf}:/etc/nginx/conf.d/default.conf:ro
       - ${NGINX_STAGING_SITE_CONFIG:-./nginx/staging-bootstrap.conf}:/etc/nginx/conf.d/staging.conf:ro
+      - ${NGINX_STAGING_AI_SITE_CONFIG:-./nginx/staging-ai-bootstrap.conf}:/etc/nginx/conf.d/staging-ai.conf:ro
       - ./nginx/runtime:/etc/nginx/onmaru:ro
       - letsencrypt:/etc/letsencrypt:ro
       - certbot-webroot:/var/www/certbot:ro

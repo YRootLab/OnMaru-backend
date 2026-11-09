@@ -903,6 +903,29 @@ CREATE TABLE "discovery_runs" (
   "engine" varchar NOT NULL
 );
 
+CREATE TABLE "journey_run_ai_bindings" (
+  "run_id" varchar(36) PRIMARY KEY,
+  "plan_hash" varchar(80) NOT NULL,
+  "last_ordinal" int NOT NULL DEFAULT 0,
+  "last_stage" varchar(32),
+  "bound_at" timestamp NOT NULL,
+  "expires_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
+);
+
+CREATE TABLE "journey_query_grants" (
+  "token_hash" char(64) PRIMARY KEY,
+  "run_id" varchar(36) UNIQUE NOT NULL,
+  "plan_hash" varchar(80) NOT NULL,
+  "filters" text NOT NULL,
+  "canonical_fields" text NOT NULL,
+  "versions" text NOT NULL,
+  "max_places" int NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "expires_at" timestamp NOT NULL,
+  "consumed_at" timestamp
+);
+
 CREATE TABLE "discovery_run_commands" (
   "actor_key" varchar NOT NULL,
   "operation" varchar NOT NULL,
@@ -1602,6 +1625,10 @@ ALTER TABLE "insights_target_place_links" ADD FOREIGN KEY ("target_id") REFERENC
 ALTER TABLE "discovery_runs" ADD FOREIGN KEY ("exploration_id") REFERENCES "discovery_explorations" ("id");
 
 ALTER TABLE "discovery_run_commands" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
+
+ALTER TABLE "journey_query_grants" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
+
+ALTER TABLE "journey_run_ai_bindings" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
 
 ALTER TABLE "discovery_proposals" ADD FOREIGN KEY ("run_id") REFERENCES "discovery_runs" ("id");
 

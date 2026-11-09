@@ -1,7 +1,8 @@
 package com.yrootlab.onmaru.web.internal.ai.progress;
 
+import com.yrootlab.onmaru.integration.ai.progress.AiRunProgressStore;
 import com.yrootlab.onmaru.journey.events.JourneyRunEventSink;
-import com.yrootlab.onmaru.journey.run.JourneyRunStore;
+import com.yrootlab.onmaru.journey.run.JourneyRunStage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -15,30 +16,35 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Accepts AI stage callbacks for a bound run. Only a durable, first-seen ordinal on an active run updates
+ * the projection and publishes SSE; duplicates, stale ordinals, and terminal runs are acknowledged without effect.
+ */
 @RestController
 @RequestMapping("/internal/v1/ai/runs")
 public final class InternalAiProgressController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InternalAiProgressController.class);
-    private static final String EXPECTED_SCHEMA_VERSION = "internal.ai.progress.v1";
-    private static final Map<String, String> STAGE_MAPPING = Map.of(
-            "PREPARING_INPUT", "INTERPRETING",
-            "RETRIEVING", "RETRIEVING",
-            "SELECTING_EVIDENCE", "RETRIEVING",
-            "GENERATING", "VALIDATING",
-            "CHECKING_OUTPUT", "VALIDATING"
+    static final String EXPECTED_SCHEMA_VERSION = "internal.ai.progress.v1";
+    private static final Map<String, JourneyRunStage> STAGE_MAPPING = Map.of(
+            "PREPARING_INPUT", JourneyRunStage.INTERPRETING,
+            "RETRIEVING", JourneyRunStage.RETRIEVING,
+            "SELECTING_EVIDENCE", JourneyRunStage.SELECTING_EVIDENCE,
+            "GENERATING", JourneyRunStage.GENERATING,
+            "CHECKING_OUTPUT", JourneyRunStage.VALIDATING
     );
 
     private final InternalAiProgressVerifier verifier;
+    private final AiRunProgressStore progress;
     private final JourneyRunEventSink eventSink;
-    private final Map<UUID, Integer> lastSeenOrdinal = new ConcurrentHashMap<>();
 
     public InternalAiProgressController(
             InternalAiProgressVerifier verifier,
+            AiRunProgressStore progress,
             JourneyRunEventSink eventSink) {
         this.verifier = verifier;
+        this.progress = progress;
         this.eventSink = eventSink;
     }
 
@@ -48,40 +54,50 @@ public final class InternalAiProgressController {
             @RequestHeader(name = "X-Run-Progress-Token", required = false) String token,
             @RequestBody InternalAiProgressPayload payload) {
 
-        if (payload == null || !EXPECTED_SCHEMA_VERSION.equals(payload.schemaVersion())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        if (payload == null || !EXPECTED_SCHEMA_VERSION.equals(payload.schemaVersion())
+                || !runId.equals(payload.runId()) || payload.ordinal() < 1) {
+            return status(HttpStatus.BAD_REQUEST);
+        }
+        JourneyRunStage stage = payload.stage() == null ? null : STAGE_MAPPING.get(payload.stage());
+        if (stage == null) {
+            return status(HttpStatus.BAD_REQUEST);
         }
 
-        if (!runId.equals(payload.runId())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        var boundPlan = progress.boundPlanHash(runId);
+        if (boundPlan.isEmpty()) {
+            return status(HttpStatus.NOT_FOUND);
+        }
+        if (!boundPlan.get().equals(payload.planHash())) {
+            return status(HttpStatus.CONFLICT);
+        }
+        if (!verifier.verifyToken(token, runId, boundPlan.get())) {
+            return status(HttpStatus.UNAUTHORIZED);
         }
 
-        if (verifier != null && !verifier.verifyToken(token, runId, payload.planHash())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        // Deduplicate or ignore stale ordinals
-        var prevOrdinal = lastSeenOrdinal.compute(runId, (k, oldVal) -> {
-            if (oldVal == null || payload.ordinal() > oldVal) {
-                return payload.ordinal();
+        var result = progress.record(runId, payload.planHash(), payload.ordinal(), stage);
+        return switch (result.decision()) {
+            case APPLIED -> {
+                if (result.publish() != null) {
+                    publish(runId, result.publish());
+                }
+                yield ResponseEntity.ok().build();
             }
-            return oldVal;
-        });
+            case DUPLICATE, STALE, INACTIVE -> ResponseEntity.ok().build();
+            case CONFLICT, PLAN_MISMATCH -> status(HttpStatus.CONFLICT);
+            case NOT_BOUND -> status(HttpStatus.NOT_FOUND);
+        };
+    }
 
-        if (prevOrdinal != null && prevOrdinal > payload.ordinal()) {
-            // Duplicate or stale ordinal, idempotent 200 OK
-            return ResponseEntity.ok().build();
-        }
-
-        // Map AI stage to Spring Public SSE stage
-        String publicStage = STAGE_MAPPING.getOrDefault(payload.stage(), "VALIDATING");
-
+    private void publish(UUID runId, JourneyRunStage stage) {
         try {
-            eventSink.stage(runId, "RUNNING", publicStage);
-        } catch (Exception ex) {
-            LOGGER.warn("Failed to publish progress stage for run {}: {}", runId, ex.getMessage());
+            eventSink.stage(runId, "RUNNING", stage.name());
+        } catch (RuntimeException exception) {
+            // The projection is already committed; SSE clients recover from the snapshot on reconnect.
+            LOGGER.warn("Failed to publish progress stage for run {}", runId, exception);
         }
+    }
 
-        return ResponseEntity.ok().build();
+    private static ResponseEntity<Void> status(HttpStatus status) {
+        return ResponseEntity.status(status).build();
     }
 }

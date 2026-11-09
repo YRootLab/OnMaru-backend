@@ -5,5 +5,5 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-docker compose --project-directory "$DIR" --env-file "$DIR/.env" -f "$DIR/compose.yaml" ps --format 'table {{.Service}}\t{{.Status}}'
+docker compose --project-directory "$DIR" --env-file "$DIR/.env" -f "$DIR/compose.yaml" ps spring-api staging-ai-engine postgres --format 'table {{.Service}}\t{{.Status}}'
 systemctl list-timers onmaru-staging-auto-stop.timer --no-pager | head -5

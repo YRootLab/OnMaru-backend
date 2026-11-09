@@ -1,0 +1,699 @@
+{
+  "$defs": {
+    "Clarification": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "AMBIGUOUS_TARGET"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "questionCode": {
+                "const": "CHOOSE_TARGET"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "CONFLICTING_CONDITIONS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "questionCode": {
+                "const": "RESOLVE_CONDITIONS"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "UNSUPPORTED_SCOPE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "questionCode": {
+                "const": "SUPPORTED_TRAVEL_SCOPE"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "SEMANTIC_LOSS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "questionCode": {
+                "const": "PRESERVE_MEANING"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "reason": {
+          "enum": [
+            "AMBIGUOUS_TARGET",
+            "CONFLICTING_CONDITIONS",
+            "UNSUPPORTED_SCOPE",
+            "SEMANTIC_LOSS"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "questionCode": {
+          "$ref": "#/$defs/ClarificationQuestionCode"
+        }
+      },
+      "required": [
+        "reason",
+        "questionCode"
+      ],
+      "title": "Clarification",
+      "type": "object"
+    },
+    "ClarificationQuestionCode": {
+      "description": "Fixed Spring renderer IDs for the four clarification reasons.",
+      "enum": [
+        "CHOOSE_TARGET",
+        "RESOLVE_CONDITIONS",
+        "SUPPORTED_TRAVEL_SCOPE",
+        "PRESERVE_MEANING"
+      ],
+      "title": "ClarificationQuestionCode",
+      "type": "string"
+    },
+    "ConceptCode": {
+      "description": "Searchable concepts from question-understanding.md's initial code table.",
+      "enum": [
+        "HISTORY",
+        "HISTORICAL_SIGNIFICANCE",
+        "ARCHITECTURE",
+        "CULTURAL_PRACTICE",
+        "VISIT_POINT",
+        "FAMILY_SUITABILITY",
+        "QUIETNESS",
+        "ACCESSIBILITY",
+        "INDEPENDENCE_MOVEMENT",
+        "JOSEON_PERIOD",
+        "TRADITIONAL_MARKET",
+        "HANOK",
+        "K_CONTENT",
+        "SOLO",
+        "COUPLE",
+        "FAMILY",
+        "FRIENDS",
+        "QUIET",
+        "LIVELY",
+        "WALKABLE"
+      ],
+      "title": "ConceptCode",
+      "type": "string"
+    },
+    "HardFilters": {
+      "additionalProperties": false,
+      "properties": {
+        "filterHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Filterhash",
+          "type": "string"
+        },
+        "publicOnly": {
+          "const": true,
+          "title": "Publiconly",
+          "type": "boolean"
+        },
+        "placeIds": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Placeids"
+        },
+        "regionCodes": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Regioncodes"
+        },
+        "categoryCodes": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Categorycodes"
+        },
+        "pinnedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Pinnedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "excludedPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "title": "Excludedplaceids",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "filterHash",
+        "publicOnly",
+        "placeIds",
+        "regionCodes",
+        "categoryCodes",
+        "pinnedPlaceIds",
+        "excludedPlaceIds"
+      ],
+      "title": "HardFilters",
+      "type": "object"
+    },
+    "PlanReasonCode": {
+      "description": "Fixed reason IDs for the routing/clarification cases in query-processing.md.",
+      "enum": [
+        "CANONICAL_FACT_ONLY",
+        "EXACT_PUBLIC_TERM",
+        "SINGLE_SEMANTIC_TOPIC",
+        "COMPOSITE_QUERY",
+        "CANONICAL_FACT_WITH_RETRIEVAL",
+        "AMBIGUOUS_TARGET",
+        "CONFLICTING_CONDITIONS",
+        "UNSUPPORTED_SCOPE",
+        "SEMANTIC_LOSS"
+      ],
+      "title": "PlanReasonCode",
+      "type": "string"
+    },
+    "QuestionFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "operation": {
+          "enum": [
+            "RECOMMEND",
+            "EXPLAIN",
+            "COMPARE",
+            "REFINE"
+          ],
+          "title": "Operation",
+          "type": "string"
+        },
+        "targetPlaceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 2,
+          "title": "Targetplaceids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "subjectConceptCodes": {
+          "items": {
+            "$ref": "#/$defs/ConceptCode"
+          },
+          "maxItems": 4,
+          "title": "Subjectconceptcodes",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "operation",
+        "targetPlaceIds",
+        "subjectConceptCodes"
+      ],
+      "title": "QuestionFrame",
+      "type": "object"
+    },
+    "RetrievalExpression": {
+      "additionalProperties": false,
+      "properties": {
+        "positiveConceptCodes": {
+          "items": {
+            "$ref": "#/$defs/ConceptCode"
+          },
+          "maxItems": 4,
+          "title": "Positiveconceptcodes",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "negativeConceptCodes": {
+          "items": {
+            "$ref": "#/$defs/ConceptCode"
+          },
+          "maxItems": 2,
+          "title": "Negativeconceptcodes",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "publicEntityIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "maxItems": 2,
+          "title": "Publicentityids",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "positiveConceptCodes",
+        "negativeConceptCodes",
+        "publicEntityIds"
+      ],
+      "title": "RetrievalExpression",
+      "type": "object"
+    },
+    "RetrievalLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "bm25K": {
+          "const": 20,
+          "title": "Bm25K",
+          "type": "integer"
+        },
+        "vectorK": {
+          "const": 20,
+          "title": "Vectork",
+          "type": "integer"
+        },
+        "rerankK": {
+          "const": 30,
+          "title": "Rerankk",
+          "type": "integer"
+        },
+        "evidenceK": {
+          "const": 12,
+          "title": "Evidencek",
+          "type": "integer"
+        },
+        "maxPlaces": {
+          "const": 5,
+          "title": "Maxplaces",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bm25K",
+        "vectorK",
+        "rerankK",
+        "evidenceK",
+        "maxPlaces"
+      ],
+      "title": "RetrievalLimits",
+      "type": "object"
+    },
+    "Versions": {
+      "additionalProperties": false,
+      "properties": {
+        "corpusRevision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Corpusrevision",
+          "type": "string"
+        },
+        "configHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "title": "Confighash",
+          "type": "string"
+        },
+        "questionDictionaryVersion": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Questiondictionaryversion",
+          "type": "string"
+        },
+        "sourceRevocationSequence": {
+          "minimum": 0,
+          "title": "Sourcerevocationsequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "corpusRevision",
+        "configHash",
+        "questionDictionaryVersion",
+        "sourceRevocationSequence"
+      ],
+      "title": "Versions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "route": {
+            "const": "SQL_ONLY"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "retrievalMode": {
+            "const": "NONE"
+          },
+          "semanticQuery": {
+            "type": "null"
+          },
+          "clarification": {
+            "type": "null"
+          },
+          "requestedCanonicalFields": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "route": {
+            "const": "LEXICAL_ONLY"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "retrievalMode": {
+            "const": "LEXICAL_ONLY"
+          },
+          "semanticQuery": {
+            "type": "string"
+          },
+          "clarification": {
+            "type": "null"
+          },
+          "requestedCanonicalFields": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "route": {
+            "const": "DENSE_ONLY"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "retrievalMode": {
+            "const": "DENSE_ONLY"
+          },
+          "semanticQuery": {
+            "type": "string"
+          },
+          "clarification": {
+            "type": "null"
+          },
+          "requestedCanonicalFields": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "route": {
+            "const": "HYBRID"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "retrievalMode": {
+            "const": "HYBRID"
+          },
+          "semanticQuery": {
+            "type": "string"
+          },
+          "clarification": {
+            "type": "null"
+          },
+          "requestedCanonicalFields": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "route": {
+            "const": "SQL_PLUS_RETRIEVAL"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "retrievalMode": {
+            "enum": [
+              "LEXICAL_ONLY",
+              "DENSE_ONLY",
+              "HYBRID"
+            ]
+          },
+          "semanticQuery": {
+            "type": "string"
+          },
+          "clarification": {
+            "type": "null"
+          },
+          "requestedCanonicalFields": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "route": {
+            "const": "CLARIFY_OR_SCOPE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "retrievalMode": {
+            "const": "NONE"
+          },
+          "semanticQuery": {
+            "type": "null"
+          },
+          "clarification": {
+            "type": "object"
+          },
+          "requestedCanonicalFields": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "ai-plan-proposal.v1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "planVersion": {
+      "const": "ai-query-plan.v1",
+      "title": "Planversion",
+      "type": "string"
+    },
+    "runId": {
+      "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
+      "title": "Runid",
+      "type": "string"
+    },
+    "route": {
+      "enum": [
+        "SQL_ONLY",
+        "LEXICAL_ONLY",
+        "DENSE_ONLY",
+        "HYBRID",
+        "SQL_PLUS_RETRIEVAL",
+        "CLARIFY_OR_SCOPE"
+      ],
+      "title": "Route",
+      "type": "string"
+    },
+    "retrievalMode": {
+      "enum": [
+        "NONE",
+        "LEXICAL_ONLY",
+        "DENSE_ONLY",
+        "HYBRID"
+      ],
+      "title": "Retrievalmode",
+      "type": "string"
+    },
+    "reasonCodes": {
+      "items": {
+        "$ref": "#/$defs/PlanReasonCode"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "title": "Reasoncodes",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "questionFrame": {
+      "$ref": "#/$defs/QuestionFrame"
+    },
+    "retrievalExpression": {
+      "$ref": "#/$defs/RetrievalExpression"
+    },
+    "requestedCanonicalFields": {
+      "items": {
+        "enum": [
+          "PUBLIC_ADDRESS",
+          "REGION_CODE",
+          "CATEGORY_CODE",
+          "PUBLIC_STATUS"
+        ],
+        "type": "string"
+      },
+      "maxItems": 4,
+      "title": "Requestedcanonicalfields",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "proposedFilters": {
+      "$ref": "#/$defs/HardFilters"
+    },
+    "semanticQuery": {
+      "anyOf": [
+        {
+          "maxLength": 240,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Semanticquery"
+    },
+    "versions": {
+      "$ref": "#/$defs/Versions"
+    },
+    "limits": {
+      "$ref": "#/$defs/RetrievalLimits"
+    },
+    "clarification": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Clarification"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "planHash": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "title": "Planhash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "planVersion",
+    "runId",
+    "route",
+    "retrievalMode",
+    "reasonCodes",
+    "questionFrame",
+    "retrievalExpression",
+    "requestedCanonicalFields",
+    "proposedFilters",
+    "semanticQuery",
+    "versions",
+    "limits",
+    "clarification",
+    "planHash"
+  ],
+  "title": "PlanProposal",
+  "type": "object"
+}
