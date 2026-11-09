@@ -1,0 +1,271 @@
+#!/bin/sh
+set -eu
+#
+# Restores the newest REAL production backup into an isolated throwaway
+# container and records sanitized evidence for the operations backup restore
+# gate (Issue #586). Unlike test/run-restore-drill nothing is synthesized: the
+# operator supplies the encrypted production artifact, its checksum sidecar,
+# the encrypted deletion ledger artifact, and both key files. Secrets are
+# never printed and never copied into evidence.
+#
+# Required environment:
+#   ONMARU_PRODUCTION_BACKUP_DIR      directory holding exactly one
+#                                     onmaru-*.tar.gpg and its .sha256 sidecar
+#   ONMARU_BACKUP_KEY_FILE            backup passphrase file (absolute path)
+#   ONMARU_DELETION_LEDGER_ARTIFACT   encrypted deletion ledger .tsv.gpg path
+#   ONMARU_DELETION_LEDGER_KEY_FILE   ledger passphrase file (absolute path)
+# Optional environment:
+#   ONMARU_DRILL_EVIDENCE_DIR         output dir for sanitized evidence JSON
+#   ONMARU_TARGET_MEM_LIMIT           docker --memory for the target (512m)
+#   ONMARU_POSTGIS_PLATFORM           image platform (linux/amd64)
+#
+# The restore itself is executed by the unchanged, CI-verified
+# infra/backup/bin/restore-drill runner: it re-verifies the checksum sidecar,
+# refuses a non-empty target schema and a source fingerprint match, replays
+# the deletion ledger, and enforces RPO/RTO plus integrity gates.
+
+root=$(CDPATH= cd -- "$(dirname "$0")/../../.." && pwd)
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/onmaru-production-restore.XXXXXX")
+evidence_dir=${ONMARU_DRILL_EVIDENCE_DIR:-$work_dir/evidence}
+run_id="${$}-$(date +%s)"
+image="onmaru-backup-drill:$run_id"
+network="onmaru-production-restore-$run_id"
+target_container="onmaru-restore-target-$run_id"
+database=onmaru_drill
+postgis_platform=${ONMARU_POSTGIS_PLATFORM:-linux/amd64}
+target_mem_limit=${ONMARU_TARGET_MEM_LIMIT:-512m}
+postgres_password=drill-postgres-password
+
+cleanup() {
+  docker rm -f "$target_container" >/dev/null 2>&1 || true
+  docker network rm "$network" >/dev/null 2>&1 || true
+  docker image rm "$image" >/dev/null 2>&1 || true
+  if [ "${evidence_dir}" != "$work_dir/evidence" ]; then
+    rm -rf "$work_dir"
+  fi
+}
+trap cleanup EXIT HUP INT TERM
+
+for name in ONMARU_PRODUCTION_BACKUP_DIR ONMARU_BACKUP_KEY_FILE \
+  ONMARU_DELETION_LEDGER_ARTIFACT ONMARU_DELETION_LEDGER_KEY_FILE; do
+  eval "value=\${$name:-}"
+  if [ -z "$value" ]; then
+    echo "required environment variable is missing: $name" >&2
+    exit 2
+  fi
+done
+
+backup_dir=$ONMARU_PRODUCTION_BACKUP_DIR
+if [ ! -d "$backup_dir" ]; then
+  echo "ONMARU_PRODUCTION_BACKUP_DIR must be an existing directory: $backup_dir" >&2
+  exit 2
+fi
+
+artifact_count=$(find "$backup_dir" -maxdepth 1 -type f -name 'onmaru-*.tar.gpg' | wc -l | tr -d ' ')
+if [ "$artifact_count" -ne 1 ]; then
+  echo "ONMARU_PRODUCTION_BACKUP_DIR must contain exactly one onmaru-*.tar.gpg, found: $artifact_count" >&2
+  exit 2
+fi
+artifact=$(find "$backup_dir" -maxdepth 1 -type f -name 'onmaru-*.tar.gpg' -print -quit)
+if [ ! -f "$artifact.sha256" ]; then
+  echo "checksum sidecar is missing: $artifact.sha256" >&2
+  exit 2
+fi
+artifact_abs=$(CDPATH= cd -- "$(dirname "$artifact")" && pwd)/$(basename "$artifact")
+artifact_name=$(basename "$artifact_abs")
+
+for path in "$ONMARU_BACKUP_KEY_FILE" "$ONMARU_DELETION_LEDGER_KEY_FILE" \
+  "$ONMARU_DELETION_LEDGER_ARTIFACT" "$ONMARU_DELETION_LEDGER_ARTIFACT.sha256"; do
+  if [ ! -f "$path" ]; then
+    echo "required input file is missing: $path" >&2
+    exit 2
+  fi
+done
+
+ledger_abs=$(CDPATH= cd -- "$(dirname "$ONMARU_DELETION_LEDGER_ARTIFACT")" && pwd)/$(basename "$ONMARU_DELETION_LEDGER_ARTIFACT")
+backup_key_abs=$(CDPATH= cd -- "$(dirname "$ONMARU_BACKUP_KEY_FILE")" && pwd)/$(basename "$ONMARU_BACKUP_KEY_FILE")
+ledger_key_abs=$(CDPATH= cd -- "$(dirname "$ONMARU_DELETION_LEDGER_KEY_FILE")" && pwd)/$(basename "$ONMARU_DELETION_LEDGER_KEY_FILE")
+
+mkdir -p "$evidence_dir"
+chmod 777 "$evidence_dir"
+
+docker build --pull=false -t "$image" "$root/infra/backup"
+docker network create "$network" >/dev/null
+
+docker run -d \
+  --platform "$postgis_platform" \
+  --name "$target_container" \
+  --network "$network" \
+  --memory "$target_mem_limit" \
+  -e POSTGRES_DB="$database" \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD="$postgres_password" \
+  postgis/postgis:17-3.5-alpine >/dev/null
+
+attempts=0
+until docker logs "$target_container" 2>&1 | grep -q 'PostgreSQL init process complete'; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 60 ]; then
+    echo "PostgreSQL initialization did not complete: $target_container" >&2
+    exit 1
+  fi
+  sleep 1
+done
+
+attempts=0
+until docker exec "$target_container" \
+  psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$database" \
+    -c 'SELECT PostGIS_Version()' >/dev/null 2>&1; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 60 ]; then
+    echo "PostgreSQL/PostGIS container did not become ready: $target_container" >&2
+    exit 1
+  fi
+  sleep 1
+done
+
+docker exec "$target_container" \
+  dropdb --force -U postgres "$database"
+docker exec "$target_container" \
+  createdb -U postgres --template=template0 "$database"
+docker run --rm \
+  --network "$network" \
+  -v "$artifact_abs:/work/backups/$artifact_name:ro" \
+  -v "$artifact_abs.sha256:/work/backups/$artifact_name.sha256:ro" \
+  -v "$ledger_abs:/work/ledger/deletion-ledger.tsv.gpg:ro" \
+  -v "$ledger_abs.sha256:/work/ledger/deletion-ledger.tsv.gpg.sha256:ro" \
+  -v "$backup_key_abs:/run/secrets/backup-key:ro" \
+  -v "$ledger_key_abs:/run/secrets/ledger-key:ro" \
+  -v "$evidence_dir:/evidence" \
+  -e PGHOST="$target_container" \
+  -e PGDATABASE="$database" \
+  -e PGUSER=postgres \
+  -e PGPASSWORD="$postgres_password" \
+  -e ONMARU_BACKUP_ARTIFACT="/work/backups/$artifact_name" \
+  -e ONMARU_BACKUP_KEY_FILE=/run/secrets/backup-key \
+  -e ONMARU_DELETION_LEDGER_ARTIFACT=/work/ledger/deletion-ledger.tsv.gpg \
+  -e ONMARU_DELETION_LEDGER_KEY_FILE=/run/secrets/ledger-key \
+  -e ONMARU_RESTORE_EVIDENCE_DIR=/evidence \
+  -e ONMARU_RESTORE_CONFIRM=isolated-target \
+  "$image" restore-drill >/dev/null
+
+restore_evidence=$(find "$evidence_dir" -type f -name 'restore-*.json' -print -quit)
+if [ -z "$restore_evidence" ]; then
+  echo "restore evidence was not created" >&2
+  exit 1
+fi
+
+post_restore_gates() {
+  docker run --rm \
+    --network "$network" \
+    -e PGHOST="$target_container" \
+    -e PGDATABASE="$database" \
+    -e PGUSER=postgres \
+    -e PGPASSWORD="$postgres_password" \
+    "$image" psql -X -qAt -v ON_ERROR_STOP=1 "$@"
+}
+
+flyway_table=$(post_restore_gates -c \
+  "SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_name = 'flyway_schema_history' LIMIT 1")
+if [ -z "$flyway_table" ]; then
+  echo "flyway_schema_history was not restored" >&2
+  exit 1
+fi
+flyway_history_count=$(post_restore_gates -c "SELECT count(*) FROM $flyway_table")
+latest_migration=$(post_restore_gates -c \
+  "SELECT coalesce(max(version), 'none') FROM $flyway_table")
+postgis_version=$(post_restore_gates -c \
+  "SELECT coalesce(extversion, '') FROM pg_extension WHERE extname = 'postgis'")
+member_table=$(post_restore_gates -c \
+  "SELECT to_regclass('onmaru.identity_members')")
+member_rows=$(post_restore_gates -c \
+  "SELECT count(*) FROM onmaru.identity_members")
+active_member_rows=$(post_restore_gates -c \
+  "SELECT count(*) FROM onmaru.identity_members WHERE status = 'ACTIVE'")
+session_rows=$(post_restore_gates -c \
+  "SELECT count(*) FROM onmaru.identity_sessions")
+
+if [ "$flyway_history_count" -eq 0 ] || [ -z "$postgis_version" ] || [ -z "$member_table" ]; then
+  echo "post-restore gates failed: flyway history, PostGIS extension, and core tables must exist" >&2
+  exit 1
+fi
+
+summary_name="production-restore-$(date +%s).json"
+docker run --rm \
+  -v "$evidence_dir:/evidence" \
+  -v "$restore_evidence:/work/restore-evidence.json:ro" \
+  -e GATE_FLYWAY_TABLE="$flyway_table" \
+  -e GATE_FLYWAY_COUNT="$flyway_history_count" \
+  -e GATE_LATEST_MIGRATION="$latest_migration" \
+  -e GATE_POSTGIS_VERSION="$postgis_version" \
+  -e GATE_MEMBER_TABLE="$member_table" \
+  -e GATE_MEMBER_ROWS="$member_rows" \
+  -e GATE_ACTIVE_MEMBER_ROWS="$active_member_rows" \
+  -e GATE_SESSION_ROWS="$session_rows" \
+  -e GATE_ARTIFACT_NAME="$artifact_name" \
+  -e GATE_SUMMARY_NAME="$summary_name" \
+  "$image" sh -c '
+    jq -n \
+      --slurpfile restore /work/restore-evidence.json \
+      --arg drill "PRODUCTION_BACKUP_ISOLATED_RESTORE" \
+      --arg artifactName "$GATE_ARTIFACT_NAME" \
+      --arg flywayTable "$GATE_FLYWAY_TABLE" \
+      --argjson flywayCount "$GATE_FLYWAY_COUNT" \
+      --arg latestMigration "$GATE_LATEST_MIGRATION" \
+      --arg postgisVersion "$GATE_POSTGIS_VERSION" \
+      --arg memberTable "$GATE_MEMBER_TABLE" \
+      --argjson memberRows "$GATE_MEMBER_ROWS" \
+      --argjson activeMemberRows "$GATE_ACTIVE_MEMBER_ROWS" \
+      --argjson sessionRows "$GATE_SESSION_ROWS" \
+      "{
+        schemaVersion: 1,
+        drill: \$drill,
+        result: \$restore[0].result,
+        artifactName: \$artifactName,
+        artifactSha256: \$restore[0].artifactSha256,
+        sourceRevision: \$restore[0].sourceRevision,
+        capturedAt: \$restore[0].capturedAt,
+        restoreStartedAt: \$restore[0].restoreStartedAt,
+        restoreCompletedAt: \$restore[0].restoreCompletedAt,
+        rpoSeconds: \$restore[0].rpoSeconds,
+        rtoSeconds: \$restore[0].rtoSeconds,
+        targets: \$restore[0].targets,
+        integrity: \$restore[0].integrity,
+        gates: {
+          flywayHistoryTable: \$flywayTable,
+          flywayHistoryCount: \$flywayCount,
+          latestMigration: \$latestMigration,
+          postgisVersion: \$postgisVersion,
+          representativeTables: [
+            { name: \$memberTable, rowCount: \$memberRows, activeRowCount: \$activeMemberRows },
+            { name: \"onmaru.identity_sessions\", rowCount: \$sessionRows }
+          ]
+        }
+      }" > "/evidence/\$GATE_SUMMARY_NAME"
+  '
+
+summary_evidence=$(find "$evidence_dir" -type f -name 'production-restore-*.json' -print -quit)
+if [ -z "$summary_evidence" ]; then
+  echo "production restore evidence was not created" >&2
+  exit 1
+fi
+
+docker run --rm \
+  -v "$summary_evidence:/work/summary.json:ro" \
+  "$image" jq -e '
+  .result == "PASS"
+  and .drill == "PRODUCTION_BACKUP_ISOLATED_RESTORE"
+  and .rpoSeconds <= .targets.rpoSeconds
+  and .rtoSeconds <= .targets.rtoSeconds
+  and .integrity.countMismatches == 0
+  and .integrity.unvalidatedForeignKeys == 0
+  and .integrity.invalidSavedSnapshotHashes == 0
+  and .integrity.deletionReexposureCount == 0
+  and .gates.flywayHistoryCount > 0
+  and (.gates.postgisVersion | length) > 0
+' /work/summary.json >/dev/null
+
+cat "$summary_evidence"
+echo "Evidence directory: $evidence_dir" >&2
+echo "Commit the sanitized production-restore-*.json under docs/operations/release-evidence/backup/." >&2
+

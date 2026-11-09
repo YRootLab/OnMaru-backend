@@ -145,4 +145,56 @@ describe('PostgreSQL backup and restore drill', () => {
     }
     assert.match(operationsIndex, /runbooks\/restore\.md/);
   });
+
+  it('restores the real production artifact with isolated target and operation gates', () => {
+    const drill = read('infra/backup/test/run-production-restore-drill');
+    const runbook = read('docs/operations/runbooks/restore.md');
+    const evidenceIndex = read('docs/operations/release-evidence/backup/README.md');
+
+    for (const requiredVariable of [
+      'ONMARU_PRODUCTION_BACKUP_DIR',
+      'ONMARU_BACKUP_KEY_FILE',
+      'ONMARU_DELETION_LEDGER_ARTIFACT',
+      'ONMARU_DELETION_LEDGER_KEY_FILE',
+    ]) {
+      assert.match(drill, new RegExp(requiredVariable));
+    }
+    assert.match(
+      drill,
+      /must contain exactly one onmaru-\*\.tar\.gpg/,
+      'the drill must pin the evidence to exactly one production artifact',
+    );
+    assert.match(drill, /checksum sidecar is missing/);
+    assert.match(drill, /ONMARU_RESTORE_CONFIRM=isolated-target/);
+    assert.match(drill, /"\$image" restore-drill/);
+    assert.doesNotMatch(
+      drill,
+      /source_container/,
+      'the production drill must not spin up a synthetic source database',
+    );
+    assert.match(drill, /--memory "\$target_mem_limit"/);
+    assert.match(drill, /flyway_schema_history/);
+    assert.match(drill, /pg_extension WHERE extname = 'postgis'/);
+    assert.match(drill, /onmaru\.identity_members/);
+    assert.match(drill, /PRODUCTION_BACKUP_ISOLATED_RESTORE/);
+    assert.doesNotMatch(
+      drill,
+      /cat "\$ONMARU_BACKUP_KEY_FILE"|echo "\$PGPASSWORD"/,
+      'the drill must never print key or credential material',
+    );
+
+    assert.match(runbook, /Production backup 격리 복원 증적/);
+    assert.match(runbook, /run-production-restore-drill/);
+    assert.match(runbook, /release-evidence\/backup\//);
+    assert.match(evidenceIndex, /PRODUCTION_BACKUP_ISOLATED_RESTORE/);
+    assert.match(evidenceIndex, /secret/);
+  });
+
+  it('keeps the synthetic CI drill independent from the production artifact drill', () => {
+    const drill = read('infra/backup/test/run-restore-drill');
+    const productionDrill = read('infra/backup/test/run-production-restore-drill');
+
+    assert.match(drill, /synthetic-backup-key/);
+    assert.doesNotMatch(productionDrill, /synthetic-backup-key/);
+  });
 });

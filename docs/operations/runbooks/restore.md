@@ -37,6 +37,28 @@ docker run --rm \
 
 성공 시 storage에는 `onmaru-*.tar.gpg`와 동일 이름의 `.sha256`만 남아야 한다. 평문 `pg_dump`, metadata, row count 파일이 있으면 실패로 보고 storage를 격리한다. dump와 critical count는 backup runner가 유지하는 read-only exported snapshot에서 함께 읽으므로 운영 write가 계속되어도 서로 다른 시점의 count를 비교하지 않는다. 7일을 지난 OnMaru artifact는 새 backup 성공 뒤 정리된다.
 
+## Production backup 격리 복원 증적 (Issue #586)
+
+CI의 `PostgreSQL Restore Drill`은 synthetic 데이터로 복원 절차를 회귀 검증할 뿐, 운영 backup artifact 자체를 복원하지 않는다. 운영 backup의 실제 복원 증적은 아래 절차로 남긴다. restore runner(`infra/backup/bin/restore-drill`)는 두 drill이 동일하게 사용하며, checksum sidecar 검증, source fingerprint 불일치 강제, 비어있지 않은 target schema 거부, deletion ledger 재적용, RPO/RTO·integrity gate를 모두 수행한다.
+
+1. 운영 서버의 backup storage에서 최신 `onmaru-*.tar.gpg`와 그 `.sha256` sidecar를 drill 전용 디렉터(예: `/var/lib/onmaru/restore-drill/`)로 복사한다. artifact는 암호화돼 있어 평문 dump가 storage 밖으로 나오지 않는다.
+2. 같은 디렉터 작업에서 사용할 현재 deletion ledger artifact(`*.tsv.gpg`)와 그 `.sha256` sidecar를 준비한다. sidecar가 없으면 `sha256sum ledger.gpg > ledger.gpg.sha256`으로 만든다. backup key와 ledger key 파일은 secret manager mount 경로 그대로 사용하고 복사하지 않는다.
+3. staging이 실행 중이면 먼저 중지한다(2GB host 메모리 보호). 운영 Spring·PostgreSQL은 건드리지 않는다.
+4. drill을 실행한다. target은 격리 docker network 위의 일회성 container(기본 `--memory 512m`)다:
+
+```bash
+ONMARU_PRODUCTION_BACKUP_DIR=/var/lib/onmaru/restore-drill \
+ONMARU_BACKUP_KEY_FILE=/run/secrets/onmaru-backup-key \
+ONMARU_DELETION_LEDGER_ARTIFACT=/var/lib/onmaru/restore-drill/deletion-ledger.tsv.gpg \
+ONMARU_DELETION_LEDGER_KEY_FILE=/run/secrets/onmaru-ledger-key \
+ONMARU_DRILL_EVIDENCE_DIR=/tmp/onmaru-restore-evidence \
+infra/backup/test/run-production-restore-drill
+```
+
+5. drill이 `production-restore-*.json`(summary)과 `restore-*.json`(restore runner evidence)을 출력한다. summary는 `drill: PRODUCTION_BACKUP_ISOLATED_RESTORE`, artifact 이름·SHA-256, `capturedAt`, RPO/RTO 측정값, integrity 결과, Flyway history count·최근 migration version, PostGIS version, 대표 table row count(`onmaru.identity_members`·`onmaru.identity_sessions`) gate를 담는다. 결과가 PASS가 아니면 원인을 기록하고 실패 원인을 정리한다.
+6. sanitize된 JSON을 `docs/operations/release-evidence/backup/`에 커밋하고 Issue #586에 링크한다. 파일명은 `production-restore-<UTC timestamp>.json` 형식을 따른다.
+7. 이 증적은 반복 가능해야 한다. 운영 backup이 새로 생성될 때마다 다시 실행해 최신 artifact 기준 RPO 24시간·RTO 4시간을 유지함을 확인한다.
+
 ## Deletion Ledger Input
 
 복원 시점 ledger는 backup 생성 이후 접수된 삭제를 포함해야 한다. 원본 TSV 한 행은 `<member UUID><TAB><requested_at ISO-8601>`이며 header는 없다. ledger producer와 장기 물리 cleanup은 Issue #125가 소유한다. 이 runbook은 별도 key로 암호화된 `.gpg` artifact와 `.sha256`만 입력으로 허용하고, 평문은 restore runner 임시 디렉터리 밖에 두지 않는다.
