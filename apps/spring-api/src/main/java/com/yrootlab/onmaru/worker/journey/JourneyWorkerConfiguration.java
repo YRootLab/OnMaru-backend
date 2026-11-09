@@ -22,7 +22,9 @@ import com.yrootlab.onmaru.scheduling.run.JourneyRunSweeper;
 import com.yrootlab.onmaru.journey.worker.AiProposalClient;
 import com.yrootlab.onmaru.journey.worker.BaselinePlanner;
 import com.yrootlab.onmaru.journey.worker.DefaultBaselinePlanner;
+import com.yrootlab.onmaru.journey.worker.FallbackJourneyCandidateProvider;
 import com.yrootlab.onmaru.journey.worker.InMemoryJourneyCandidateProvider;
+import com.yrootlab.onmaru.persistence.catalog.journey.JdbcJourneyCandidateProvider;
 import com.yrootlab.onmaru.journey.worker.InMemoryJourneyWorkerQueue;
 import com.yrootlab.onmaru.journey.worker.JourneyCandidateProvider;
 import com.yrootlab.onmaru.journey.worker.JourneyResultStore;
@@ -40,6 +42,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
@@ -58,6 +61,14 @@ class JourneyWorkerConfiguration {
     @Bean
     InMemoryJourneyCandidateProvider journeyCandidateProvider() {
         return new InMemoryJourneyCandidateProvider();
+    }
+
+    /** Production candidates come from the active catalog; in-memory entries (tests/controlled runs) take precedence. */
+    @Bean
+    @Primary
+    @ConditionalOnBean(DataSource.class)
+    JourneyCandidateProvider catalogCandidateProvider(InMemoryJourneyCandidateProvider inMemory, DataSource dataSource) {
+        return new FallbackJourneyCandidateProvider(inMemory, new JdbcJourneyCandidateProvider(dataSource));
     }
 
     @Bean

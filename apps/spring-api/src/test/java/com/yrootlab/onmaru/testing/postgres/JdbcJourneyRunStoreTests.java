@@ -99,6 +99,11 @@ class JdbcJourneyRunStoreTests {
         }
     }
 
+    /** claim (generation 2) + one advance per public stage + finish. */
+    private static int expectedGenerationAfterAllStages() {
+        return 2 + JourneyRunStage.values().length + 1;
+    }
+
     @Test
     void persistsStateMachineAndReadsSnapshotFromANewAdapter() {
         var runId = UUID.randomUUID();
@@ -124,13 +129,13 @@ class JdbcJourneyRunStoreTests {
                 UUID.randomUUID(), actorKey, runId, "finish-hash", generation,
                 JourneyRunStatus.COMPLETED, "INITIAL_BOARD", null, Instant.parse("2026-09-16T01:00:05Z")));
         assertThat(completed.receipt().status()).isEqualTo(JourneyRunStatus.COMPLETED);
-        assertThat(completed.receipt().generation()).isEqualTo(7);
+        assertThat(completed.receipt().generation()).isEqualTo(expectedGenerationAfterAllStages());
 
         var snapshot = new JourneyRunService(new JdbcJourneyRunStore(dataSource)).find(runId, actorKey).orElseThrow();
         assertThat(snapshot.status()).isEqualTo(JourneyRunStatus.COMPLETED);
         assertThat(snapshot.outcome()).isEqualTo("INITIAL_BOARD");
         assertThat(snapshot.stage()).isNull();
-        assertThat(snapshot.generation()).isEqualTo(7);
+        assertThat(snapshot.generation()).isEqualTo(expectedGenerationAfterAllStages());
     }
 
     @Test
