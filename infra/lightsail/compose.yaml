@@ -67,7 +67,9 @@ x-spring-api: &spring-api
 
 services:
   postgres:
-    image: postgis/postgis:17-3.5-alpine
+    # PostgreSQL 17 + PostGIS + pgvector: holds the AI RAG embeddings (ai schema). Keep in step with the
+    # image running on production; the postgis-only image cannot read the vector columns.
+    image: onmaru/postgres:17-postgis-pgvector
     restart: unless-stopped
     mem_limit: 320m
     cpus: 0.5
