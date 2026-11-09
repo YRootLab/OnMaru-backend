@@ -6,14 +6,27 @@ import com.yrootlab.onmaru.journey.worker.PersistJourneyResultResult;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Clock;
 import java.util.StringJoiner;
 
 public final class JdbcJourneyResultStore implements JourneyResultStore {
 
     private final DataSource dataSource;
+    private final Clock clock;
 
     public JdbcJourneyResultStore(DataSource dataSource) {
+        this(dataSource, Clock.systemUTC());
+    }
+
+    /**
+     * Deadlines are judged with the same clock the worker uses; judging them with the database clock let the two
+     * disagree and discard finished results. updated_at stays on the database clock so the row's timestamp
+     * constraints hold even when the application clock is behind.
+     */
+    public JdbcJourneyResultStore(DataSource dataSource, Clock clock) {
         this.dataSource = dataSource;
+        this.clock = clock;
     }
 
     @Override
@@ -56,13 +69,14 @@ public final class JdbcJourneyResultStore implements JourneyResultStore {
                            WHERE run.id = ?
                              AND run.exploration_id = exploration.id
                              AND run.status = 'RUNNING'
-                             AND run.deadline_at > CURRENT_TIMESTAMP
+                             AND run.deadline_at > ?
                        )
                      """)) {
             statement.setString(1, boardJson(command));
             statement.setObject(2, command.explorationId());
             statement.setInt(3, command.baseVersion());
             statement.setObject(4, command.runId());
+            statement.setTimestamp(5, Timestamp.from(clock.instant()));
             return statement.executeUpdate() == 1;
         }
     }
@@ -71,12 +85,13 @@ public final class JdbcJourneyResultStore implements JourneyResultStore {
             java.sql.Connection connection,
             PersistJourneyResultCommand command) throws SQLException {
         try (var statement = connection.prepareStatement("""
-                     SELECT status::text, deadline_at <= CURRENT_TIMESTAMP AS expired
+                     SELECT status::text, deadline_at <= ? AS expired
                      FROM onmaru.discovery_runs
                      WHERE id = ? AND exploration_id = ?
                      """)) {
-            statement.setObject(1, command.runId());
-            statement.setObject(2, command.explorationId());
+            statement.setTimestamp(1, Timestamp.from(clock.instant()));
+            statement.setObject(2, command.runId());
+            statement.setObject(3, command.explorationId());
             try (var result = statement.executeQuery()) {
                 if (result.next() && result.getBoolean("expired")) {
                     return PersistJourneyResultResult.DISCARDED_EXPIRED;

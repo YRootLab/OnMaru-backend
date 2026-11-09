@@ -30,8 +30,8 @@ public final class InternalAiProgressController {
     private static final Map<String, JourneyRunStage> STAGE_MAPPING = Map.of(
             "PREPARING_INPUT", JourneyRunStage.INTERPRETING,
             "RETRIEVING", JourneyRunStage.RETRIEVING,
-            "SELECTING_EVIDENCE", JourneyRunStage.RETRIEVING,
-            "GENERATING", JourneyRunStage.VALIDATING,
+            "SELECTING_EVIDENCE", JourneyRunStage.SELECTING_EVIDENCE,
+            "GENERATING", JourneyRunStage.GENERATING,
             "CHECKING_OUTPUT", JourneyRunStage.VALIDATING
     );
 

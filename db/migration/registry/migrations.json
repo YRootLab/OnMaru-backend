@@ -500,6 +500,15 @@
       "checksum": "journey-query-grant-v056-20261109",
       "sha256": "056d5c8d7220cd4fc204f2fd6124ab66b5b84c9d6964f2e268de344ddec86d63",
       "description": "Run-bound approved query grant store with hash-only reference and one-time consumption"
+    },
+    {
+      "version": "057",
+      "reservedFor": "JOURNEY_RUN_STAGE_LADDER",
+      "issueNumber": 809,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V057__809_journey_run_stage_ladder.sql",
+      "checksum": "journey-run-stage-ladder-v057-20261109",
+      "sha256": "cf8e06e225d0948ec47658b125195fdda3d0589dac8e22e410ebd473bf0a4657",
+      "description": "Public journey stage ladder aligned with OpenAPI SSE 1.3 stage enum"
     }
   ]
 }
