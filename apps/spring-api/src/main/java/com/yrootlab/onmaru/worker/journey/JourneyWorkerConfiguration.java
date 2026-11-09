@@ -10,6 +10,7 @@ import com.yrootlab.onmaru.integration.ai.plan.DefaultPlanAuthorityGate;
 import com.yrootlab.onmaru.journey.worker.plan.AiPlanExecuteClient;
 import com.yrootlab.onmaru.journey.worker.plan.PlanAuthorityGate;
 import com.yrootlab.onmaru.journey.worker.plan.PlanExecuteAiProposalClient;
+import com.yrootlab.onmaru.journey.worker.plan.ValidatingExecutionResultMapper;
 import com.yrootlab.onmaru.journey.worker.plan.JourneyPlanExecutionPorts.*;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFactory;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenProperties;
@@ -139,6 +140,14 @@ class JourneyWorkerConfiguration {
             SecretProvider secrets, Clock clock) {
         return new HttpAiPlanExecuteClient(HttpClient.newBuilder().connectTimeout(properties.timeout()).build(),
                 codec, properties.baseUrl(), secrets, properties.timeout(), clock);
+    }
+
+    /** Pure validator with no I/O; the AI result is always re-checked against the approved plan and candidates. */
+    @Bean
+    @ConditionalOnMissingBean(ExecutionResultMapper.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    ExecutionResultMapper executionResultMapper() {
+        return new ValidatingExecutionResultMapper();
     }
 
     @Bean
