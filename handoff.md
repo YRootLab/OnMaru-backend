@@ -1,4 +1,14 @@
 # handoff.md
+## 2026-11-09 #586 잔여 2개 항목 개선과 SSH host key 인시던트 대응
+
+- 인시던트(#819): 11-06부터 scheduled production deploy가 `Host key verification failed`로 연속 실패. 서버 host key가 11-05 마지막 성공 배포 이후 변경(배너 `Ubuntu-3ubuntu13.19`→`13.20`). `PRODUCTION_SSH_KNOWN_HOSTS`·`STAGING_SSH_KNOWN_HOSTS`를 keyscan 키로 갱신 완료. 운영자는 Lightsail 콘솔에서 지문 `SHA256:bEn0kJlxwbrzR+Wrc55lYkB9Ga/nTXEdKbLoFt5tB7w` 대조가 필요하고, 서버를 재생성한 사유 확인도 남았다.
+- #586 잔여 항목 개선(브랜치 `feature/586-ssh-firewall-restore-drill`):
+  - `infra/backup/test/run-production-restore-drill` 추가: 운영 실제 backup artifact를 일회성 격리 container에 복원하고 `production-restore-*.json` 증적을 남긴다. restore runner(`bin/restore-drill`)는 변경 없이 재사용한다. gate: Flyway history count·최근 migration version, PostGIS version, 대표 table row count, RPO/RTO, integrity.
+  - `infra/lightsail/ssh-firewall/apply-ssh-firewall.sh` 추가: Lightsail 방화벽에서 TCP/22 규칙만 다루는 status/restrict(/32)/open-ssh/close-ssh 도구. 단, GitHub Actions runner IP는 고정이 아니고 Actions CIDR은 IPv4 5천+라 방화벽 allowlist로 CI SSH를 살릴 수 없어, 아웃바운드 터널(Tailscale/Cloudflare Tunnel)로 CI 배포 경로를 이전한 뒤 close-ssh하는 설계를 runbook에 문서화했다.
+  - `docs/operations/runbooks/restore.md`에 운영 backup 격리 복원 증적 절차를, `docs/operations/release-evidence/backup/README.md`에 증적 규약을 추가했다.
+- 남은 실행(운영자): ① 콘솔 지문 대조(#819) ② 터널 방식 결정 후 CI 배포 경로 이전 ③ 방화벽 restrict→close-ssh 적용 ④ 서버에서 운영 backup drill 실행 후 증적 커밋 → #586 종료.
+- 검증: 신규 Node 테스트 6/6 PASS, 두 shell script `sh -n` PASS.
+
 ## 2026-11-09 AI staging readiness 검증 재활성화 (#490)
 
 - 브랜치 `feature/490-ai-staging-readiness`, 기준 `develop` merge `847b32f1` (#814). #491의 임시 스킵(`9a32b787`)을 역변경해 `Staging Deploy` staging smoke가 `STAGING_AI_URL/ready`를 다시 검증한다. Spring과 같은 도메인 고정 가드(`https://staging-ai.onmaru.site`)를 추가했다.
