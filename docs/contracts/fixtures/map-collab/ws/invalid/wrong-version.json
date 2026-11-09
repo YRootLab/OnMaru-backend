@@ -1,0 +1,13 @@
+{
+  "name": "wrong-version",
+  "expectValid": false,
+  "reason": "v는 1 이어야 한다",
+  "message": {
+    "v": 2,
+    "type": "PIN_ADD",
+    "opId": "d1a2b3c4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "payload": {
+      "placeId": "p-okcheon-hanok"
+    }
+  }
+}

@@ -1,0 +1,876 @@
+openapi: 3.1.0
+info:
+  title: OnMaru Map Collab API
+  version: 1.0.0-draft
+  description: >-
+    지도 공동 편집의 REST 계약. 방 생성, 초대 링크, 입장, 참여자, 스냅샷,
+    핀 명령(REST 대체 경로)을 정의한다. 실시간 채널(WebSocket)은
+    `GET /map-rooms/{roomId}/ws` 항목과 docs/contracts/schemas/map-collab-ws-message.schema.json
+    으로 정의한다. 설계 근거와 제약은 docs/contracts/map-collab-api.md 를 따른다.
+
+    공통 규칙
+    - 모든 응답 본문에 schemaVersion "1.2" 가 있다.
+    - 오류는 MapCollabError 형식이다. FE는 code 로 사용자 문구를 정한다.
+    - 상태 변경 요청(POST, DELETE)은 세션 쿠키와 X-CSRF-TOKEN 헤더가 모두 필요하다.
+    - 장소 식별자는 카탈로그 공개 ID(p-...)다. 이름과 좌표는 클라이언트가 보내지 않는다.
+    - 초대 토큰 원문은 방 생성 또는 초대 발급 응답에서 한 번만 나온다.
+servers:
+  - url: /api/v1
+tags:
+  - name: MapRooms
+    description: 방과 초대, 입장
+  - name: MapPins
+    description: 핀 명령 (REST 대체 경로)
+  - name: MapRealtime
+    description: 실시간 채널 (WebSocket 핸드셰이크)
+security:
+  - sessionCookie: []
+paths:
+  /map-rooms:
+    post:
+      tags: [MapRooms]
+      operationId: createMapRoom
+      summary: 방 생성과 첫 초대 링크 발급
+      description: >-
+        로그인 회원이 방을 만들고 OWNER 멤버십을 갖는다. 방은 생성 시각 기준 72시간 뒤 만료된다.
+        초대 토큰 원문은 이 응답에서만 나온다.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '201':
+          description: 방 생성 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateMapRoomResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/mine:
+    get:
+      tags: [MapRooms]
+      operationId: listMyMapRooms
+      summary: 내가 참여 중인 활성 방 목록
+      description: 최근 입장 순으로 정렬한다. 만료되었거나 종료된 방은 포함하지 않는다.
+      responses:
+        '200':
+          description: 방 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyMapRoomsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/joins:
+    post:
+      tags: [MapRooms]
+      operationId: joinMapRoomByInvite
+      summary: 초대 토큰으로 방에 입장
+      description: >-
+        토큰이 유효하면 멤버십을 만든다. 이미 멤버면 alreadyMember 가 true 이고 성공한다(멱등).
+        토큰이 없거나 만료, 철회된 경우에도 INVITE_NOT_FOUND 하나로 응답한다.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinMapRoomRequest'
+      responses:
+        '200':
+          description: 입장 완료 또는 이미 멤버
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinMapRoomResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/InviteNotFound'
+        '409':
+          $ref: '#/components/responses/RoomFull'
+        '410':
+          $ref: '#/components/responses/RoomGone'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/{roomId}:
+    get:
+      tags: [MapRooms]
+      operationId: getMapRoom
+      summary: 방 메타와 멤버 목록
+      description: 멤버만 조회할 수 있다. 비멤버는 FORBIDDEN 을 받는다.
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      responses:
+        '200':
+          description: 방 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapRoomDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RoomNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/{roomId}/snapshot:
+    get:
+      tags: [MapRooms]
+      operationId: getMapRoomSnapshot
+      summary: 활성 핀 스냅샷과 현재 seq
+      description: >-
+        WebSocket 연결 전이나 RESYNC_REQUIRED 이후에 상태를 맞출 때 쓴다.
+        pins 는 order(added_seq) 오름차순이며, 이 순서대로 선을 그린다.
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      responses:
+        '200':
+          description: 스냅샷
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapRoomSnapshotResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RoomNotFound'
+        '410':
+          $ref: '#/components/responses/RoomGone'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/{roomId}/invites:
+    post:
+      tags: [MapRooms]
+      operationId: issueMapRoomInvite
+      summary: 초대 링크 추가 발급
+      description: 멤버 누구나 발급할 수 있다. 활성 초대는 방당 5개까지다. 이전 링크는 만료 전까지 유효하다.
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '201':
+          description: 초대 발급 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueMapRoomInviteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RoomNotFound'
+        '409':
+          $ref: '#/components/responses/InviteLimitExceeded'
+        '410':
+          $ref: '#/components/responses/RoomGone'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/{roomId}/invites/{inviteId}:
+    delete:
+      tags: [MapRooms]
+      operationId: revokeMapRoomInvite
+      summary: 초대 철회
+      description: 발급자 본인 또는 OWNER 만 철회할 수 있다. 이미 철회된 초대를 다시 철회해도 204 이다.
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - $ref: '#/components/parameters/InviteId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: 철회 완료
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/InviteNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/{roomId}/pins:
+    post:
+      tags: [MapPins]
+      operationId: addMapRoomPin
+      summary: 핀 추가 (REST 대체 경로)
+      description: >-
+        WebSocket 의 PIN_ADD 와 같은 명령이다. WebSocket 이 끊긴 상태에서 재시도할 때 쓴다.
+        같은 opId 를 다시 보내면 원래 결과를 200 으로 돌려준다(멱등).
+        같은 장소의 활성 핀이 있으면 409 PIN_ALREADY_EXISTS 와 기존 핀을 돌려준다.
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMapRoomPinRequest'
+      responses:
+        '201':
+          description: 핀 추가 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapRoomPinCommandResponse'
+        '200':
+          description: 같은 opId 의 재요청 (저장된 결과)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapRoomPinCommandResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PlaceOrRoomNotFound'
+        '409':
+          $ref: '#/components/responses/PinConflict'
+        '410':
+          $ref: '#/components/responses/RoomGone'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/{roomId}/pins/{pinId}:
+    delete:
+      tags: [MapPins]
+      operationId: removeMapRoomPin
+      summary: 핀 제거 (REST 대체 경로)
+      description: 멤버 누구나 제거할 수 있다. 제거한 회원은 removedBy 로 기록된다.
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - $ref: '#/components/parameters/PinId'
+        - $ref: '#/components/parameters/OpId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: 제거 완료 (같은 opId 재요청 포함)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapRoomPinRemoveResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PinNotFound'
+        '410':
+          $ref: '#/components/responses/RoomGone'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /map-rooms/{roomId}/ws:
+    get:
+      tags: [MapRealtime]
+      operationId: connectMapRoomRealtime
+      summary: 실시간 채널 연결 (WebSocket 업그레이드)
+      description: >-
+        HTTP 101 로 업그레이드한 뒤 WebSocket 메시지를 주고받는다. 메시지 형식은
+        docs/contracts/schemas/map-collab-ws-message.schema.json 을 따른다.
+        업그레이드 전 검사 순서는 Origin, 세션, 방 존재, 방 상태, 멤버십, 동시 연결 수다.
+        Origin 이 허용 목록에 없으면 403 이다. WebSocket 핸드셰이크는 CSRF 헤더 대신 Origin 으로 검사한다.
+        연결 후 서버는 WELCOME 을 먼저 보낸다.
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - name: lastSeq
+          in: query
+          required: false
+          description: 마지막으로 받은 EVENT seq. 있으면 그 이후 이벤트를 재생한다. 없으면 WELCOME 으로 전체 상태를 받는다.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '101':
+          description: WebSocket 업그레이드 완료
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RoomNotFound'
+        '410':
+          $ref: '#/components/responses/RoomGone'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-onmaru-session
+      description: 카카오 로그인 후 발급되는 세션 쿠키. 모든 요청에 필요하다.
+
+  parameters:
+    RoomId:
+      name: roomId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    InviteId:
+      name: inviteId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    PinId:
+      name: pinId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    OpId:
+      name: opId
+      in: query
+      required: true
+      description: 클라이언트가 만든 명령 ID. 같은 방 안에서 유일해야 한다. 재시도할 때 같은 값을 보낸다.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    CsrfToken:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      description: __Host-onmaru-csrf 쿠키 값과 같아야 한다.
+      schema:
+        type: string
+        minLength: 16
+
+  responses:
+    ValidationError:
+      description: 요청 형식 오류
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+          examples:
+            invalid:
+              value:
+                schemaVersion: '1.2'
+                code: VALIDATION_ERROR
+                message: 'placeId must match the public place id format'
+                requestId: req-map-validation
+                details: {field: placeId}
+    Unauthorized:
+      description: 로그인 필요 또는 세션 만료
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+    Forbidden:
+      description: 멤버가 아니거나 CSRF·Origin 검사 실패
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+    RoomNotFound:
+      description: 방이 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+          examples:
+            notFound:
+              value:
+                schemaVersion: '1.2'
+                code: ROOM_NOT_FOUND
+                message: 'room not found'
+                requestId: req-map-room-notfound
+                details: {}
+    InviteNotFound:
+      description: 초대 토큰이 없거나 만료, 철회됨 (존재 여부를 구분하지 않음)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+          examples:
+            notFound:
+              value:
+                schemaVersion: '1.2'
+                code: INVITE_NOT_FOUND
+                message: 'invite not found'
+                requestId: req-map-invite-notfound
+                details: {}
+    PlaceOrRoomNotFound:
+      description: 방 또는 카탈로그 장소가 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+          examples:
+            placeNotFound:
+              value:
+                schemaVersion: '1.2'
+                code: PLACE_NOT_FOUND
+                message: 'place not found'
+                requestId: req-map-place-notfound
+                details: {placeId: p-unknown-place}
+    PinNotFound:
+      description: 핀이 없거나 이미 제거됨
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+          examples:
+            notFound:
+              value:
+                schemaVersion: '1.2'
+                code: PIN_NOT_FOUND
+                message: 'pin not found'
+                requestId: req-map-pin-notfound
+                details: {}
+    RoomFull:
+      description: 방 인원 상한(20명) 초과
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+          examples:
+            full:
+              value:
+                schemaVersion: '1.2'
+                code: ROOM_FULL
+                message: 'room is full'
+                requestId: req-map-room-full
+                details: {limit: 20}
+    RoomGone:
+      description: 방이 만료되었거나 종료됨
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+          examples:
+            expired:
+              value:
+                schemaVersion: '1.2'
+                code: ROOM_EXPIRED
+                message: 'room expired'
+                requestId: req-map-room-expired
+                details: {}
+    InviteLimitExceeded:
+      description: 활성 초대 링크 상한(5개) 초과
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+          examples:
+            limit:
+              value:
+                schemaVersion: '1.2'
+                code: INVITE_LIMIT_EXCEEDED
+                message: 'active invite limit exceeded'
+                requestId: req-map-invite-limit
+                details: {limit: 5}
+    PinConflict:
+      description: >-
+        같은 장소의 활성 핀이 이미 있거나(PIN_ALREADY_EXISTS, details.existingPin 포함),
+        방의 활성 핀 상한(100개)을 넘었거나(PIN_LIMIT_EXCEEDED), 같은 opId 에 다른 내용이 왔다(OP_CONFLICT).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PinConflictError'
+          examples:
+            alreadyExists:
+              value:
+                schemaVersion: '1.2'
+                code: PIN_ALREADY_EXISTS
+                message: 'place already pinned in this room'
+                requestId: req-map-pin-dup
+                details:
+                  existingPin:
+                    pinId: 7a1c2b3d-4e5f-4a6b-8c9d-0e1f2a3b4c5d
+                    placeId: p-okcheon-hanok
+                    placeName: 옥천성당
+                    lat: 36.3
+                    lng: 127.7
+                    addedBy: 0b9c8d7e-6f5a-4b3c-9d2e-1f0a9b8c7d6e
+                    addedAt: '2026-11-10T03:00:00Z'
+                    order: 3
+    RateLimited:
+      description: 요청 빈도 초과
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: 다시 시도할 때까지 기다릴 초
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+    InternalError:
+      description: 서버 내부 오류
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MapCollabError'
+
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+
+    SchemaVersion:
+      type: string
+      const: '1.2'
+
+    MemberRole:
+      type: string
+      enum: [OWNER, MEMBER]
+
+    RoomStatus:
+      type: string
+      enum: [ACTIVE, CLOSED]
+
+    MapRoomRef:
+      type: object
+      required: [id, status, expiresAt]
+      additionalProperties: false
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        status:
+          $ref: '#/components/schemas/RoomStatus'
+        expiresAt:
+          type: string
+          format: date-time
+
+    MapRoomWithRole:
+      type: object
+      required: [id, status, expiresAt, role]
+      additionalProperties: false
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        status:
+          $ref: '#/components/schemas/RoomStatus'
+        expiresAt:
+          type: string
+          format: date-time
+        role:
+          $ref: '#/components/schemas/MemberRole'
+
+    InviteWithToken:
+      type: object
+      required: [token, shareUrl, expiresAt]
+      additionalProperties: false
+      properties:
+        token:
+          $ref: '#/components/schemas/InviteToken'
+        shareUrl:
+          type: string
+          format: uri
+          description: 프론트 초대 진입 URL. 형식은 https://onmaru.site/map?invite={token}
+        expiresAt:
+          type: string
+          format: date-time
+
+    InviteSummary:
+      type: object
+      required: [id, expiresAt, createdBy, createdAt]
+      additionalProperties: false
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        expiresAt:
+          type: string
+          format: date-time
+        createdBy:
+          $ref: '#/components/schemas/Uuid'
+        createdAt:
+          type: string
+          format: date-time
+
+    InviteToken:
+      type: string
+      description: 256비트 이상 난수를 base64url 로 인코딩한 값
+      pattern: '^[A-Za-z0-9_-]{43,64}$'
+
+    Member:
+      type: object
+      required: [memberId, displayName, role, joinedAt, online]
+      additionalProperties: false
+      properties:
+        memberId:
+          $ref: '#/components/schemas/Uuid'
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 30
+        role:
+          $ref: '#/components/schemas/MemberRole'
+        joinedAt:
+          type: string
+          format: date-time
+        online:
+          type: boolean
+          description: 현재 서버 인스턴스 메모리 기준. 영속 상태가 아니다.
+
+    Pin:
+      type: object
+      required: [pinId, placeId, placeName, lat, lng, addedBy, addedAt, order]
+      additionalProperties: false
+      properties:
+        pinId:
+          $ref: '#/components/schemas/Uuid'
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+        placeName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        lat:
+          $ref: '#/components/schemas/Latitude'
+        lng:
+          $ref: '#/components/schemas/Longitude'
+        addedBy:
+          $ref: '#/components/schemas/Uuid'
+        addedAt:
+          type: string
+          format: date-time
+        order:
+          type: integer
+          minimum: 1
+          description: 찍은 순서(added_seq). 선은 이 값 오름차순으로 그린다.
+
+    PlaceId:
+      type: string
+      pattern: '^p-[a-z0-9]+(-[a-z0-9]+)*$'
+      maxLength: 128
+      description: 카탈로그 공개 장소 ID
+
+    Latitude:
+      type: number
+      minimum: -90
+      maximum: 90
+
+    Longitude:
+      type: number
+      minimum: -180
+      maximum: 180
+
+    CreateMapRoomResponse:
+      type: object
+      required: [schemaVersion, room, invite]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        room:
+          $ref: '#/components/schemas/MapRoomWithRole'
+        invite:
+          $ref: '#/components/schemas/InviteWithToken'
+
+    IssueMapRoomInviteResponse:
+      type: object
+      required: [schemaVersion, invite]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        invite:
+          $ref: '#/components/schemas/InviteWithToken'
+
+    JoinMapRoomRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          $ref: '#/components/schemas/InviteToken'
+
+    JoinMapRoomResponse:
+      type: object
+      required: [schemaVersion, room, role, alreadyMember]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        room:
+          $ref: '#/components/schemas/MapRoomRef'
+        role:
+          $ref: '#/components/schemas/MemberRole'
+        alreadyMember:
+          type: boolean
+
+    MapRoomDetailResponse:
+      type: object
+      required: [schemaVersion, room, members]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        room:
+          $ref: '#/components/schemas/MapRoomWithRole'
+        members:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Member'
+
+    MapRoomSnapshotResponse:
+      type: object
+      required: [schemaVersion, lastSeq, pins]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        lastSeq:
+          type: integer
+          minimum: 0
+          description: 이 스냅샷에 반영된 마지막 이벤트 seq. 이후 이벤트는 WebSocket ?lastSeq 로 받는다.
+        pins:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Pin'
+
+    MyMapRoomsResponse:
+      type: object
+      required: [schemaVersion, rooms]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        rooms:
+          type: array
+          items:
+            type: object
+            required: [id, status, expiresAt, role, joinedAt]
+            additionalProperties: false
+            properties:
+              id:
+                $ref: '#/components/schemas/Uuid'
+              status:
+                $ref: '#/components/schemas/RoomStatus'
+              expiresAt:
+                type: string
+                format: date-time
+              role:
+                $ref: '#/components/schemas/MemberRole'
+              joinedAt:
+                type: string
+                format: date-time
+
+    AddMapRoomPinRequest:
+      type: object
+      required: [opId, placeId]
+      additionalProperties: false
+      properties:
+        opId:
+          $ref: '#/components/schemas/Uuid'
+        placeId:
+          $ref: '#/components/schemas/PlaceId'
+
+    MapRoomPinCommandResponse:
+      type: object
+      required: [schemaVersion, seq, pin]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        seq:
+          type: integer
+          minimum: 1
+        pin:
+          $ref: '#/components/schemas/Pin'
+
+    MapRoomPinRemoveResponse:
+      type: object
+      required: [schemaVersion, seq, pinId]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        seq:
+          type: integer
+          minimum: 1
+        pinId:
+          $ref: '#/components/schemas/Uuid'
+
+    MapCollabError:
+      type: object
+      required: [schemaVersion, code, message, requestId, details]
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          $ref: '#/components/schemas/SchemaVersion'
+        code:
+          type: string
+          enum:
+            - VALIDATION_ERROR
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - ROOM_NOT_FOUND
+            - INVITE_NOT_FOUND
+            - PLACE_NOT_FOUND
+            - PIN_NOT_FOUND
+            - ROOM_EXPIRED
+            - ROOM_CLOSED
+            - ROOM_FULL
+            - INVITE_LIMIT_EXCEEDED
+            - PIN_ALREADY_EXISTS
+            - PIN_LIMIT_EXCEEDED
+            - OP_CONFLICT
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+        message:
+          type: string
+          maxLength: 300
+          description: 진단용 문구. 사용자 문구는 code 로 정한다.
+        requestId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    PinConflictError:
+      allOf:
+        - $ref: '#/components/schemas/MapCollabError'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              enum: [PIN_ALREADY_EXISTS, PIN_LIMIT_EXCEEDED, OP_CONFLICT]
+            details:
+              type: object
+              properties:
+                existingPin:
+                  $ref: '#/components/schemas/Pin'
+                limit:
+                  type: integer

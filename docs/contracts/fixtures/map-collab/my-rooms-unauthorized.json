@@ -1,0 +1,18 @@
+{
+  "name": "my-rooms-unauthorized",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map-rooms/mine"
+  },
+  "response": {
+    "status": 401,
+    "schema": "MapCollabError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "UNAUTHORIZED",
+      "message": "login required",
+      "requestId": "req-map-mine-unauth",
+      "details": {}
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "snapshot-room-expired",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map-rooms/8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01/snapshot"
+  },
+  "response": {
+    "status": 410,
+    "schema": "MapCollabError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "ROOM_EXPIRED",
+      "message": "room expired",
+      "requestId": "req-map-snapshot-expired",
+      "details": {}
+    }
+  }
+}

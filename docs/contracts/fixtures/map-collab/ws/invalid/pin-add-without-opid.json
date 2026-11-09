@@ -1,0 +1,12 @@
+{
+  "name": "pin-add-without-opid",
+  "expectValid": false,
+  "reason": "명령에는 opId 가 필수",
+  "message": {
+    "v": 1,
+    "type": "PIN_ADD",
+    "payload": {
+      "placeId": "p-okcheon-hanok"
+    }
+  }
+}

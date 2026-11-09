@@ -1,0 +1,13 @@
+{
+  "name": "client-cursor-out-of-range",
+  "expectValid": false,
+  "reason": "위도 범위 초과",
+  "message": {
+    "v": 1,
+    "type": "CURSOR",
+    "payload": {
+      "lat": 200,
+      "lng": 1
+    }
+  }
+}
