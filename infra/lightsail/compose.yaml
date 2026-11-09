@@ -45,6 +45,10 @@ x-spring-api: &spring-api
     ONMARU_OTLP_METRICS_ENABLED: "false"
     ONMARU_AI_BASE_URL: http://ai-engine:8000
     ONMARU_AI_PLAN_EXECUTE_ENABLED: ${ONMARU_AI_PLAN_EXECUTE_ENABLED:-false}
+    # Exploration state and run queue live in Postgres (discovery_runs); the drain loop works the QUEUED rows.
+    ONMARU_JOURNEY_EXPLORATION_STORE: jdbc
+    ONMARU_JOURNEY_WORKER_DRAIN_ENABLED: "true"
+    ONMARU_JOURNEY_WORKER_DRAIN_INTERVAL_MS: ${ONMARU_JOURNEY_WORKER_DRAIN_INTERVAL_MS:-1000}
   depends_on:
     postgres:
       condition: service_healthy

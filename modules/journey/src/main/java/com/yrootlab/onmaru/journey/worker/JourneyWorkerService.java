@@ -117,15 +117,15 @@ public final class JourneyWorkerService {
                 return cancelled(request);
             }
             runStore.finish(new FinishRunCommand(
-                    request.runId(),
-                    request.actorKey(),
                     UUID.randomUUID(),
+                    request.actorKey(),
+                    request.runId(),
                     requestHash(request, "finish"),
                     receipt.generation(),
                     JourneyRunStatus.COMPLETED,
                     plan.outcome(),
                     null,
-                    Instant.now()));
+                    clock.instant()));
             eventSink.terminal(request.runId(), "COMPLETED", plan.outcome());
             recordCompleted(request, engine, degradedReason);
             return engine == JourneyResultEngine.BASELINE
@@ -151,12 +151,12 @@ public final class JourneyWorkerService {
 
     private RunCommandReceipt claim(JourneyWorkerRequest request) {
         return runStore.claim(new ClaimRunCommand(
-                request.runId(),
-                request.actorKey(),
                 UUID.randomUUID(),
+                request.actorKey(),
+                request.runId(),
                 requestHash(request, "claim"),
                 request.expectedGeneration(),
-                Instant.now())).receipt();
+                clock.instant())).receipt();
     }
 
     private RunCommandReceipt advance(
@@ -165,9 +165,9 @@ public final class JourneyWorkerService {
             JourneyRunStage expectedStage,
             JourneyRunStage nextStage) {
         var advanced = runStore.advance(new AdvanceRunStageCommand(
-                request.runId(),
-                request.actorKey(),
                 UUID.randomUUID(),
+                request.actorKey(),
+                request.runId(),
                 requestHash(request, "advance:" + nextStage),
                 receipt.generation(),
                 expectedStage,

@@ -26,6 +26,7 @@ import com.yrootlab.onmaru.journey.worker.FallbackJourneyCandidateProvider;
 import com.yrootlab.onmaru.journey.worker.InMemoryJourneyCandidateProvider;
 import com.yrootlab.onmaru.persistence.catalog.journey.JdbcJourneyCandidateProvider;
 import com.yrootlab.onmaru.journey.worker.InMemoryJourneyWorkerQueue;
+import com.yrootlab.onmaru.persistence.journey.worker.JdbcJourneyWorkerQueue;
 import com.yrootlab.onmaru.journey.worker.JourneyCandidateProvider;
 import com.yrootlab.onmaru.journey.worker.JourneyResultStore;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerQueue;
@@ -53,7 +54,16 @@ import java.time.Clock;
 @EnableConfigurationProperties(AiIntegrationProperties.class)
 class JourneyWorkerConfiguration {
 
+    /** Production queue: QUEUED rows in discovery_runs. Survives restarts and is shared by all instances. */
     @Bean
+    @ConditionalOnBean(DataSource.class)
+    JourneyWorkerQueue durableJourneyWorkerQueue(DataSource dataSource, Clock clock) {
+        return new JdbcJourneyWorkerQueue(dataSource, clock);
+    }
+
+    /** Fallback when no database is configured (tests and single-process controlled runs). */
+    @Bean
+    @ConditionalOnMissingBean(JourneyWorkerQueue.class)
     JourneyWorkerQueue journeyWorkerQueue() {
         return new InMemoryJourneyWorkerQueue();
     }
