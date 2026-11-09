@@ -5,7 +5,7 @@
 관련 문서
 - 도메인 규칙·상한·BE 작업 분해: [domain-rules-and-backend-plan.md](../planning/map-collab/domain-rules-and-backend-plan.md)
 - 메시지 JSON Schema: [map-collab-ws-message.schema.json](schemas/map-collab-ws-message.schema.json)
-- FE 작업 프롬프트: [map-collab-fe-handoff.md](map-collab-fe-handoff.md)
+- FE 전달용 API 명세: [map-collab-api-spec.md](map-collab-api-spec.md)
 - 스키마: `apps/spring-api/src/main/resources/db/migration/baseline/V058__map_collab_schema.sql`
 - 저장 전략: [ADR-0020](../decisions/0020-map-collab-room-state-in-memory.md)
 

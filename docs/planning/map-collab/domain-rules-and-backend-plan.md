@@ -148,7 +148,7 @@ Phase 4: 운영 준비
 
 Phase 5: 계약·FE 연동
 - T16. `map-collab-api.md`와 실제 응답을 맞추는 계약 테스트 (JSON Schema 검증)
-- T17. FE 연동 체크리스트 완료 확인 ([FE 프롬프트](../../contracts/map-collab-fe-handoff.md))
+- T17. 프론트엔드 연동 결과를 명세와 대조해 확인 ([API 명세](../../contracts/map-collab-api-spec.md))
 
 각 작업의 완료 기준은 "테스트가 통과하고, 계약 문서와 응답이 일치한다"이다.
 
