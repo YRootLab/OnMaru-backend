@@ -88,8 +88,8 @@ class JourneyWorkerConfiguration {
 
     @Bean
     @ConditionalOnBean(DataSource.class)
-    JourneyResultStore journeyResultStore(DataSource dataSource) {
-        return new JdbcJourneyResultStore(dataSource);
+    JourneyResultStore journeyResultStore(DataSource dataSource, Clock clock) {
+        return new JdbcJourneyResultStore(dataSource, clock);
     }
 
     @Bean

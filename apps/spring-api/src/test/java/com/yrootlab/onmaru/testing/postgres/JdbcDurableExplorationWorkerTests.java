@@ -188,7 +188,7 @@ class JdbcDurableExplorationWorkerTests {
                     throw new AiProposalException(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE);
                 },
                 payload -> new JourneyWorkerPlan(List.of(), "INITIAL_BOARD"),
-                new JdbcJourneyResultStore(dataSource),
+                new JdbcJourneyResultStore(dataSource, clock),
                 event -> { },
                 com.yrootlab.onmaru.journey.events.JourneyRunEventSink.noop(),
                 clock);

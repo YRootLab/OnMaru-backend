@@ -32,10 +32,21 @@ class JourneyWorkerDrainScheduler {
             return;
         }
         try {
-            available.drain();
+            var result = available.drain();
+            if (result.processed() > 0) {
+                // Counts only: no run ids, queries, or member data in logs.
+                LOGGER.info("journey worker drained processed={} outcomes={}",
+                        result.processed(), outcomeCounts(result));
+            }
         } catch (RuntimeException exception) {
             // Keep the schedule alive; the failed run stays QUEUED or RUNNING and is handled by claim/sweeper rules.
             LOGGER.warn("journey worker drain failed", exception);
         }
+    }
+
+    private static java.util.Map<String, Long> outcomeCounts(
+            com.yrootlab.onmaru.journey.worker.JourneyWorkerDrainResult result) {
+        return result.outcomes().stream().collect(java.util.stream.Collectors.groupingBy(
+                outcome -> outcome.name(), java.util.TreeMap::new, java.util.stream.Collectors.counting()));
     }
 }

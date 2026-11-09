@@ -133,6 +133,22 @@ class JdbcJourneyResultStoreTests {
                 """.formatted(explorationId))).isNull();
     }
 
+    /**
+     * Regression: the deadline used to be judged by the database clock while the worker used the app clock, so a
+     * result finished before the deadline on the app clock was discarded. The injected clock now decides.
+     */
+    @Test
+    void judgesDeadlineWithInjectedClockNotDatabaseClock() throws Exception {
+        setRunDeadlineOffset("-500 milliseconds");
+        var appClockBehindDatabase = new JdbcJourneyResultStore(dataSource,
+                java.time.Clock.fixed(java.time.Instant.now().minus(java.time.Duration.ofHours(1)),
+                        java.time.ZoneOffset.UTC));
+
+        var result = appClockBehindDatabase.persist(command());
+
+        assertThat(result).isEqualTo(PersistJourneyResultResult.PERSISTED);
+    }
+
     private PersistJourneyResultCommand command() {
         return new PersistJourneyResultCommand(
                 runId,
@@ -142,6 +158,17 @@ class JdbcJourneyResultStoreTests {
                 WorkerDegradedReason.AI_TIMEOUT,
                 List.of("place:001"),
                 "INITIAL_BOARD");
+    }
+
+    /** Moves the existing run's deadline; the run is created with the default 30-second deadline. */
+    private void setRunDeadlineOffset(String offset) throws SQLException {
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("""
+                    UPDATE onmaru.discovery_runs
+                    SET deadline_at = CURRENT_TIMESTAMP + INTERVAL '%s'
+                    WHERE id = '%s'
+                    """.formatted(offset, runId));
+        }
     }
 
     private void insertFixture(String status, String deadlineOffset) throws SQLException {
