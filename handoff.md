@@ -1,4 +1,11 @@
 # handoff.md
+## 2026-11-10 SSH host key 인시던트 종결과 production deploy 복구 (#819)
+
+- 서버 host key가 11-06에 변경돼 scheduled production deploy가 3연속 실패했다. `PRODUCTION/STAGING_SSH_KNOWN_HOSTS`를 keyscan 키로 갱신한 뒤, 11-10 01:29 UTC scheduled deploy가 전 파이프라인 성공하고 01:48 UTC 수동 dispatch가 no-op+healthy(notify-production 성공)로 재확인됐다. #819는 completed로 종료했다. host key 변경 근원 사유는 운영자 확인 전으로 원인 미상 표기.
+- 2026-11-09 16:38 UTC 수동 배포는 일시적 "Production checkout is dirty"로 실패했으나 이후 재현되지 않았다(원인 미특정).
+- 운영자가 `deploy_ai=true`를 3회 시도했으나 GHCR 타 저장소 패키지(`onmaru-ai-engine`) read 권한 부족으로 실패했다. 이는 #807 선행 조건(GitHub package access 설정 등)이며 production AI 활성화 전까지 재시도하지 않는다.
+- #586은 SSH 항목과 backup drill 실행을 #822로 이관한 뒤 completed 종료했고, #822는 운영자 결정(터널/카드 보류)으로 not planned 종료했다. 재개 절차는 `runbooks/ssh-access-hardening.md`와 `runbooks/restore.md`에 머지돼 있다(PR #817·#820).
+
 ## 2026-11-09 #586 잔여 2개 항목 개선과 SSH host key 인시던트 대응
 
 - 인시던트(#819): 11-06부터 scheduled production deploy가 `Host key verification failed`로 연속 실패. 서버 host key가 11-05 마지막 성공 배포 이후 변경(배너 `Ubuntu-3ubuntu13.19`→`13.20`). `PRODUCTION_SSH_KNOWN_HOSTS`·`STAGING_SSH_KNOWN_HOSTS`를 keyscan 키로 갱신 완료. 운영자는 Lightsail 콘솔에서 지문 `SHA256:bEn0kJlxwbrzR+Wrc55lYkB9Ga/nTXEdKbLoFt5tB7w` 대조가 필요하고, 서버를 재생성한 사유 확인도 남았다.
