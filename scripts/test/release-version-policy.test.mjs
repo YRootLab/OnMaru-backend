@@ -24,10 +24,23 @@ test('accepts the next patch release ref with or without v prefix', () => {
   assert.equal(formatVersion(validateCandidate(tags, 'release/v0.3.35').candidate), 'v0.3.35');
 });
 
-test('rejects a skipped release version', () => {
+test('rejects an unapproved minor release version', () => {
   assert.throws(
-    () => validateCandidate(tags, 'release/v0.4.0'),
+    () => validateCandidate(tags, 'release/v0.4.1'),
     /Expected v0\.3\.35/,
+  );
+});
+
+test('accepts an approved minor release after the latest tag', () => {
+  const result = validateCandidate(tags, 'release/v0.4.0');
+  assert.equal(formatVersion(result.candidate), 'v0.4.0');
+  assert.equal(result.approvedMinor, true);
+});
+
+test('does not accept an approved minor that is not newer than the latest tag', () => {
+  assert.throws(
+    () => validateCandidate(['v0.4.0'], 'release/v0.4.0', [], ['v0.4.0']),
+    /Expected v0\.4\.1/,
   );
 });
 
