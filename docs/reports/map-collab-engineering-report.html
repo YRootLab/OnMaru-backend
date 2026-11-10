@@ -4,21 +4,58 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OnMaru 지도 실시간 공동 편집 시스템 종합 엔지니어링 보고서 (Issue #825, PR #826)</title>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
   <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'neutral',
-      themeVariables: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-        primaryColor: '#e0e7ff',
-        primaryBorderColor: '#4f46e5',
-        primaryTextColor: '#1e1b4b',
-        lineColor: '#6366f1',
-        secondaryColor: '#f3f4f6',
-        tertiaryColor: '#ffffff'
+    if (typeof mermaid === 'undefined') {
+      document.write('<script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"><\/script>');
+    }
+  </script>
+  <script>
+    function renderMermaidDiagrams() {
+      if (typeof mermaid !== 'undefined') {
+        try {
+          mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: 'loose',
+            theme: 'neutral',
+            themeVariables: {
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+              primaryColor: '#e0e7ff',
+              primaryBorderColor: '#4f46e5',
+              primaryTextColor: '#1e1b4b',
+              lineColor: '#6366f1',
+              secondaryColor: '#f3f4f6',
+              tertiaryColor: '#ffffff'
+            }
+          });
+          mermaid.run({
+            querySelector: '.mermaid'
+          });
+        } catch (e) {
+          console.error('Mermaid render error:', e);
+        }
       }
-    });
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(renderMermaidDiagrams, 100);
+    } else {
+      document.addEventListener('DOMContentLoaded', renderMermaidDiagrams);
+      window.addEventListener('load', renderMermaidDiagrams);
+    }
+
+    // Polling retry for iframe/proxy environments like htmlpreview.github.io
+    var retryCount = 0;
+    var timer = setInterval(function() {
+      retryCount++;
+      if (typeof mermaid !== 'undefined') {
+        renderMermaidDiagrams();
+        clearInterval(timer);
+      }
+      if (retryCount > 15) {
+        clearInterval(timer);
+      }
+    }, 400);
   </script>
   <style>
     :root {
@@ -268,6 +305,25 @@
       padding: 24px;
       margin: 20px 0;
       text-align: center;
+      overflow-x: auto;
+    }
+    .diagram-container svg {
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+      display: inline-block;
+    }
+    .diagram-container pre.mermaid {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.85rem;
+      text-align: left;
+      white-space: pre;
+      color: #334155;
+      display: inline-block;
+      max-width: 100%;
       overflow-x: auto;
     }
     .diagram-caption {
