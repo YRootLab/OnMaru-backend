@@ -217,16 +217,16 @@ sequenceDiagram
     actor Ed1 as 에디터 1 (Client 2)
     actor Ed2 as 에디터 2 (Client 3)
     participant WS as WebSocket Registry
-    participant Actor as RoomActor
+    participant RoomAct as RoomActor
     participant DB as PostgreSQL 16
 
     Note over Host, DB: 1. 호스트가 불국사 핀 추가 요청
     Host->>WS: PIN_ADD(opId: 1, placeId: "p-bulguksa")
-    WS->>Actor: addPin(opId: 1, placeId)
-    Actor->>DB: INSERT INTO map_room_pins & events (seq=1)
-    DB-->>Actor: Commit OK (seq=1)
-    Actor->>Actor: 메모리 핀 맵 등록 (불국사)
-    Actor->>WS: publishEvent(PIN_ADDED, seq=1, pin)
+    WS->>RoomAct: addPin(opId: 1, placeId)
+    RoomAct->>DB: INSERT INTO map_room_pins & events (seq=1)
+    DB-->>RoomAct: Commit OK (seq=1)
+    RoomAct->>RoomAct: 메모리 핀 맵 등록 (불국사)
+    RoomAct->>WS: publishEvent(PIN_ADDED, seq=1, pin)
     WS-->>Host: ACK (opId: 1, seq: 1, pin)
     WS-->>Host: EVENT (PIN_ADDED, seq: 1, actor: "호스트")
     WS-->>Ed1: EVENT (PIN_ADDED, seq: 1, actor: "호스트")
@@ -234,11 +234,11 @@ sequenceDiagram
 
     Note over Host, DB: 2. 에디터 1이 전주 한옥마을 핀 추가 요청
     Ed1->>WS: PIN_ADD(opId: 2, placeId: "p-hanok")
-    WS->>Actor: addPin(opId: 2, placeId)
-    Actor->>DB: INSERT INTO map_room_pins & events (seq=2)
-    DB-->>Actor: Commit OK (seq=2)
-    Actor->>Actor: 메모리 핀 맵 등록 (한옥마을)
-    Actor->>WS: publishEvent(PIN_ADDED, seq=2, pin)
+    WS->>RoomAct: addPin(opId: 2, placeId)
+    RoomAct->>DB: INSERT INTO map_room_pins & events (seq=2)
+    DB-->>RoomAct: Commit OK (seq=2)
+    RoomAct->>RoomAct: 메모리 핀 맵 등록 (한옥마을)
+    RoomAct->>WS: publishEvent(PIN_ADDED, seq=2, pin)
     WS-->>Ed1: ACK (opId: 2, seq: 2, pin)
     WS-->>Host: EVENT (PIN_ADDED, seq: 2, actor: "에디터1")
     WS-->>Ed1: EVENT (PIN_ADDED, seq: 2, actor: "에디터1")
@@ -246,11 +246,11 @@ sequenceDiagram
 
     Note over Host, DB: 3. 에디터 2가 불국사 핀 삭제 요청
     Ed2->>WS: PIN_REMOVE(opId: 3, pinId: 불국사_UUID)
-    WS->>Actor: removePin(opId: 3, pinId)
-    Actor->>DB: UPDATE map_room_pins (removed_at) & INSERT event (seq=3)
-    DB-->>Actor: Commit OK (seq=3)
-    Actor->>Actor: 메모리 핀 맵 제거 (한옥마을만 잔여)
-    Actor->>WS: publishEvent(PIN_REMOVED, seq=3, pinId)
+    WS->>RoomAct: removePin(opId: 3, pinId)
+    RoomAct->>DB: UPDATE map_room_pins (removed_at) & INSERT event (seq=3)
+    DB-->>RoomAct: Commit OK (seq=3)
+    RoomAct->>RoomAct: 메모리 핀 맵 제거 (한옥마을만 잔여)
+    RoomAct->>WS: publishEvent(PIN_REMOVED, seq=3, pinId)
     WS-->>Ed2: ACK (opId: 3, seq: 3)
     WS-->>Host: EVENT (PIN_REMOVED, seq: 3, actor: "에디터2")
     WS-->>Ed1: EVENT (PIN_REMOVED, seq: 3, actor: "에디터2")
