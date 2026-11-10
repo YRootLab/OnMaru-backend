@@ -44,12 +44,23 @@ export function candidateVersion(ref) {
  */
 export const SKIPPED_RELEASE_VERSIONS = ['v0.3.44', 'v0.3.45', 'v0.3.46', 'v0.3.47', 'v0.3.48', 'v0.3.49'];
 
-export function validateCandidate(tags, ref, skippedVersions = SKIPPED_RELEASE_VERSIONS) {
+/**
+ * Minor releases the team has explicitly approved. Each entry needs a decision record in
+ * docs/operations/release-decisions.md. Any other minor or major jump is rejected.
+ */
+export const APPROVED_MINOR_RELEASES = ['v0.4.0'];
+
+export function validateCandidate(tags, ref, skippedVersions = SKIPPED_RELEASE_VERSIONS, approvedMinors = APPROVED_MINOR_RELEASES) {
   const latest = latestVersion(tags);
   if (!latest) throw new Error('No semantic version tag was found. A release must start from an approved baseline.');
 
   const candidate = candidateVersion(ref);
   if (!candidate) throw new Error(`Invalid release ref: ${ref}. Expected release/vX.Y.Z.`);
+
+  const candidateLabel = formatVersion(candidate);
+  if (approvedMinors.includes(candidateLabel) && compareVersions(candidate, latest) > 0) {
+    return { latest, expected: candidate, candidate, approvedMinor: true };
+  }
 
   const expected = nextPatch(latest);
   if (compareVersions(candidate, expected) === 0) {
