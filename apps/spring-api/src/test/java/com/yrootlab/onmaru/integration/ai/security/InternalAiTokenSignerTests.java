@@ -74,7 +74,7 @@ class InternalAiTokenSignerTests {
                 .containsEntry("X-Request-Id", "req-ai-001")
                 .containsEntry("X-Run-Id", "run-ai-001")
                 .containsEntry("X-Revision", "dataset-2026-09-16")
-                .containsEntry("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01");
+                .hasEntrySatisfying("traceparent", value -> assertThat(value).matches("00-4bf92f3577b34da6a3ce929d0e0e4736-(?!0000000000000000)[0-9a-f]{16}-01"));
         assertThat(headers.get("Authorization")).startsWith("Bearer ");
         assertThat(headers.get("X-Request-Id")).doesNotContain("Bearer");
         assertThat(headers.get("traceparent")).doesNotContain("Bearer");
