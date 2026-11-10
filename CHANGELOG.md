@@ -3,6 +3,38 @@
 ## Unreleased
 
 - Issue #668의 관리자 데이터 파이프라인 최근 scheduler 실행 상세, 실행 단건 조회, sanitized 실패 로그 cursor API와 실행별 `failureCount` 계약을 추가했다. 관리자 POST는 수집을 시작하지 않고 501을 반환한다.
+## [0.4.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.54...v0.4.0) (2026-11-10)
+
+
+### Features
+
+* **ai:** AI ExecutionResult 검증 mapper와 고정 fixture 교차 검증 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([49b6936](https://github.com/YRootLab/OnMaru-backend/commit/49b6936bd5db2509b6399c4a36a6b5d8a538cb29))
+* **ai:** AI progress 콜백 durable CAS와 스냅샷 일치 ([#809](https://github.com/YRootLab/OnMaru-backend/issues/809)) ([65ef4a9](https://github.com/YRootLab/OnMaru-backend/commit/65ef4a9c7a02ed9037383ac234fb82fe785cf8f2))
+* **ai:** AI progress 콜백의 durable ordinal CAS와 스냅샷 일치 구현 ([#809](https://github.com/YRootLab/OnMaru-backend/issues/809)) ([c9f8e8f](https://github.com/YRootLab/OnMaru-backend/commit/c9f8e8f562ccfeda8f8e87e87e19d401bc449d59))
+* **ai:** approved query grant 저장소와 lookup 도구 구현 ([#810](https://github.com/YRootLab/OnMaru-backend/issues/810)) ([847b32f](https://github.com/YRootLab/OnMaru-backend/commit/847b32f1894574d39fc7873cd209015559f87877))
+* **ai:** approved query grant 저장소와 lookup 도구 구현 ([#810](https://github.com/YRootLab/OnMaru-backend/issues/810)) ([03ac74a](https://github.com/YRootLab/OnMaru-backend/commit/03ac74a25ac3b215719bed34ba94019a2f647cf1))
+* **ai:** deadline과 scope를 고정한 plan execute HTTP client 추가 ([#808](https://github.com/YRootLab/OnMaru-backend/issues/808)) ([cf223ea](https://github.com/YRootLab/OnMaru-backend/commit/cf223ea55a226dcc7c56249b14adc1b5386b35af))
+* **ai:** plan execute authority orchestration 연결 ([#808](https://github.com/YRootLab/OnMaru-backend/issues/808)) ([e580a5c](https://github.com/YRootLab/OnMaru-backend/commit/e580a5c5a0c34864db1645da29a34129e3fa985c))
+* **ai:** plan 계약과 Spring authority 검증 추가 ([#808](https://github.com/YRootLab/OnMaru-backend/issues/808)) ([f4cefd4](https://github.com/YRootLab/OnMaru-backend/commit/f4cefd44c56471b0c979fdb9f119eeac3f170308))
+* **ai:** run/plan 바인딩 progress capability 발급과 검증 ([#809](https://github.com/YRootLab/OnMaru-backend/issues/809)) ([0fabaea](https://github.com/YRootLab/OnMaru-backend/commit/0fabaeab0c918f146bdf6e8e0f7bf067cb373ebd))
+* **ai:** Spring plan/execute authority 경로 구현 ([ed5df4f](https://github.com/YRootLab/OnMaru-backend/commit/ed5df4f297509d40efce511d8b10fc5999645672))
+* **ai:** staging AI Engine 격리 배포 경로 추가 ([002f214](https://github.com/YRootLab/OnMaru-backend/commit/002f21498af86f95f841cf50be3007340809e72f))
+* **ai:** staging AI 컨테이너 격리 구성 ([#807](https://github.com/YRootLab/OnMaru-backend/issues/807)) ([ce73b92](https://github.com/YRootLab/OnMaru-backend/commit/ce73b924b77f3939d101651c21ee11d15d9b8990))
+* **ai:** 공개 여정 단계 계약 정렬, 승인 장소 조회·후보 공급을 실제 스키마로 수정 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([7da782e](https://github.com/YRootLab/OnMaru-backend/commit/7da782e31a38c67726fc4bb33cd9ffc9825a621d))
+* **ai:** 여정 단계 계약 정렬, 승인 장소·후보 실제 스키마 수정 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811), 부분) ([b1325fd](https://github.com/YRootLab/OnMaru-backend/commit/b1325fd2b9c76f6980424951713f004d0c51a2d2))
+* **deploy:** staging AI digest 준비 경로 추가 ([#807](https://github.com/YRootLab/OnMaru-backend/issues/807)) ([5e043c5](https://github.com/YRootLab/OnMaru-backend/commit/5e043c56b7ad5aedb86a1190caaeafba09784076))
+* **journey:** DB 큐 기반 워커 드레인과 탐색 저장소 JDBC 전환 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([c885d8f](https://github.com/YRootLab/OnMaru-backend/commit/c885d8f582b2af711fcabbf16d4dc2732ee0ebfd))
+
+
+### Bug Fixes
+
+* **ai:** plan execute 계약과 실패 분류 강화 ([#808](https://github.com/YRootLab/OnMaru-backend/issues/808)) ([e0ba49c](https://github.com/YRootLab/OnMaru-backend/commit/e0ba49cd1f63b94922d9b506742356d9ba7a2cdf))
+* **deploy:** AI 배포 수명주기 경합 방지 ([#807](https://github.com/YRootLab/OnMaru-backend/issues/807)) ([ffd89e4](https://github.com/YRootLab/OnMaru-backend/commit/ffd89e441fe6b5be30710be798df63879fba978d))
+* **infra:** 운영 Postgres 이미지를 pgvector 포함 이미지로 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([b8834ab](https://github.com/YRootLab/OnMaru-backend/commit/b8834abf215a259b061a526a8007e080b54b869d))
+* **infra:** 운영 Postgres 이미지를 pgvector 포함 이미지로 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([1eddf73](https://github.com/YRootLab/OnMaru-backend/commit/1eddf7399ba8a2a77224a85aceda3cce9c3354f4))
+* **journey:** 결과 저장 deadline 판정을 워커 시계로 통일하고 드레인 관측성과 런북 추가 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([6431ea1](https://github.com/YRootLab/OnMaru-backend/commit/6431ea144c6e18311a09179016f72625db429529))
+* **staging:** 운영 AI 배포 hold 검증 ([#807](https://github.com/YRootLab/OnMaru-backend/issues/807)) ([127b7ed](https://github.com/YRootLab/OnMaru-backend/commit/127b7ed02257818acd4bb3449921e799ce57785d))
+
 ## [0.3.43](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.42...v0.3.43) (2026-10-06)
 
 
