@@ -2,6 +2,7 @@ package com.yrootlab.onmaru.integration.ai.security;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public final class InternalAiRequestHeadersFactory {
 
@@ -21,7 +22,12 @@ public final class InternalAiRequestHeadersFactory {
         return headers;
     }
 
+    /** A fresh non-zero span per call; AI rejects an all-zero span as CORRELATION_INVALID. */
     private static String traceparent(String traceId) {
-        return "00-" + traceId + "-0000000000000000-01";
+        String span;
+        do {
+            span = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        } while (span.equals("0".repeat(16)));
+        return "00-" + traceId + "-" + span + "-01";
     }
 }
