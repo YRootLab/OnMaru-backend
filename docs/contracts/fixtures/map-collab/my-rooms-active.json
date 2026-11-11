@@ -1,0 +1,23 @@
+{
+  "name": "my-rooms-active",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/map-rooms/mine"
+  },
+  "response": {
+    "status": 200,
+    "schema": "MyMapRoomsResponse",
+    "body": {
+      "schemaVersion": "1.2",
+      "rooms": [
+        {
+          "id": "8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01",
+          "status": "ACTIVE",
+          "expiresAt": "2026-11-12T03:00:00Z",
+          "role": "OWNER",
+          "joinedAt": "2026-11-09T03:00:00Z"
+        }
+      ]
+    }
+  }
+}

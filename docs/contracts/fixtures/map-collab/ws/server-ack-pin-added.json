@@ -1,0 +1,22 @@
+{
+  "name": "server-ack-pin-added",
+  "direction": "server→client",
+  "message": {
+    "v": 1,
+    "type": "ACK",
+    "opId": "d1a2b3c4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "payload": {
+      "seq": 43,
+      "pin": {
+        "pinId": "1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b",
+        "placeId": "p-gyeongju-bulguksa",
+        "placeName": "불국사",
+        "lat": 35.79,
+        "lng": 129.33,
+        "addedBy": "5e2d1c0b-9a8f-4e7d-8c6b-5a4f3e2d1c0b",
+        "addedAt": "2026-11-09T03:05:00Z",
+        "order": 2
+      }
+    }
+  }
+}

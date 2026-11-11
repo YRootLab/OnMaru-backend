@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onmaru.site/contracts/schemas/map-collab-ws-message.schema.json",
+  "title": "Map Collab WebSocket message (v1)",
+  "description": "지도 공동 편집 WebSocket 봉투. docs/contracts/map-collab-api.md 의 WS 절과 일치해야 한다.",
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "placeId": { "type": "string", "pattern": "^p-[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 128 },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "memberRef": {
+      "type": "object",
+      "required": ["memberId", "displayName"],
+      "additionalProperties": false,
+      "properties": {
+        "memberId": { "$ref": "#/$defs/uuid" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 30 }
+      }
+    },
+    "pin": {
+      "type": "object",
+      "required": ["pinId", "placeId", "placeName", "lat", "lng", "addedBy", "addedAt", "order"],
+      "additionalProperties": false,
+      "properties": {
+        "pinId": { "$ref": "#/$defs/uuid" },
+        "placeId": { "$ref": "#/$defs/placeId" },
+        "placeName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "lat": { "$ref": "#/$defs/lat" },
+        "lng": { "$ref": "#/$defs/lng" },
+        "addedBy": { "$ref": "#/$defs/uuid" },
+        "addedAt": { "type": "string", "format": "date-time" },
+        "order": { "type": "integer", "minimum": 1 }
+      }
+    }
+  },
+  "type": "object",
+  "required": ["v", "type"],
+  "properties": {
+    "v": { "const": 1 },
+    "type": { "type": "string" },
+    "opId": { "$ref": "#/$defs/uuid" },
+    "payload": { "type": "object" }
+  },
+  "oneOf": [
+    {
+      "title": "PIN_ADD (client)",
+      "properties": {
+        "type": { "const": "PIN_ADD" },
+        "opId": { "$ref": "#/$defs/uuid" },
+        "payload": {
+          "type": "object",
+          "required": ["placeId"],
+          "additionalProperties": false,
+          "properties": { "placeId": { "$ref": "#/$defs/placeId" } }
+        }
+      },
+      "required": ["opId", "payload"]
+    },
+    {
+      "title": "PIN_REMOVE (client)",
+      "properties": {
+        "type": { "const": "PIN_REMOVE" },
+        "opId": { "$ref": "#/$defs/uuid" },
+        "payload": {
+          "type": "object",
+          "required": ["pinId"],
+          "additionalProperties": false,
+          "properties": { "pinId": { "$ref": "#/$defs/uuid" } }
+        }
+      },
+      "required": ["opId", "payload"]
+    },
+    {
+      "title": "CURSOR (client)",
+      "properties": {
+        "type": { "const": "CURSOR" },
+        "payload": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["lat", "lng"],
+              "additionalProperties": false,
+              "properties": { "lat": { "$ref": "#/$defs/lat" }, "lng": { "$ref": "#/$defs/lng" } }
+            },
+            {
+              "type": "object",
+              "required": ["lat", "lng"],
+              "additionalProperties": false,
+              "properties": { "lat": { "const": null }, "lng": { "const": null } }
+            }
+          ]
+        }
+      },
+      "required": ["payload"]
+    },
+    {
+      "title": "RESUME (client)",
+      "properties": {
+        "type": { "const": "RESUME" },
+        "payload": {
+          "type": "object",
+          "required": ["lastSeq"],
+          "additionalProperties": false,
+          "properties": { "lastSeq": { "type": "integer", "minimum": 0 } }
+        }
+      },
+      "required": ["payload"]
+    },
+    {
+      "title": "WELCOME (server)",
+      "properties": {
+        "type": { "const": "WELCOME" },
+        "payload": {
+          "type": "object",
+          "required": ["me", "room", "members", "pins", "lastSeq"],
+          "properties": {
+            "me": { "$ref": "#/$defs/memberRef" },
+            "room": {
+              "type": "object",
+              "required": ["id", "status", "expiresAt"],
+              "properties": {
+                "id": { "$ref": "#/$defs/uuid" },
+                "status": { "enum": ["ACTIVE", "CLOSED"] },
+                "expiresAt": { "type": "string", "format": "date-time" }
+              }
+            },
+            "members": { "type": "array", "items": { "$ref": "#/$defs/memberRef" } },
+            "pins": { "type": "array", "items": { "$ref": "#/$defs/pin" } },
+            "lastSeq": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    {
+      "title": "EVENT (server)",
+      "properties": {
+        "type": { "const": "EVENT" },
+        "payload": {
+          "type": "object",
+          "required": ["seq", "eventType", "actor"],
+          "properties": {
+            "seq": { "type": "integer", "minimum": 1 },
+            "eventType": { "enum": ["PIN_ADDED", "PIN_REMOVED", "MEMBER_JOINED", "ROOM_CLOSED"] },
+            "actor": { "$ref": "#/$defs/memberRef" },
+            "pin": { "$ref": "#/$defs/pin" },
+            "pinId": { "$ref": "#/$defs/uuid" }
+          }
+        }
+      }
+    },
+    {
+      "title": "ACK (server)",
+      "properties": {
+        "type": { "const": "ACK" },
+        "opId": { "$ref": "#/$defs/uuid" },
+        "payload": {
+          "type": "object",
+          "required": ["seq"],
+          "properties": {
+            "seq": { "type": "integer", "minimum": 1 },
+            "pin": { "$ref": "#/$defs/pin" },
+            "pinId": { "$ref": "#/$defs/uuid" }
+          }
+        }
+      },
+      "required": ["opId", "payload"]
+    },
+    {
+      "title": "ERROR (server)",
+      "properties": {
+        "type": { "const": "ERROR" },
+        "opId": { "$ref": "#/$defs/uuid" },
+        "payload": {
+          "type": "object",
+          "required": ["code", "message"],
+          "properties": {
+            "code": {
+              "enum": [
+                "VALIDATION_ERROR", "PLACE_NOT_FOUND", "PIN_ALREADY_EXISTS", "PIN_LIMIT_EXCEEDED",
+                "PIN_NOT_FOUND", "OP_CONFLICT", "ROOM_EXPIRED", "ROOM_CLOSED", "RATE_LIMITED", "INTERNAL_ERROR"
+              ]
+            },
+            "message": { "type": "string", "maxLength": 300 },
+            "existingPin": { "$ref": "#/$defs/pin" }
+          }
+        }
+      },
+      "required": ["payload"]
+    },
+    {
+      "title": "CURSORS (server)",
+      "properties": {
+        "type": { "const": "CURSORS" },
+        "payload": {
+          "type": "object",
+          "required": ["cursors"],
+          "properties": {
+            "cursors": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "required": ["memberId", "displayName", "lat", "lng"],
+                "additionalProperties": false,
+                "properties": {
+                  "memberId": { "$ref": "#/$defs/uuid" },
+                  "displayName": { "type": "string", "minLength": 1, "maxLength": 30 },
+                  "lat": { "anyOf": [{ "$ref": "#/$defs/lat" }, { "type": "null" }] },
+                  "lng": { "anyOf": [{ "$ref": "#/$defs/lng" }, { "type": "null" }] }
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": ["payload"]
+    },
+    {
+      "title": "PRESENCE (server)",
+      "properties": {
+        "type": { "const": "PRESENCE" },
+        "payload": {
+          "type": "object",
+          "required": ["memberId", "online"],
+          "properties": {
+            "memberId": { "$ref": "#/$defs/uuid" },
+            "online": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["payload"]
+    },
+    {
+      "title": "RESYNC_REQUIRED (server)",
+      "properties": {
+        "type": { "const": "RESYNC_REQUIRED" },
+        "payload": { "type": "object", "properties": { "reason": { "enum": ["OUT_OF_RETENTION", "GAP"] } } }
+      }
+    }
+  ]
+}

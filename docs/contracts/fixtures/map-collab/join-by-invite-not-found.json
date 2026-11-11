@@ -1,0 +1,24 @@
+{
+  "name": "join-by-invite-not-found",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms/joins",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    },
+    "body": {
+      "token": "ZKhX_PAszrZcTqCXX-ygU4MM-aRVVcRnCBrtfRXLdsI"
+    }
+  },
+  "response": {
+    "status": 404,
+    "schema": "MapCollabError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "INVITE_NOT_FOUND",
+      "message": "invite not found",
+      "requestId": "req-map-invite-notfound",
+      "details": {}
+    }
+  }
+}

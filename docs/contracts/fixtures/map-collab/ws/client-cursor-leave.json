@@ -1,0 +1,12 @@
+{
+  "name": "client-cursor-leave",
+  "direction": "client→server",
+  "message": {
+    "v": 1,
+    "type": "CURSOR",
+    "payload": {
+      "lat": null,
+      "lng": null
+    }
+  }
+}

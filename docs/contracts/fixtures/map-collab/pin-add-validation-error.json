@@ -1,0 +1,28 @@
+{
+  "name": "pin-add-validation-error",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms/8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01/pins",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    },
+    "body": {
+      "opId": "e2b3c4d5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+      "placeId": "Okcheon Hanok",
+      "lat": 36.3
+    }
+  },
+  "response": {
+    "status": 400,
+    "schema": "MapCollabError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "VALIDATION_ERROR",
+      "message": "placeId must match the public place id format",
+      "requestId": "req-map-pin-validation",
+      "details": {
+        "field": "placeId"
+      }
+    }
+  }
+}

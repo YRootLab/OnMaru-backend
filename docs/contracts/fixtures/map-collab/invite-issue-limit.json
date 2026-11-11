@@ -1,0 +1,23 @@
+{
+  "name": "invite-issue-limit",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms/8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01/invites",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    }
+  },
+  "response": {
+    "status": 409,
+    "schema": "MapCollabError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "INVITE_LIMIT_EXCEEDED",
+      "message": "active invite limit exceeded",
+      "requestId": "req-map-invite-limit",
+      "details": {
+        "limit": 5
+      }
+    }
+  }
+}

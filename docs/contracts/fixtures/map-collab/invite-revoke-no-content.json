@@ -1,0 +1,13 @@
+{
+  "name": "invite-revoke-no-content",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/v1/map-rooms/8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01/invites/3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    }
+  },
+  "response": {
+    "status": 204
+  }
+}

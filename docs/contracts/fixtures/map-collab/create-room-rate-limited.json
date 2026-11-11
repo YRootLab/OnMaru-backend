@@ -1,0 +1,26 @@
+{
+  "name": "create-room-rate-limited",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    }
+  },
+  "response": {
+    "status": 429,
+    "schema": "MapCollabError",
+    "headers": {
+      "Retry-After": "30"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "RATE_LIMITED",
+      "message": "too many requests",
+      "requestId": "req-map-create-rl",
+      "details": {
+        "retryAfterMs": 30000
+      }
+    }
+  }
+}
