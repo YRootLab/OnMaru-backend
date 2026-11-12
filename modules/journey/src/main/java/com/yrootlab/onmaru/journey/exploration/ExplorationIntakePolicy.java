@@ -19,21 +19,19 @@ final class ExplorationIntakePolicy {
             Pattern.compile("이전\\s*지시", Pattern.CASE_INSENSITIVE),
             Pattern.compile("시스템\\s*프롬프트", Pattern.CASE_INSENSITIVE),
             Pattern.compile("ignore\\s+(all\\s+)?previous\\s+instructions", Pattern.CASE_INSENSITIVE));
-    private static final List<String> THEMES = List.of(
-            "한옥", "고택", "한옥마을", "전통시장", "시장", "오디", "odii", "오디오", "산책", "걷", "도보", "여행", "코스");
     private static final List<String> UNSUPPORTED = List.of(
             "시험", "답안", "숙제", "코딩", "주식", "법률", "의학", "날씨", "교통");
     private static final Map<String, String> REGIONS = Map.of(
-            "전주", "kr-45-jeonju",
-            "서울", "kr-11-seoul",
-            "경주", "kr-47-gyeongju",
-            "안동", "kr-47-andong",
-            "부산", "kr-26-busan");
+            "전주", "kr-45",
+            "서울", "kr-11",
+            "경주", "kr-47",
+            "안동", "kr-47",
+            "부산", "kr-26");
 
     String validateCreate(String rawQuery) {
         var query = normalize(rawQuery);
         validateSafetyAndPrivacy(query);
-        if (containsAny(query, UNSUPPORTED) || !containsAny(query.toLowerCase(), THEMES)) {
+        if (containsAny(query, UNSUPPORTED)) {
             throw new ExplorationInputRejectedException("JOURNEY_SCOPE_UNSUPPORTED");
         }
         return query;

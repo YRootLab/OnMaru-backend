@@ -8,11 +8,17 @@ import com.yrootlab.onmaru.journey.worker.JourneyWorkerRequest;
 import javax.sql.DataSource;
 import java.util.List;
 
-/** Supplies the journey candidate set from the active catalog revision, scoped to the request's region. */
+/**
+ * Supplies the journey candidate set from the active catalog revision. Candidates are drawn nationwide and ranked by
+ * relevance to the question; the requested region only adds a bonus, it never excludes a place.
+ */
 public final class JdbcJourneyCandidateProvider implements JourneyCandidateProvider {
 
     /** AI proposal input bound (candidateCount <= 12). */
     static final int MAX_CANDIDATES = 12;
+
+    /** Nationwide pool size handed to the relevance ranker before the top {@link #MAX_CANDIDATES} are kept. */
+    static final int POOL_SIZE = 400;
 
     private final DataSource dataSource;
 
@@ -22,7 +28,9 @@ public final class JdbcJourneyCandidateProvider implements JourneyCandidateProvi
 
     @Override
     public CandidatePayload retrieve(JourneyWorkerRequest request) {
-        var places = ApprovedPlaceReader.read(dataSource, request.regionCode(), null, MAX_CANDIDATES);
+        var tokens = JourneyRelevanceRanker.tokens(request.queryText());
+        var pool = ApprovedPlaceReader.readPool(dataSource, tokens, POOL_SIZE);
+        var places = JourneyRelevanceRanker.rank(tokens, request.regionCode(), pool, MAX_CANDIDATES);
         List<JourneyCandidate> candidates = places.stream()
                 .map(place -> new JourneyCandidate(place.placeId()))
                 .toList();

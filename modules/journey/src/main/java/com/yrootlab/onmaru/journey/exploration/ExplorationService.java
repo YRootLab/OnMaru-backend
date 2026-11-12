@@ -20,6 +20,8 @@ public final class ExplorationService {
     private static final int MAX_REGION_CODE_LENGTH = 32;
     private static final Duration RUN_BUDGET = Duration.ofSeconds(20);
     private static final Pattern REGION_CODE = Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*$");
+    /** Canonical catalog region codes: sido "kr-11", sigungu "kr-11-jongno". */
+    private static final Pattern CANONICAL_REGION = Pattern.compile("^kr-\\d{2}(?:-[a-z0-9]+)*$");
     private static final Set<String> RUN_STAGES = Set.of("INTERPRETING", "RETRIEVING", "VALIDATING", "PERSISTING");
 
     private final ExplorationStore store;
@@ -29,6 +31,7 @@ public final class ExplorationService {
     private final ExplorationAccessPolicy accessPolicy;
     private final JourneyRunEventSink eventSink;
     private final JourneyActionService actionService;
+    private final RegionCodeCatalog regionCodes;
     private final Map<UUID, JourneyActionState> actionStates = new HashMap<>();
 
     public ExplorationService(ExplorationStore store, ExplorationRunDispatcher runDispatcher, Clock clock) {
@@ -59,19 +62,31 @@ public final class ExplorationService {
             ExplorationAccessPolicy accessPolicy,
             JourneyRunEventSink eventSink,
             JourneyActionService actionService) {
+        this(store, runDispatcher, clock, accessPolicy, eventSink, actionService, RegionCodeCatalog.ACCEPT_ALL);
+    }
+
+    public ExplorationService(
+            ExplorationStore store,
+            ExplorationRunDispatcher runDispatcher,
+            Clock clock,
+            ExplorationAccessPolicy accessPolicy,
+            JourneyRunEventSink eventSink,
+            JourneyActionService actionService,
+            RegionCodeCatalog regionCodes) {
         this.store = store;
         this.runDispatcher = runDispatcher;
         this.clock = clock;
         this.accessPolicy = accessPolicy;
         this.eventSink = eventSink;
         this.actionService = actionService;
+        this.regionCodes = java.util.Objects.requireNonNull(regionCodes, "regionCodes");
     }
 
     public ExplorationSnapshot create(ExplorationActor actor, CreateExplorationCommand command) {
         validateActor(actor);
         var query = intakePolicy.validateCreate(validateQuery(command == null ? null : command.query()));
         validateLocale(command.locale());
-        var regionCode = normalizeRegion(command.regionCode());
+        var regionCode = requireKnownRegion(command.regionCode(), normalizeRegion(command.regionCode()));
         if (regionCode == null) {
             regionCode = intakePolicy.detectRegion(query);
         }
@@ -89,11 +104,8 @@ public final class ExplorationService {
         validateActor(actor);
         var query = intakePolicy.validateCreate(validateQuery(command == null ? null : command.query()));
         validateLocale(command.locale());
-        var regionCode = normalizeRegion(command.regionCode());
-        if (regionCode == null) {
-            regionCode = intakePolicy.detectRegion(query);
-        }
-        return regionCode != null;
+        // Every accepted create starts an AI run now (a missing region means nationwide), so every create is admitted.
+        return true;
     }
 
     public ExplorationSnapshot get(ExplorationActor actor, UUID explorationId) {
@@ -160,7 +172,8 @@ public final class ExplorationService {
             throw new ExplorationActiveRunException(state.latestRun().id());
         }
         var query = intakePolicy.validateTurn(validatedQuery);
-        var regionCode = normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode());
+        var regionCode = requireKnownRegion(command.regionCode(),
+                normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode()));
         var now = clock.instant();
         var run = newRun(regionCode, now);
         var turn = new StoredExplorationTurn(
@@ -260,6 +273,17 @@ public final class ExplorationService {
         }
     }
 
+    /** An explicit region must be canonical and known to the active catalog. Detected regions are not checked here. */
+    private String requireKnownRegion(String explicitRegion, String normalized) {
+        if (explicitRegion == null) {
+            return normalized;
+        }
+        if (normalized == null || !CANONICAL_REGION.matcher(normalized).matches() || !regionCodes.isKnown(normalized)) {
+            throw new ExplorationInputInvalidException("regionCode");
+        }
+        return normalized;
+    }
+
     private String normalizeRegion(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -304,21 +328,6 @@ public final class ExplorationService {
     }
 
     private ExplorationRun newRun(String regionCode, java.time.Instant now) {
-        if (regionCode == null) {
-            return new ExplorationRun(
-                    UUID.randomUUID(),
-                    ExplorationRunStatus.COMPLETED,
-                    "BASELINE",
-                    ExplorationRunOutcome.CLARIFICATION_REQUIRED,
-                    new ExplorationClarification(
-                            "region",
-                            "REGION_MISSING",
-                            "어느 지역을 둘러보고 싶으신가요?",
-                            true),
-                    now,
-                    now,
-                    now.plus(RUN_BUDGET));
-        }
         return new ExplorationRun(
                 UUID.randomUUID(),
                 ExplorationRunStatus.QUEUED,

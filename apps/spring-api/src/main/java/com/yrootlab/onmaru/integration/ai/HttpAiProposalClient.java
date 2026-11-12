@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFactory;
+import com.yrootlab.onmaru.journey.worker.CandidateSnapshot;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenRequest;
 import com.yrootlab.onmaru.journey.worker.AiProposalClient;
 import com.yrootlab.onmaru.journey.worker.AiProposalException;
@@ -254,6 +255,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody(request, payload)));
         if (stream) builder.header("Accept", "text/event-stream");
+        recordCandidateSnapshot(request, payload);
         var headers = headersFactory.headersFor(InternalAiTokenRequest.forJourneyProposal(
                 request.requestId(),
                 request.traceId(),
@@ -262,6 +264,19 @@ public final class HttpAiProposalClient implements AiProposalClient {
                 request.deadlineAt()));
         headers.forEach(builder::header);
         return builder.build();
+    }
+
+    /** Records which exact candidate input was sent. Never records the visitor's query text. */
+    private void recordCandidateSnapshot(JourneyWorkerRequest request, CandidatePayload payload) {
+        var refs = payload.candidates().stream().map(JourneyCandidate::ref).toList();
+        var attributes = new LinkedHashMap<String, String>();
+        attributes.put("run.id", request.runId().toString());
+        attributes.put("candidate.policy", CandidateSnapshot.POLICY_V1);
+        attributes.put("candidate.count", Integer.toString(refs.size()));
+        attributes.put("candidate.snapshot.id", CandidateSnapshot.id(
+                CandidateSnapshot.POLICY_V1, request.regionCode(), request.datasetRevision(), refs));
+        attributes.put("region.present", Boolean.toString(request.regionCode() != null));
+        telemetry.record(new WorkerTelemetryEvent("journey.worker.ai_request", attributes));
     }
 
     private String requestBody(JourneyWorkerRequest request, CandidatePayload payload)
