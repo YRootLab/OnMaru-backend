@@ -49,6 +49,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
     private final JourneyWorkerTelemetry telemetry;
     private final boolean streamingEnabled;
     private final boolean unaryFallbackEnabled;
+    private final AiRequestOptions requestOptions;
 
     public HttpAiProposalClient(
             HttpClient httpClient,
@@ -63,6 +64,13 @@ public final class HttpAiProposalClient implements AiProposalClient {
     public HttpAiProposalClient(HttpClient httpClient, ObjectMapper objectMapper, URI baseUri,
             InternalAiRequestHeadersFactory headersFactory, Duration timeout, JourneyWorkerTelemetry telemetry,
             boolean streamingEnabled, boolean unaryFallbackEnabled) {
+        this(httpClient, objectMapper, baseUri, headersFactory, timeout, telemetry, streamingEnabled,
+                unaryFallbackEnabled, AiRequestOptions.OFF);
+    }
+
+    public HttpAiProposalClient(HttpClient httpClient, ObjectMapper objectMapper, URI baseUri,
+            InternalAiRequestHeadersFactory headersFactory, Duration timeout, JourneyWorkerTelemetry telemetry,
+            boolean streamingEnabled, boolean unaryFallbackEnabled, AiRequestOptions requestOptions) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.baseUri = baseUri;
@@ -71,6 +79,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
         this.telemetry = telemetry;
         this.streamingEnabled = streamingEnabled;
         this.unaryFallbackEnabled = unaryFallbackEnabled;
+        this.requestOptions = java.util.Objects.requireNonNull(requestOptions, "requestOptions");
     }
 
     @Override
@@ -281,13 +290,21 @@ public final class HttpAiProposalClient implements AiProposalClient {
 
     private String requestBody(JourneyWorkerRequest request, CandidatePayload payload)
             throws JsonProcessingException {
-        return objectMapper.writeValueAsString(Map.of(
-                "schemaVersion", "internal.ai.v1",
-                "requestId", request.requestId(),
-                "runId", request.runId().toString(),
-                "candidateCount", payload.candidates().size(),
-                "query", request.queryText(),
-                "candidateRefs", payload.candidates().stream().map(JourneyCandidate::ref).toList()));
+        var body = new java.util.LinkedHashMap<String, Object>();
+        body.put("schemaVersion", "internal.ai.v1");
+        body.put("requestId", request.requestId());
+        body.put("runId", request.runId().toString());
+        body.put("candidateCount", payload.candidates().size());
+        body.put("query", request.queryText());
+        body.put("candidateRefs", payload.candidates().stream().map(JourneyCandidate::ref).toList());
+        if (requestOptions.sendCandidatePolicy()) {
+            body.put("candidatePolicy", CandidateSnapshot.POLICY_V1);
+        }
+        if (requestOptions.useRag()) {
+            // The corpus revision is chosen by the AI server; the backend never sends corpusRevisionId.
+            body.put("useRag", true);
+        }
+        return objectMapper.writeValueAsString(body);
     }
 
     private JourneyWorkerPlan planFrom(JourneyWorkerRequest request, CandidatePayload payload, String body) {
