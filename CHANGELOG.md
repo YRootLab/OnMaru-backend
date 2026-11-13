@@ -3,6 +3,24 @@
 ## Unreleased
 
 - Issue #668의 관리자 데이터 파이프라인 최근 scheduler 실행 상세, 실행 단건 조회, sanitized 실패 로그 cursor API와 실행별 `failureCount` 계약을 추가했다. 관리자 POST는 수집을 시작하지 않고 501을 반환한다.
+## [0.5.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.4.0...v0.5.0) (2026-11-13)
+
+
+### Features
+
+* **ai:** candidatePolicy와 useRag 요청 전송을 설정으로 추가 (기본 OFF) ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([c3a0de0](https://github.com/YRootLab/OnMaru-backend/commit/c3a0de0fcecef64d73d6a5d58064ece988c106f8))
+* **ai:** candidatePolicy와 useRag 요청 전송을 설정으로 추가 (기본 OFF) ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([18c8dd8](https://github.com/YRootLab/OnMaru-backend/commit/18c8dd87e8eb709acd12b405d4c5740caa4d0b48))
+* **journey:** query 기반 전국 후보 랭킹과 지역 검증 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([4ce1977](https://github.com/YRootLab/OnMaru-backend/commit/4ce1977da48b439b553c4563afeaabba7e372efe))
+* **journey:** query 기반 전국 후보 랭킹과 지역 검증 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([76bac62](https://github.com/YRootLab/OnMaru-backend/commit/76bac62682a4b1f0f624043cf7323d7013456f60))
+
+
+### Bug Fixes
+
+* **ai:** AI 계약 불일치 세 가지를 Spring 측에서 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([59d68c2](https://github.com/YRootLab/OnMaru-backend/commit/59d68c270e88da8ba6029f8ccdf0e202cde406cc))
+* **ai:** AI 계약 불일치 세 가지를 Spring 측에서 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([c2c5e81](https://github.com/YRootLab/OnMaru-backend/commit/c2c5e814ff1787edae26a80fda62d45614c1b6e2))
+* **ai:** 운영 AI의 ONMARU_SPRING_BASE_URL을 spring-green으로 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([61f8f17](https://github.com/YRootLab/OnMaru-backend/commit/61f8f17eee4b9554a5ffca999cdea5bea756c5dd))
+* **ai:** 운영 AI의 ONMARU_SPRING_BASE_URL을 spring-green으로 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([eb0368b](https://github.com/YRootLab/OnMaru-backend/commit/eb0368bfa271cefedcd552e511a2570ff0e99497))
+
 ## [0.4.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.54...v0.4.0) (2026-11-10)
 
 
