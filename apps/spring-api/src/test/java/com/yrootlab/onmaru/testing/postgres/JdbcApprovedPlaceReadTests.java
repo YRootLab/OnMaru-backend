@@ -123,7 +123,10 @@ class JdbcApprovedPlaceReadTests {
                 NOW.plusSeconds(20).toInstant()));
 
         assertThat(payload.datasetRevision()).isEqualTo("corpus-rev-1");
-        assertThat(payload.candidates()).extracting(JourneyCandidate::ref).containsExactly("p-hanok-a", "p-cafe-b");
+        // Candidates are nationwide; the requested region only ranks its own places first.
+        assertThat(payload.candidates()).extracting(JourneyCandidate::ref)
+                .hasSizeLessThanOrEqualTo(12)
+                .startsWith("p-hanok-a", "p-cafe-b");
     }
 
     private static void region(Connection connection, UUID id, String code, String name) throws SQLException {

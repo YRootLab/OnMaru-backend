@@ -28,19 +28,16 @@ class ExplorationServiceTests {
     }
 
     @Test
-    void missingRegionCompletesWithClarificationWithoutDispatchingAi() {
+    void missingRegionIsNationwideAndDispatchesAi() {
         var result = service.create(
                 ExplorationActor.guest("guest-a"),
                 new CreateExplorationCommand("조용한 한옥 여행을 하고 싶어요", "ko-KR", null));
 
-        assertThat(result.run().status()).isEqualTo(ExplorationRunStatus.COMPLETED);
-        assertThat(result.run().outcome()).isEqualTo(ExplorationRunOutcome.CLARIFICATION_REQUIRED);
-        assertThat(result.run().clarification()).isEqualTo(new ExplorationClarification(
-                "region",
-                "REGION_MISSING",
-                "어느 지역을 둘러보고 싶으신가요?",
-                true));
-        assertThat(dispatcher.dispatchCount).isZero();
+        assertThat(result.run().status()).isEqualTo(ExplorationRunStatus.QUEUED);
+        assertThat(result.run().outcome()).isNull();
+        assertThat(result.run().clarification()).isNull();
+        assertThat(result.regionCode()).isNull();
+        assertThat(dispatcher.dispatchCount).isEqualTo(1);
         assertThat(store.explorationCount()).isEqualTo(1);
         assertThat(store.turnCount(result.explorationId())).isEqualTo(1);
     }
@@ -62,7 +59,7 @@ class ExplorationServiceTests {
     void invalidCreateDoesNotPersistExplorationOrRawTurn() {
         assertThatThrownBy(() -> service.create(
                 ExplorationActor.guest("guest-a"),
-                new CreateExplorationCommand(" ", "ko-KR", null)))
+                new CreateExplorationCommand(" ", "ko-KR", "kr-45-jeonju")))
                 .isInstanceOf(ExplorationInputInvalidException.class)
                 .hasMessageContaining("query");
 
@@ -75,7 +72,7 @@ class ExplorationServiceTests {
     void anotherActorCannotReadOrAppendTurn() {
         var owner = ExplorationActor.guest("guest-owner");
         var other = ExplorationActor.guest("guest-other");
-        var created = service.create(owner, new CreateExplorationCommand("한옥 질문", "ko-KR", null));
+        var created = service.create(owner, new CreateExplorationCommand("한옥 질문", "ko-KR", "kr-45-jeonju"));
 
         assertThatThrownBy(() -> service.get(other, created.explorationId()))
                 .isInstanceOf(ExplorationNotFoundException.class);
@@ -91,9 +88,11 @@ class ExplorationServiceTests {
     @Test
     void turnPersistsInputAndDuplicateClientTurnReturnsOriginalRun() {
         var owner = ExplorationActor.guest("guest-owner");
-        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", null));
+        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", "kr-45-jeonju"));
+        service.completeRun(created.explorationId(), created.run().id(), ExplorationRunOutcome.INITIAL_BOARD);
+        var baseVersion = service.get(owner, created.explorationId()).stateVersion();
         var clientTurnId = UUID.randomUUID();
-        var command = new CreateExplorationTurnCommand(clientTurnId, 0, "전주로 갈게요", "kr-45-jeonju", "region");
+        var command = new CreateExplorationTurnCommand(clientTurnId, baseVersion, "전주로 갈게요", "kr-45-jeonju", null);
 
         var first = service.createTurn(owner, created.explorationId(), command);
         var replay = service.createTurn(owner, created.explorationId(), command);
@@ -102,20 +101,7 @@ class ExplorationServiceTests {
         assertThat(replay.run().id()).isEqualTo(first.run().id());
         assertThat(store.turnCount(created.explorationId())).isEqualTo(2);
         assertThat(store.storedQuery(created.explorationId(), clientTurnId)).contains("전주로 갈게요");
-        assertThat(dispatcher.dispatchCount).isEqualTo(1);
-    }
-
-    @Test
-    void duplicateClientTurnWithDifferentClarificationIdConflicts() {
-        var owner = ExplorationActor.guest("guest-owner");
-        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", null));
-        var clientTurnId = UUID.randomUUID();
-        service.createTurn(owner, created.explorationId(),
-                new CreateExplorationTurnCommand(clientTurnId, 0, "전주로 갈게요", "kr-45-jeonju", "region"));
-
-        assertThatThrownBy(() -> service.createTurn(owner, created.explorationId(),
-                new CreateExplorationTurnCommand(clientTurnId, 0, "전주로 갈게요", "kr-45-jeonju", "stale-region")))
-                .isInstanceOf(ExplorationTurnConflictException.class);
+        assertThat(dispatcher.dispatchCount).isEqualTo(2);
     }
 
     @Test
@@ -185,7 +171,7 @@ class ExplorationServiceTests {
     @Test
     void invalidTurnDoesNotPersistRawInput() {
         var owner = ExplorationActor.guest("guest-owner");
-        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", null));
+        var created = service.create(owner, new CreateExplorationCommand("첫 한옥 질문", "ko-KR", "kr-45-jeonju"));
 
         assertThatThrownBy(() -> service.createTurn(
                 owner,
@@ -195,7 +181,7 @@ class ExplorationServiceTests {
                 .hasMessageContaining("query");
 
         assertThat(store.turnCount(created.explorationId())).isEqualTo(1);
-        assertThat(dispatcher.dispatchCount).isZero();
+        assertThat(dispatcher.dispatchCount).isEqualTo(1);
     }
 
     @Test

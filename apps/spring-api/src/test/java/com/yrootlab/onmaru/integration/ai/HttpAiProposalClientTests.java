@@ -226,6 +226,47 @@ class HttpAiProposalClientTests {
     }
 
     @Test
+    void toleratesOptionalRagAndExplanationFieldsFromNewerAiResponses() throws Exception {
+        server = server((exchange) -> respond(exchange, 200, """
+                {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:002"],"outcome":"PROPOSAL",
+                 "candidateCount":2,"relaxedConstraints":["THEME"],"degradedReason":null,
+                 "ragEvidenceRefs":[],"ragDegradedReason":"RAG_NO_ACTIVE_EVIDENCE","corpusRevisionId":"rev-7"}
+                """.formatted(request().runId())));
+        var client = client(Duration.ofSeconds(1));
+
+        var plan = client.propose(request(), candidates());
+
+        assertThat(plan.outcome()).isEqualTo("PROPOSAL");
+        assertThat(plan.orderedRefs()).containsExactly("place:002");
+    }
+
+    @Test
+    void emptyCandidateInputIsSentAsZeroCountAndReturnsNoResultsWithoutFailing() throws Exception {
+        server = server((exchange) -> {
+            capturedBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            respond(exchange, 200, """
+                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":[],"outcome":"NO_RESULTS",
+                     "degradedReason":"NO_CANDIDATES","candidateCount":0}
+                    """.formatted(request().runId()));
+        });
+        var client = client(Duration.ofSeconds(1));
+
+        var plan = client.propose(request(), new CandidatePayload("dataset-2026-09-16", List.of()));
+
+        assertThat(capturedBody).contains("\"candidateCount\":0");
+        assertThat(capturedBody).contains("\"candidateRefs\":[]");
+        assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
+        assertThat(plan.orderedRefs()).isEmpty();
+        assertThat(events).anySatisfy(event -> {
+            assertThat(event.name()).isEqualTo("journey.worker.ai_request");
+            assertThat(event.attributes()).containsEntry("candidate.count", "0")
+                    .containsEntry("candidate.policy", "v1")
+                    .containsKey("candidate.snapshot.id")
+                    .doesNotContainKey("query");
+        });
+    }
+
+    @Test
     void mapsRateLimitToQuotaExceededAndRecordsTelemetry() throws Exception {
         server = server(exchange -> respond(exchange, 429, "{\"code\":\"quota\"}"));
         var client = client(Duration.ofSeconds(1));

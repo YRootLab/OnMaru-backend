@@ -55,7 +55,11 @@ class ExplorationConfiguration {
             Clock clock,
             GuestGrantService guestGrantService,
             InMemoryJourneyRunEventStream eventStream,
-            JourneyActionService actionService) {
+            JourneyActionService actionService,
+            org.springframework.beans.factory.ObjectProvider<DataSource> dataSource) {
+        var regionCodes = dataSource.getIfAvailable() == null
+                ? com.yrootlab.onmaru.journey.exploration.RegionCodeCatalog.ACCEPT_ALL
+                : new CatalogRegionCodeCatalog(dataSource.getIfAvailable());
         return new ExplorationService(store, dispatcher, clock, (actor, state) -> {
             if (state.owner().equals(actor)) {
                 return true;
@@ -66,6 +70,6 @@ class ExplorationConfiguration {
             return guestGrantService.canAccess(new MemberExplorationAccess(
                     java.util.UUID.fromString(actor.subject()),
                     state.id()));
-        }, eventStream, actionService);
+        }, eventStream, actionService, regionCodes);
     }
 }
