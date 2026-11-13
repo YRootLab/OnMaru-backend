@@ -313,6 +313,54 @@ class HttpAiProposalClientTests {
                 .isEqualTo(WorkerDegradedReason.AI_TIMEOUT);
     }
 
+    private HttpAiProposalClient client(Duration timeout, com.yrootlab.onmaru.integration.ai.AiRequestOptions options) {
+        var headers = new InternalAiRequestHeadersFactory(new InternalAiTokenSigner(
+                new FakeSecretProvider(),
+                InternalAiTokenProperties.defaults(),
+                FIXED_CLOCK));
+        return new HttpAiProposalClient(
+                HttpClient.newBuilder().connectTimeout(timeout).build(),
+                new ObjectMapper(),
+                URI.create("http://localhost:%d".formatted(server.getAddress().getPort())),
+                headers,
+                timeout,
+                events::add,
+                true,
+                true,
+                options);
+    }
+
+    @Test
+    void requestOptionsAreOffByDefaultAndSendNoOptionalFields() throws Exception {
+        server = server((exchange) -> {
+            capturedBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            respond(exchange, 200, """
+                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:001"],"outcome":"PROPOSAL"}
+                    """.formatted(request().runId()));
+        });
+
+        client(Duration.ofSeconds(1)).propose(request(), candidates());
+
+        assertThat(capturedBody).doesNotContain("\"candidatePolicy\"").doesNotContain("\"useRag\"")
+                .doesNotContain("corpusRevisionId");
+    }
+
+    @Test
+    void enabledOptionsSendCandidatePolicyAndUseRagWithoutCorpusRevision() throws Exception {
+        server = server((exchange) -> {
+            capturedBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            respond(exchange, 200, """
+                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:001"],"outcome":"PROPOSAL"}
+                    """.formatted(request().runId()));
+        });
+
+        client(Duration.ofSeconds(1), new com.yrootlab.onmaru.integration.ai.AiRequestOptions(true, true))
+                .propose(request(), candidates());
+
+        assertThat(capturedBody).contains("\"candidatePolicy\":\"v1\"").contains("\"useRag\":true");
+        assertThat(capturedBody).doesNotContain("corpusRevisionId");
+    }
+
     private HttpAiProposalClient client(Duration timeout) {
         var headers = new InternalAiRequestHeadersFactory(new InternalAiTokenSigner(
                 new FakeSecretProvider(),
