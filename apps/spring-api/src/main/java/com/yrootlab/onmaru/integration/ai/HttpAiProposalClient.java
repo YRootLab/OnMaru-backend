@@ -307,9 +307,37 @@ public final class HttpAiProposalClient implements AiProposalClient {
         return objectMapper.writeValueAsString(body);
     }
 
+    /**
+     * Records which corpus revision and how many evidence refs an AI response carried, plus the RAG degradation
+     * reason when retrieval was skipped. Only identifiers and counts are recorded; no query text or evidence text.
+     */
+    private void recordRagResponse(JourneyWorkerRequest request, JsonNode root) {
+        if (root == null || !root.isObject()) {
+            return;
+        }
+        var attributes = new LinkedHashMap<String, String>();
+        attributes.put("run.id", request.runId().toString());
+        var revision = root.get("corpusRevisionId");
+        if (revision != null && revision.isTextual()) {
+            attributes.put("rag.corpus.revision", revision.asText());
+        }
+        var evidence = root.get("ragEvidenceRefs");
+        attributes.put("rag.evidence.count", Integer.toString(evidence != null && evidence.isArray() ? evidence.size() : 0));
+        var ragReason = root.get("ragDegradedReason");
+        if (ragReason != null && ragReason.isTextual()) {
+            attributes.put("rag.degraded.reason", ragReason.asText());
+        }
+        var degraded = root.get("degradedReason");
+        if (degraded != null && degraded.isTextual()) {
+            attributes.put("ai.degraded.reason", degraded.asText());
+        }
+        telemetry.record(new WorkerTelemetryEvent("journey.worker.ai_response", attributes));
+    }
+
     private JourneyWorkerPlan planFrom(JourneyWorkerRequest request, CandidatePayload payload, String body) {
         try {
             JsonNode root = objectMapper.readTree(body);
+            recordRagResponse(request, root);
             return planFrom(request, payload, root);
         } catch (JsonProcessingException exception) {
             throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
