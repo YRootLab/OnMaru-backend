@@ -300,7 +300,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
         if (requestOptions.sendCandidatePolicy()) {
             body.put("candidatePolicy", CandidateSnapshot.POLICY_V1);
         }
-        if (requestOptions.useRag()) {
+        if (requestOptions.ragFor(request.actorKey())) {
             // The corpus revision is chosen by the AI server; the backend never sends corpusRevisionId.
             body.put("useRag", true);
         }

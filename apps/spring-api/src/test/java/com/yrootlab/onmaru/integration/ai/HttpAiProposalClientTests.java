@@ -260,6 +260,38 @@ class HttpAiProposalClientTests {
     }
 
     @Test
+    void ragCanaryAllowlistSendsUseRagOnlyForListedActor() throws Exception {
+        var bodies = new java.util.ArrayList<String>();
+        server = server((exchange) -> {
+            bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            respond(exchange, 200, """
+                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:001"],"outcome":"PROPOSAL"}
+                    """.formatted(request().runId()));
+        });
+        var canary = new com.yrootlab.onmaru.integration.ai.AiRequestOptions(false, false, java.util.Set.of("MEMBER:123"));
+
+        client(Duration.ofSeconds(1), canary).propose(request(), candidates());
+
+        assertThat(bodies.get(0)).contains("\"useRag\":true");
+    }
+
+    @Test
+    void ragCanaryAllowlistDoesNotReachOtherActors() throws Exception {
+        var bodies = new java.util.ArrayList<String>();
+        server = server((exchange) -> {
+            bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            respond(exchange, 200, """
+                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:001"],"outcome":"PROPOSAL"}
+                    """.formatted(request().runId()));
+        });
+        var canary = new com.yrootlab.onmaru.integration.ai.AiRequestOptions(false, false, java.util.Set.of("MEMBER:999"));
+
+        client(Duration.ofSeconds(1), canary).propose(request(), candidates());
+
+        assertThat(bodies.get(0)).doesNotContain("useRag");
+    }
+
+    @Test
     void recordsRagRevisionAndEvidenceCountsWithoutEvidenceText() throws Exception {
         server = server((exchange) -> respond(exchange, 200, """
                 {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:002"],"outcome":"PROPOSAL",
