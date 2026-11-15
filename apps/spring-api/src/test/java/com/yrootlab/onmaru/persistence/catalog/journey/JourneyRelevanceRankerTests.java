@@ -41,6 +41,22 @@ class JourneyRelevanceRankerTests {
     }
 
     @Test
+    void canonicalProvinceMatchesItsDataLabCatalogCodeForTheRegionBonus() {
+        var busan = place("p-busan", "가", "CAFE", "부산 해운대구", "kr-datalab-26350");
+        var daegu = place("p-daegu", "가", "CAFE", "대구 중구", "kr-datalab-27110");
+
+        assertThat(JourneyRelevanceRanker.score(List.of(), "kr-26", busan)).isEqualTo(2);
+        assertThat(JourneyRelevanceRanker.score(List.of(), "kr-26", daegu)).isZero();
+    }
+
+    @Test
+    void unmappedProvinceGetsNoRegionBonusInsteadOfAGuess() {
+        var gwangju = place("p-gwangju", "가", "CAFE", "광주 동구", "kr-datalab-12210");
+
+        assertThat(JourneyRelevanceRanker.score(List.of(), "kr-29", gwangju)).isZero();
+    }
+
+    @Test
     void hanokThemeRanksHanokCategoryAboveUnrelatedPlaces() {
         var hanok = place("p-hanok", "고즈넉한 집", "HANOK_STAY", "경북 경주시", "kr-47-gyeongju");
         var unrelated = place("p-cafe", "가나다 카페", "CAFE", "경북 경주시", "kr-47-gyeongju");
