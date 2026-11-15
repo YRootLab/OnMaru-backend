@@ -307,6 +307,50 @@ public final class HttpAiProposalClient implements AiProposalClient {
         return objectMapper.writeValueAsString(body);
     }
 
+    /** Reads the AI explanation fields. Missing or malformed parts become empty values; nothing here fails the call. */
+    private static com.yrootlab.onmaru.journey.worker.AiNarrative parseNarrative(JsonNode root) {
+        var journey = root.get("journey");
+        String title = null;
+        String summary = null;
+        String narration = null;
+        var stops = new java.util.ArrayList<com.yrootlab.onmaru.journey.worker.AiNarrative.StopReason>();
+        if (journey != null && journey.isObject()) {
+            title = boundedText(journey.get("title"));
+            summary = boundedText(journey.get("summary"));
+            narration = boundedText(journey.get("narration"));
+            var stopNodes = journey.get("stops");
+            if (stopNodes != null && stopNodes.isArray()) {
+                for (JsonNode stop : stopNodes) {
+                    var ref = stop.get("ref");
+                    var reason = boundedText(stop.get("reason"));
+                    if (ref != null && ref.isTextual() && !ref.textValue().isBlank() && stops.size() < 12) {
+                        stops.add(new com.yrootlab.onmaru.journey.worker.AiNarrative.StopReason(ref.textValue(), reason));
+                    }
+                }
+            }
+        }
+        var relaxed = new java.util.ArrayList<String>();
+        var relaxedNode = root.get("relaxedConstraints");
+        if (relaxedNode != null && relaxedNode.isArray()) {
+            for (JsonNode item : relaxedNode) {
+                if (item.isTextual() && relaxed.size() < 16) {
+                    relaxed.add(item.textValue());
+                }
+            }
+        }
+        return new com.yrootlab.onmaru.journey.worker.AiNarrative(title, summary, narration, stops, relaxed);
+    }
+
+    private static String boundedText(JsonNode node) {
+        if (node == null || !node.isTextual()) {
+            return null;
+        }
+        var text = node.textValue();
+        return text.length() <= com.yrootlab.onmaru.journey.worker.AiNarrative.MAX_TEXT
+                ? text
+                : text.substring(0, com.yrootlab.onmaru.journey.worker.AiNarrative.MAX_TEXT);
+    }
+
     /**
      * Records which corpus revision and how many evidence refs an AI response carried, plus the RAG degradation
      * reason when retrieval was skipped. Only identifiers and counts are recorded; no query text or evidence text.
@@ -362,7 +406,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
                 }
                 orderedRefs.add(ref.textValue());
             }
-            return new JourneyWorkerPlan(orderedRefs, outcome);
+            return new JourneyWorkerPlan(orderedRefs, outcome, parseNarrative(root));
     }
 
     private static String text(JsonNode root, String field) {
