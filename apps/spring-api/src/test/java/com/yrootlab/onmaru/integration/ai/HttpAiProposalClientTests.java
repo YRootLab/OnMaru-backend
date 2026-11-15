@@ -241,6 +241,25 @@ class HttpAiProposalClientTests {
     }
 
     @Test
+    void keepsAiTitleStopReasonsAndRelaxedConstraintsOnThePlan() throws Exception {
+        server = server((exchange) -> respond(exchange, 200, """
+                {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:002","place:001"],"outcome":"PROPOSAL",
+                 "relaxedConstraints":["region"],
+                 "journey":{"title":"경주 한옥 산책","summary":"고즈넉한 한옥 코스","narration":"산책 순서대로 둘러보세요",
+                   "stops":[{"ref":"place:002","reason":"양동마을 고택 분위기가 질의와 맞습니다"},
+                            {"ref":"place:001","reason":"한옥 체험이 가능합니다"}]}}
+                """.formatted(request().runId())));
+
+        var plan = client(Duration.ofSeconds(1)).propose(request(), candidates());
+
+        assertThat(plan.narrative().title()).isEqualTo("경주 한옥 산책");
+        assertThat(plan.narrative().summary()).isEqualTo("고즈넉한 한옥 코스");
+        assertThat(plan.narrative().stops()).extracting(stop -> stop.ref()).containsExactly("place:002", "place:001");
+        assertThat(plan.narrative().stops().get(0).reason()).contains("양동마을");
+        assertThat(plan.narrative().relaxedConstraints()).containsExactly("region");
+    }
+
+    @Test
     void recordsRagRevisionAndEvidenceCountsWithoutEvidenceText() throws Exception {
         server = server((exchange) -> respond(exchange, 200, """
                 {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:002"],"outcome":"PROPOSAL",
