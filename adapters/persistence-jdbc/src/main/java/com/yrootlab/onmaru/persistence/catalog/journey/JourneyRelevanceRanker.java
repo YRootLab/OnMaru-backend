@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.persistence.catalog.journey;
 
 import com.yrootlab.onmaru.catalog.application.query.journey.ApprovedPlaceLookupItem;
+import com.yrootlab.onmaru.journey.region.CanonicalRegionAliases;
 
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -81,10 +82,20 @@ final class JourneyRelevanceRanker {
                 score += THEME_CATEGORY_HIT;
             }
         }
-        if (regionCode != null && place.regionCode() != null && place.regionCode().startsWith(regionCode)) {
+        if (regionCode != null && place.regionCode() != null && inRegion(regionCode, place.regionCode())) {
             score += REGION_HIT;
         }
         return score;
+    }
+
+    /** A place is in the requested province when its catalog code starts with one of the province's catalog codes. */
+    static boolean inRegion(String canonicalRegion, String placeRegionCode) {
+        for (String catalogCode : CanonicalRegionAliases.catalogCodesFor(canonicalRegion)) {
+            if (placeRegionCode.startsWith(catalogCode)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static boolean isHanokTheme(String token) {
