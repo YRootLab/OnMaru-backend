@@ -133,7 +133,8 @@ class JourneyWorkerConfiguration {
             @Value("${onmaru.ai.streaming-enabled:${ONMARU_AI_STREAMING_ENABLED:true}}") boolean streamingEnabled,
             @Value("${onmaru.ai.stream-unary-fallback-enabled:${ONMARU_AI_STREAM_UNARY_FALLBACK_ENABLED:true}}") boolean unaryFallbackEnabled,
             @Value("${onmaru.ai.request.candidate-policy-enabled:${ONMARU_AI_REQUEST_CANDIDATE_POLICY_ENABLED:false}}") boolean candidatePolicyEnabled,
-            @Value("${onmaru.ai.request.use-rag-enabled:${ONMARU_AI_REQUEST_USE_RAG_ENABLED:false}}") boolean useRagEnabled) {
+            @Value("${onmaru.ai.request.use-rag-enabled:${ONMARU_AI_REQUEST_USE_RAG_ENABLED:false}}") boolean useRagEnabled,
+            @Value("${onmaru.ai.request.use-rag-actor-keys:${ONMARU_AI_REQUEST_USE_RAG_ACTOR_KEYS:}}") String useRagActorKeys) {
         ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new HttpAiProposalClient(
                 HttpClient.newBuilder().connectTimeout(properties.timeout()).build(),
@@ -144,7 +145,9 @@ class JourneyWorkerConfiguration {
                 telemetry,
                 streamingEnabled,
                 unaryFallbackEnabled,
-                new com.yrootlab.onmaru.integration.ai.AiRequestOptions(candidatePolicyEnabled, useRagEnabled));
+                new com.yrootlab.onmaru.integration.ai.AiRequestOptions(candidatePolicyEnabled, useRagEnabled,
+                        java.util.Arrays.stream(useRagActorKeys.split(",")).map(String::trim).filter(v -> !v.isEmpty())
+                                .collect(java.util.stream.Collectors.toSet())));
     }
 
     @Bean
