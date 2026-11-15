@@ -161,7 +161,7 @@ services:
       # Origin only. Points at the Spring slot that was active after the 2026-11-10 green deploy; a blue/green switch requires restarting ai-engine.
       ONMARU_SPRING_BASE_URL: ${ONMARU_SPRING_BASE_URL:-http://spring-green:8080}
       # AI runtime DSN (read-only ai_runtime role). Kept separate from Spring's JDBC ONMARU_DB_URL.
-      ONMARU_DB_URL: ${ONMARU_AI_DB_URL:-}
+      ONMARU_AI_DB_DSN: ${ONMARU_AI_DB_URL:-}
       ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT:-}
       ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT:-}
       ONMARU_SECRET_GEMINI_API_KEY_CURRENT: ${ONMARU_SECRET_GEMINI_API_KEY_CURRENT:-}
