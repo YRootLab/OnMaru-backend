@@ -45,6 +45,10 @@ x-spring-api: &spring-api
     ONMARU_OTLP_METRICS_ENABLED: "false"
     ONMARU_AI_BASE_URL: http://ai-engine:8000
     ONMARU_AI_PLAN_EXECUTE_ENABLED: ${ONMARU_AI_PLAN_EXECUTE_ENABLED:-false}
+    # AI request options. All default OFF. Canary: list only the canary member's actorKey (member:<uuid>).
+    ONMARU_AI_REQUEST_CANDIDATE_POLICY_ENABLED: ${ONMARU_AI_REQUEST_CANDIDATE_POLICY_ENABLED:-false}
+    ONMARU_AI_REQUEST_USE_RAG_ENABLED: ${ONMARU_AI_REQUEST_USE_RAG_ENABLED:-false}
+    ONMARU_AI_REQUEST_USE_RAG_ACTOR_KEYS: ${ONMARU_AI_REQUEST_USE_RAG_ACTOR_KEYS:-}
     # Exploration state and run queue live in Postgres (discovery_runs); the drain loop works the QUEUED rows.
     ONMARU_JOURNEY_EXPLORATION_STORE: jdbc
     ONMARU_JOURNEY_WORKER_DRAIN_ENABLED: "true"
