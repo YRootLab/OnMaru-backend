@@ -312,6 +312,26 @@ class HttpAiProposalClientTests {
     }
 
     @Test
+    void streamingRecordsRagRevisionAndEvidenceCountsWithoutEvidenceText() throws Exception {
+        server = server((exchange) -> respondSse(exchange, sse("proposal",
+                ("{\"proposal\":{\"schemaVersion\":\"internal.ai.v1\",\"runId\":\"%s\",\"orderedRefs\":[\"place:002\"],\"outcome\":\"PROPOSAL\","
+                        + "\"corpusRevisionId\":\"rev-7\",\"ragEvidenceRefs\":[\"rev-7:chunk:abc\",\"rev-7:chunk:def\"],\"ragDegradedReason\":null}}")
+                        .formatted(request().runId()))));
+
+        proposeWithDeltas(
+                client(Duration.ofSeconds(1), new com.yrootlab.onmaru.integration.ai.AiRequestOptions(true, true)),
+                text -> {});
+
+        assertThat(events).anySatisfy(event -> {
+            assertThat(event.name()).isEqualTo("journey.worker.ai_response");
+            assertThat(event.attributes()).containsEntry("rag.corpus.revision", "rev-7")
+                    .containsEntry("rag.evidence.count", "2")
+                    .doesNotContainKey("query");
+            assertThat(event.attributes().toString()).doesNotContain("chunk:abc");
+        });
+    }
+
+    @Test
     void emptyCandidateInputIsSentAsZeroCountAndReturnsNoResultsWithoutFailing() throws Exception {
         server = server((exchange) -> {
             capturedBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);

@@ -381,7 +381,6 @@ public final class HttpAiProposalClient implements AiProposalClient {
     private JourneyWorkerPlan planFrom(JourneyWorkerRequest request, CandidatePayload payload, String body) {
         try {
             JsonNode root = objectMapper.readTree(body);
-            recordRagResponse(request, root);
             return planFrom(request, payload, root);
         } catch (JsonProcessingException exception) {
             throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
@@ -390,6 +389,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
 
     private JourneyWorkerPlan planFrom(JourneyWorkerRequest request, CandidatePayload payload, JsonNode root) {
             if (root == null || !root.isObject()) throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
+            recordRagResponse(request, root);
             if (!request.runId().toString().equals(text(root, "runId"))) {
                 throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
             }
