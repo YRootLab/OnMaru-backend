@@ -3,6 +3,42 @@
 ## Unreleased
 
 - Issue #668의 관리자 데이터 파이프라인 최근 scheduler 실행 상세, 실행 단건 조회, sanitized 실패 로그 cursor API와 실행별 `failureCount` 계약을 추가했다. 관리자 POST는 수집을 시작하지 않고 501을 반환한다.
+## [0.5.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.4.0...v0.5.0) (2026-11-16)
+
+
+### Features
+
+* **ai:** candidatePolicy와 useRag 요청 전송을 설정으로 추가 (기본 OFF) ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([c3a0de0](https://github.com/YRootLab/OnMaru-backend/commit/c3a0de0fcecef64d73d6a5d58064ece988c106f8))
+* **ai:** candidatePolicy와 useRag 요청 전송을 설정으로 추가 (기본 OFF) ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([18c8dd8](https://github.com/YRootLab/OnMaru-backend/commit/18c8dd87e8eb709acd12b405d4c5740caa4d0b48))
+* **ai:** RAG 응답의 corpusRevisionId와 evidence 개수를 텔레메트리로 기록 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([718110f](https://github.com/YRootLab/OnMaru-backend/commit/718110f2669ee2a638f18c57fa4b73970b152644))
+* **ai:** RAG 응답의 corpusRevisionId와 evidence 개수를 텔레메트리로 기록 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([187455c](https://github.com/YRootLab/OnMaru-backend/commit/187455ca30aa092f87c8ac79e32f715d4f99746b))
+* **ai:** RAG 카나리용 회원 허용 목록 추가 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([2196393](https://github.com/YRootLab/OnMaru-backend/commit/2196393eb62db9f2d9cf1314c3a1d66b0ca22cb5))
+* **ai:** RAG 카나리용 회원 허용 목록 추가 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([66c81d5](https://github.com/YRootLab/OnMaru-backend/commit/66c81d5bf471bc8de354161f625bd1cd84d2cf13))
+* **journey:** AI 여정 해설과 장소별 추천 사유를 워커 결과까지 보존 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([813d037](https://github.com/YRootLab/OnMaru-backend/commit/813d037ade6713197f267d539177c444799560bd))
+* **journey:** AI 여정 해설과 장소별 추천 사유를 워커 결과까지 보존 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([a4e8b00](https://github.com/YRootLab/OnMaru-backend/commit/a4e8b00786862d5c15c6856ef93e8fe82e6d3efd))
+* **journey:** query 기반 전국 후보 랭킹과 지역 검증 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([4ce1977](https://github.com/YRootLab/OnMaru-backend/commit/4ce1977da48b439b553c4563afeaabba7e372efe))
+* **journey:** query 기반 전국 후보 랭킹과 지역 검증 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([76bac62](https://github.com/YRootLab/OnMaru-backend/commit/76bac62682a4b1f0f624043cf7323d7013456f60))
+* **region:** canonical kr-NN ↔ 카탈로그 코드 별칭 레이어 추가 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([b3f2e68](https://github.com/YRootLab/OnMaru-backend/commit/b3f2e68af6795b7ac8d99fc824c0ef27f0451134))
+* **region:** canonical kr-NN ↔ 카탈로그 코드 별칭 레이어 추가 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([193c0a4](https://github.com/YRootLab/OnMaru-backend/commit/193c0a4eb2e0236c6c107920d4d12c7baefd6dae))
+
+
+### Bug Fixes
+
+* **ai:** AI 계약 불일치 세 가지를 Spring 측에서 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([59d68c2](https://github.com/YRootLab/OnMaru-backend/commit/59d68c270e88da8ba6029f8ccdf0e202cde406cc))
+* **ai:** AI 계약 불일치 세 가지를 Spring 측에서 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([c2c5e81](https://github.com/YRootLab/OnMaru-backend/commit/c2c5e814ff1787edae26a80fda62d45614c1b6e2))
+* **ai:** AI 런타임 DSN 환경변수를 ONMARU_AI_DB_DSN으로 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([4aa4f95](https://github.com/YRootLab/OnMaru-backend/commit/4aa4f95d1af4980a0341d89ed06441ec03637fdd))
+* **ai:** AI 런타임 DSN 환경변수를 ONMARU_AI_DB_DSN으로 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([de5dad9](https://github.com/YRootLab/OnMaru-backend/commit/de5dad920efdad3008a50f93843cbe64157346da))
+* **ai:** ai-engine에 DB 네트워크와 AI 런타임 DSN 연결 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([6056c92](https://github.com/YRootLab/OnMaru-backend/commit/6056c92cc85af6a07b470ac84b5d7adc0033c9e4))
+* **ai:** ai-engine에 DB 네트워크와 AI 런타임 DSN 연결 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([0e6e859](https://github.com/YRootLab/OnMaru-backend/commit/0e6e85941c40111f1aa3411e4cf4267e28d8a2de))
+* **ai:** Spring 컨테이너에 AI 요청 플래그 전달 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([22bb361](https://github.com/YRootLab/OnMaru-backend/commit/22bb361e483a6e4adbe90cc08beb3e3f1b407d1c))
+* **ai:** Spring 컨테이너에 AI 요청 플래그 전달 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([be17815](https://github.com/YRootLab/OnMaru-backend/commit/be1781558891b8b5a63d5842e3318705544c5c45))
+* **ai:** 운영 AI의 ONMARU_SPRING_BASE_URL을 spring-green으로 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([61f8f17](https://github.com/YRootLab/OnMaru-backend/commit/61f8f17eee4b9554a5ffca999cdea5bea756c5dd))
+* **ai:** 운영 AI의 ONMARU_SPRING_BASE_URL을 spring-green으로 맞춤 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([eb0368b](https://github.com/YRootLab/OnMaru-backend/commit/eb0368bfa271cefedcd552e511a2570ff0e99497))
+* **journey:** AI 호출 HTTP/1.1 고정 및 워커 완료·만료 시 admission 슬롯 해제 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([242eeb4](https://github.com/YRootLab/OnMaru-backend/commit/242eeb480835a226cbea5e7eecc752bb30e309e2))
+* **journey:** AI 호출 HTTP/1.1 고정 및 워커 완료·만료 시 admission 슬롯 해제 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([ffb4c70](https://github.com/YRootLab/OnMaru-backend/commit/ffb4c704a444616d4eb9147229f1c485fb94d7e6))
+* **observability:** 스트리밍 AI 응답 RAG 텔레메트리 및 속성 로그 출력 보강 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([94fcb6a](https://github.com/YRootLab/OnMaru-backend/commit/94fcb6a0ff361d796c26bbebe04520b7b17a7713))
+* **observability:** 스트리밍 AI 응답 RAG 텔레메트리 및 속성 로그 출력 보강 ([#811](https://github.com/YRootLab/OnMaru-backend/issues/811)) ([c0f4e90](https://github.com/YRootLab/OnMaru-backend/commit/c0f4e90d3cbf7d6bcd364cd127864556bb67e9d6))
+
 ## [0.4.0](https://github.com/YRootLab/OnMaru-backend/compare/v0.3.54...v0.4.0) (2026-11-10)
 
 
