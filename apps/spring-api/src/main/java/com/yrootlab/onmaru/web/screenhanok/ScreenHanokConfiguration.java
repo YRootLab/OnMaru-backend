@@ -83,7 +83,10 @@ class ScreenHanokConfiguration {
             @Qualifier("screenHanokRequestHeadersFactory") InternalAiRequestHeadersFactory screenHanokRequestHeadersFactory) {
         ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new HttpScreenHanokResearchClient(
-                HttpClient.newBuilder().connectTimeout(aiIntegrationProperties.timeout()).build(),
+                HttpClient.newBuilder()
+                        .version(HttpClient.Version.HTTP_1_1)
+                        .connectTimeout(aiIntegrationProperties.timeout())
+                        .build(),
                 mapper,
                 aiIntegrationProperties.baseUrl(),
                 screenHanokRequestHeadersFactory,
