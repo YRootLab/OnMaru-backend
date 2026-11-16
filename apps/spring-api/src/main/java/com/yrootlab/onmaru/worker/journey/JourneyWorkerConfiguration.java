@@ -29,12 +29,20 @@ import com.yrootlab.onmaru.journey.worker.InMemoryJourneyWorkerQueue;
 import com.yrootlab.onmaru.persistence.journey.worker.JdbcJourneyWorkerQueue;
 import com.yrootlab.onmaru.journey.worker.JourneyCandidateProvider;
 import com.yrootlab.onmaru.journey.worker.JourneyResultStore;
+import com.yrootlab.onmaru.journey.worker.JourneyWorkerOutcome;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerQueue;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerRunner;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerService;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerTelemetry;
+import com.yrootlab.onmaru.operations.admission.AdmissionPolicy;
+import com.yrootlab.onmaru.operations.admission.AdmissionRequest;
+import com.yrootlab.onmaru.operations.admission.AdmissionService;
+import com.yrootlab.onmaru.operations.admission.AdmissionSubject;
+import com.yrootlab.onmaru.operations.admission.SubjectType;
 import com.yrootlab.onmaru.persistence.journey.run.JdbcJourneyRunStore;
 import com.yrootlab.onmaru.persistence.journey.worker.JdbcJourneyResultStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,10 +57,15 @@ import org.springframework.context.annotation.Configuration;
 import javax.sql.DataSource;
 import java.net.http.HttpClient;
 import java.time.Clock;
+import java.time.Duration;
+import java.util.Locale;
 
 @Configuration
 @EnableConfigurationProperties(AiIntegrationProperties.class)
 class JourneyWorkerConfiguration {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JourneyWorkerConfiguration.class);
+    private static final String JOURNEY_AI_OPERATION = "journey.ai";
 
     /** Production queue: QUEUED rows in discovery_runs. Survives restarts and is shared by all instances. */
     @Bean
@@ -108,8 +121,15 @@ class JourneyWorkerConfiguration {
 
     @Bean
     @ConditionalOnBean(JourneyRunCancellationService.class)
-    JourneyRunSweeper journeyRunSweeper(JourneyRunCancellationService cancellationService, Clock clock) {
-        return new JourneyRunSweeper(cancellationService, clock);
+    JourneyRunSweeper journeyRunSweeper(
+            JourneyRunCancellationService cancellationService,
+            Clock clock,
+            ObjectProvider<AdmissionService> admissionServiceProvider,
+            ObjectProvider<AdmissionPolicy> admissionPolicyProvider) {
+        return new JourneyRunSweeper(
+                cancellationService,
+                clock,
+                actorKey -> releaseJourneyAiSlot(actorKey, admissionServiceProvider, admissionPolicyProvider));
     }
 
     @Bean
@@ -137,7 +157,7 @@ class JourneyWorkerConfiguration {
             @Value("${onmaru.ai.request.use-rag-actor-keys:${ONMARU_AI_REQUEST_USE_RAG_ACTOR_KEYS:}}") String useRagActorKeys) {
         ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new HttpAiProposalClient(
-                HttpClient.newBuilder().connectTimeout(properties.timeout()).build(),
+                aiHttpClient(properties.timeout()),
                 objectMapper,
                 properties.baseUrl(),
                 headersFactory,
@@ -165,7 +185,7 @@ class JourneyWorkerConfiguration {
     @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
     AiPlanExecuteClient aiPlanExecuteClient(AiIntegrationProperties properties, AiPlanWireCodec codec,
             SecretProvider secrets, Clock clock) {
-        return new HttpAiPlanExecuteClient(HttpClient.newBuilder().connectTimeout(properties.timeout()).build(),
+        return new HttpAiPlanExecuteClient(aiHttpClient(properties.timeout()),
                 codec, properties.baseUrl(), secrets, properties.timeout(), clock);
     }
 
@@ -213,7 +233,64 @@ class JourneyWorkerConfiguration {
     @ConditionalOnBean(DataSource.class)
     JourneyWorkerRunner journeyWorkerRunner(
             JourneyWorkerQueue queue,
-            JourneyWorkerService service) {
-        return new JourneyWorkerRunner(queue, service::process);
+            JourneyWorkerService service,
+            ObjectProvider<AdmissionService> admissionServiceProvider,
+            ObjectProvider<AdmissionPolicy> admissionPolicyProvider) {
+        return new JourneyWorkerRunner(queue, request -> {
+            var outcome = service.process(request);
+            if (outcome == JourneyWorkerOutcome.COMPLETED_LLM
+                    || outcome == JourneyWorkerOutcome.COMPLETED_BASELINE) {
+                releaseJourneyAiSlot(request.actorKey(), admissionServiceProvider, admissionPolicyProvider);
+            }
+            return outcome;
+        });
+    }
+
+    private static HttpClient aiHttpClient(Duration connectTimeout) {
+        return HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(connectTimeout)
+                .build();
+    }
+
+    static void releaseJourneyAiSlot(
+            String actorKey,
+            ObjectProvider<AdmissionService> admissionServiceProvider,
+            ObjectProvider<AdmissionPolicy> admissionPolicyProvider) {
+        var admissionService = admissionServiceProvider.getIfAvailable();
+        var admissionPolicy = admissionPolicyProvider.getIfAvailable();
+        if (admissionService == null || admissionPolicy == null) {
+            return;
+        }
+        var subject = parseAdmissionSubject(actorKey);
+        if (subject == null) {
+            return;
+        }
+        try {
+            admissionService.releaseActive(new AdmissionRequest(JOURNEY_AI_OPERATION, subject), admissionPolicy);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("failed to release journey.ai admission slot subjectType={}", subject.type(), exception);
+        }
+    }
+
+    static AdmissionSubject parseAdmissionSubject(String actorKey) {
+        if (actorKey == null || actorKey.isBlank()) {
+            return null;
+        }
+        var normalized = actorKey.startsWith("actor:") ? actorKey.substring("actor:".length()) : actorKey;
+        int colon = normalized.indexOf(':');
+        if (colon <= 0 || colon == normalized.length() - 1) {
+            return null;
+        }
+        var rawType = normalized.substring(0, colon).trim().toUpperCase(Locale.ROOT);
+        var subject = normalized.substring(colon + 1).trim();
+        if (subject.isEmpty()) {
+            return null;
+        }
+        return switch (rawType) {
+            case "MEMBER" -> new AdmissionSubject(SubjectType.MEMBER, subject);
+            case "GUEST" -> new AdmissionSubject(SubjectType.GUEST, subject);
+            default -> null;
+        };
     }
 }
