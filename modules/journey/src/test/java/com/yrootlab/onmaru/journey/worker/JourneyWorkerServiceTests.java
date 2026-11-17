@@ -173,6 +173,95 @@ class JourneyWorkerServiceTests {
                         "reason", "DISCARDED_TERMINAL")));
     }
 
+    @Test
+    void skipsCandidatePreloadAndPersistsPlacesOutsidePreFetchWhenClientOptsOut() {
+        var aiClient = new AiProposalClient() {
+            @Override
+            public boolean requiresCandidatePreload() {
+                return false;
+            }
+
+            @Override
+            public JourneyWorkerPlan propose(JourneyWorkerRequest actualRequest, CandidatePayload candidates) {
+                assertThat(candidates.candidates()).isEmpty();
+                return new JourneyWorkerPlan(
+                        List.of("p-jeonju-gyeonggijeon", "p-jeonju-hyanggyo"),
+                        "PROPOSAL",
+                        Map.of(
+                                "p-jeonju-gyeonggijeon", "조선 태조 어진을 모신 공간",
+                                "p-jeonju-hyanggyo", "고즈넉한 향교 산책 코스"),
+                        "전주 역사 한옥 하루 코스");
+            }
+        };
+        var service = new JourneyWorkerService(
+                runStore,
+                ignored -> {
+                    throw new AssertionError("candidateProvider must not be called when AI succeeds without preload");
+                },
+                aiClient,
+                candidates -> {
+                    throw new AssertionError("baselinePlanner must not be called on LLM success");
+                },
+                resultStore,
+                telemetry);
+
+        var outcome = service.process(request);
+
+        assertThat(outcome).isEqualTo(JourneyWorkerOutcome.COMPLETED_LLM);
+        assertThat(resultStore.commands).containsExactly(new PersistJourneyResultCommand(
+                RUN_ID,
+                EXPLORATION_ID,
+                1,
+                JourneyResultEngine.LLM,
+                null,
+                List.of("p-jeonju-gyeonggijeon", "p-jeonju-hyanggyo"),
+                "PROPOSAL",
+                Map.of(
+                        "p-jeonju-gyeonggijeon", "조선 태조 어진을 모신 공간",
+                        "p-jeonju-hyanggyo", "고즈넉한 향교 산책 코스"),
+                "전주 역사 한옥 하루 코스"));
+        assertThat(runStore.finished).hasSize(1);
+        assertThat(runStore.finished.get(0).outcome()).isEqualTo("PROPOSAL");
+    }
+
+    @Test
+    void retrievesBaselineCandidatesOnlyWhenPlanExecuteClientFails() {
+        var retrieveCalls = new java.util.concurrent.atomic.AtomicInteger();
+        var aiClient = new AiProposalClient() {
+            @Override
+            public boolean requiresCandidatePreload() {
+                return false;
+            }
+
+            @Override
+            public JourneyWorkerPlan propose(JourneyWorkerRequest actualRequest, CandidatePayload candidates) {
+                assertThat(candidates.candidates()).isEmpty();
+                throw new AiProposalException(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE);
+            }
+        };
+        var service = new JourneyWorkerService(
+                runStore,
+                ignored -> {
+                    retrieveCalls.incrementAndGet();
+                    return new CandidatePayload(
+                            "dataset-2026-09-16",
+                            List.of(new JourneyCandidate("p-baseline-1")));
+                },
+                aiClient,
+                candidates -> new JourneyWorkerPlan(List.of("p-baseline-1"), "INITIAL_BOARD"),
+                resultStore,
+                telemetry);
+
+        var outcome = service.process(request);
+
+        assertThat(outcome).isEqualTo(JourneyWorkerOutcome.COMPLETED_BASELINE);
+        assertThat(retrieveCalls.get()).isEqualTo(1);
+        assertThat(resultStore.commands).hasSize(1);
+        assertThat(resultStore.commands.get(0).engine()).isEqualTo(JourneyResultEngine.BASELINE);
+        assertThat(resultStore.commands.get(0).degradedReason()).isEqualTo(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE);
+        assertThat(resultStore.commands.get(0).orderedRefs()).containsExactly("p-baseline-1");
+    }
+
     private static final class RecordingRunStore implements JourneyRunStore {
         final List<ClaimRunCommand> claimed = new ArrayList<>();
         final List<AdvanceRunStageCommand> advanced = new ArrayList<>();

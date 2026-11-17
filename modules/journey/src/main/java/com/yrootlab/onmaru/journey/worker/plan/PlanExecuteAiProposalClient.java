@@ -29,6 +29,8 @@ public final class PlanExecuteAiProposalClient implements AiProposalClient {
         this.grants=grants;this.progress=progress;this.mapper=mapper;this.clock=clock;
     }
 
+    @Override public boolean requiresCandidatePreload() { return false; }
+
     @Override public JourneyWorkerPlan propose(JourneyWorkerRequest request,CandidatePayload candidates) {
         try {
             requireBeforeDeadline(request);

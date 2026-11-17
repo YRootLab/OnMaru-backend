@@ -102,13 +102,32 @@ public final class JdbcJourneyResultStore implements JourneyResultStore {
     }
 
     private String boardJson(PersistJourneyResultCommand command) {
-        return """
-                {"schemaVersion":"1.2","engine":"%s","degradedReason":%s,"outcome":"%s","orderedRefs":%s}
-                """.formatted(
-                command.engine().name(),
-                command.degradedReason() == null ? "null" : "\"" + command.degradedReason().name() + "\"",
-                jsonEscape(command.outcome()),
-                refsJson(command));
+        var json = new StringBuilder();
+        json.append("{\"schemaVersion\":\"1.2\"")
+                .append(",\"engine\":\"").append(command.engine().name()).append('"')
+                .append(",\"degradedReason\":")
+                .append(command.degradedReason() == null ? "null" : "\"" + command.degradedReason().name() + "\"")
+                .append(",\"outcome\":\"").append(jsonEscape(command.outcome())).append('"')
+                .append(",\"orderedRefs\":").append(refsJson(command));
+        if (command.placeReasons() != null && !command.placeReasons().isEmpty()) {
+            json.append(",\"placeReasons\":").append(placeReasonsJson(command.placeReasons()));
+        }
+        if (command.summaryText() != null && !command.summaryText().isBlank()) {
+            json.append(",\"summaryText\":\"").append(jsonEscape(command.summaryText())).append('"');
+        }
+        json.append('}');
+        return json.toString();
+    }
+
+    private String placeReasonsJson(java.util.Map<String, String> placeReasons) {
+        var joiner = new StringJoiner(",", "{", "}");
+        for (var entry : placeReasons.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) {
+                continue;
+            }
+            joiner.add("\"" + jsonEscape(entry.getKey()) + "\":\"" + jsonEscape(entry.getValue()) + "\"");
+        }
+        return joiner.toString();
     }
 
     private String refsJson(PersistJourneyResultCommand command) {
@@ -120,14 +139,30 @@ public final class JdbcJourneyResultStore implements JourneyResultStore {
     }
 
     private String jsonEscape(String value) {
-        return value
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\b", "\\b")
-                .replace("\f", "\\f")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        if (value == null) {
+            return "";
+        }
+        var escaped = new StringBuilder(value.length());
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            switch (ch) {
+                case '\\' -> escaped.append("\\\\");
+                case '"' -> escaped.append("\\\"");
+                case '\b' -> escaped.append("\\b");
+                case '\f' -> escaped.append("\\f");
+                case '\n' -> escaped.append("\\n");
+                case '\r' -> escaped.append("\\r");
+                case '\t' -> escaped.append("\\t");
+                default -> {
+                    if (ch < 0x20) {
+                        escaped.append(String.format("\\u%04x", (int) ch));
+                    } else {
+                        escaped.append(ch);
+                    }
+                }
+            }
+        }
+        return escaped.toString();
     }
 
     private RuntimeException databaseFailure(SQLException exception) {

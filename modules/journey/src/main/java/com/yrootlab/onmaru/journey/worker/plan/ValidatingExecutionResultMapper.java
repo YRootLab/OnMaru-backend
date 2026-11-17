@@ -11,17 +11,20 @@ import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.Filters;
 import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.PlanProposal;
 import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.Versions;
 import com.yrootlab.onmaru.journey.worker.plan.JourneyPlanExecutionPorts.ExecutionResultMapper;
+import com.yrootlab.onmaru.journey.worker.plan.JourneyPlanExecutionPorts.PublicPlaceEligibilityChecker;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Re-validates an untrusted AI ExecutionResult against the approved plan, the evidence it cites, and Spring's
- * own candidate set. Any mismatch is an invalid AI response, so the worker falls back to the baseline board.
+ * Re-validates an untrusted AI ExecutionResult against the approved plan, the evidence it cites, and live public
+ * catalog eligibility (or Spring's candidate set when no live checker is wired). Any mismatch is an invalid AI
+ * response, so the worker falls back to the baseline board.
  */
 public final class ValidatingExecutionResultMapper implements ExecutionResultMapper {
 
@@ -32,6 +35,16 @@ public final class ValidatingExecutionResultMapper implements ExecutionResultMap
     static final int MAX_EVIDENCE = 12;
     static final int MAX_CLAIMS = 12;
     static final int MAX_CLAIM_EVIDENCE = 3;
+
+    private final PublicPlaceEligibilityChecker eligibilityChecker;
+
+    public ValidatingExecutionResultMapper() {
+        this(null);
+    }
+
+    public ValidatingExecutionResultMapper(PublicPlaceEligibilityChecker eligibilityChecker) {
+        this.eligibilityChecker = eligibilityChecker;
+    }
 
     @Override
     public JourneyWorkerPlan map(ApprovedPlanBinding binding, ExecutionResult result, CandidatePayload candidates) {
@@ -74,19 +87,27 @@ public final class ValidatingExecutionResultMapper implements ExecutionResultMap
             throw invalid();
         }
 
-        Set<String> candidateRefs = new HashSet<>();
-        for (JourneyCandidate candidate : candidates.candidates()) {
-            candidateRefs.add(candidate.ref());
-        }
         Filters filters = plan.proposedFilters();
+        Set<String> eligibleRefs;
+        if (eligibilityChecker != null) {
+            eligibleRefs = placeIds.isEmpty()
+                    ? Set.of()
+                    : Set.copyOf(eligibilityChecker.eligiblePlaceIds(List.copyOf(placeIds), filters));
+        } else {
+            eligibleRefs = new HashSet<>();
+            for (JourneyCandidate candidate : candidates.candidates()) {
+                eligibleRefs.add(candidate.ref());
+            }
+        }
         Set<String> filterAllowed = filters == null || filters.placeIds() == null ? null : new HashSet<>(filters.placeIds());
         Set<String> excluded = filters == null || filters.excludedPlaceIds() == null
                 ? Set.of() : new HashSet<>(filters.excludedPlaceIds());
 
         Set<String> claimIds = new HashSet<>();
+        Map<String, String> placeReasons = new LinkedHashMap<>();
         for (Map<String, Object> place : places) {
             String placeId = text(place, "placeId");
-            if (!candidateRefs.contains(placeId) || excluded.contains(placeId)
+            if (!eligibleRefs.contains(placeId) || excluded.contains(placeId)
                     || (filterAllowed != null && !filterAllowed.contains(placeId))
                     || !evidence.allowedPlaceIds().contains(placeId)) {
                 throw invalid();
@@ -95,19 +116,29 @@ public final class ValidatingExecutionResultMapper implements ExecutionResultMap
             if (claims.isEmpty() || claims.size() > MAX_CLAIMS) {
                 throw invalid();
             }
+            List<String> reasonTexts = new ArrayList<>();
             for (Map<String, Object> claim : claims) {
                 validateClaim(claim, placeId, evidence, claimIds);
+                reasonTexts.add(text(claim, "text"));
             }
+            placeReasons.put(placeId, String.join(" ", reasonTexts));
         }
         List<Map<String, Object>> summaryClaims = objects(proposal.get("summaryClaims"));
         if (summaryClaims.size() > MAX_CLAIMS) {
             throw invalid();
         }
+        List<String> summaryTexts = new ArrayList<>();
         for (Map<String, Object> claim : summaryClaims) {
             validateClaim(claim, null, evidence, claimIds);
+            summaryTexts.add(text(claim, "text"));
         }
+        String summaryText = summaryTexts.isEmpty() ? null : String.join(" ", summaryTexts);
 
-        return new JourneyWorkerPlan(placeIds, placeIds.isEmpty() ? "NO_RESULTS" : "PROPOSAL");
+        return new JourneyWorkerPlan(
+                placeIds,
+                placeIds.isEmpty() ? "NO_RESULTS" : "PROPOSAL",
+                placeReasons,
+                summaryText);
     }
 
     private static void validateClaim(Map<String, Object> claim, String expectedPlaceId,

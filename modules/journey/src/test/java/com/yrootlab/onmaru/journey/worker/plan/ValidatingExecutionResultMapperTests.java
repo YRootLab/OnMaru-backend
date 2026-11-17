@@ -125,6 +125,64 @@ class ValidatingExecutionResultMapperTests {
         assertRejected(binding(filters(null, List.of())), mismatched);
     }
 
+    @Test
+    void validatesAiPlacesPostHocViaEligibilityCheckerBeyondPreFetchedCandidates() {
+        var checkerMapper = new ValidatingExecutionResultMapper((placeIds, approvedFilters) -> {
+            assertThat(placeIds).containsExactly("place-901", "place-902");
+            assertThat(approvedFilters.regionCodes()).containsExactly("kr-45-jeonju");
+            return java.util.Set.of("place-901", "place-902");
+        });
+        var emptyCandidates = new CandidatePayload("rev-1", List.of());
+        var regionFilters = new Filters("sha256:" + "d".repeat(64), true, null,
+                List.of("kr-45-jeonju"), null, List.of(), List.of());
+        var regionBinding = new ApprovedPlanBinding(new PlanProposal(
+                "ai-plan-proposal.v1", "journey-query-plan.v1", runId,
+                Route.HYBRID, RetrievalMode.HYBRID, List.of(), null, null, List.of(CanonicalField.PUBLIC_ADDRESS),
+                regionFilters, null, versions, new Limits(10, 10, 5, 5, 5), null, PLAN_HASH));
+
+        Map<String, Object> prop = proposal(
+                List.of("place-901", "place-902"),
+                "GENERATED",
+                List.of(
+                        Map.of("placeId", "place-901", "reasonClaims", List.of(
+                                Map.of("claimId", "c1", "text", "첫 번째 이유.", "kind", "POSITIVE", "evidenceIds", List.of("e1")),
+                                Map.of("claimId", "c2", "text", "두 번째 이유.", "kind", "POSITIVE", "evidenceIds", List.of("e1")))),
+                        place("place-902", "c3", "e2")));
+        prop.put("summaryClaims", List.of(
+                Map.of("claimId", "s1", "text", "전주 한옥마을 핵심 2곳 요약", "kind", "POSITIVE", "evidenceIds", List.of("e1", "e2"))));
+
+        JourneyWorkerPlan plan = checkerMapper.map(
+                regionBinding,
+                result(prop, evidence(
+                        List.of("place-901", "place-902"),
+                        List.of(ev("e1", "ch1", "place-901"), ev("e2", "ch2", "place-902")))),
+                emptyCandidates);
+
+        assertThat(plan.orderedRefs()).containsExactly("place-901", "place-902");
+        assertThat(plan.outcome()).isEqualTo("PROPOSAL");
+        assertThat(plan.placeReasons()).containsEntry("place-901", "첫 번째 이유. 두 번째 이유.")
+                .containsEntry("place-902", "근거 문장");
+        assertThat(plan.summaryText()).isEqualTo("전주 한옥마을 핵심 2곳 요약");
+    }
+
+    @Test
+    void rejectsIneligiblePlaceReturnedByEligibilityChecker() {
+        var checkerMapper = new ValidatingExecutionResultMapper((placeIds, approvedFilters) -> java.util.Set.of("place-901"));
+        var emptyCandidates = new CandidatePayload("rev-1", List.of());
+
+        var res = result(
+                proposal(List.of("place-901", "place-hidden"), "GENERATED", List.of(
+                        place("place-901", "c1", "e1"),
+                        place("place-hidden", "c2", "e2"))),
+                evidence(List.of("place-901", "place-hidden"), List.of(
+                        ev("e1", "ch1", "place-901"),
+                        ev("e2", "ch2", "place-hidden"))));
+
+        assertThatThrownBy(() -> checkerMapper.map(binding(filters(null, List.of())), res, emptyCandidates))
+                .isInstanceOfSatisfying(AiProposalException.class,
+                        e -> assertThat(e.degradedReason()).isEqualTo(WorkerDegradedReason.AI_INVALID_RESPONSE));
+    }
+
     private static void assertRejected(ApprovedPlanBinding binding, ExecutionResult result) {
         assertThatThrownBy(() -> new ValidatingExecutionResultMapper().map(binding, result, new CandidatePayload(
                 "rev-1", List.of(new JourneyCandidate("place-1"), new JourneyCandidate("place-2"), new JourneyCandidate("place-3")))))

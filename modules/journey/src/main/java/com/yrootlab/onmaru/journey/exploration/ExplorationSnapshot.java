@@ -8,5 +8,15 @@ public record ExplorationSnapshot(
         int stateVersion,
         String regionCode,
         ExplorationRun run,
-        Instant updatedAt) {
+        Instant updatedAt,
+        PersistedExplorationBoard board) {
+
+    public ExplorationSnapshot(
+            UUID explorationId,
+            int stateVersion,
+            String regionCode,
+            ExplorationRun run,
+            Instant updatedAt) {
+        this(explorationId, stateVersion, regionCode, run, updatedAt, null);
+    }
 }

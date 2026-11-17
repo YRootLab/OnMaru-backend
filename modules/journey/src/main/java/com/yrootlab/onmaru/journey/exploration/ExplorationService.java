@@ -114,7 +114,7 @@ public final class ExplorationService {
         if (result.changed()) {
             actionStates.put(explorationId, result.state());
             store.update(new ExplorationState(
-                    state.id(), state.owner(), result.state().stateVersion(), state.regionCode(), state.latestRun(), clock.instant()));
+                    state.id(), state.owner(), result.state().stateVersion(), state.regionCode(), state.latestRun(), clock.instant(), state.board()));
         }
         return result;
     }
