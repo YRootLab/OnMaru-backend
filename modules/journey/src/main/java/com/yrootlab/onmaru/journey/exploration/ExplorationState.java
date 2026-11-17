@@ -9,9 +9,20 @@ public record ExplorationState(
         int stateVersion,
         String regionCode,
         ExplorationRun latestRun,
-        Instant updatedAt) {
+        Instant updatedAt,
+        PersistedExplorationBoard board) {
+
+    public ExplorationState(
+            UUID id,
+            ExplorationActor owner,
+            int stateVersion,
+            String regionCode,
+            ExplorationRun latestRun,
+            Instant updatedAt) {
+        this(id, owner, stateVersion, regionCode, latestRun, updatedAt, null);
+    }
 
     ExplorationSnapshot snapshot() {
-        return new ExplorationSnapshot(id, stateVersion, regionCode, latestRun, updatedAt);
+        return new ExplorationSnapshot(id, stateVersion, regionCode, latestRun, updatedAt, board);
     }
 }

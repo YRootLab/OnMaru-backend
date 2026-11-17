@@ -5,8 +5,11 @@ import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.integration.ai.AiIntegrationProperties;
 import com.yrootlab.onmaru.integration.ai.HttpAiProposalClient;
 import com.yrootlab.onmaru.integration.ai.HttpAiPlanExecuteClient;
+import com.yrootlab.onmaru.integration.ai.plan.AiPlanVersionsProperties;
 import com.yrootlab.onmaru.integration.ai.plan.AiPlanWireCodec;
+import com.yrootlab.onmaru.integration.ai.plan.ConfigurableCurrentVersions;
 import com.yrootlab.onmaru.integration.ai.plan.DefaultPlanAuthorityGate;
+import com.yrootlab.onmaru.integration.ai.plan.DefaultSafeQueryFactory;
 import com.yrootlab.onmaru.journey.worker.plan.AiPlanExecuteClient;
 import com.yrootlab.onmaru.journey.worker.plan.PlanAuthorityGate;
 import com.yrootlab.onmaru.journey.worker.plan.PlanExecuteAiProposalClient;
@@ -18,6 +21,8 @@ import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenSigner;
 import com.yrootlab.onmaru.journey.run.JourneyRunStore;
 import com.yrootlab.onmaru.journey.events.JourneyRunEventSink;
 import com.yrootlab.onmaru.journey.cancellation.JourneyRunCancellationService;
+import com.yrootlab.onmaru.persistence.catalog.journey.JdbcPublicPlaceEligibilityChecker;
+import com.yrootlab.onmaru.persistence.journey.exploration.JdbcExplorationContextReader;
 import com.yrootlab.onmaru.scheduling.run.JourneyRunSweeper;
 import com.yrootlab.onmaru.journey.worker.AiProposalClient;
 import com.yrootlab.onmaru.journey.worker.BaselinePlanner;
@@ -61,7 +66,7 @@ import java.time.Duration;
 import java.util.Locale;
 
 @Configuration
-@EnableConfigurationProperties(AiIntegrationProperties.class)
+@EnableConfigurationProperties({AiIntegrationProperties.class, AiPlanVersionsProperties.class})
 class JourneyWorkerConfiguration {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JourneyWorkerConfiguration.class);
@@ -183,12 +188,51 @@ class JourneyWorkerConfiguration {
                 codec, properties.baseUrl(), secrets, properties.timeout(), clock);
     }
 
-    /** Pure validator with no I/O; the AI result is always re-checked against the approved plan and candidates. */
+    @Bean
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnMissingBean(ExplorationContextReader.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    ExplorationContextReader explorationContextReader(
+            DataSource dataSource,
+            ObjectProvider<ObjectMapper> objectMapperProvider) {
+        return new JdbcExplorationContextReader(
+                dataSource,
+                objectMapperProvider.getIfAvailable(ObjectMapper::new));
+    }
+
+    @Bean
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnMissingBean(CurrentVersions.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    CurrentVersions currentVersions(AiPlanVersionsProperties properties) {
+        return new ConfigurableCurrentVersions(properties);
+    }
+
+    @Bean
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnMissingBean(SafeQueryFactory.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    SafeQueryFactory safeQueryFactory(
+            ExplorationContextReader contextReader,
+            CurrentVersions versions,
+            AiPlanWireCodec codec) {
+        return new DefaultSafeQueryFactory(contextReader, versions, codec);
+    }
+
+    @Bean
+    @ConditionalOnBean(DataSource.class)
+    @ConditionalOnMissingBean(PublicPlaceEligibilityChecker.class)
+    @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
+    PublicPlaceEligibilityChecker publicPlaceEligibilityChecker(DataSource dataSource) {
+        return new JdbcPublicPlaceEligibilityChecker(dataSource);
+    }
+
+    /** Re-validates the AI execution result against the approved plan, cited evidence, and live public catalog. */
     @Bean
     @ConditionalOnMissingBean(ExecutionResultMapper.class)
     @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
-    ExecutionResultMapper executionResultMapper() {
-        return new ValidatingExecutionResultMapper();
+    ExecutionResultMapper executionResultMapper(ObjectProvider<PublicPlaceEligibilityChecker> eligibilityChecker) {
+        return new ValidatingExecutionResultMapper(eligibilityChecker.getIfAvailable());
     }
 
     @Bean

@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.persistence.journey.exploration;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.journey.exploration.ExplorationActor;
 import com.yrootlab.onmaru.journey.exploration.ExplorationActorType;
@@ -14,6 +15,7 @@ import com.yrootlab.onmaru.journey.exploration.ExplorationStore;
 import com.yrootlab.onmaru.journey.exploration.ExplorationSummary;
 import com.yrootlab.onmaru.journey.exploration.ExplorationTurn;
 import com.yrootlab.onmaru.journey.exploration.ExplorationTurnPage;
+import com.yrootlab.onmaru.journey.exploration.PersistedExplorationBoard;
 import com.yrootlab.onmaru.journey.exploration.StoredExplorationTurn;
 import com.yrootlab.onmaru.journey.exploration.TurnResponse;
 
@@ -77,6 +79,8 @@ public final class JdbcExplorationStore implements ExplorationStore {
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
                      SELECT e.id, e.owner_member_id, e.owner_guest_id, e.state_version, e.region_id,
+                            e.board::text AS board_json,
+                            latest_turn.region_code AS region_code,
                             e.expires_at, e.deleted_at, e.created_at, e.updated_at,
                             r.id AS run_id, r.status AS run_status, r.engine AS run_engine,
                             r.stage AS run_stage, r.outcome AS run_outcome,
@@ -89,6 +93,12 @@ public final class JdbcExplorationStore implements ExplorationStore {
                          ORDER BY created_at DESC
                          LIMIT 1
                      ) r ON true
+                     LEFT JOIN LATERAL (
+                         SELECT region_code FROM onmaru.discovery_turns
+                         WHERE exploration_id = e.id
+                         ORDER BY created_at DESC, id DESC
+                         LIMIT 1
+                     ) latest_turn ON true
                      WHERE e.id = ? AND e.deleted_at IS NULL
                      """)) {
             statement.setObject(1, explorationId);
@@ -604,6 +614,8 @@ public final class JdbcExplorationStore implements ExplorationStore {
         var guestId = (UUID) rs.getObject("owner_guest_id");
         var actor = memberId != null ? ExplorationActor.member(memberId) : ExplorationActor.guest(guestId.toString());
         var stateVersion = rs.getInt("state_version");
+        var regionCode = rs.getString("region_code");
+        var board = parseBoard(rs.getString("board_json"));
         var updatedAt = rs.getTimestamp("updated_at").toInstant();
 
         ExplorationRun run = null;
@@ -625,7 +637,48 @@ public final class JdbcExplorationStore implements ExplorationStore {
             );
         }
 
-        return new ExplorationState(id, actor, stateVersion, null, run, updatedAt);
+        return new ExplorationState(id, actor, stateVersion, regionCode, run, updatedAt, board);
+    }
+
+    private PersistedExplorationBoard parseBoard(String boardJson) {
+        if (boardJson == null || boardJson.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(boardJson);
+            if (!root.isObject()) {
+                return null;
+            }
+            String engine = nullableText(root.get("engine"));
+            String degradedReason = nullableText(root.get("degradedReason"));
+            String outcome = nullableText(root.get("outcome"));
+            var orderedRefs = new ArrayList<String>();
+            JsonNode refsNode = root.get("orderedRefs");
+            if (refsNode != null && refsNode.isArray()) {
+                for (JsonNode item : refsNode) {
+                    if (item.isTextual() && !item.asText().isBlank()) {
+                        orderedRefs.add(item.asText());
+                    }
+                }
+            }
+            var placeReasons = new java.util.LinkedHashMap<String, String>();
+            JsonNode reasonsNode = root.get("placeReasons");
+            if (reasonsNode != null && reasonsNode.isObject()) {
+                for (var entry : reasonsNode.properties()) {
+                    if (entry.getValue().isTextual() && !entry.getValue().asText().isBlank()) {
+                        placeReasons.put(entry.getKey(), entry.getValue().asText());
+                    }
+                }
+            }
+            String summaryText = nullableText(root.get("summaryText"));
+            return new PersistedExplorationBoard(engine, degradedReason, outcome, orderedRefs, placeReasons, summaryText);
+        } catch (JsonProcessingException ignored) {
+            return null;
+        }
+    }
+
+    private static String nullableText(JsonNode node) {
+        return node != null && node.isTextual() && !node.asText().isBlank() ? node.asText() : null;
     }
 
     private StoredExplorationTurn mapTurn(ResultSet rs) throws SQLException {
