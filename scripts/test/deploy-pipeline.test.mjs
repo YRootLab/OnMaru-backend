@@ -270,14 +270,17 @@ describe('container and staging release pipeline', () => {
     assert.match(productionAi, /Staging AI is running/);
   });
 
-  it('runs release and CI workflows from the master production branch', () => {
-    const releasePlease = read('.github/workflows/release-please.yml');
+  it('keeps release automation disabled and scopes release policy and CI to master', () => {
     const ci = read('.github/workflows/ci.yml');
+    const releasePolicy = read('.github/workflows/release-version-policy.yml');
 
-    for (const workflow of [releasePlease, ci]) {
+    assert.equal(existsSync(join(root, '.github/workflows/release-please.yml')), false);
+
+    for (const workflow of [ci, releasePolicy]) {
       assert.match(workflow, /branches:\n(?:\s+- develop\n)?\s+- master/);
       assert.doesNotMatch(workflow, /branches:\n(?:\s+- .+\n)*\s+- main/);
     }
+    assert.match(releasePolicy, /contents: read/);
   });
 
   it('applies the verified Gradle profile to Spring image and migration builds without dropping outer caches', () => {

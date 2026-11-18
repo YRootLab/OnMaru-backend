@@ -51,7 +51,7 @@
 ## Git Flow Branch Policy
 
 - Integration branch: `develop`.
-- Production branch: `master` (repository default branch; the historical `main` branch was retired on 2026-09-19 — CI, Release Please, and Staging Deploy all trigger from `master` now).
+- Production branch: `master` (repository default branch; the historical `main` branch was retired on 2026-09-19 — CI and Staging Deploy trigger from `master` now).
 - Work branches: `feature/*`, `fix/*`, and `docs/*` merge into `develop` by Pull Request.
 - Release branches: cut from the latest `develop`, receive forward changes from `develop` through a Pull Request, then merge into `master`.
 - Normal release promotion is one-way: `develop` → `release/*` → `master`. Do not reverse-merge `master` or `release/*` into `develop` as part of ordinary release work.
@@ -66,16 +66,16 @@
 
 ## Release Policy
 
-- Release mode: Release Please release PR.
+- Release mode: manually prepared release PR and tag.
 - Release source: `master` after a successful release merge.
-- Commit style: Conventional Commits for release note and version inference.
+- Commit style: Conventional Commits as source material for maintainers to curate release notes.
 - Changelog: `CHANGELOG.md`.
 - Release tags: semantic version tags such as `v0.3.2`.
-- Release flow: accumulate feature/fix/docs PRs in `develop`, cut `release/<version>` from `develop`, open a forward sync PR from `develop` whenever the release branch is behind, validate staging, merge the release branch into `master`, and let Release Please create or update release metadata. Release Please currently requires an organization-level Actions setting change to open its PR (see Issue #277).
+- Release flow: accumulate feature/fix/docs PRs in `develop`, cut `release/<version>` from `develop`, open a forward sync PR from `develop` whenever the release branch is behind, validate staging, and merge the release branch into `master`. After the `verify` CI check passes on the exact `master` commit, a maintainer manually creates the approved semantic version tag and GitHub Release with curated notes. No automation may create or update release tags or release PRs.
 - Release version policy: the release PR must use the next patch version after the highest existing semantic tag unless an explicitly approved major/minor release decision is recorded. CI validates `release/vX.Y.Z` against the latest tag; historical tag gaps are not backfilled.
 - Release workflows must use least-privilege permissions and concurrency controls.
 - Generated artifacts must be rebuilt and verified before release when the project starts generating code, schema, SDKs, or bundles.
-- CI must pass before any tag or GitHub Release is created.
+- CI must pass before any tag or GitHub Release is created; create both from the exact verified `master` commit.
 
 ## GitHub Controls
 
