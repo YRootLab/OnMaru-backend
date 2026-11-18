@@ -179,6 +179,133 @@ class JdbcDurableExplorationWorkerTests {
         assertThat(queue.poll().map(JourneyWorkerRequest::runId)).isPresent();
     }
 
+    @Test
+    void multiTurnWithPinExcludeAndRestartPersistsBaseVersionAndSafeContext() throws Exception {
+        var mapper = new ObjectMapper();
+        var actionService = new com.yrootlab.onmaru.journey.actions.JourneyActionService(
+                clock, ref -> true);
+        var store = new JdbcExplorationStore(dataSource, mapper);
+        var dispatcher = new InMemoryExplorationRunDispatcher();
+        var explorations = new ExplorationService(
+                store, dispatcher, clock, (a, s) -> s.owner().equals(a),
+                com.yrootlab.onmaru.journey.events.JourneyRunEventSink.noop(), actionService);
+
+        // Turn 1
+        var turn1 = explorations.create(actor, new CreateExplorationCommand(QUERY, "ko-KR", "kr-45-jeonju"));
+        var llmClient = new com.yrootlab.onmaru.journey.worker.AiProposalClient() {
+            @Override
+            public boolean requiresCandidatePreload() {
+                return false;
+            }
+
+            @Override
+            public JourneyWorkerPlan propose(JourneyWorkerRequest req, com.yrootlab.onmaru.journey.worker.CandidatePayload payload) {
+                return new JourneyWorkerPlan(
+                        List.of("p-hanok-1", "p-cafe-2"),
+                        "PROPOSAL",
+                        java.util.Map.of("p-hanok-1", "대표 한옥"),
+                        "전주 추천 코스");
+            }
+        };
+        var llmWorker = new JourneyWorkerService(
+                new JdbcJourneyRunStore(dataSource),
+                new InMemoryJourneyCandidateProvider(),
+                llmClient,
+                payload -> new JourneyWorkerPlan(List.of(), "INITIAL_BOARD"),
+                new JdbcJourneyResultStore(dataSource, clock),
+                event -> { },
+                com.yrootlab.onmaru.journey.events.JourneyRunEventSink.noop(),
+                clock);
+        var drain1 = new JourneyWorkerRunner(new JdbcJourneyWorkerQueue(dataSource, clock), llmWorker::process).drain();
+        assertThat(drain1.outcomes()).containsExactly(com.yrootlab.onmaru.journey.worker.JourneyWorkerOutcome.COMPLETED_LLM);
+
+        // Simulate server restart before PIN / EXCLUDE actions
+        var restartedService = new ExplorationService(
+                new JdbcExplorationStore(dataSource, mapper), dispatcher, clock, (a, s) -> s.owner().equals(a),
+                com.yrootlab.onmaru.journey.events.JourneyRunEventSink.noop(), actionService);
+        var pinned = restartedService.applyAction(
+                actor, turn1.explorationId(), 1,
+                new com.yrootlab.onmaru.journey.actions.ResourceAction(
+                        com.yrootlab.onmaru.journey.actions.ActionType.PIN,
+                        new com.yrootlab.onmaru.journey.actions.ResourceRef("PLACE", "p-hanok-1")));
+        assertThat(pinned.state().stateVersion()).isEqualTo(2);
+
+        var excluded = restartedService.applyAction(
+                actor, turn1.explorationId(), 2,
+                new com.yrootlab.onmaru.journey.actions.ResourceAction(
+                        com.yrootlab.onmaru.journey.actions.ActionType.EXCLUDE,
+                        new com.yrootlab.onmaru.journey.actions.ResourceRef("PLACE", "p-cafe-2")));
+        assertThat(excluded.state().stateVersion()).isEqualTo(3);
+
+        // Verify persisted safe context before Turn 2
+        var contextReader = new com.yrootlab.onmaru.persistence.journey.exploration.JdbcExplorationContextReader(
+                dataSource, mapper);
+        var context = contextReader.read(turn1.explorationId());
+        assertThat(context.pinnedPlaceIds()).containsExactly("p-hanok-1");
+        assertThat(context.excludedPlaceIds()).containsExactly("p-cafe-2");
+        assertThat(context.lastConfirmedPlaceIds()).containsExactly("p-hanok-1", "p-cafe-2");
+
+        // Turn 2
+        var turn2 = restartedService.createTurn(
+                actor,
+                turn1.explorationId(),
+                new com.yrootlab.onmaru.journey.exploration.CreateExplorationTurnCommand(
+                        UUID.randomUUID(), 3, "여유로운 코스 추가해줘", null, null));
+        assertThat(turn2.run().status()).isEqualTo(ExplorationRunStatus.QUEUED);
+
+        var queue = new JdbcJourneyWorkerQueue(dataSource, clock);
+        var polledTurn2 = queue.poll().orElseThrow();
+        assertThat(polledTurn2.baseVersion()).isEqualTo(3);
+
+        var drain2 = new JourneyWorkerRunner(new JdbcJourneyWorkerQueue(dataSource, clock), llmWorker::process).drain();
+        assertThat(drain2.outcomes()).containsExactly(com.yrootlab.onmaru.journey.worker.JourneyWorkerOutcome.COMPLETED_LLM);
+
+        var finalLoaded = new JdbcExplorationStore(dataSource, mapper).find(turn1.explorationId()).orElseThrow();
+        assertThat(finalLoaded.stateVersion()).isEqualTo(4);
+        assertThat(finalLoaded.pinnedRefs()).extracting(com.yrootlab.onmaru.journey.actions.ResourceRef::id)
+                .containsExactly("p-hanok-1");
+        assertThat(finalLoaded.excludedRefs()).extracting(com.yrootlab.onmaru.journey.actions.ResourceRef::id)
+                .containsExactly("p-cafe-2");
+    }
+
+    @Test
+    void clarificationRequiredRunPersistsClarificationAcrossRestartAndAllowsFollowUpAnswerTurn() throws Exception {
+        var mapper = new ObjectMapper();
+        var store = new JdbcExplorationStore(dataSource, mapper);
+        var dispatcher = new InMemoryExplorationRunDispatcher();
+        var explorations = new ExplorationService(store, dispatcher, clock);
+
+        var created = explorations.create(actor, new CreateExplorationCommand(QUERY, "ko-KR", "kr-45-jeonju"));
+        var clarification = new com.yrootlab.onmaru.journey.exploration.ExplorationClarification(
+                "CHOOSE_TARGET", "AMBIGUOUS_TARGET", "어느 장소를 기준으로 추천할까요?", true);
+        var clarifyWorker = new JourneyWorkerService(
+                new JdbcJourneyRunStore(dataSource),
+                new InMemoryJourneyCandidateProvider(),
+                (req, payload) -> JourneyWorkerPlan.clarificationRequired(clarification),
+                payload -> new JourneyWorkerPlan(List.of(), "INITIAL_BOARD"),
+                new JdbcJourneyResultStore(dataSource, clock),
+                event -> { },
+                com.yrootlab.onmaru.journey.events.JourneyRunEventSink.noop(),
+                clock);
+        var drain = new JourneyWorkerRunner(new JdbcJourneyWorkerQueue(dataSource, clock), clarifyWorker::process).drain();
+        assertThat(drain.outcomes()).containsExactly(com.yrootlab.onmaru.journey.worker.JourneyWorkerOutcome.COMPLETED_LLM);
+
+        var restartedService = new ExplorationService(new JdbcExplorationStore(dataSource, mapper), dispatcher, clock);
+        var snapshot = restartedService.get(actor, created.explorationId());
+        assertThat(snapshot.stateVersion()).isZero();
+        assertThat(snapshot.run().status()).isEqualTo(ExplorationRunStatus.COMPLETED);
+        assertThat(snapshot.run().outcome())
+                .isEqualTo(com.yrootlab.onmaru.journey.exploration.ExplorationRunOutcome.CLARIFICATION_REQUIRED);
+        assertThat(snapshot.run().clarification()).isEqualTo(clarification);
+
+        var followUp = restartedService.createTurn(
+                actor,
+                created.explorationId(),
+                new com.yrootlab.onmaru.journey.exploration.CreateExplorationTurnCommand(
+                        UUID.randomUUID(), 0, "경기전 기준으로 추천해줘", "kr-45-jeonju", "CHOOSE_TARGET"));
+        assertThat(followUp.run().status()).isEqualTo(ExplorationRunStatus.QUEUED);
+    }
+
     private JourneyWorkerService workerService() {
         var candidates = new InMemoryJourneyCandidateProvider();
         return new JourneyWorkerService(

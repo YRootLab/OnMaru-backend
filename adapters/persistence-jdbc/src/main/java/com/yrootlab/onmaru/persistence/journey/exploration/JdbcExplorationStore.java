@@ -3,8 +3,10 @@ package com.yrootlab.onmaru.persistence.journey.exploration;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yrootlab.onmaru.journey.actions.ResourceRef;
 import com.yrootlab.onmaru.journey.exploration.ExplorationActor;
 import com.yrootlab.onmaru.journey.exploration.ExplorationActorType;
+import com.yrootlab.onmaru.journey.exploration.ExplorationClarification;
 import com.yrootlab.onmaru.journey.exploration.ExplorationNotFoundException;
 import com.yrootlab.onmaru.journey.exploration.ExplorationPage;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRun;
@@ -53,7 +55,7 @@ public final class JdbcExplorationStore implements ExplorationStore {
             try {
                 insertExploration(connection, state, query, createdAt);
                 if (state.latestRun() != null) {
-                    insertRun(connection, state.id(), state.owner(), state.latestRun());
+                    insertRun(connection, state.id(), state.owner(), state.latestRun(), state.stateVersion());
                 }
                 insertTurn(connection, state.id(), new StoredExplorationTurn(
                         initialTurnId,
@@ -80,10 +82,13 @@ public final class JdbcExplorationStore implements ExplorationStore {
              var statement = connection.prepareStatement("""
                      SELECT e.id, e.owner_member_id, e.owner_guest_id, e.state_version, e.region_id,
                             e.board::text AS board_json,
+                            e.pinned_refs::text AS pinned_json,
+                            e.excluded_refs::text AS excluded_json,
                             latest_turn.region_code AS region_code,
                             e.expires_at, e.deleted_at, e.created_at, e.updated_at,
                             r.id AS run_id, r.status AS run_status, r.engine AS run_engine,
                             r.stage AS run_stage, r.outcome AS run_outcome,
+                            r.clarification::text AS run_clarification,
                             r.created_at AS run_created_at, r.started_at AS run_started_at,
                             r.deadline_at AS run_deadline_at
                      FROM onmaru.discovery_explorations e
@@ -121,6 +126,7 @@ public final class JdbcExplorationStore implements ExplorationStore {
                             t.clarification_id, t.created_at,
                             r.id AS run_id, r.status AS run_status, r.engine AS run_engine,
                             r.stage AS run_stage, r.outcome AS run_outcome,
+                            r.clarification::text AS run_clarification,
                             r.created_at AS run_created_at, r.started_at AS run_started_at,
                             r.deadline_at AS run_deadline_at
                      FROM onmaru.discovery_turns t
@@ -147,7 +153,7 @@ public final class JdbcExplorationStore implements ExplorationStore {
             try {
                 if (turn.run() != null) {
                     var actor = findOwner(connection, explorationId);
-                    insertRun(connection, explorationId, actor, turn.run());
+                    insertRun(connection, explorationId, actor, turn.run(), turn.baseVersion());
                 }
                 insertTurn(connection, explorationId, turn);
                 connection.commit();
@@ -165,12 +171,14 @@ public final class JdbcExplorationStore implements ExplorationStore {
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
                      UPDATE onmaru.discovery_explorations
-                     SET state_version = ?, updated_at = ?
+                     SET state_version = ?, pinned_refs = ?::jsonb, excluded_refs = ?::jsonb, updated_at = ?
                      WHERE id = ? AND deleted_at IS NULL
                      """)) {
             statement.setInt(1, state.stateVersion());
-            statement.setTimestamp(2, Timestamp.from(state.updatedAt()));
-            statement.setObject(3, state.id());
+            statement.setString(2, serializeRefs(state.pinnedRefs()));
+            statement.setString(3, serializeRefs(state.excludedRefs()));
+            statement.setTimestamp(4, Timestamp.from(state.updatedAt()));
+            statement.setObject(5, state.id());
             statement.executeUpdate();
         } catch (SQLException exception) {
             throw new RuntimeException("Failed to update exploration state", exception);
@@ -443,7 +451,7 @@ public final class JdbcExplorationStore implements ExplorationStore {
                     id, owner_member_id, owner_guest_id, state_version,
                     pinned_refs, excluded_refs, expires_at, created_at, updated_at,
                     title, last_user_query_preview
-                ) VALUES (?, ?, ?, ?, '[]'::jsonb, '[]'::jsonb, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?)
                 """)) {
             statement.setObject(1, state.id());
             if (state.owner().type() == ExplorationActorType.MEMBER) {
@@ -454,15 +462,17 @@ public final class JdbcExplorationStore implements ExplorationStore {
                 statement.setObject(3, UUID.fromString(state.owner().subject()));
             }
             statement.setInt(4, state.stateVersion());
+            statement.setString(5, serializeRefs(state.pinnedRefs()));
+            statement.setString(6, serializeRefs(state.excludedRefs()));
             if (expiresAt != null) {
-                statement.setTimestamp(5, Timestamp.from(expiresAt));
+                statement.setTimestamp(7, Timestamp.from(expiresAt));
             } else {
-                statement.setNull(5, Types.TIMESTAMP);
+                statement.setNull(7, Types.TIMESTAMP);
             }
-            statement.setTimestamp(6, Timestamp.from(createdAt));
-            statement.setTimestamp(7, Timestamp.from(state.updatedAt()));
-            statement.setString(8, title);
-            statement.setString(9, preview);
+            statement.setTimestamp(8, Timestamp.from(createdAt));
+            statement.setTimestamp(9, Timestamp.from(state.updatedAt()));
+            statement.setString(10, title);
+            statement.setString(11, preview);
             statement.executeUpdate();
         }
     }
@@ -471,28 +481,36 @@ public final class JdbcExplorationStore implements ExplorationStore {
             Connection connection,
             UUID explorationId,
             ExplorationActor actor,
-            ExplorationRun run) throws SQLException {
+            ExplorationRun run,
+            int baseVersion) throws SQLException {
         try (var statement = connection.prepareStatement("""
                 INSERT INTO onmaru.discovery_runs (
                     id, exploration_id, actor_key, base_version, status, stage, outcome,
-                    created_at, deadline_at, started_at, generation, engine
-                ) VALUES (?, ?, ?, 0, ?::onmaru.discovery_run_status, ?, ?, ?, ?, ?, 1, ?)
+                    clarification, created_at, deadline_at, started_at, generation, engine
+                ) VALUES (?, ?, ?, ?, ?::onmaru.discovery_run_status, ?, ?, ?::jsonb, ?, ?, ?, 1, ?)
                 ON CONFLICT (id) DO NOTHING
                 """)) {
             statement.setObject(1, run.id());
             statement.setObject(2, explorationId);
             statement.setString(3, actor.type().name().toLowerCase() + ":" + actor.subject());
-            statement.setString(4, run.status().name());
-            statement.setString(5, run.stage());
-            statement.setString(6, run.outcome() != null ? run.outcome().name() : null);
-            statement.setTimestamp(7, Timestamp.from(run.createdAt()));
-            statement.setTimestamp(8, Timestamp.from(run.deadlineAt()));
-            if (run.startedAt() != null) {
-                statement.setTimestamp(9, Timestamp.from(run.startedAt()));
+            statement.setInt(4, baseVersion);
+            statement.setString(5, run.status().name());
+            statement.setString(6, run.stage());
+            statement.setString(7, run.outcome() != null ? run.outcome().name() : null);
+            String clarificationJson = serializeClarification(run.clarification());
+            if (clarificationJson != null) {
+                statement.setString(8, clarificationJson);
             } else {
-                statement.setNull(9, Types.TIMESTAMP);
+                statement.setNull(8, Types.VARCHAR);
             }
-            statement.setString(10, run.engine() != null ? run.engine() : "BASELINE");
+            statement.setTimestamp(9, Timestamp.from(run.createdAt()));
+            statement.setTimestamp(10, Timestamp.from(run.deadlineAt()));
+            if (run.startedAt() != null) {
+                statement.setTimestamp(11, Timestamp.from(run.startedAt()));
+            } else {
+                statement.setNull(11, Types.TIMESTAMP);
+            }
+            statement.setString(12, run.engine() != null ? run.engine() : "BASELINE");
             statement.executeUpdate();
         }
     }
@@ -578,7 +596,8 @@ public final class JdbcExplorationStore implements ExplorationStore {
     private Optional<ExplorationRun> findRun(UUID explorationId, UUID runId) {
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
-                     SELECT id, status, engine, stage, outcome, created_at, started_at, deadline_at
+                     SELECT id, status, engine, stage, outcome, clarification::text AS clarification,
+                            created_at, started_at, deadline_at
                      FROM onmaru.discovery_runs
                      WHERE id = ? AND exploration_id = ?
                      """)) {
@@ -589,13 +608,14 @@ public final class JdbcExplorationStore implements ExplorationStore {
                     var status = ExplorationRunStatus.valueOf(rs.getString("status"));
                     var outcomeStr = rs.getString("outcome");
                     var outcome = outcomeStr != null ? ExplorationRunOutcome.valueOf(outcomeStr) : null;
+                    var clarification = parseClarification(rs.getString("clarification"));
                     return Optional.of(new ExplorationRun(
                             runId,
                             status,
                             rs.getString("engine"),
                             rs.getString("stage"),
                             outcome,
-                            null,
+                            clarification,
                             rs.getTimestamp("created_at").toInstant(),
                             rs.getTimestamp("started_at") != null ? rs.getTimestamp("started_at").toInstant() : null,
                             rs.getTimestamp("deadline_at").toInstant()
@@ -616,6 +636,8 @@ public final class JdbcExplorationStore implements ExplorationStore {
         var stateVersion = rs.getInt("state_version");
         var regionCode = rs.getString("region_code");
         var board = parseBoard(rs.getString("board_json"));
+        var pinnedRefs = parseRefs(rs.getString("pinned_json"));
+        var excludedRefs = parseRefs(rs.getString("excluded_json"));
         var updatedAt = rs.getTimestamp("updated_at").toInstant();
 
         ExplorationRun run = null;
@@ -624,20 +646,22 @@ public final class JdbcExplorationStore implements ExplorationStore {
             var status = ExplorationRunStatus.valueOf(rs.getString("run_status"));
             var outcomeStr = rs.getString("run_outcome");
             var outcome = outcomeStr != null ? ExplorationRunOutcome.valueOf(outcomeStr) : null;
+            var clarification = parseClarification(rs.getString("run_clarification"));
             run = new ExplorationRun(
                     runId,
                     status,
                     rs.getString("run_engine"),
                     rs.getString("run_stage"),
                     outcome,
-                    null,
+                    clarification,
                     rs.getTimestamp("run_created_at").toInstant(),
                     rs.getTimestamp("run_started_at") != null ? rs.getTimestamp("run_started_at").toInstant() : null,
                     rs.getTimestamp("run_deadline_at").toInstant()
             );
         }
 
-        return new ExplorationState(id, actor, stateVersion, regionCode, run, updatedAt, board);
+        return new ExplorationState(
+                id, actor, stateVersion, regionCode, run, updatedAt, board, pinnedRefs, excludedRefs);
     }
 
     private PersistedExplorationBoard parseBoard(String boardJson) {
@@ -677,6 +701,77 @@ public final class JdbcExplorationStore implements ExplorationStore {
         }
     }
 
+    private String serializeRefs(List<ResourceRef> refs) {
+        if (refs == null || refs.isEmpty()) {
+            return "[]";
+        }
+        try {
+            return objectMapper.writeValueAsString(refs);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to serialize resource refs", exception);
+        }
+    }
+
+    private List<ResourceRef> parseRefs(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode array = objectMapper.readTree(json);
+            if (!array.isArray()) {
+                return List.of();
+            }
+            var refs = new ArrayList<ResourceRef>();
+            for (JsonNode item : array) {
+                if (item.isObject()) {
+                    String type = item.path("type").asText("PLACE");
+                    String id = item.path("id").asText("");
+                    if ("PLACE".equals(type) && !id.isBlank()) {
+                        refs.add(new ResourceRef("PLACE", id));
+                    }
+                } else if (item.isTextual() && !item.asText().isBlank()) {
+                    refs.add(new ResourceRef("PLACE", item.asText()));
+                }
+            }
+            return List.copyOf(refs);
+        } catch (JsonProcessingException ignored) {
+            return List.of();
+        }
+    }
+
+    private String serializeClarification(ExplorationClarification clarification) {
+        if (clarification == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(clarification);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to serialize exploration clarification", exception);
+        }
+    }
+
+    private ExplorationClarification parseClarification(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            if (!root.isObject()) {
+                return null;
+            }
+            String id = nullableText(root.get("id"));
+            String reason = nullableText(root.get("reason"));
+            String question = nullableText(root.get("question"));
+            if (id == null || reason == null || question == null) {
+                return null;
+            }
+            boolean allowFreeText = root.path("allowFreeText").asBoolean(true);
+            return new ExplorationClarification(id, reason, question, allowFreeText);
+        } catch (JsonProcessingException ignored) {
+            return null;
+        }
+    }
+
     private static String nullableText(JsonNode node) {
         return node != null && node.isTextual() && !node.asText().isBlank() ? node.asText() : null;
     }
@@ -695,13 +790,14 @@ public final class JdbcExplorationStore implements ExplorationStore {
             var status = ExplorationRunStatus.valueOf(rs.getString("run_status"));
             var outcomeStr = rs.getString("run_outcome");
             var outcome = outcomeStr != null ? ExplorationRunOutcome.valueOf(outcomeStr) : null;
+            var clarification = parseClarification(rs.getString("run_clarification"));
             run = new ExplorationRun(
                     runId,
                     status,
                     rs.getString("run_engine"),
                     rs.getString("run_stage"),
                     outcome,
-                    null,
+                    clarification,
                     rs.getTimestamp("run_created_at").toInstant(),
                     rs.getTimestamp("run_started_at") != null ? rs.getTimestamp("run_started_at").toInstant() : null,
                     rs.getTimestamp("run_deadline_at").toInstant()

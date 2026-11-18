@@ -107,21 +107,23 @@ public final class JourneyWorkerService {
             if (!isRunning(request)) {
                 return cancelled(request);
             }
-            // SELECTING_EVIDENCE, GENERATING, and VALIDATING come from AI progress while the AI call is in flight.
-            receipt = advance(request, receipt, JourneyRunStage.RETRIEVING, JourneyRunStage.PERSISTING);
-            var persistResult = resultStore.persist(new PersistJourneyResultCommand(
-                    request.runId(),
-                    request.explorationId(),
-                    request.baseVersion(),
-                    engine,
-                    degradedReason,
-                    plan.orderedRefs(),
-                    plan.outcome(),
-                    plan.placeReasons(),
-                    plan.summaryText()));
-            if (persistResult != PersistJourneyResultResult.PERSISTED) {
-                recordLateDiscard(request, persistResult);
-                return JourneyWorkerOutcome.DISCARDED_LATE_RESULT;
+            if (!"CLARIFICATION_REQUIRED".equals(plan.outcome())) {
+                // SELECTING_EVIDENCE, GENERATING, and VALIDATING come from AI progress while the AI call is in flight.
+                receipt = advance(request, receipt, JourneyRunStage.RETRIEVING, JourneyRunStage.PERSISTING);
+                var persistResult = resultStore.persist(new PersistJourneyResultCommand(
+                        request.runId(),
+                        request.explorationId(),
+                        request.baseVersion(),
+                        engine,
+                        degradedReason,
+                        plan.orderedRefs(),
+                        plan.outcome(),
+                        plan.placeReasons(),
+                        plan.summaryText()));
+                if (persistResult != PersistJourneyResultResult.PERSISTED) {
+                    recordLateDiscard(request, persistResult);
+                    return JourneyWorkerOutcome.DISCARDED_LATE_RESULT;
+                }
             }
 
             if (!isRunning(request)) {
@@ -136,7 +138,8 @@ public final class JourneyWorkerService {
                     JourneyRunStatus.COMPLETED,
                     plan.outcome(),
                     null,
-                    clock.instant()));
+                    clock.instant(),
+                    plan.clarification()));
             eventSink.terminal(request.runId(), "COMPLETED", plan.outcome());
             recordCompleted(request, engine, degradedReason);
             return engine == JourneyResultEngine.BASELINE
