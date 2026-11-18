@@ -65,6 +65,124 @@ class PlanExecuteAiProposalClientTests {
                         exception -> assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE));
     }
 
+    @Test void clarifyOrScopeReturnsClarificationWithoutIssuingCapabilitiesOrExecuting() throws Exception {
+        var fixture = fixture();
+        var unsignedClarify = new PlanProposal(
+                "ai-plan-proposal.v1",
+                "ai-query-plan.v1",
+                fixture.safe().runId(),
+                Route.CLARIFY_OR_SCOPE,
+                RetrievalMode.NONE,
+                List.of("AMBIGUOUS_TARGET"),
+                new QuestionFrame("RECOMMEND", List.of(), List.of("QUIET")),
+                new RetrievalExpression(List.of("QUIET"), List.of(), List.of()),
+                List.of(),
+                fixture.safe().authorityBounds().filters(),
+                null,
+                fixture.safe().versions(),
+                fixture.safe().limits(),
+                new Clarification("AMBIGUOUS_TARGET", "CHOOSE_TARGET"),
+                "sha256:" + "0".repeat(64));
+        String clarifyHash = codec.planHash(unsignedClarify);
+        var clarifyPlan = new PlanProposal(
+                unsignedClarify.schemaVersion(),
+                unsignedClarify.planVersion(),
+                unsignedClarify.runId(),
+                unsignedClarify.route(),
+                unsignedClarify.retrievalMode(),
+                unsignedClarify.reasonCodes(),
+                unsignedClarify.questionFrame(),
+                unsignedClarify.retrievalExpression(),
+                unsignedClarify.requestedCanonicalFields(),
+                unsignedClarify.proposedFilters(),
+                unsignedClarify.semanticQuery(),
+                unsignedClarify.versions(),
+                unsignedClarify.limits(),
+                unsignedClarify.clarification(),
+                clarifyHash);
+
+        var client = new PlanExecuteAiProposalClient(
+                new AiPlanExecuteClient() {
+                    @Override public PlanProposal plan(SafeQueryRequest request, CallContext context) { return clarifyPlan; }
+                    @Override public ExecutionResult execute(ApprovedQueryPlan request, CallContext context, String token) {
+                        throw new AssertionError("execute must not run on CLARIFY_OR_SCOPE");
+                    }
+                },
+                new DefaultPlanAuthorityGate(codec),
+                (request, candidates) -> fixture.safe(),
+                () -> fixture.safe().versions(),
+                (binding, deadline) -> { throw new AssertionError("bind must not run on CLARIFY_OR_SCOPE"); },
+                (binding, deadline) -> { throw new AssertionError("grant must not run on CLARIFY_OR_SCOPE"); },
+                (binding, deadline) -> { throw new AssertionError("progress must not run on CLARIFY_OR_SCOPE"); },
+                (binding, result, candidates) -> { throw new AssertionError("mapper must not run on CLARIFY_OR_SCOPE"); },
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        var plan = client.propose(request(fixture.safe().runId()), new CandidatePayload("corpus-1", List.of()));
+        assertThat(plan.outcome()).isEqualTo("CLARIFICATION_REQUIRED");
+        assertThat(plan.orderedRefs()).isEmpty();
+        assertThat(plan.clarification()).isNotNull();
+        assertThat(plan.clarification().id()).isEqualTo("CHOOSE_TARGET");
+        assertThat(plan.clarification().reason()).isEqualTo("AMBIGUOUS_TARGET");
+    }
+
+    @Test void boundedReservationMapEvictsOldestAfterTenThousandRunsWhileBlockingRecentDuplicates() throws Exception {
+        var fixture = fixture();
+        var client = new PlanExecuteAiProposalClient(
+                new AiPlanExecuteClient() {
+                    @Override public PlanProposal plan(SafeQueryRequest request, CallContext context) {
+                        return new PlanProposal(
+                                fixture.plan().schemaVersion(), fixture.plan().planVersion(), request.runId(),
+                                fixture.plan().route(), fixture.plan().retrievalMode(), fixture.plan().reasonCodes(),
+                                fixture.plan().questionFrame(), fixture.plan().retrievalExpression(),
+                                fixture.plan().requestedCanonicalFields(), fixture.plan().proposedFilters(),
+                                fixture.plan().semanticQuery(), fixture.plan().versions(), fixture.plan().limits(),
+                                fixture.plan().clarification(),
+                                codec.planHash(new PlanProposal(
+                                        fixture.plan().schemaVersion(), fixture.plan().planVersion(), request.runId(),
+                                        fixture.plan().route(), fixture.plan().retrievalMode(), fixture.plan().reasonCodes(),
+                                        fixture.plan().questionFrame(), fixture.plan().retrievalExpression(),
+                                        fixture.plan().requestedCanonicalFields(), fixture.plan().proposedFilters(),
+                                        fixture.plan().semanticQuery(), fixture.plan().versions(), fixture.plan().limits(),
+                                        fixture.plan().clarification(), fixture.plan().planHash())));
+                    }
+                    @Override public ExecutionResult execute(ApprovedQueryPlan request, CallContext context, String token) {
+                        return new ExecutionResult("ai-execute-result.v1", request.runId(), request.approvedPlanHash(),
+                                request.versions(), null, null);
+                    }
+                },
+                new DefaultPlanAuthorityGate(codec),
+                (request, candidates) -> new SafeQueryRequest(
+                        fixture.safe().schemaVersion(), request.runId(), fixture.safe().safeQuery(),
+                        fixture.safe().confirmedContext(), fixture.safe().authorityBounds(),
+                        fixture.safe().versions(), fixture.safe().limits()),
+                () -> fixture.safe().versions(),
+                (binding, deadline) -> { },
+                (binding, deadline) -> "opaque-grant",
+                (binding, deadline) -> "progress-token",
+                (binding, execution, candidates) -> new JourneyWorkerPlan(List.of("place-1"), "PROPOSAL"),
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        UUID firstRunId = UUID.randomUUID();
+        assertThat(client.propose(request(firstRunId), new CandidatePayload("corpus-1", List.of())).outcome())
+                .isEqualTo("PROPOSAL");
+
+        UUID latestRunId = firstRunId;
+        for (int i = 0; i < 10_005; i++) {
+            latestRunId = UUID.randomUUID();
+            assertThat(client.propose(request(latestRunId), new CandidatePayload("corpus-1", List.of())).outcome())
+                    .isEqualTo("PROPOSAL");
+        }
+
+        UUID duplicateRecentRunId = latestRunId;
+        assertThatThrownBy(() -> client.propose(request(duplicateRecentRunId), new CandidatePayload("corpus-1", List.of())))
+                .isInstanceOfSatisfying(AiProposalException.class,
+                        exception -> assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE));
+
+        // Oldest runId was evicted after exceeding 10,000 reservations, so worker does not permanently wedge.
+        assertThat(client.propose(request(firstRunId), new CandidatePayload("corpus-1", List.of())).outcome())
+                .isEqualTo("PROPOSAL");
+    }
+
     private JourneyWorkerRequest request(UUID runId) { return new JourneyWorkerRequest(runId,UUID.randomUUID(),"member:1",1,"corpus-1","SEOUL","private raw query",1,"req-808","1".repeat(32),now.plusSeconds(20)); }
     private record Fixture(SafeQueryRequest safe,PlanProposal plan) { }
     private Fixture fixture() throws Exception {

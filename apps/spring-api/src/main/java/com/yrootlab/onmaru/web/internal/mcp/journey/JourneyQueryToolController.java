@@ -50,7 +50,11 @@ public final class JourneyQueryToolController {
             var scope = new QueryGrantService.LookupScope(request.regionCode(), request.category(), request.limit());
             List<ProjectedPlace> places = grants.lookup(request.queryGrantId(), scope,
                     grant -> project(grant, placeQueryPort.lookupApprovedPlaces(
-                            request.regionCode(), request.category(), request.limit())));
+                            request.regionCode(),
+                            request.category(),
+                            grant.filters().placeIds(),
+                            grant.filters().excludedPlaceIds(),
+                            request.limit())));
             return ResponseEntity.ok(new JourneyQueryToolResponse(places));
         } catch (QueryGrantException exception) {
             return error(HttpStatus.valueOf(exception.code().status()), exception.code().name());

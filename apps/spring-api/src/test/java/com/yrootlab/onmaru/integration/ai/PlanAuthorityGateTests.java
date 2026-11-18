@@ -100,6 +100,55 @@ class PlanAuthorityGateTests {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void approvesPinnedRecommendationWithUnboundedNullPlaceIdsAndAllFiveRoutes() throws Exception {
+        var fixture = fixture("hybrid");
+        var baseRequest = (ObjectNode) fixture.path("context").get("request").deepCopy();
+        ((ObjectNode) baseRequest.path("authorityBounds").path("filters")).putNull("placeIds");
+        var request = codec.readSafeQuery(mapper.writeValueAsBytes(baseRequest));
+
+        var basePlan = (ObjectNode) fixture.get("payload").deepCopy();
+        ((ObjectNode) basePlan.path("proposedFilters")).putNull("placeIds");
+        ((ObjectNode) basePlan.path("questionFrame")).put("operation", "RECOMMEND");
+        ((ObjectNode) basePlan.path("questionFrame")).withArray("targetPlaceIds").removeAll();
+        ((ObjectNode) basePlan.path("retrievalExpression")).withArray("publicEntityIds").removeAll();
+
+        record RouteSpec(String route, String retrievalMode, String reasonCode, List<String> fields, String semanticQuery, ObjectNode clarification) {}
+        var specs = List.of(
+                new RouteSpec("SQL_ONLY", "NONE", "CANONICAL_FACT_ONLY", List.of("PUBLIC_ADDRESS"), null, null),
+                new RouteSpec("LEXICAL_ONLY", "LEXICAL_ONLY", "EXACT_PUBLIC_TERM", List.of(), "quiet hanok", null),
+                new RouteSpec("DENSE_ONLY", "DENSE_ONLY", "SINGLE_SEMANTIC_TOPIC", List.of(), "quiet hanok", null),
+                new RouteSpec("HYBRID", "HYBRID", "COMPOSITE_QUERY", List.of(), "quiet hanok", null),
+                new RouteSpec("SQL_PLUS_RETRIEVAL", "HYBRID", "CANONICAL_FACT_WITH_RETRIEVAL", List.of("PUBLIC_ADDRESS"), "quiet hanok", null),
+                new RouteSpec("CLARIFY_OR_SCOPE", "NONE", "AMBIGUOUS_TARGET", List.of(), null,
+                        mapper.createObjectNode().put("reason", "AMBIGUOUS_TARGET").put("questionCode", "CHOOSE_TARGET"))
+        );
+
+        for (var spec : specs) {
+            var candidate = basePlan.deepCopy();
+            candidate.put("route", spec.route());
+            candidate.put("retrievalMode", spec.retrievalMode());
+            var reasons = candidate.putArray("reasonCodes");
+            reasons.add(spec.reasonCode());
+            var fields = candidate.putArray("requestedCanonicalFields");
+            spec.fields().forEach(fields::add);
+            if (spec.semanticQuery() == null) {
+                candidate.putNull("semanticQuery");
+            } else {
+                candidate.put("semanticQuery", spec.semanticQuery());
+            }
+            if (spec.clarification() == null) {
+                candidate.putNull("clarification");
+            } else {
+                candidate.set("clarification", spec.clarification());
+            }
+            PlanProposal approved = rehashed(candidate);
+            var binding = gate.approve(request, approved, request.versions());
+            assertThat(binding.plan().proposedFilters().placeIds()).isNull();
+            assertThat(binding.plan().proposedFilters().pinnedPlaceIds()).containsExactly("place-1");
+        }
+    }
+
     private PlanProposal rehashed(ObjectNode document) throws Exception {
         var withoutUpdatedHash = codec.readPlan(mapper.writeValueAsBytes(document));
         document.put("planHash", codec.planHash(withoutUpdatedHash));

@@ -109,19 +109,47 @@ public final class ExplorationService {
         if (state.latestRun().isActive()) {
             throw new ExplorationActiveRunException(state.latestRun().id());
         }
-        var current = actionStates.computeIfAbsent(explorationId, ignored -> JourneyActionState.empty(state.stateVersion()));
+        var current = resolveActionState(state);
         var result = actionService.apply(current, baseVersion, action);
         if (result.changed()) {
             actionStates.put(explorationId, result.state());
             store.update(new ExplorationState(
-                    state.id(), state.owner(), result.state().stateVersion(), state.regionCode(), state.latestRun(), clock.instant(), state.board()));
+                    state.id(), state.owner(), result.state().stateVersion(), state.regionCode(),
+                    state.latestRun(), clock.instant(), state.board(),
+                    result.state().pinnedRefs(), result.state().excludedRefs()));
         }
         return result;
     }
 
     public synchronized JourneyActionState actionState(ExplorationActor actor, UUID explorationId) {
         var state = ownedState(actor, explorationId);
-        return actionStates.computeIfAbsent(explorationId, ignored -> JourneyActionState.empty(state.stateVersion()));
+        return resolveActionState(state);
+    }
+
+    private JourneyActionState resolveActionState(ExplorationState state) {
+        var cached = actionStates.get(state.id());
+        if (cached != null && cached.stateVersion() == state.stateVersion()) {
+            return cached;
+        }
+        var ordered = state.board() == null
+                ? java.util.List.<com.yrootlab.onmaru.journey.actions.ResourceRef>of()
+                : state.board().orderedRefs().stream()
+                        .filter(ref -> ref != null && !ref.isBlank())
+                        .distinct()
+                        .limit(3)
+                        .map(ref -> new com.yrootlab.onmaru.journey.actions.ResourceRef("PLACE", ref))
+                        .toList();
+        var pinned = state.pinnedRefs().stream().limit(3).toList();
+        var excluded = state.excludedRefs().stream().limit(100).toList();
+        var rebuilt = new JourneyActionState(
+                state.stateVersion(),
+                pinned,
+                excluded,
+                ordered,
+                java.util.List.of(),
+                cached != null && cached.stateVersion() == state.stateVersion() ? cached.pendingProposal() : null);
+        actionStates.put(state.id(), rebuilt);
+        return rebuilt;
     }
 
     public ExplorationRun getRun(ExplorationActor actor, UUID explorationId, UUID runId) {
@@ -166,7 +194,8 @@ public final class ExplorationService {
         var turn = new StoredExplorationTurn(
                 command.clientTurnId(), command.baseVersion(), query, regionCode, command.clarificationId(), run, now);
         var updated = new ExplorationState(
-                state.id(), state.owner(), state.stateVersion(), regionCode, run, now);
+                state.id(), state.owner(), state.stateVersion(), regionCode, run, now,
+                state.board(), state.pinnedRefs(), state.excludedRefs());
         store.appendTurn(explorationId, turn);
         store.update(updated);
         publish(run);

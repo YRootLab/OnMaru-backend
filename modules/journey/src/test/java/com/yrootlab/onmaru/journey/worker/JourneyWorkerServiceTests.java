@@ -262,6 +262,49 @@ class JourneyWorkerServiceTests {
         assertThat(resultStore.commands.get(0).orderedRefs()).containsExactly("p-baseline-1");
     }
 
+    @Test
+    void completesClarificationRequiredWithoutPersistingBoardAndPreservesClarification() {
+        var clarification = new com.yrootlab.onmaru.journey.exploration.ExplorationClarification(
+                "CHOOSE_TARGET",
+                "AMBIGUOUS_TARGET",
+                "어느 장소를 기준으로 안내해 드릴까요?",
+                true);
+        var aiClient = new AiProposalClient() {
+            @Override
+            public boolean requiresCandidatePreload() {
+                return false;
+            }
+
+            @Override
+            public JourneyWorkerPlan propose(JourneyWorkerRequest actualRequest, CandidatePayload candidates) {
+                return JourneyWorkerPlan.clarificationRequired(clarification);
+            }
+        };
+        var service = new JourneyWorkerService(
+                runStore,
+                ignored -> {
+                    throw new AssertionError("candidateProvider must not be called");
+                },
+                aiClient,
+                candidates -> {
+                    throw new AssertionError("baselinePlanner must not be called");
+                },
+                resultStore,
+                telemetry);
+
+        var outcome = service.process(request);
+
+        assertThat(outcome).isEqualTo(JourneyWorkerOutcome.COMPLETED_LLM);
+        assertThat(resultStore.commands).isEmpty();
+        assertThat(runStore.advanced)
+                .extracting(AdvanceRunStageCommand::nextStage)
+                .doesNotContain(JourneyRunStage.PERSISTING);
+        assertThat(runStore.finished).hasSize(1);
+        assertThat(runStore.finished.get(0).terminalStatus()).isEqualTo(JourneyRunStatus.COMPLETED);
+        assertThat(runStore.finished.get(0).outcome()).isEqualTo("CLARIFICATION_REQUIRED");
+        assertThat(runStore.finished.get(0).clarification()).isEqualTo(clarification);
+    }
+
     private static final class RecordingRunStore implements JourneyRunStore {
         final List<ClaimRunCommand> claimed = new ArrayList<>();
         final List<AdvanceRunStageCommand> advanced = new ArrayList<>();

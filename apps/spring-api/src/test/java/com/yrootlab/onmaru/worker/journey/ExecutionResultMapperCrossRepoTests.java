@@ -51,6 +51,30 @@ class ExecutionResultMapperCrossRepoTests {
                         e -> assertThat(e.degradedReason()).isEqualTo(WorkerDegradedReason.AI_INVALID_RESPONSE));
     }
 
+    @Test
+    void mapsSqlOnlyNoMatchResultToNoResultsWithoutFallback() throws Exception {
+        var fixture = new Pinned();
+        @SuppressWarnings("unchecked")
+        var noMatchProposal = (Map<String, Object>) JSON.readValue(JSON.writeValueAsBytes(fixture.proposal), Map.class);
+        noMatchProposal.put("candidatePlaceIds", List.of());
+        noMatchProposal.put("places", List.of());
+        noMatchProposal.put("summaryClaims", List.of());
+        noMatchProposal.put("retrievalStatus", "NOT_RUN");
+        noMatchProposal.put("generationStatus", "NOT_RUN");
+
+        @SuppressWarnings("unchecked")
+        var emptyEvidence = (Map<String, Object>) JSON.readValue(JSON.writeValueAsBytes(fixture.evidence), Map.class);
+        emptyEvidence.put("allowedPlaceIds", List.of());
+        emptyEvidence.put("evidence", List.of());
+
+        JourneyWorkerPlan plan = mapper.map(fixture.binding(), fixture.result(noMatchProposal, emptyEvidence),
+                fixture.candidates());
+
+        assertThat(plan.orderedRefs()).isEmpty();
+        assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
+        assertThat(plan.placeReasons()).isEmpty();
+    }
+
     /** Holds the pinned AI payloads and the approved plan that matches them. */
     private static final class Pinned {
         final Map<String, Object> proposal;

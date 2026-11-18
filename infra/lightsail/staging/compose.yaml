@@ -8,7 +8,8 @@ x-logging: &logging
 
 services:
   postgres:
-    image: postgis/postgis:17-3.5-alpine
+    # Align with production PostgreSQL 17 + PostGIS + pgvector so ai schema migrations and vector indexing work in staging.
+    image: ${ONMARU_POSTGRES_IMAGE:-onmaru/postgres:17-postgis-pgvector}
     restart: "no"
     mem_limit: 192m
     cpus: 0.25
@@ -98,14 +99,19 @@ services:
       ONMARU_RAG_ENABLED: "false"
       ONMARU_GEMINI_MODEL_NAME: gemini-2.5-flash
       ONMARU_SPRING_BASE_URL: http://staging-api:8080
+      ONMARU_AI_DB_DSN: postgresql://${ONMARU_DB_AI_RUNTIME_USER}:${ONMARU_DB_AI_RUNTIME_PASSWORD}@postgres:5432/${ONMARU_POSTGRES_DB}
       ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT:?Set the staging TourAPI key}
       ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_ODII_SERVICE_KEY_CURRENT:?Set the staging Odii key}
       ONMARU_SECRET_GEMINI_API_KEY_CURRENT: ${ONMARU_SECRET_GEMINI_API_KEY_CURRENT:?Set the staging Gemini key}
       ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT: ${ONMARU_SECRET_OAUTH_CLIENT_SECRET_CURRENT:?Set the staging OAuth secret}
       ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT: ${ONMARU_SECRET_OTLP_EXPORTER_TOKEN_CURRENT:?Set the staging OTLP placeholder}
       ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: ${ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:?Set the staging internal AI service token}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - app
+      - database
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2).read()"]
       interval: 10s
