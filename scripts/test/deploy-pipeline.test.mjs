@@ -126,11 +126,23 @@ describe('container and staging release pipeline', () => {
       ['infra/lightsail/compose.yaml', 'infra/lightsail/.env.example'],
       ['infra/lightsail/staging/compose.yaml', 'infra/lightsail/staging/.env.example'],
     ]) {
-      assert.match(read(envPath), /^ONMARU_AI_PLAN_EXECUTE_ENABLED=false$/m);
+      const env = read(envPath);
+      const compose = read(composePath);
+      assert.match(env, /^ONMARU_AI_PLAN_EXECUTE_ENABLED=false$/m);
       assert.match(
-        read(composePath),
+        compose,
         /ONMARU_AI_PLAN_EXECUTE_ENABLED: \$\{ONMARU_AI_PLAN_EXECUTE_ENABLED:-false\}/,
       );
+      for (const versionVar of [
+        'ONMARU_AI_CORPUS_REVISION',
+        'ONMARU_AI_CONFIG_HASH',
+        'ONMARU_AI_QUESTION_DICTIONARY_VERSION',
+        'ONMARU_AI_SOURCE_REVOCATION_SEQUENCE',
+      ]) {
+        assert.match(env, new RegExp(`^${versionVar}=`, 'm'), `${envPath} missing ${versionVar}`);
+        assert.match(compose, new RegExp(`${versionVar}: \\$\\{${versionVar}:-`), `${composePath} missing ${versionVar}`);
+      }
+      assert.match(compose, /ONMARU_AI_DB_DSN: postgresql:\/\/\$\{ONMARU_DB_AI_RUNTIME_USER\}:\$\{ONMARU_DB_AI_RUNTIME_PASSWORD\}@postgres:5432\/\$\{ONMARU_POSTGRES_DB\}/);
     }
   });
 
