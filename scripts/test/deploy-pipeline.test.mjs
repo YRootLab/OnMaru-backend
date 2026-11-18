@@ -144,6 +144,27 @@ describe('container and staging release pipeline', () => {
       }
       assert.match(compose, /ONMARU_AI_DB_DSN: postgresql:\/\/\$\{ONMARU_DB_AI_RUNTIME_USER\}:\$\{ONMARU_DB_AI_RUNTIME_PASSWORD\}@postgres:5432\/\$\{ONMARU_POSTGRES_DB\}/);
     }
+
+    const prodCompose = read('infra/lightsail/compose.yaml');
+    const prodSpringSection = prodCompose.slice(0, prodCompose.indexOf('\nservices:'));
+    const prodAiSection = prodCompose.slice(prodCompose.indexOf('\n  ai-engine:'), prodCompose.indexOf('\n  nginx:'));
+    assert.doesNotMatch(prodSpringSection, /ONMARU_SECRET_GEMINI_API_KEY_CURRENT/);
+    assert.match(prodAiSection, /ONMARU_SECRET_GEMINI_API_KEY_CURRENT:\s*\$\{ONMARU_SECRET_GEMINI_API_KEY_CURRENT:-\}/);
+
+    const stagingCompose = read('infra/lightsail/staging/compose.yaml');
+    const stagingAiSection = stagingCompose.slice(
+      stagingCompose.indexOf('\n  staging-ai-engine:'),
+      stagingCompose.indexOf('\n  spring-api:'),
+    );
+    const stagingSpringSection = stagingCompose.slice(
+      stagingCompose.indexOf('\n  spring-api:'),
+      stagingCompose.indexOf('\nnetworks:'),
+    );
+    assert.match(
+      stagingAiSection,
+      /ONMARU_SECRET_GEMINI_API_KEY_CURRENT:\s*\$\{ONMARU_SECRET_GEMINI_API_KEY_CURRENT:\?Set the staging Gemini key\}/,
+    );
+    assert.doesNotMatch(stagingSpringSection, /ONMARU_SECRET_GEMINI_API_KEY_CURRENT/);
   });
 
   it('documents pagination-sized staging fixtures for FE verification', () => {

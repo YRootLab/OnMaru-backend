@@ -60,4 +60,10 @@ class SecretConfigurationTests {
         assertThat(new OnMaruSecretProperties().getRequiredNames())
                 .contains("datalab.operations-token");
     }
+
+    @Test
+    void geminiApiKeyIsNotRequiredBySpringDefault() {
+        assertThat(new OnMaruSecretProperties().getRequiredNames())
+                .doesNotContain("gemini.api-key");
+    }
 }
