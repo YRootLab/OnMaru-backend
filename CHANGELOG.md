@@ -42,7 +42,7 @@
 
 ## Changelog
 
-This project uses semantic version tags from `master`. Release notes should be generated from Conventional Commits through Release Please once releasable backend changes exist.
+This project uses semantic version tags from `master`. Maintainers curate release notes from the Conventional Commit history and create the approved tag and GitHub Release manually after the `verify` check passes on the target `master` commit.
 
 ## Unreleased
 
