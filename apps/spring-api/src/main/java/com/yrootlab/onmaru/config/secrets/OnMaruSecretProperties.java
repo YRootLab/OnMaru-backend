@@ -13,7 +13,6 @@ public class OnMaruSecretProperties {
     private List<String> requiredNames = new ArrayList<>(List.of(
             "tourapi.service-key",
             "odii.service-key",
-            "gemini.api-key",
             "oauth.client-secret",
             "admin.jwt-signing-key",
             "admin.cursor-signing-key",
