@@ -1,0 +1,290 @@
+# 멀티모듈의 경계를 CI 실행 경계로 전환하는 PRD
+
+> 상태: 제안
+> 관련 Issue: [#867](https://github.com/YRootLab/OnMaru-backend/issues/867)
+> 작성일: 2026-11-19
+> 대상: OnMaru Backend Java/Spring Boot 멀티모듈 CI
+
+## 이 개선은 CI를 더 많이 병렬화하는 작업이 아니라 불필요한 실행을 제거하는 작업이다
+
+OnMaru Backend는 Gradle 멀티모듈 구조를 사용하지만, 현재 Pull Request CI는 Java 변경이 하나라도 있으면 변경과 무관한 모듈까지 넓게 검증한다. 실제 Java 검증은 최근 실행에서 약 9분 21초부터 17분 25초까지 걸렸으며, 다른 검증 lane이 대부분 1분 이내에 끝나는 것과 비교하면 전체 Pull Request 피드백 시간을 사실상 Java lane 하나가 결정하고 있다.
+
+멀티모듈로 코드를 나누었다는 사실만으로 CI가 변경 영향을 자동으로 이해하지는 않는다. Gradle은 요청받은 task의 의존 관계는 계산하지만, Git diff를 읽어서 어떤 task만 실행해야 하는지는 결정하지 않는다. 여기에 Gradle Build Cache가 비활성화되어 있고 GitHub-hosted runner가 매번 깨끗한 환경에서 시작하므로, 이전 실행에서 얻은 test task 산출물도 다음 실행에서 재사용되지 않는다. 그 결과 현재 구조는 모듈 경계의 개발상 이점은 얻지만, CI 실행 비용을 줄이는 이점은 거의 얻지 못한다.
+
+이 PRD는 Git 변경 파일을 직접 변경된 모듈로 매핑하고, Gradle의 역방향 의존 관계를 따라 소비 모듈까지 계산하는 affected test planner를 정의한다. feature Pull Request에서는 계산된 영향 범위의 unit, Spring slice, PostgreSQL integration test만 필수로 실행한다. 반면 `develop` 병합 이후와 release 승격 단계에서는 전체 회귀 테스트를 유지한다. 빠른 Pull Request 피드백과 최종 안전망의 책임을 분리하되, 선택기가 이해하지 못하는 변경은 전체 검증으로 되돌리는 fail-closed 원칙을 적용한다.
+
+목표는 단일 모듈 feature Pull Request의 필수 CI 중앙값을 현재 대비 40% 이상 줄이고 p95를 8분 이내로 만드는 것이다. 그러나 속도보다 우선하는 기준은 affected 선택의 false negative가 0이어야 한다는 점이다. 선택 실행이 성공했지만 같은 commit의 전체 실행이 실패한다면 이 최적화는 성공한 것이 아니다.
+
+## 현재 구조에서는 모듈이 나뉘어 있어도 검증 단위가 하나로 뭉친다
+
+현재 CI의 Java lane은 Java 관련 경로의 변경 여부만 구분한다. 변경이 감지되면 모듈별 변경 범위와 무관하게 전체 모듈 테스트, Spring API 테스트, 애플리케이션 패키징까지 넓게 수행한다. 이것은 검증 누락에는 보수적이지만, 작은 비즈니스 규칙 변경도 전체 Spring Context와 Testcontainers 기반 PostgreSQL 테스트를 반복하게 만든다.
+
+저장소에는 234개의 테스트 파일이 있으며, 그중 `@SpringBootTest` 사용은 40개, `@AutoConfigureMockMvc` 사용은 37개, Testcontainers 사용은 47개다. 반면 `@WebMvcTest`, `@DataJpaTest`, `@JdbcTest`, `@JsonTest`와 같은 Spring slice annotation은 현재 사용되지 않는다. 특히 Web Boundary 테스트는 이름만 보면 웹 계층 테스트이지만 실제 실행 방식은 `@SpringBootTest + @AutoConfigureMockMvc`이므로 애플리케이션 전체 Context를 올리는 통합 테스트에 가깝다.
+
+기존 Spring API shard 실험에서도 단순한 runner 병렬화만으로는 충분하지 않다는 신호가 확인됐다. unit-contract shard 63개 테스트의 중앙값은 약 158초였지만, postgres-other shard 25개는 약 412초가 걸렸다. 후보 critical path는 직렬 검증 대비 약 12.42% 줄었으나 runner 준비와 fan-out 비용을 포함한 전체 workflow 중앙값은 약 725초였고, 실험 결론은 inconclusive였다. 병목을 여러 runner로 옮기는 것보다 실행할 필요가 없는 테스트를 먼저 제거하고, Spring Context 및 PostgreSQL 초기화 비용을 줄여야 한다.
+
+### Dependency cache와 Build Cache는 서로 다른 문제를 해결한다
+
+현재 Java setup의 Gradle cache는 wrapper, 내려받은 dependency, 일부 Gradle user home 데이터를 재사용하는 데 도움을 준다. 이것은 Maven Central 등에서 같은 artifact를 다시 내려받는 시간을 줄이지만, 이전 runner가 만든 `compileJava`, `test` 같은 task 출력물을 그대로 복원한다는 의미는 아니다.
+
+Gradle의 `UP-TO-DATE`는 같은 작업 디렉터리에 이전 출력물이 남아 있고 입력이 변하지 않았을 때 적용된다. 매번 새 VM에서 시작하는 GitHub-hosted runner에는 그 출력물이 없다. `FROM-CACHE`는 입력 fingerprint가 같은 task 출력물을 Build Cache에서 복원할 때 적용되며, 이를 위해 Build Cache가 활성화되어 있고 이전의 신뢰할 수 있는 실행이 해당 key의 산출물을 저장했어야 한다. 현재 `onmaru.ci.performance.build-cache=false` 설정에서는 이 재사용 경로가 닫혀 있다.
+
+```mermaid
+flowchart LR
+    A[Gradle dependency cache] --> B[외부 라이브러리 다운로드 생략]
+    C[동일 runner의 기존 출력물] --> D[UP-TO-DATE]
+    E[Gradle Build Cache의 task 출력물] --> F[FROM-CACHE]
+    B --> G[의존성 준비 시간 감소]
+    D --> H[task 실행 생략]
+    F --> H
+```
+
+따라서 Gradle cache가 설정되어 있는데 왜 테스트가 매번 도는지에 대한 답은 명확하다. 지금의 cache는 주로 dependency 준비 비용을 줄이고 있으며, task output 재사용은 비활성화되어 있다. 설령 Build Cache를 활성화해도 변경된 공통 classpath가 모든 test task의 입력 fingerprint를 바꾸면 cache miss가 발생한다. Build Cache와 affected test 선택은 대체 관계가 아니라 함께 적용해야 하는 보완 관계다.
+
+## 목표 구조는 Pull Request의 빠른 증명과 통합 브랜치의 전체 증명을 분리한다
+
+feature Pull Request는 변경된 코드가 영향을 주는 범위에서 빠르고 설명 가능한 증거를 제공해야 한다. `develop`과 release는 여러 변경이 합쳐진 전체 시스템이 여전히 동작한다는 증거를 제공해야 한다. 두 단계에 같은 테스트 집합을 반복하는 대신 각 단계의 책임을 분리한다.
+
+```mermaid
+flowchart TD
+    A[feature Pull Request] --> B[변경 파일 수집]
+    B --> C[Affected Module Resolver]
+    C --> D{안전하게 분류 가능한가?}
+    D -- 예 --> E[직접 변경 모듈과 소비 모듈 계산]
+    D -- 아니오 --> F[전체 Java 검증으로 fail-closed]
+    E --> G[Test Plan Compiler]
+    G --> H[영향 unit test]
+    G --> I[영향 Spring slice test]
+    G --> J[영향 PostgreSQL integration test]
+    G --> K[core context smoke test]
+    H --> L[PR required verify]
+    I --> L
+    J --> L
+    K --> L
+    F --> L
+    L --> M[develop 병합]
+    M --> N[전체 모듈·PostgreSQL·full-context 회귀]
+    N --> O[trusted Build Cache write]
+    N --> P[release gate]
+```
+
+feature Pull Request에서 통합 테스트를 전부 없애지는 않는다. 변경된 persistence adapter가 PostgreSQL 동작에 영향을 준다면 관련 Testcontainers 테스트는 반드시 실행한다. 다만 변경과 무관한 catalog, audio 또는 다른 도메인의 컨테이너 테스트까지 모두 반복하지 않는다. Flyway migration, 보안 설정, 공통 bootstrap처럼 영향 반경이 넓거나 정적 분석만으로 안전하게 좁힐 수 없는 변경은 전체 검증으로 fallback한다.
+
+## 사용자는 더 빨리 끝나는 CI뿐 아니라 왜 그 테스트가 선택됐는지도 알아야 한다
+
+비즈니스 API를 개발하는 개발자는 자신의 모듈만 수정했을 때 관련된 테스트 결과를 빠르게 받고 싶다. 동시에 CI가 일부 테스트를 생략했다는 이유로 불안해하지 않도록, 직접 변경 모듈과 영향을 받은 소비 모듈, 선택된 task와 fallback 사유를 Pull Request에서 확인할 수 있어야 한다.
+
+CI를 관리하는 maintainer는 모듈 의존 관계가 바뀌거나 새로운 경로가 추가됐을 때 선택기가 조용히 누락하지 않기를 원한다. 분류되지 않은 경로가 있으면 최적화보다 전체 검증을 선택해야 하고, 그 횟수와 원인을 telemetry에서 찾아 규칙을 개선할 수 있어야 한다.
+
+release를 운영하는 담당자는 feature 단계에서 줄인 검증이 production 위험으로 전이되지 않는다는 증거가 필요하다. `develop` 병합 이후의 전체 회귀 결과, affected와 full suite의 shadow 비교, false negative 지표를 release gate에서 확인할 수 있어야 한다.
+
+## Affected Module Resolver는 변경 지점이 아니라 영향의 끝까지 계산한다
+
+Affected Module Resolver는 Git 기준 commit과 대상 commit 사이의 변경 파일을 읽어 직접 변경된 Gradle 모듈, 즉 fixed module을 계산한다. 그다음 Gradle project dependency graph의 간선을 반대로 탐색하여 fixed module을 소비하는 모든 모듈을 영향 범위에 포함한다. 예를 들어 domain 모듈을 application 모듈과 Spring API가 의존한다면 domain 변경은 세 모듈 모두의 검증을 선택한다. 반대로 최상위 adapter 구현만 바뀌고 다른 모듈이 이를 compile dependency로 소비하지 않는다면 실행 범위를 더 좁힐 수 있다.
+
+파일 경로 prefix만 하드코딩한 선택기는 의존 관계 변경에 취약하다. 경로는 직접 변경 모듈을 찾는 입력으로 사용하되, 전파 관계는 Gradle이 실제로 인식하는 project dependency graph에서 얻는 것을 원칙으로 한다. 선택 결과에는 다음 설명 가능 정보가 포함되어야 한다.
+
+- 비교에 사용한 기준 commit과 대상 commit
+- 변경 파일과 각 파일이 매핑된 fixed module
+- fixed module에서 affected module로 이어진 의존 경로
+- 최종 선택된 Gradle task 및 test category
+- 전체 검증으로 fallback했다면 해당 규칙과 원인
+
+다음 변경은 영향 범위를 좁히지 않고 전체 Java 검증을 수행한다.
+
+- root Gradle 설정, version catalog, convention plugin 또는 build logic
+- 여러 모듈이 공유하는 test fixture와 공통 bootstrap
+- Spring application wiring, 공통 security 및 authentication 설정
+- Flyway migration과 database schema 계약
+- affected selector 자체와 CI workflow의 선택 로직
+- 모듈로 분류되지 않거나 새로 등장한 Java 관련 경로
+- dependency graph 추출 실패, 기준 commit 부재 또는 shallow clone 오류
+
+삭제와 rename도 신규 파일과 동일하게 다뤄야 한다. 삭제된 파일은 대상 tree에 존재하지 않으므로 기준 tree의 경로로 소속 모듈을 찾아야 한다. rename은 이전 경로와 새 경로 양쪽의 영향을 합집합으로 계산한다.
+
+## Test Plan Compiler는 모듈 목록을 검증 의도로 변환한다
+
+Affected module 목록만으로는 어떤 테스트가 필요한지 충분히 설명되지 않는다. Test Plan Compiler는 모듈 유형과 변경 종류를 이용해 unit, slice, full-context, PostgreSQL integration, packaging 검증으로 변환한다. 모든 affected 모듈의 unit test는 기본 대상이고, 웹 adapter가 영향을 받으면 관련 Spring MVC slice를, persistence adapter가 영향을 받으면 관련 PostgreSQL integration test를 추가한다.
+
+애플리케이션 전체 wiring이 깨졌는지를 빠르게 감지하기 위해 feature Pull Request에도 하나의 core context smoke test를 유지한다. 다만 이 smoke test가 모든 Web Boundary scenario를 전체 Context로 반복하는 이유가 되어서는 안 된다. packaging은 boot application 또는 packaging 입력이 영향을 받을 때 선택하고, release 단계에서는 항상 수행한다.
+
+Test Plan Compiler가 만든 manifest는 machine-readable artifact와 사람이 읽을 수 있는 Job Summary를 함께 제공해야 한다. 선택된 테스트가 0개라면 성공으로 간주하기 전에 변경이 문서 전용인지 확인한다. Java 관련 변경인데 테스트가 0개라면 전체 검증으로 fallback한다.
+
+## Web Boundary 테스트는 이름이 아니라 로딩하는 Context 범위로 다시 분류한다
+
+현재 `@SpringBootTest + @AutoConfigureMockMvc` Web Boundary 테스트는 HTTP request/response를 검증하지만 애플리케이션 전체 Context를 로딩한다. 이는 통합 테스트로서 가치가 있으나 controller의 status, validation, serialization, service 위임만 확인하는 scenario까지 같은 비용을 지불하게 한다.
+
+기존 37개 Web Boundary 테스트는 자동 치환하지 않고 다음 세 범주로 inventory를 만든다.
+
+| 분류 | 적합한 검증 | 목표 실행 방식 |
+|---|---|---|
+| `slice-candidate` | controller mapping, validation, JSON 변환, 예외 매핑, service 위임 | `@WebMvcTest`와 필요한 collaborator mock/import |
+| `full-context-required` | security filter chain, OAuth, 실제 module wiring, 공통 error pipeline, end-to-end 경계 | `@SpringBootTest` 유지 |
+| `unit-candidate` | HTTP와 무관한 순수 business rule, mapper, formatter | JUnit 단위 테스트 |
+
+`@WebMvcTest`는 Spring Boot 전체 검증을 대체하지 않는다. Web MVC 구성요소만 제한적으로 로딩하기 때문에 controller 경계를 빠르게 검증하는 데 적합하지만, persistence wiring이나 전체 security configuration의 조합 오류는 찾지 못한다. 따라서 slice 전환 후에도 대표적인 full-context scenario와 core context smoke test는 유지하고, 전체 회귀 단계에서 실행한다.
+
+slice 전환의 완료 기준은 annotation 변경 자체가 아니다. 기존 scenario의 assertion 의미가 보존되고, 불필요한 mock이 business behavior를 가리지 않으며, Spring Context load 횟수와 실행 시간이 실제로 줄어야 한다. 한 테스트를 slice로 바꾸기 위해 production configuration을 왜곡해야 한다면 full-context 유지가 더 안전하다.
+
+## PostgreSQL 통합 테스트는 영향 범위를 줄이고 초기화 비용을 관찰한다
+
+Testcontainers 테스트는 실제 PostgreSQL dialect, constraint, transaction, Flyway migration을 검증하는 중요한 안전망이므로 H2나 전면 mock으로 대체하지 않는다. 최적화의 첫 단계는 affected persistence 영역만 선택하는 것이다. 다음 단계는 같은 JVM 안에서 안전하게 공유 가능한 container와 migration 초기화의 중복을 줄이는 것이다.
+
+container 공유는 테스트 격리가 증명된 경우에만 적용한다. schema, transaction 또는 fixture가 테스트 사이에 누출되면 속도 개선보다 신뢰도 손실이 더 크다. 각 test class와 shard별로 container 시작 시간, migration 시간, 테스트 실행 시간을 분리 측정하고, 어디에서 시간이 소비되는지 먼저 확인한다. 기존처럼 shard 수만 늘리면 runner 준비와 image pull, container startup이 반복되어 전체 workflow는 오히려 느려질 수 있다.
+
+Flyway migration 또는 schema 계약이 바뀌면 모든 persistence integration test와 migration validation을 실행한다. migration은 특정 domain에만 국한된 것처럼 보여도 기존 데이터 호환성, startup 순서, 다른 table의 foreign key에 영향을 줄 수 있으므로 affected 범위를 좁히지 않는다.
+
+## Build Cache는 성능 기능인 동시에 신뢰할 산출물의 경계다
+
+Gradle Build Cache는 task 입력 fingerprint가 동일할 때 compile과 test 결과를 다시 실행하지 않고 복원할 수 있게 한다. feature Pull Request는 cache를 읽을 수 있지만 쓰지 않는다. `develop`과 `master`의 신뢰된 실행만 cache를 쓸 수 있고, 외부 fork는 읽기 전용 또는 비활성으로 처리한다. cache key와 content가 신뢰되지 않은 코드에 의해 오염되면 이후 실행이 공격자가 만든 산출물을 사용할 수 있으므로 이는 단순 비용 설정이 아니라 supply-chain 정책이다.
+
+`gradle/actions/setup-gradle`을 표준 진입점으로 사용하고, branch와 event별 read/write 정책을 명시한다. cache에 credential 또는 test secret이 포함되지 않는지 task output을 점검한다. cache restore/upload 시간이 절약되는 실행 시간보다 큰 task는 cache 대상에서 제외한다.
+
+warm cache 성능만 보고 효과를 과장하지 않기 위해 cold와 warm 조건을 함께 측정한다. cold 실행은 dependency와 task output을 재사용하지 않는 조건을, warm 실행은 동일한 input identity에서 trusted cache가 존재하는 조건을 뜻한다. 보고서에는 `UP-TO-DATE`, `FROM-CACHE`, 실행됨, cache 불가 task를 구분한다.
+
+## Telemetry는 느리다는 느낌을 재현 가능한 수치로 바꾼다
+
+GitHub Actions 화면만으로도 한 실행의 job 시간은 볼 수 있지만, 변경 전후 중앙값과 p95, cache hit ratio, Spring Context 수, container startup 분포를 장기 비교하기는 어렵다. CI는 OpenTelemetry 또는 동등한 전송 계층으로 저카디널리티 metric과 구조화 event를 내보내고, Prometheus 호환 backend와 Grafana에서 관찰한다.
+
+| Metric | 의미 |
+|---|---|
+| `onmaru_ci_workflow_duration_seconds` | queue를 제외하거나 포함한 workflow wall time을 명시적으로 구분 |
+| `onmaru_ci_job_duration_seconds` | lane별 job 실행 시간 |
+| `onmaru_ci_gradle_task_duration_seconds` | Gradle task 유형별 실행 시간 |
+| `onmaru_ci_gradle_tasks_total` | 실행, cache hit, up-to-date, skipped task 수 |
+| `onmaru_ci_build_cache_operations_total` | cache load/store/hit/miss/error 수 |
+| `onmaru_ci_build_cache_bytes` | cache restore/upload byte 크기 |
+| `onmaru_ci_tests_selected_total` | planner가 선택한 test 수 |
+| `onmaru_ci_tests_executed_total` | 실제 실행된 test 수 |
+| `onmaru_ci_spring_context_loads_total` | Spring Context 생성 횟수 |
+| `onmaru_ci_testcontainers_startup_seconds` | container 준비 시간 |
+| `onmaru_ci_affected_fallback_total` | 전체 검증 fallback 횟수와 유형 |
+| `onmaru_ci_selection_mismatch_total` | affected 성공 후 full 실패 등 선택 불일치 수 |
+
+허용 label은 `workflow`, `lane`, `test_type`, `cache_result`, `module`, `event`, `result`처럼 집합 크기가 제한된 값만 사용한다. commit SHA, Pull Request 번호, run URL을 metric label로 사용하면 시계열이 실행마다 증가해 backend 비용과 query 성능을 악화시킨다. 이 값들은 metric이 아니라 구조화 log와 evidence artifact에 기록하고 필요할 때 exemplar 또는 trace correlation으로 연결한다.
+
+Grafana dashboard는 required verify 중앙값과 p95, critical path, cache hit ratio와 전송 비용, affected 대비 full test 수, Spring Context load 수, container startup, fallback 사유, selection mismatch, 실패·flaky·cancel 비율을 한 화면에서 비교한다. 평균만 표시하지 않는다. runner queue나 일시적인 GitHub 장애가 긴 꼬리를 만들 수 있으므로 중앙값과 p95를 함께 봐야 한다.
+
+```mermaid
+flowchart LR
+    A[GitHub Actions] --> B[CI Telemetry Emitter]
+    C[Gradle build scan 또는 task event] --> B
+    D[JUnit·Spring·Testcontainers evidence] --> B
+    B --> E[OTel Collector]
+    E --> F[Prometheus 호환 metric backend]
+    E --> G[구조화 log·artifact]
+    F --> H[Grafana dashboard]
+    G --> H
+```
+
+## 성능 실험은 같은 조건의 반복과 안전성 shadow 비교를 요구한다
+
+기존 workflow와 후보 workflow를 각각 최소 3회 실행한다. 비교 대상은 움직이는 branch 이름이 아니라 immutable commit SHA로 고정하고, runner 유형, JDK, Gradle, dependency identity, cache 상태를 기록한다. 자동 재실행으로 실패를 숨기지 않으며, GitHub 인프라 오류와 제품 테스트 실패를 구분하되 결과가 불충분하면 그대로 inconclusive로 판정한다.
+
+측정 항목은 queue time, workflow wall time, required verify critical path, Gradle configuration과 task 시간, cache hit/miss와 전송량, 선택·실행 테스트 수, Spring Context 생성 수, Testcontainers startup, CPU·최대 RSS·disk, 실패·flaky·cancel, selection mismatch다. 단순히 job 표면 시간이 줄었다는 이유만으로 성공으로 판단하지 않는다.
+
+초기 rollout에서는 affected suite와 full suite를 같은 commit에 shadow 실행한다. affected 결과만 Pull Request 피드백에 먼저 노출할 수 있지만, full 결과와 자동 비교한다. affected가 성공하고 full이 실패하면 `selection_mismatch`로 기록하고 해당 변경 유형을 즉시 fail-closed 규칙에 추가한다. false negative가 안정적으로 0임을 확인하기 전에는 full suite를 required check에서 제거하지 않는다.
+
+저장소의 고정된 CI benchmark 도구 버전을 사용해 기준과 후보 evidence를 저장소 작업 트리 밖에 보관한다. benchmark 산출물에 secret, token, 환경 변수 원문이 포함되지 않도록 redaction하고, 결과에는 사용한 toolkit commit과 workflow run URL을 함께 남긴다.
+
+## 성공은 속도와 검증 정확도를 동시에 만족해야 한다
+
+첫 production rollout의 성공 기준은 다음과 같다.
+
+- 단일 모듈 feature Pull Request의 required CI 중앙값이 기준 대비 40% 이상 감소한다.
+- feature Pull Request required CI p95가 8분 이내다. 안정화 이후 목표 범위는 3~5분이다.
+- 문서 전용 변경은 90초 이내에 완료된다.
+- cache 사용이 적합한 warm task의 Build Cache hit ratio가 60% 이상이다.
+- 단일 모듈 변경에서 무관한 모듈의 test 실행 수가 70% 이상 감소한다.
+- affected selection false negative는 0이다.
+- 전체 회귀 테스트의 실패율과 flaky retry 비율이 기준보다 악화되지 않는다.
+- cache restore 비용이 절약한 실행 시간보다 큰 task는 cache 대상에서 제거한다.
+- Flyway, 공통 bootstrap처럼 영향 범위가 넓은 변경은 더 느리더라도 전체 검증을 수행한다.
+
+이 수치는 구현 전의 목표이며 첫 benchmark 결과로 임의 완화하지 않는다. 달성하지 못하면 어느 비용이 지배적인지 분석하고 구조를 조정한 뒤 다시 측정한다. 기준 실행 자체의 변동성이 너무 크면 더 많은 표본을 수집하고 신뢰 구간을 함께 제시한다.
+
+## 단계적 rollout은 선택기의 정확성을 먼저 증명한다
+
+첫 단계에서는 telemetry와 evidence 형식을 추가해 현재 full CI의 기준선을 수집한다. 이 단계에서는 test 선택을 바꾸지 않는다. 실제 workflow, task, Context, container 비용을 분리해 가장 큰 병목과 변동성을 확인한다.
+
+두 번째 단계에서는 Affected Module Resolver와 Test Plan Compiler를 shadow mode로 실행한다. 실제 검증은 여전히 full suite가 담당하지만, 후보가 선택했을 task와 test manifest를 artifact로 남긴다. full suite 실패가 후보 선택 밖에서 발생했는지 자동 비교해 규칙의 누락을 찾는다.
+
+세 번째 단계에서는 trusted branch Build Cache write와 feature Pull Request read-only cache를 활성화한다. cold/warm 결과, restore/upload 비용, cache miss 사유를 비교한다. build logic과 환경 입력이 재현 가능하지 않은 task는 cacheability를 먼저 고친다.
+
+네 번째 단계에서는 inventory가 끝난 Web Boundary 테스트부터 slice 또는 unit으로 전환한다. 한 번에 37개를 모두 바꾸지 않고 도메인별로 assertion 동등성과 Context load 감소를 확인한다. full-context가 필요한 scenario는 명시적으로 남긴다.
+
+다섯 번째 단계에서는 false negative가 0이고 성공 기준을 만족한 변경 유형부터 affected suite를 feature Pull Request required check로 승격한다. `develop` 병합 이후 full regression은 계속 required로 유지한다. 이후 fallback 비율이 과도한 규칙과 PostgreSQL 병목을 반복 개선한다.
+
+## 장애 대응은 빠른 우회와 원인 분류를 함께 제공해야 한다
+
+### Build Cache hit가 예상보다 낮을 때는 입력 fingerprint부터 비교한다
+
+같은 모듈을 바꾸지 않았는데도 cache miss가 난다면 먼저 JDK와 Gradle version, compiler option, dependency lock, environment input, test system property, 절대 경로를 비교한다. root build script 또는 version catalog가 달라지면 넓은 task의 classpath fingerprint가 바뀌는 것이 정상이다. machine별 절대 경로가 task input이나 output에 포함되면 artifact가 relocatable하지 않을 수 있다.
+
+`UP-TO-DATE`가 없는 것은 fresh runner에서 정상이다. 확인해야 할 것은 cache가 활성화되었는지, 이전 trusted 실행이 같은 key를 저장했는지, task가 cacheable인지, restore가 실패하지 않았는지다. hit ratio만 높이고자 큰 artifact를 무조건 저장하지 않는다. cache byte와 restore 시간을 함께 보고 순효과가 음수인 항목을 제외한다.
+
+긴급 우회는 cache read/write를 끄고 전체 검증을 실행하는 것이다. cache 장애가 제품 검증을 막아서는 안 된다. cache backend error는 명확히 표시하되 correctness가 보장되는 full execution으로 이어져야 한다.
+
+### Affected 선택이 full suite와 다를 때는 선택기를 즉시 신뢰 해제한다
+
+affected suite가 성공하고 shadow full suite가 실패하면 해당 run을 selection false negative로 분류한다. 실패 테스트의 owning module, 실제 의존 경로, 변경 파일 매핑, 삭제·rename 여부, runtime-only 또는 reflection 기반 결합을 조사한다. compile project dependency graph에 드러나지 않는 event, configuration property, Spring bean name, database schema 결합은 별도 영향 규칙이 필요하다.
+
+원인을 찾기 전까지 해당 경로 또는 변경 유형은 전체 검증 fallback 목록에 넣는다. 선택기 오류를 flaky test로 분류해 재실행으로 지우지 않는다. 선택기 자체 변경은 항상 full suite와 selector contract test를 실행한다.
+
+### Spring Context load가 줄지 않으면 slice 경계를 다시 본다
+
+테스트 수가 줄었는데 Context load 횟수와 시간이 그대로라면 서로 다른 mock 조합, property, imported configuration이 Context cache key를 계속 바꾸는지 확인한다. `@MockBean` 구성이 class마다 달라지면 Spring test Context 재사용이 제한될 수 있다. 공통 slice configuration을 만들더라도 production wiring 전체를 다시 import해서 slice를 사실상 full-context로 만들지 않는다.
+
+slice 테스트가 application startup 오류를 놓쳤다면 slice 자체를 포기하는 대신 대표 core context smoke와 full regression의 책임을 확인한다. controller 계약과 전체 wiring은 서로 다른 실패를 찾는 테스트이므로 두 종류의 목적을 섞지 않는다.
+
+### PostgreSQL shard가 병목이면 runner 수보다 초기화 단계를 나눈다
+
+먼저 runner queue, image pull, container startup, Flyway migration, fixture load, test execution을 분리한다. container와 migration이 대부분이라면 shard를 늘릴수록 고정 비용이 반복된다. 같은 JVM에서 container를 공유할 수 있는지, migration snapshot이나 reusable fixture가 안전한지 검토한다. 테스트 실행 자체가 병목이라면 domain과 lock contention을 기준으로 shard 균형을 다시 잡는다.
+
+공유 container를 도입한 뒤 순서 의존 실패가 발생하면 즉시 격리 수준을 되돌린다. truncate, transaction rollback, 독립 schema 중 어떤 방식이 테스트의 실제 transaction semantics를 보존하는지 확인한다. 속도를 위해 production과 다른 database 동작을 사용하지 않는다.
+
+### Grafana 수치가 GitHub 실행과 다르면 시간의 경계를 확인한다
+
+workflow duration이 queue를 포함하는지, job 시작과 종료 시각이 어떤 clock에서 생성됐는지, cancel과 retry가 분모에 포함되는지 확인한다. metric 누락이 있으면 성공 run만 집계되어 실제보다 빠르게 보일 수 있다. exporter 실패가 CI 자체를 실패시키지는 않되, `telemetry_export_result`와 누락률을 별도로 경고한다.
+
+시계열 수가 갑자기 늘면 SHA, PR 번호, test class, run URL 같은 고카디널리티 label이 추가됐는지 먼저 본다. 상세 식별자는 log와 artifact로 이동하고 metric은 제한된 label 집합을 유지한다.
+
+## 보안과 운영상 위험은 최적화보다 먼저 제한한다
+
+Build Cache write 권한은 trusted branch에만 허용하고 fork의 credential 접근을 차단한다. Pull Request 코드가 cache key나 output을 조작할 수 있다는 전제로 정책을 세운다. telemetry exporter token은 최소 권한과 짧은 수명을 사용하고, artifact에는 secret과 전체 environment dump를 남기지 않는다.
+
+affected 선택은 정적 Gradle dependency에 잘 드러나지 않는 runtime 결합을 놓칠 수 있다. Spring component scanning, configuration property, database table, message/event 계약, reflection이 대표적이다. 이런 경계는 명시적인 영향 규칙과 contract test로 보완하고, 모호할 때는 전체 검증을 선택한다.
+
+feature Pull Request가 빨라지면 `develop`의 full regression에 실패가 모일 수 있다. 따라서 full regression은 병합 후 참고 정보가 아니라 release로 진행하기 위한 필수 gate여야 한다. 반복 실패가 나타나면 selection 규칙을 강화하고 해당 change class를 feature 단계로 다시 끌어올린다.
+
+## 이번 PRD가 직접 구현하지 않는 범위도 분명히 한다
+
+이 문서는 GitHub-hosted runner를 self-hosted runner로 즉시 이전하는 결정을 하지 않는다. runner 변경은 성능뿐 아니라 보안, 유지보수, 비용, 격리 정책을 별도로 평가해야 한다. remote Build Cache provider도 이 단계에서 확정하지 않는다.
+
+모든 Web Boundary 테스트의 실제 annotation 전환, 전체 Testcontainers lifecycle 재설계, CI workflow 코드 변경, Grafana infrastructure 구축은 후속 Issue에서 구현한다. 이 PRD는 그 구현들이 서로 다른 기준으로 최적화되지 않도록 공통 목표와 계약을 정의한다.
+
+## 구현 전에 남은 선택은 evidence로 닫는다
+
+remote Build Cache를 GitHub Actions cache 기반으로 운영할지 전용 backend를 사용할지는 예상 artifact 크기, restore latency, 보존 기간, 권한 모델을 비교해 결정해야 한다. GitHub-hosted runner를 유지한 상태에서 목표 p95를 달성하지 못하면 그때 self-hosted runner의 경제성과 보안 비용을 평가한다.
+
+37개 Web Boundary 테스트 각각의 최종 분류는 code-level inventory가 필요하다. annotation만 보고 일괄 분류하지 않고, security와 application wiring 의존성을 확인해 `slice-candidate`, `full-context-required`, `unit-candidate` 목록을 후속 산출물로 만든다.
+
+affected graph가 `api`, `implementation`, runtime configuration과 custom source set을 어떻게 반영할지는 현재 Gradle model을 추출해 contract test로 확정한다. 정적 graph 밖의 runtime 결합은 module ownership metadata 또는 명시적인 broad-impact rule로 관리한다.
+
+## 완료된 상태에서는 빠른 CI가 우연이 아니라 설명 가능한 시스템이 된다
+
+이 개선이 완료되면 Pull Request 작성자는 변경한 모듈과 그 소비자만 검증되었다는 결과와 선택 이유를 볼 수 있다. cache hit로 생략된 task와 실제 실행된 테스트, full fallback 사유도 숨겨지지 않는다. CI maintainer는 Grafana에서 속도 개선뿐 아니라 선택 정확도, Context와 container 비용, cache 효율을 함께 관찰할 수 있다.
+
+release 담당자는 `develop` 전체 회귀와 selection mismatch가 0이라는 증거를 바탕으로 승격을 판단한다. 결과적으로 멀티모듈 구조가 소스 코드 디렉터리 구분에 머무르지 않고, 변경 영향 분석과 검증 비용을 제어하는 운영 경계가 된다.
+
+이 PRD의 acceptance criteria는 다음과 같다.
+
+- feature Pull Request와 `develop`·release의 검증 책임이 workflow 계약으로 구현된다.
+- fixed module과 reverse dependency 기반 affected 계산, rename·삭제, fail-closed 조건이 contract test로 검증된다.
+- 선택 결과 manifest가 artifact와 Job Summary에 남는다.
+- trusted cache writer와 Pull Request read-only 정책이 적용되고 cache secret 누출 검사가 통과한다.
+- Web Boundary inventory와 단계적 slice 전환이 assertion 동등성 및 Context load 감소로 검증된다.
+- Flyway 및 공통 설정 변경은 전체 관련 검증을 수행한다.
+- 정의한 telemetry와 Grafana dashboard에서 중앙값, p95, cache, test, Context, container, fallback, mismatch를 확인할 수 있다.
+- baseline과 candidate를 각 3회 이상 동일 조건에서 측정한 보고서가 생성된다.
+- affected 성공·full 실패가 0이며, 성능 성공 기준과 전체 회귀 안정성 기준을 모두 만족한다.
