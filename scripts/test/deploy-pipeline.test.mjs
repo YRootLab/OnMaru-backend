@@ -91,8 +91,12 @@ describe('container and staging release pipeline', () => {
     assert.match(compose, /image: \$\{ONMARU_AI_IMAGE:\?Set an immutable staging AI image digest\}/);
     assert.match(compose, /mem_limit: \$\{ONMARU_AI_MEMORY_LIMIT:-512m\}/);
     assert.match(compose, /http:\/\/127\.0\.0\.1:8000\/ready/);
+    assert.match(compose, /ONMARU_GEMINI_MODEL_NAME: \$\{ONMARU_GEMINI_MODEL_NAME:-gemini-3\.5-flash-lite\}/);
     assert.match(compose, /ONMARU_AI_BASE_URL: http:\/\/staging-ai-engine:8000/);
+    assert.match(compose, /ONMARU_AI_TIMEOUT: \$\{ONMARU_AI_TIMEOUT:-15s\}/);
     assert.match(compose, /ONMARU_AI_PLAN_EXECUTE_ENABLED: \$\{ONMARU_AI_PLAN_EXECUTE_ENABLED:-false\}/);
+    assert.match(compose, /ONMARU_JOURNEY_EXPLORATION_STORE: \$\{ONMARU_JOURNEY_EXPLORATION_STORE:-jdbc\}/);
+    assert.match(compose, /ONMARU_JOURNEY_WORKER_DRAIN_ENABLED: \$\{ONMARU_JOURNEY_WORKER_DRAIN_ENABLED:-true\}/);
     assert.match(compose, /ONMARU_SPRING_BASE_URL: http:\/\/staging-api:8080/);
     assert.match(compose, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: \$\{ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:\?Set the staging internal AI service token\}/);
 
