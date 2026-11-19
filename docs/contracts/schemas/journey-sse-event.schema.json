@@ -192,6 +192,10 @@
             },
             "errorCode": {
               "type": "string"
+            },
+            "retryAfterMs": {
+              "type": "integer",
+              "minimum": 0
             }
           }
         }

@@ -90,7 +90,10 @@ public final class JdbcExplorationStore implements ExplorationStore {
                             r.stage AS run_stage, r.outcome AS run_outcome,
                             r.clarification::text AS run_clarification,
                             r.created_at AS run_created_at, r.started_at AS run_started_at,
-                            r.deadline_at AS run_deadline_at
+                            r.deadline_at AS run_deadline_at,
+                            r.degraded_reason AS run_degraded_reason,
+                            r.retry_after_ms AS run_retry_after_ms,
+                            r.error_code AS run_error_code
                      FROM onmaru.discovery_explorations e
                      LEFT JOIN LATERAL (
                          SELECT * FROM onmaru.discovery_runs
@@ -128,7 +131,10 @@ public final class JdbcExplorationStore implements ExplorationStore {
                             r.stage AS run_stage, r.outcome AS run_outcome,
                             r.clarification::text AS run_clarification,
                             r.created_at AS run_created_at, r.started_at AS run_started_at,
-                            r.deadline_at AS run_deadline_at
+                            r.deadline_at AS run_deadline_at,
+                            r.degraded_reason AS run_degraded_reason,
+                            r.retry_after_ms AS run_retry_after_ms,
+                            r.error_code AS run_error_code
                      FROM onmaru.discovery_turns t
                      LEFT JOIN onmaru.discovery_runs r ON r.id = t.run_id
                      WHERE t.exploration_id = ? AND t.client_turn_id = ?
@@ -231,7 +237,8 @@ public final class JdbcExplorationStore implements ExplorationStore {
                      UPDATE onmaru.discovery_runs
                      SET status = ?::onmaru.discovery_run_status, outcome = ?, stage = NULL
                      WHERE id = ? AND exploration_id = ? AND status IN ('QUEUED', 'RUNNING')
-                     RETURNING id, engine, created_at, started_at, deadline_at
+                     RETURNING id, engine, created_at, started_at, deadline_at,
+                               degraded_reason, retry_after_ms, error_code
                      """)) {
             statement.setString(1, terminalStatus.name());
             statement.setString(2, outcome != null ? outcome.name() : null);
@@ -248,7 +255,10 @@ public final class JdbcExplorationStore implements ExplorationStore {
                             null,
                             rs.getTimestamp("created_at").toInstant(),
                             rs.getTimestamp("started_at") != null ? rs.getTimestamp("started_at").toInstant() : null,
-                            rs.getTimestamp("deadline_at").toInstant()
+                            rs.getTimestamp("deadline_at").toInstant(),
+                            rs.getString("degraded_reason"),
+                            rs.getLong("retry_after_ms"),
+                            rs.getString("error_code")
                     );
                 }
             }
@@ -334,7 +344,8 @@ public final class JdbcExplorationStore implements ExplorationStore {
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
                      SELECT t.client_turn_id, t.query, t.created_at, t.turn_response,
-                            r.id AS run_id, r.status AS run_status, r.outcome AS run_outcome
+                            r.id AS run_id, r.status AS run_status, r.outcome AS run_outcome,
+                            r.error_code AS run_error_code, r.degraded_reason AS run_degraded_reason
                      FROM onmaru.discovery_turns t
                      LEFT JOIN onmaru.discovery_runs r ON r.id = t.run_id
                      WHERE t.exploration_id = ?
@@ -362,8 +373,11 @@ public final class JdbcExplorationStore implements ExplorationStore {
                     var responseJson = rs.getString("turn_response");
                     var runStatus = rs.getString("run_status");
                     var runOutcome = rs.getString("run_outcome");
+                    var runErrorCode = rs.getString("run_error_code");
+                    var runDegradedReason = rs.getString("run_degraded_reason");
 
-                    TurnResponse turnResponse = parseTurnResponse(responseJson, runStatus, runOutcome);
+                    TurnResponse turnResponse = parseTurnResponse(
+                            responseJson, runId, runStatus, runOutcome, runErrorCode, runDegradedReason);
                     items.add(new ExplorationTurn(turnId, query, createdAt, runId, turnResponse));
                 }
             }
@@ -486,8 +500,9 @@ public final class JdbcExplorationStore implements ExplorationStore {
         try (var statement = connection.prepareStatement("""
                 INSERT INTO onmaru.discovery_runs (
                     id, exploration_id, actor_key, base_version, status, stage, outcome,
-                    clarification, created_at, deadline_at, started_at, generation, engine
-                ) VALUES (?, ?, ?, ?, ?::onmaru.discovery_run_status, ?, ?, ?::jsonb, ?, ?, ?, 1, ?)
+                    clarification, created_at, deadline_at, started_at, generation, engine,
+                    degraded_reason, retry_after_ms, error_code
+                ) VALUES (?, ?, ?, ?, ?::onmaru.discovery_run_status, ?, ?, ?::jsonb, ?, ?, ?, 1, ?, ?, ?, ?)
                 ON CONFLICT (id) DO NOTHING
                 """)) {
             statement.setObject(1, run.id());
@@ -511,6 +526,17 @@ public final class JdbcExplorationStore implements ExplorationStore {
                 statement.setNull(11, Types.TIMESTAMP);
             }
             statement.setString(12, run.engine() != null ? run.engine() : "BASELINE");
+            if (run.degradedReason() != null) {
+                statement.setString(13, run.degradedReason());
+            } else {
+                statement.setNull(13, Types.VARCHAR);
+            }
+            statement.setLong(14, run.retryAfterMs());
+            if (run.errorCode() != null) {
+                statement.setString(15, run.errorCode());
+            } else {
+                statement.setNull(15, Types.VARCHAR);
+            }
             statement.executeUpdate();
         }
     }
@@ -597,7 +623,8 @@ public final class JdbcExplorationStore implements ExplorationStore {
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
                      SELECT id, status, engine, stage, outcome, clarification::text AS clarification,
-                            created_at, started_at, deadline_at
+                            created_at, started_at, deadline_at,
+                            degraded_reason, retry_after_ms, error_code
                      FROM onmaru.discovery_runs
                      WHERE id = ? AND exploration_id = ?
                      """)) {
@@ -618,7 +645,10 @@ public final class JdbcExplorationStore implements ExplorationStore {
                             clarification,
                             rs.getTimestamp("created_at").toInstant(),
                             rs.getTimestamp("started_at") != null ? rs.getTimestamp("started_at").toInstant() : null,
-                            rs.getTimestamp("deadline_at").toInstant()
+                            rs.getTimestamp("deadline_at").toInstant(),
+                            rs.getString("degraded_reason"),
+                            rs.getLong("retry_after_ms"),
+                            rs.getString("error_code")
                     ));
                 }
             }
@@ -656,7 +686,10 @@ public final class JdbcExplorationStore implements ExplorationStore {
                     clarification,
                     rs.getTimestamp("run_created_at").toInstant(),
                     rs.getTimestamp("run_started_at") != null ? rs.getTimestamp("run_started_at").toInstant() : null,
-                    rs.getTimestamp("run_deadline_at").toInstant()
+                    rs.getTimestamp("run_deadline_at").toInstant(),
+                    rs.getString("run_degraded_reason"),
+                    rs.getLong("run_retry_after_ms"),
+                    rs.getString("run_error_code")
             );
         }
 
@@ -800,7 +833,10 @@ public final class JdbcExplorationStore implements ExplorationStore {
                     clarification,
                     rs.getTimestamp("run_created_at").toInstant(),
                     rs.getTimestamp("run_started_at") != null ? rs.getTimestamp("run_started_at").toInstant() : null,
-                    rs.getTimestamp("run_deadline_at").toInstant()
+                    rs.getTimestamp("run_deadline_at").toInstant(),
+                    rs.getString("run_degraded_reason"),
+                    rs.getLong("run_retry_after_ms"),
+                    rs.getString("run_error_code")
             );
         }
 
@@ -808,7 +844,13 @@ public final class JdbcExplorationStore implements ExplorationStore {
     }
 
     @SuppressWarnings("unchecked")
-    private TurnResponse parseTurnResponse(String json, String runStatus, String runOutcome) {
+    private TurnResponse parseTurnResponse(
+            String json,
+            UUID runId,
+            String runStatus,
+            String runOutcome,
+            String runErrorCode,
+            String runDegradedReason) {
         if (json != null && !json.isBlank()) {
             try {
                 return objectMapper.readValue(json, TurnResponse.class);
@@ -819,7 +861,13 @@ public final class JdbcExplorationStore implements ExplorationStore {
             return TurnResponse.completed(runOutcome, null, null, null, null);
         }
         if ("FAILED".equals(runStatus)) {
-            return TurnResponse.failed(Map.of("code", "INTERNAL_ERROR"));
+            String code = runErrorCode != null
+                    ? runErrorCode
+                    : (runDegradedReason != null ? runDegradedReason : "AI_SERVICE_UNAVAILABLE");
+            if (runId != null) {
+                return TurnResponse.failed(Map.of("code", code, "requestId", "run-" + runId));
+            }
+            return TurnResponse.failed(Map.of("code", code));
         }
         if ("CANCELLED".equals(runStatus)) {
             return TurnResponse.cancelled();

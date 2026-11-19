@@ -63,6 +63,15 @@ public final class ValidatingExecutionResultMapper implements ExecutionResultMap
 
         Map<String, Object> proposal = object(result.proposal());
         requireEnvelope(proposal, PROPOSAL_SCHEMA, plan);
+        if (proposal.get("failureStage") != null) {
+            throw invalid();
+        }
+        String retrievalStatus = text(proposal, "retrievalStatus");
+        if (!"COMPLETE".equals(retrievalStatus)
+                && !"DEGRADED".equals(retrievalStatus)
+                && !"NOT_RUN".equals(retrievalStatus)) {
+            throw invalid();
+        }
         String generation = text(proposal, "generationStatus");
         if (!"GENERATED".equals(generation) && !"NOT_RUN".equals(generation)) {
             throw invalid();
@@ -70,6 +79,9 @@ public final class ValidatingExecutionResultMapper implements ExecutionResultMap
 
         List<Map<String, Object>> places = objects(proposal.get("places"));
         if (places.size() > MAX_PLACES) {
+            throw invalid();
+        }
+        if (places.isEmpty() && !evidence.allowedPlaceIds().isEmpty()) {
             throw invalid();
         }
         List<String> placeIds = new ArrayList<>();
