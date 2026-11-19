@@ -166,12 +166,36 @@ Toolkit 고정 commit은 실험 도중 임의로 올리지 않는다. Toolkit �
 |---|---|---|---|
 | `plan` | 변경 파일·영향 모듈 분석 및 검증 계획 수립 | 전체 회귀 검증 계획 수립 | `change-plan` |
 | `hygiene` | 저장소 구조·문서·브랜치 운영 규칙 검증 | 저장소 구조·문서·브랜치 운영 규칙 검증 | `repository-hygiene` |
-| `java` | 영향받은 Java 모듈·Spring 경계 검증 | Java 모듈·Spring API 전체 회귀 검증 | `java-affected` 또는 `java-full` |
+| `java` | Spring Boot 백엔드 변경 영향 검증 | Spring Boot 백엔드 전체 회귀 검증 | `spring-affected` 또는 `spring-full` |
 | `contract` | API·스키마·생성 산출물 계약 검증 | API·스키마·생성 산출물 계약 검증 | `contract-validation` |
 | `ai` | FastAPI AI 단위·품질 평가 검증 | FastAPI AI 전체 품질 회귀 검증 | `ai-quality` |
 | `verify` | 필수 검증 결과 종합 판정 | 전체 회귀 검증 결과 종합 판정 | `required-verdict` |
 
-Java job 안의 step도 `Gradle 실행`처럼 도구 이름만 표시하지 않는다. `영향 모듈 unit test 실행`, `Spring MVC slice test 실행`, `영향 PostgreSQL 통합 테스트 실행`, `Spring Context 기동 smoke 검증`, `실행 JAR 생성`, `Gradle 성능·cache evidence 저장`처럼 목적과 검증 범위를 이름에 포함한다. 실패한 사람이 Actions 화면만 보고도 어느 안전망이 깨졌는지 알 수 있어야 한다.
+`java`는 YAML의 내부 job ID일 뿐 사용자에게 보여줄 개념이 아니다. Actions 화면에서는 `Spring Boot 백엔드 변경 영향 검증` 또는 `Spring Boot 백엔드 전체 회귀 검증`으로 표시한다. job 안의 step도 `Gradle 실행`처럼 도구 이름만 쓰지 않고, 무엇을 증명하는 단계인지 이름에 포함한다. 실패한 사람이 Actions 화면만 보고도 어느 안전망이 깨졌는지 알 수 있어야 한다.
+
+현재 전체 검증을 의미에 따라 나누면 다음 계층으로 표시한다.
+
+```mermaid
+flowchart LR
+    A[Spring Boot 백엔드 전체 회귀 검증] --> B[도메인·어댑터 모듈 테스트]
+    B --> C[Spring Boot 애플리케이션 통합 테스트]
+    C --> D[실행 가능한 Spring Boot JAR 생성]
+    D --> E[검증 시간·Cache 증적 저장]
+    E --> F[필수 검증 결과 종합 판정]
+```
+
+*GitHub Actions 화면에서 하나의 구현 언어 lane이 아니라 검증 목적별 step으로 보이는 구조다.*
+
+| 내부 step 목적 | Actions 표시 이름 | 성공이 증명하는 것 |
+|---|---|---|
+| module test | `도메인·어댑터 모듈 테스트` | Spring Context 없이 모듈의 비즈니스 규칙과 adapter 계약이 통과함 |
+| application test | `Spring Boot 애플리케이션 통합 테스트` | Spring wiring, HTTP 경계, security, PostgreSQL 통합 시나리오가 통과함 |
+| packaging | `실행 가능한 Spring Boot JAR 생성` | production과 같은 application entry point를 실행 artifact로 패키징할 수 있음 |
+| evidence | `검증 시간·Cache 증적 저장` | 앞 단계의 duration, task/cache outcome과 환경 identity를 비교 가능한 artifact로 보존함 |
+
+affected test가 적용되면 application test를 다시 `Spring MVC 경계 테스트`, `영향 PostgreSQL 통합 테스트`, `Spring Context 기동 검증`으로 세분한다. 그러나 아직 실제 slice test가 없는 상태에서 이름만 `Spring MVC slice test`로 먼저 바꾸지는 않는다. 표시 이름은 현재 수행하는 검증 범위를 과장하지 않아야 한다.
+
+step을 분리하기 위해 Gradle process를 무조건 세 번 새로 시작하지 않는다. 같은 runner와 workspace에서 Gradle user home, daemon, configuration 결과와 task output을 재사용하는 방식을 우선 검토한다. 하나의 Gradle invocation을 유지해야 더 빠르다면 Actions Job Summary에 동일한 세 의미 영역과 timing을 시각화하는 대안도 benchmark한다. UI 가독성을 얻기 위해 required CI가 느려져서는 안 되므로 기존 단일 invocation과 분리 step 후보를 같은 조건에서 각각 최소 3회 비교한다.
 
 workflow의 최상위 `name: CI`는 당장 한국어로 바꾸지 않는다. `CI Observability`의 `workflow_run` source allowlist와 Toolkit의 workflow identity가 이 문자열을 신뢰 경계로 사용하기 때문이다. 최상위 이름을 바꾸려면 collector, allowlist, fixture, dashboard selector를 같은 변경에서 함께 이전하고 기존 시계열과의 연결을 검증해야 한다.
 
@@ -375,6 +399,8 @@ release 담당자는 `develop` 전체 회귀와 selection mismatch가 0이라는
 
 - feature Pull Request와 `develop`·release의 검증 책임이 workflow 계약으로 구현된다.
 - 안정적인 영문 job ID와 구체적인 한국어 표시 이름, bounded telemetry job catalog가 함께 적용된다.
+- Spring Boot 검증이 모듈 테스트·애플리케이션 통합 테스트·실행 JAR 생성·성능 증적 step으로 구분되어 Actions 화면과 Job Summary에서 보인다.
+- step 분리 후보가 기존 단일 Gradle invocation보다 느려지지 않는지 동일 조건 3회 이상 비교하고, 회귀하면 단일 invocation과 구조화된 Summary를 사용한다.
 - fixed module과 reverse dependency 기반 affected 계산, rename·삭제, fail-closed 조건이 contract test로 검증된다.
 - 선택 결과 manifest가 artifact와 Job Summary에 남는다.
 - trusted cache writer와 Pull Request read-only 정책이 적용되고 cache secret 누출 검사가 통과한다.
