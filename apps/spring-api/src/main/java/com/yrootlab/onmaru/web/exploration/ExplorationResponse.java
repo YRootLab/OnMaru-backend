@@ -2,7 +2,9 @@ package com.yrootlab.onmaru.web.exploration;
 
 import com.yrootlab.onmaru.journey.exploration.ExplorationClarification;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRun;
+import com.yrootlab.onmaru.journey.exploration.ExplorationRunStatus;
 import com.yrootlab.onmaru.journey.exploration.ExplorationSnapshot;
+import com.yrootlab.onmaru.journey.exploration.PersistedExplorationBoard;
 import com.yrootlab.onmaru.journey.actions.JourneyActionState;
 
 import java.time.Instant;
@@ -73,16 +75,26 @@ record ExplorationResponse(
             Object error) {
 
         static RunResponse from(ExplorationSnapshot snapshot) {
-            return from(snapshot.run());
+            return from(snapshot.run(), snapshot.board());
         }
 
         static RunResponse from(ExplorationRun run) {
+            return from(run, null);
+        }
+
+        private static RunResponse from(ExplorationRun run, PersistedExplorationBoard board) {
+            if (run == null) {
+                return null;
+            }
+            boolean completedWithBoard = board != null && run.status() == ExplorationRunStatus.COMPLETED;
+            String engine = completedWithBoard && board.engine() != null ? board.engine() : run.engine();
+            String degradedReason = completedWithBoard ? board.degradedReason() : null;
             return new RunResponse(
                     "1.2",
                     run.id(),
                     run.status().name(),
-                    run.engine(),
-                    null,
+                    engine,
+                    degradedReason,
                     run.stage(),
                     run.outcome() == null ? null : run.outcome().name(),
                     ClarificationResponse.from(run.clarification()),

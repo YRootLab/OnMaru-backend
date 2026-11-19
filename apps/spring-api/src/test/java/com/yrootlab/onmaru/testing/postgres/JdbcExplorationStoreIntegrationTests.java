@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -180,6 +181,70 @@ class JdbcExplorationStoreIntegrationTests {
         // After 25h: hidden / expired
         var listAfter = store.list(actor, 20, null, now.plus(Duration.ofHours(25)));
         assertThat(listAfter.items()).isEmpty();
+    }
+
+    @Test
+    void restoresPersistedBoardRegionCodeAndSafeContext() throws Exception {
+        var memberId = UUID.randomUUID();
+        insertMember(memberId);
+
+        var actor = ExplorationActor.member(memberId);
+        var explorationId = UUID.randomUUID();
+        var runId = UUID.randomUUID();
+        var now = Instant.now();
+
+        var run = new ExplorationRun(
+                runId,
+                ExplorationRunStatus.RUNNING,
+                "LLM",
+                "PERSISTING",
+                null,
+                null,
+                now,
+                now,
+                now.plusSeconds(30)
+        );
+        var state = new ExplorationState(explorationId, actor, 0, "kr-45-jeonju", run, now);
+        store.create(state, UUID.randomUUID(), "전주 한옥 여행", now);
+
+        var resultStore = new com.yrootlab.onmaru.persistence.journey.worker.JdbcJourneyResultStore(dataSource);
+        var persistResult = resultStore.persist(new com.yrootlab.onmaru.journey.worker.PersistJourneyResultCommand(
+                runId,
+                explorationId,
+                0,
+                com.yrootlab.onmaru.journey.worker.JourneyResultEngine.LLM,
+                null,
+                List.of("p-jeonju-1", "p-jeonju-2"),
+                "PROPOSAL",
+                java.util.Map.of("p-jeonju-1", "한옥 마을 중심"),
+                "전주 한옥 산책 코스"));
+        assertThat(persistResult).isEqualTo(com.yrootlab.onmaru.journey.worker.PersistJourneyResultResult.PERSISTED);
+
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("""
+                    UPDATE onmaru.discovery_explorations
+                    SET pinned_refs = '[{"type":"PLACE","id":"p-pinned"}]'::jsonb,
+                        excluded_refs = '["p-excluded"]'::jsonb
+                    WHERE id = '%s'
+                    """.formatted(explorationId));
+        }
+
+        var loaded = store.find(explorationId);
+        assertThat(loaded).isPresent();
+        assertThat(loaded.get().regionCode()).isEqualTo("kr-45-jeonju");
+        assertThat(loaded.get().board()).isNotNull();
+        assertThat(loaded.get().board().engine()).isEqualTo("LLM");
+        assertThat(loaded.get().board().outcome()).isEqualTo("PROPOSAL");
+        assertThat(loaded.get().board().orderedRefs()).containsExactly("p-jeonju-1", "p-jeonju-2");
+        assertThat(loaded.get().board().placeReasons()).containsEntry("p-jeonju-1", "한옥 마을 중심");
+        assertThat(loaded.get().board().summaryText()).isEqualTo("전주 한옥 산책 코스");
+
+        var contextReader = new com.yrootlab.onmaru.persistence.journey.exploration.JdbcExplorationContextReader(
+                dataSource, new ObjectMapper());
+        var context = contextReader.read(explorationId);
+        assertThat(context.pinnedPlaceIds()).containsExactly("p-pinned");
+        assertThat(context.excludedPlaceIds()).containsExactly("p-excluded");
+        assertThat(context.lastConfirmedPlaceIds()).containsExactly("p-jeonju-1", "p-jeonju-2");
     }
 
     private void insertMember(UUID memberId) throws Exception {

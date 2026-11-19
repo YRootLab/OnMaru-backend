@@ -149,6 +149,46 @@ class JdbcJourneyResultStoreTests {
         assertThat(result).isEqualTo(PersistJourneyResultResult.PERSISTED);
     }
 
+    @Test
+    void persistsLlmProposalWithPlaceReasonsAndSummaryText() {
+        var reasons = new java.util.LinkedHashMap<String, String>();
+        reasons.put("p-jeonju-1", "전주 한옥의 \"고요한\"\n골목길 산책 코스");
+        reasons.put("p-jeonju-2", "조선 태조 어진을 모신 공간");
+
+        var result = store.persist(new PersistJourneyResultCommand(
+                runId,
+                explorationId,
+                0,
+                JourneyResultEngine.LLM,
+                null,
+                List.of("p-jeonju-1", "p-jeonju-2"),
+                "PROPOSAL",
+                reasons,
+                "전주 한옥과 역사를 함께 둘러보는 하루 코스"));
+
+        assertThat(result).isEqualTo(PersistJourneyResultResult.PERSISTED);
+        assertThat(queryString("""
+                SELECT board->>'engine'
+                FROM onmaru.discovery_explorations
+                WHERE id = '%s'
+                """.formatted(explorationId))).isEqualTo("LLM");
+        assertThat(queryString("""
+                SELECT board->>'outcome'
+                FROM onmaru.discovery_explorations
+                WHERE id = '%s'
+                """.formatted(explorationId))).isEqualTo("PROPOSAL");
+        assertThat(queryString("""
+                SELECT board->'placeReasons'->>'p-jeonju-1'
+                FROM onmaru.discovery_explorations
+                WHERE id = '%s'
+                """.formatted(explorationId))).isEqualTo("전주 한옥의 \"고요한\"\n골목길 산책 코스");
+        assertThat(queryString("""
+                SELECT board->>'summaryText'
+                FROM onmaru.discovery_explorations
+                WHERE id = '%s'
+                """.formatted(explorationId))).isEqualTo("전주 한옥과 역사를 함께 둘러보는 하루 코스");
+    }
+
     private PersistJourneyResultCommand command() {
         return new PersistJourneyResultCommand(
                 runId,

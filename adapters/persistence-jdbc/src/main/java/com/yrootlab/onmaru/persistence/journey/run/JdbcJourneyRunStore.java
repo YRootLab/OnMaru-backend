@@ -1,6 +1,7 @@
 package com.yrootlab.onmaru.persistence.journey.run;
 
 import com.yrootlab.onmaru.journey.cancellation.CancelJourneyRunCommand;
+import com.yrootlab.onmaru.journey.exploration.ExplorationClarification;
 import com.yrootlab.onmaru.journey.run.ActiveRunConflictException;
 import com.yrootlab.onmaru.journey.run.AdvanceRunStageCommand;
 import com.yrootlab.onmaru.journey.run.ClaimRunCommand;
@@ -124,6 +125,7 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                         stage = NULL,
                         outcome = ?,
                         error_code = ?,
+                        clarification = COALESCE(?::jsonb, clarification),
                         lease_expires_at = NULL,
                         generation = generation + 1
                     WHERE id = ? AND actor_key = ? AND generation = ? AND %s
@@ -134,11 +136,17 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                 statement.setString(1, command.terminalStatus().name());
                 statement.setString(2, command.outcome());
                 statement.setString(3, command.errorCode());
-                statement.setObject(4, command.runId());
-                statement.setString(5, command.actorKey());
-                statement.setInt(6, command.expectedGeneration());
-                statement.setString(7, command.terminalStatus().name());
-                statement.setObject(8, utc(command.finishedAt()));
+                String clarificationJson = clarificationJson(command.clarification());
+                if (clarificationJson != null) {
+                    statement.setString(4, clarificationJson);
+                } else {
+                    statement.setNull(4, Types.VARCHAR);
+                }
+                statement.setObject(5, command.runId());
+                statement.setString(6, command.actorKey());
+                statement.setInt(7, command.expectedGeneration());
+                statement.setString(8, command.terminalStatus().name());
+                statement.setObject(9, utc(command.finishedAt()));
                 return requiredFinishTransition(connection, statement.executeQuery(), command.runId(), command.actorKey());
             }
         });
@@ -424,6 +432,44 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
     private Instant instant(ResultSet result, String column) throws SQLException {
         var value = result.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
+    }
+
+    private String clarificationJson(ExplorationClarification clarification) {
+        if (clarification == null) {
+            return null;
+        }
+        return "{\"id\":\"" + jsonEscape(clarification.id()) + "\""
+                + ",\"reason\":\"" + jsonEscape(clarification.reason()) + "\""
+                + ",\"question\":\"" + jsonEscape(clarification.question()) + "\""
+                + ",\"allowFreeText\":" + clarification.allowFreeText()
+                + "}";
+    }
+
+    private String jsonEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        var escaped = new StringBuilder(value.length());
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            switch (ch) {
+                case '\\' -> escaped.append("\\\\");
+                case '"' -> escaped.append("\\\"");
+                case '\b' -> escaped.append("\\b");
+                case '\f' -> escaped.append("\\f");
+                case '\n' -> escaped.append("\\n");
+                case '\r' -> escaped.append("\\r");
+                case '\t' -> escaped.append("\\t");
+                default -> {
+                    if (ch < 0x20) {
+                        escaped.append(String.format("\\u%04x", (int) ch));
+                    } else {
+                        escaped.append(ch);
+                    }
+                }
+            }
+        }
+        return escaped.toString();
     }
 
     @FunctionalInterface

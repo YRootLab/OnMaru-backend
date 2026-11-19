@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiRequestHeadersFactory;
-import com.yrootlab.onmaru.journey.worker.CandidateSnapshot;
 import com.yrootlab.onmaru.integration.ai.security.InternalAiTokenRequest;
 import com.yrootlab.onmaru.journey.worker.AiProposalClient;
 import com.yrootlab.onmaru.journey.worker.AiProposalException;
@@ -49,7 +48,6 @@ public final class HttpAiProposalClient implements AiProposalClient {
     private final JourneyWorkerTelemetry telemetry;
     private final boolean streamingEnabled;
     private final boolean unaryFallbackEnabled;
-    private final AiRequestOptions requestOptions;
 
     public HttpAiProposalClient(
             HttpClient httpClient,
@@ -64,13 +62,6 @@ public final class HttpAiProposalClient implements AiProposalClient {
     public HttpAiProposalClient(HttpClient httpClient, ObjectMapper objectMapper, URI baseUri,
             InternalAiRequestHeadersFactory headersFactory, Duration timeout, JourneyWorkerTelemetry telemetry,
             boolean streamingEnabled, boolean unaryFallbackEnabled) {
-        this(httpClient, objectMapper, baseUri, headersFactory, timeout, telemetry, streamingEnabled,
-                unaryFallbackEnabled, AiRequestOptions.OFF);
-    }
-
-    public HttpAiProposalClient(HttpClient httpClient, ObjectMapper objectMapper, URI baseUri,
-            InternalAiRequestHeadersFactory headersFactory, Duration timeout, JourneyWorkerTelemetry telemetry,
-            boolean streamingEnabled, boolean unaryFallbackEnabled, AiRequestOptions requestOptions) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.baseUri = baseUri;
@@ -79,7 +70,6 @@ public final class HttpAiProposalClient implements AiProposalClient {
         this.telemetry = telemetry;
         this.streamingEnabled = streamingEnabled;
         this.unaryFallbackEnabled = unaryFallbackEnabled;
-        this.requestOptions = java.util.Objects.requireNonNull(requestOptions, "requestOptions");
     }
 
     @Override
@@ -264,7 +254,6 @@ public final class HttpAiProposalClient implements AiProposalClient {
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody(request, payload)));
         if (stream) builder.header("Accept", "text/event-stream");
-        recordCandidateSnapshot(request, payload);
         var headers = headersFactory.headersFor(InternalAiTokenRequest.forJourneyProposal(
                 request.requestId(),
                 request.traceId(),
@@ -275,107 +264,15 @@ public final class HttpAiProposalClient implements AiProposalClient {
         return builder.build();
     }
 
-    /** Records which exact candidate input was sent. Never records the visitor's query text. */
-    private void recordCandidateSnapshot(JourneyWorkerRequest request, CandidatePayload payload) {
-        var refs = payload.candidates().stream().map(JourneyCandidate::ref).toList();
-        var attributes = new LinkedHashMap<String, String>();
-        attributes.put("run.id", request.runId().toString());
-        attributes.put("candidate.policy", CandidateSnapshot.POLICY_V1);
-        attributes.put("candidate.count", Integer.toString(refs.size()));
-        attributes.put("candidate.snapshot.id", CandidateSnapshot.id(
-                CandidateSnapshot.POLICY_V1, request.regionCode(), request.datasetRevision(), refs));
-        attributes.put("region.present", Boolean.toString(request.regionCode() != null));
-        telemetry.record(new WorkerTelemetryEvent("journey.worker.ai_request", attributes));
-    }
-
     private String requestBody(JourneyWorkerRequest request, CandidatePayload payload)
             throws JsonProcessingException {
-        var body = new java.util.LinkedHashMap<String, Object>();
-        body.put("schemaVersion", "internal.ai.v1");
-        body.put("requestId", request.requestId());
-        body.put("runId", request.runId().toString());
-        body.put("candidateCount", payload.candidates().size());
-        body.put("query", request.queryText());
-        body.put("candidateRefs", payload.candidates().stream().map(JourneyCandidate::ref).toList());
-        if (requestOptions.sendCandidatePolicy()) {
-            body.put("candidatePolicy", CandidateSnapshot.POLICY_V1);
-        }
-        if (requestOptions.ragFor(request.actorKey())) {
-            // The corpus revision is chosen by the AI server; the backend never sends corpusRevisionId.
-            body.put("useRag", true);
-        }
-        return objectMapper.writeValueAsString(body);
-    }
-
-    /** Reads the AI explanation fields. Missing or malformed parts become empty values; nothing here fails the call. */
-    private static com.yrootlab.onmaru.journey.worker.AiNarrative parseNarrative(JsonNode root) {
-        var journey = root.get("journey");
-        String title = null;
-        String summary = null;
-        String narration = null;
-        var stops = new java.util.ArrayList<com.yrootlab.onmaru.journey.worker.AiNarrative.StopReason>();
-        if (journey != null && journey.isObject()) {
-            title = boundedText(journey.get("title"));
-            summary = boundedText(journey.get("summary"));
-            narration = boundedText(journey.get("narration"));
-            var stopNodes = journey.get("stops");
-            if (stopNodes != null && stopNodes.isArray()) {
-                for (JsonNode stop : stopNodes) {
-                    var ref = stop.get("ref");
-                    var reason = boundedText(stop.get("reason"));
-                    if (ref != null && ref.isTextual() && !ref.textValue().isBlank() && stops.size() < 12) {
-                        stops.add(new com.yrootlab.onmaru.journey.worker.AiNarrative.StopReason(ref.textValue(), reason));
-                    }
-                }
-            }
-        }
-        var relaxed = new java.util.ArrayList<String>();
-        var relaxedNode = root.get("relaxedConstraints");
-        if (relaxedNode != null && relaxedNode.isArray()) {
-            for (JsonNode item : relaxedNode) {
-                if (item.isTextual() && relaxed.size() < 16) {
-                    relaxed.add(item.textValue());
-                }
-            }
-        }
-        return new com.yrootlab.onmaru.journey.worker.AiNarrative(title, summary, narration, stops, relaxed);
-    }
-
-    private static String boundedText(JsonNode node) {
-        if (node == null || !node.isTextual()) {
-            return null;
-        }
-        var text = node.textValue();
-        return text.length() <= com.yrootlab.onmaru.journey.worker.AiNarrative.MAX_TEXT
-                ? text
-                : text.substring(0, com.yrootlab.onmaru.journey.worker.AiNarrative.MAX_TEXT);
-    }
-
-    /**
-     * Records which corpus revision and how many evidence refs an AI response carried, plus the RAG degradation
-     * reason when retrieval was skipped. Only identifiers and counts are recorded; no query text or evidence text.
-     */
-    private void recordRagResponse(JourneyWorkerRequest request, JsonNode root) {
-        if (root == null || !root.isObject()) {
-            return;
-        }
-        var attributes = new LinkedHashMap<String, String>();
-        attributes.put("run.id", request.runId().toString());
-        var revision = root.get("corpusRevisionId");
-        if (revision != null && revision.isTextual()) {
-            attributes.put("rag.corpus.revision", revision.asText());
-        }
-        var evidence = root.get("ragEvidenceRefs");
-        attributes.put("rag.evidence.count", Integer.toString(evidence != null && evidence.isArray() ? evidence.size() : 0));
-        var ragReason = root.get("ragDegradedReason");
-        if (ragReason != null && ragReason.isTextual()) {
-            attributes.put("rag.degraded.reason", ragReason.asText());
-        }
-        var degraded = root.get("degradedReason");
-        if (degraded != null && degraded.isTextual()) {
-            attributes.put("ai.degraded.reason", degraded.asText());
-        }
-        telemetry.record(new WorkerTelemetryEvent("journey.worker.ai_response", attributes));
+        return objectMapper.writeValueAsString(Map.of(
+                "schemaVersion", "internal.ai.v1",
+                "requestId", request.requestId(),
+                "runId", request.runId().toString(),
+                "candidateCount", payload.candidates().size(),
+                "query", request.queryText(),
+                "candidateRefs", payload.candidates().stream().map(JourneyCandidate::ref).toList()));
     }
 
     private JourneyWorkerPlan planFrom(JourneyWorkerRequest request, CandidatePayload payload, String body) {
@@ -389,7 +286,6 @@ public final class HttpAiProposalClient implements AiProposalClient {
 
     private JourneyWorkerPlan planFrom(JourneyWorkerRequest request, CandidatePayload payload, JsonNode root) {
             if (root == null || !root.isObject()) throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
-            recordRagResponse(request, root);
             if (!request.runId().toString().equals(text(root, "runId"))) {
                 throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
             }
@@ -406,7 +302,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
                 }
                 orderedRefs.add(ref.textValue());
             }
-            return new JourneyWorkerPlan(orderedRefs, outcome, parseNarrative(root));
+            return new JourneyWorkerPlan(orderedRefs, outcome);
     }
 
     private static String text(JsonNode root, String field) {

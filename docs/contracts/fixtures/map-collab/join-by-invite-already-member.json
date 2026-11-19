@@ -1,0 +1,27 @@
+{
+  "name": "join-by-invite-already-member",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms/joins",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    },
+    "body": {
+      "token": "bVLon_nWqa4OKw_vlakgweXAYILZ14zoCHe0fiM6tow"
+    }
+  },
+  "response": {
+    "status": 200,
+    "schema": "JoinMapRoomResponse",
+    "body": {
+      "schemaVersion": "1.2",
+      "room": {
+        "id": "8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01",
+        "status": "ACTIVE",
+        "expiresAt": "2026-11-12T03:00:00Z"
+      },
+      "role": "MEMBER",
+      "alreadyMember": true
+    }
+  }
+}

@@ -234,6 +234,9 @@ public final class InMemoryExplorationStore implements ExplorationStore {
                 state.stateVersion(),
                 state.regionCode(),
                 run,
-                updatedAt));
+                updatedAt,
+                state.board(),
+                state.pinnedRefs(),
+                state.excludedRefs()));
     }
 }

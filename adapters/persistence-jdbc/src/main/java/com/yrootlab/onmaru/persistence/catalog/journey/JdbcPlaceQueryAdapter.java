@@ -17,6 +17,22 @@ public final class JdbcPlaceQueryAdapter implements PlaceQueryPort {
 
     @Override
     public List<ApprovedPlaceLookupItem> lookupApprovedPlaces(String regionCode, String category, int limit) {
-        return ApprovedPlaceReader.read(dataSource, regionCode, category, Math.min(Math.max(limit, 1), 5));
+        return lookupApprovedPlaces(regionCode, category, null, null, limit);
+    }
+
+    @Override
+    public List<ApprovedPlaceLookupItem> lookupApprovedPlaces(
+            String regionCode,
+            String category,
+            List<String> allowedPlaceIds,
+            List<String> excludedPlaceIds,
+            int limit) {
+        return ApprovedPlaceReader.read(
+                dataSource,
+                regionCode,
+                category,
+                allowedPlaceIds,
+                excludedPlaceIds,
+                Math.min(Math.max(limit, 1), 5));
     }
 }

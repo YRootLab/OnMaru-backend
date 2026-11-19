@@ -1,0 +1,21 @@
+{
+  "name": "pin-remove-not-found",
+  "request": {
+    "method": "DELETE",
+    "path": "/api/v1/map-rooms/8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01/pins/1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b?opId=e2b3c4d5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    }
+  },
+  "response": {
+    "status": 404,
+    "schema": "MapCollabError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "PIN_NOT_FOUND",
+      "message": "pin not found",
+      "requestId": "req-map-pin-remove-notfound",
+      "details": {}
+    }
+  }
+}

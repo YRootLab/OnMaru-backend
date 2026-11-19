@@ -1,0 +1,12 @@
+{
+  "name": "client-cursor-move",
+  "direction": "client→server",
+  "message": {
+    "v": 1,
+    "type": "CURSOR",
+    "payload": {
+      "lat": 36.31,
+      "lng": 127.71
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "server-resync-required",
+  "direction": "server→client",
+  "message": {
+    "v": 1,
+    "type": "RESYNC_REQUIRED",
+    "payload": {
+      "reason": "OUT_OF_RETENTION"
+    }
+  }
+}

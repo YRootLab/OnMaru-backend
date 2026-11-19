@@ -43,7 +43,9 @@ class JourneyQueryToolControllerTests {
     @Test void authenticatesAndReturnsOnlyApprovedPlacesAndFields() throws Exception {
         mvc.perform(post(path()).header("Authorization","Bearer correct-secret")
                         .contentType(MediaType.APPLICATION_JSON).content(body("SEOUL","HANOK",5)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.catalogVersion").value("journey.query.tools.v1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.catalogVersion").value("journey.query.tools.v1"))
+                .andExpect(jsonPath("$.status").value("OK"))
                 .andExpect(jsonPath("$.places.length()").value(1))
                 .andExpect(jsonPath("$.places[0].placeId").value("place-1"))
                 .andExpect(jsonPath("$.places[0].publicAddress").value("서울 종로구"))
@@ -51,6 +53,46 @@ class JourneyQueryToolControllerTests {
                 .andExpect(jsonPath("$.places[0].categoryCode").doesNotExist())
                 .andExpect(jsonPath("$.places[0].latitude").doesNotExist());
         assertThat(lookupCalls).isEqualTo(1);
+    }
+
+    @Test void returnsNoMatchStatusAndForwardsAllowedAndExcludedFiltersToPort() throws Exception {
+        var capturedAllowed = new ArrayList<List<String>>();
+        var capturedExcluded = new ArrayList<List<String>>();
+        var grantStore = new MemoryStore();
+        var grantService = new QueryGrantService(grantStore, Clock.fixed(now, ZoneOffset.UTC));
+        var filters = new Filters("sha256:" + "b".repeat(64), true, List.of("place-1"),
+                List.of("SEOUL"), List.of("HANOK"), List.of(), List.of("place-excluded"));
+        String ref = grantService.issue(new ApprovedPlanBinding(new PlanProposal("ai-plan.v1", "1", UUID.randomUUID(),
+                Route.SQL_ONLY, RetrievalMode.NONE, List.of(), null, null, List.of(CanonicalField.PUBLIC_ADDRESS),
+                filters, null, new Versions("corpus-1", "config-1", "dict-1", 0), new Limits(0, 0, 0, 0, 5), null,
+                "sha256:" + "a".repeat(64))), now.plusSeconds(20));
+
+        var controller = new JourneyQueryToolController(new com.yrootlab.onmaru.catalog.application.query.journey.PlaceQueryPort() {
+            @Override
+            public List<ApprovedPlaceLookupItem> lookupApprovedPlaces(String regionCode, String category, int limit) {
+                throw new AssertionError("5-arg overload must be called");
+            }
+
+            @Override
+            public List<ApprovedPlaceLookupItem> lookupApprovedPlaces(
+                    String regionCode, String category, List<String> allowedPlaceIds, List<String> excludedPlaceIds, int limit) {
+                capturedAllowed.add(allowedPlaceIds);
+                capturedExcluded.add(excludedPlaceIds);
+                return List.of();
+            }
+        }, grantService, name -> new SecretBundle(name, "correct-secret", Optional.empty()));
+        var emptyMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+        emptyMvc.perform(post(path()).header("Authorization", "Bearer correct-secret")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new ObjectMapper().writeValueAsString(new JourneyQueryToolRequest(ref, "SEOUL", "HANOK", 5))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NO_MATCH"))
+                .andExpect(jsonPath("$.places").isArray())
+                .andExpect(jsonPath("$.places.length()").value(0));
+
+        assertThat(capturedAllowed).containsExactly(List.of("place-1"));
+        assertThat(capturedExcluded).containsExactly(List.of("place-excluded"));
     }
     @Test void rejectsMissingAndIncorrectBearerBeforeAnyLookup() throws Exception {
         for (String auth : List.of("","Bearer wrong-secret","Basic correct-secret")) {

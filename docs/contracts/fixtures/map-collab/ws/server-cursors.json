@@ -1,0 +1,24 @@
+{
+  "name": "server-cursors",
+  "direction": "server→client",
+  "message": {
+    "v": 1,
+    "type": "CURSORS",
+    "payload": {
+      "cursors": [
+        {
+          "memberId": "5e2d1c0b-9a8f-4e7d-8c6b-5a4f3e2d1c0b",
+          "displayName": "민지",
+          "lat": 35.8,
+          "lng": 129.3
+        },
+        {
+          "memberId": "0b9c8d7e-6f5a-4b3c-9d2e-1f0a9b8c7d6e",
+          "displayName": "승현",
+          "lat": null,
+          "lng": null
+        }
+      ]
+    }
+  }
+}
