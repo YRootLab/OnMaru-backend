@@ -71,9 +71,10 @@ x-spring-api: &spring-api
 
 services:
   postgres:
-    # PostgreSQL 17 + PostGIS + pgvector: holds the AI RAG embeddings (ai schema). Keep in step with the
-    # image running on production; the postgis-only image cannot read the vector columns.
-    image: onmaru/postgres:17-postgis-pgvector
+    # PostgreSQL 17 + PostGIS + pgvector + ParadeDB pg_search (BM25): built from ./postgres/Dockerfile.
+    image: onmaru/postgres:17-postgis-pgvector-pgsearch
+    build:
+      context: ./postgres
     restart: unless-stopped
     mem_limit: 320m
     cpus: 0.5
@@ -96,6 +97,8 @@ services:
       ONMARU_DB_AI_MIGRATION_PASSWORD: ${ONMARU_DB_AI_MIGRATION_PASSWORD:?Set ONMARU_DB_AI_MIGRATION_PASSWORD in .env}
     command:
       - postgres
+      - -c
+      - shared_preload_libraries=pg_search
       - -c
       - shared_buffers=96MB
       - -c
