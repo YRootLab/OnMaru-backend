@@ -5,6 +5,82 @@
 > 작성일: 2026-11-19
 > 대상: OnMaru Backend Java/Spring Boot 멀티모듈 CI
 
+> 2026-11-20 검증 보강: 아래의 「실험과 승격 계약을 검증 결과로 보정한다」가 기존 표본 수·digest 동일성·cache 비교·gate 표현보다 우선한다. 이는 구현 완료나 실측 성과를 뜻하지 않는다.
+
+## 실험과 승격 계약을 검증 결과로 보정한다
+
+이번 설계의 우선순위는 측정 → 변경 영향 분석 → 재사용 → 병렬화다. 대규모 조직의 방식도 그대로 복제하지 않고 개발자 피드백 지연, 검증 누락과 runner 비용으로 효과를 판단한다. 삼성의 비공개 내부 운영 방식은 확인하지 않았으며, 아래는 공식 도구 계약과 현재 코드에 근거한 OnMaru 권고안이다.
+
+### 세 번의 반복은 초기 비교이며 p95의 안정성을 증명하지 않는다
+
+baseline/candidate 각 3~5회는 instrumentation 검증과 초기 중앙값 비교에 사용한다. 모든 개별값, 중앙값, 최솟값·최댓값, 실패·취소와 제외 사유를 보존하고 이 단계의 p95는 `insufficient-samples`로 표시한다. 운영 p95는 같은 cohort의 rolling 14일 유효 실행 100건 이상에서 표시하되 표본 수와 window를 함께 보여준다. 100건도 통계적 보장의 의미는 아니며 sparse cohort는 기간을 늘리거나 부족으로 표시한다. Histogram quantile은 bucket 기반 추정임을 명시하고 artifact 원시 duration으로 계산한 분위수와 구분한다.
+
+실험 순서는 baseline 세 번 후 candidate 세 번으로 고정하지 않고 사전 등록한 AB/BA block 순서로 교차한다. GitHub runner 시각·네트워크 변동 영향을 줄이기 위한 조치이며 표본 수는 실행 전에 정한다. 자동 재시도나 좋은 결과가 나올 때까지의 추가 표집은 하지 않는다. 실패는 pass-only 시간 통계와 별도로 전체 attempt 분모의 안정성 통계에 남긴다.
+
+### 최적화 유형별로 같은 입력의 의미를 구분한다
+
+cache·worker 수 실험은 동일 source/test universe/selected plan을 사용한다. affected selection 실험은 동일 source와 전체 test universe, 변경 시나리오를 사용하되 selected plan digest는 달라도 된다. 전체 목록과 선택 목록을 각각 digest로 보존한다. slice 전환 실험은 assertion·scenario 보존 검토와 전체 회귀 증거를 요구하며 test class digest가 다르다는 이유만으로 비교 불가 처리하지 않는다. collector/schema version은 양쪽에서 동일하게 고정한다.
+
+대표 workload는 문서 전용, leaf module business rule, shared/domain 변경, controller 변경, persistence 변경, Flyway 변경, root build 변경의 일곱 종류다. feature PR의 변경 빈도로 가중한 피드백 시간도 함께 보고해 쉬운 leaf 변경만 선택한 성과를 방지한다. Baseline SHA와 candidate SHA가 다르면 application source 차이가 실험의 허용된 변수인지 manifest에 명시한다.
+
+### Cache 정책과 실제 cache 결과를 분리한다
+
+환경 identity에는 dependency/Build/Configuration/container image별 enabled/read/write/seed/input digest 정책을 담고, 실제 hit/miss/partial/invalidated는 실행 결과로 기록한다. cold와 disabled는 같은 상태가 아니다. warm test task 복원은 이번 실행에서 테스트 JVM이 기동됐다는 뜻이 아니므로 `selected`, `executed_now`, `verified_from_cache`를 따로 센다.
+
+동일 기능 비교에서는 controlled-cold끼리, controlled-warm끼리 비교한다. cache 도입 실험은 baseline disabled와 candidate enabled가 의도된 독립 변수이므로 이를 무조건 incomparable로 만들지 않는다. 허용된 차이를 experiment manifest에 사전 선언하고, 나머지 입력을 같게 맞춘 뒤 각 cache 조건과 realistic PR 총효과를 별도로 보고한다. warm seed는 모든 입력을 같게 만드는 실험에서 재사용하되 PR의 source가 변하는 realistic workload에서는 실제 무효화율을 그대로 관측한다.
+
+### 실행 구간과 원인 추정을 구분한다
+
+Gradle task completion event만으로는 dependency resolution, cache transfer, task별 causal dependency를 모두 알 수 없다. process wall-clock에서 task 합계를 뺀 값을 configuration 시간이라고 부르지 않는다. 측정 경계가 있는 duration만 직접 관측으로 표시하고, 정확한 graph가 없으면 `critical_path_quality=unavailable`과 longest observed interval을 제시한다. 여러 JVM의 monotonic timestamp는 process 내부 duration에만 사용하고, process 간 연결은 UTC anchor와 clock uncertainty를 함께 기록한다.
+
+Spring Context 준비, PostgreSQL 초기화와 Flyway는 test task 안에 중첩될 수 있다. Grafana에서는 별도 계층 또는 waterfall로 표시하고 이를 test 시간에 더해 누적 bar로 그리지 않는다. cache 절약 시간도 동일 task의 검증된 비교 표본이 있을 때만 추정하고, 없으면 unavailable로 둔다.
+
+Gradle wrapper는 현재 9.7.1이다. collector는 이 버전에서 BuildService와 OperationCompletionListener를 사용한 task completion registration, Configuration Cache store 후 두 번째 reuse, collector on/off를 검증한다. configuration-time callback만으로 수집하면 cache reuse 실행에서 event가 빠질 수 있으므로 전체 collector가 hit 경로에서도 동작하는지 확인한다. 최신 문서의 다른 Gradle version 기능을 그대로 적용하지 않는다.
+
+### 전체 회귀의 성공은 승격할 commit에 귀속한다
+
+develop 병합 뒤 전체 회귀는 release 승격 gate이지 병합 전 검증의 대체 증거가 아니다. release 후보의 정확한 SHA, workflow path, attempt와 full regression 성공을 조회하고 이전 commit의 녹색 결과로 승격하지 않는다. release 검증은 PR의 최신 통합 tree에서 수행하고 base 갱신으로 tree가 바뀌면 다시 검증한다.
+
+merge queue는 사용 가능 여부와 repository ruleset을 확인한 뒤 별도 도입한다. 도입 시 `merge_group` 이벤트에서 동일 required verdict를 생성해야 한다. fast PR 모드에서도 모든 planner 변경, 미분류 경로, 공통 wiring·보안·migration은 full fallback하며, shadow에서 관측한 mismatch 0은 표본 내 관측값으로 표현한다. 이는 미래 누락이 불가능하다는 증명이 아니다.
+
+### 피드백 시간과 계산 비용을 함께 최적화한다
+
+PR의 superseded 실행은 취소할 수 있지만 release/full evidence 생산 실행의 취소 정책은 따로 둔다. 전체 회귀가 연속 push로 계속 취소되어 성공 증거가 사라지는 현상을 감시한다. metrics는 feedback latency와 runner-minutes, peak concurrency, artifact/cache byte, exporter 비용을 같이 보여준다. shard는 critical path가 줄어도 총 runner-minutes가 늘면 그 교환비를 보고한다.
+
+진행 순서는 Stage 0 collector와 관측 계약, baseline cohort, shadow planner, cache 실험, slice 실험, fast PR 승격이다. 단계마다 kill switch로 full verification을 선택할 수 있어야 한다. 변경 없는 모듈 test를 cache에서 복원한 결과와 실제 실행 결과를 나눠 표시하며, 측정기 오류를 테스트 통과로 바꾸지 않는다.
+
+### 파이프라인 그림도 구현 상태와 측정 경계를 표현한다
+
+```mermaid
+flowchart TD
+    PR[PR 통합 tree] --> PLAN[범위 계획과 full fallback]
+    PLAN --> FAST[영향 검증 또는 전체 검증]
+    FAST --> VERDICT[필수 verdict]
+    PLAN -. shadow .-> FULL[동일 tree 전체 회귀]
+    VERDICT --> DEV[develop commit]
+    DEV --> EXACT[승격할 SHA 전체 회귀 증거]
+    EXACT --> REL[release gate]
+    FAST --> RAW[계층별 raw evidence]
+    FULL --> RAW
+    RAW --> TK[Toolkit 검증과 비교]
+    TK --> ART[재현 가능한 manifest와 보고서]
+    TK --> OTLP[선택적 OTLP 후처리]
+    OTLP --> MT[Mimir metrics와 Tempo traces]
+    MT --> G[Grafana cohort와 waterfall]
+```
+
+*검증 경로와 관측 경로의 책임, 동일 tree shadow 비교와 정확한 SHA 승격 gate를 구분한 목표 구조다. 점선은 rollout 중 shadow 실행이다.*
+
+### 공식 근거와 적용 범위를 기록한다
+
+- [Gradle performance](https://docs.gradle.org/current/userguide/performance.html): configuration·cache·병렬화와 developer workflow별 최적화 방향. 구현은 wrapper 9.7.1로 재검증한다.
+- [Configuration Cache requirements](https://docs.gradle.org/current/userguide/configuration_cache_requirements.html): listener와 BuildService 호환성. 구성 단계 수집이 cache hit에서 생략될 수 있음을 검증한다.
+- [GitHub merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue): merge group tree에 대한 required checks. 기능 활성화 자체는 후속 운영 결정이다.
+- [OTel metrics data model](https://opentelemetry.io/docs/specs/otel/metrics/data-model/): histogram과 temporality 계약. 분위수와 retry/replay 중복 검증의 근거다.
+- [GitHub Actions secure use](https://docs.github.com/en/actions/reference/security/secure-use): 최소 권한과 untrusted code 실행 경계. post-run은 consumer artifact를 데이터로만 파싱한다.
+
+표본 100건, rolling 14일, collector overhead 예산은 공식 표준이 아니라 OnMaru의 초기 운영 정책이다. 관측 결과에 따라 versioned 정책으로 조정한다.
+
 ## 이 개선은 CI를 더 많이 병렬화하는 작업이 아니라 불필요한 실행을 제거하는 작업이다
 
 OnMaru Backend는 Gradle 멀티모듈 구조를 사용하지만, 현재 Pull Request CI는 Java 변경이 하나라도 있으면 변경과 무관한 모듈까지 넓게 검증한다. 실제 Java 검증은 최근 실행에서 약 9분 21초부터 17분 25초까지 걸렸으며, 다른 검증 lane이 대부분 1분 이내에 끝나는 것과 비교하면 전체 Pull Request 피드백 시간을 사실상 Java lane 하나가 결정하고 있다.

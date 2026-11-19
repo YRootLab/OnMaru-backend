@@ -1,4 +1,12 @@
 # handoff.md
+## 2026-11-20 CI 최적화 설계 재검증 (#867)
+
+- 브랜치: `feature/867-affected-ci-optimization`. origin/develop `b048c275`를 merge한 `7000fd76` 이후 설계 보강 중.
+- PRD 보정: 3~5회는 초기 중앙값 비교, p95는 표본 부족 표시. affected 실험의 selected digest 차이와 cache 도입 실험의 policy 차이를 허용 변수로 관리. 승격할 정확한 SHA의 full regression gate, clock·critical-path quality·중첩 timing·runner 비용을 추가했다.
+- Toolkit 연계: #139 collector/schema, #140 문서/시각화. 별도 checkout `/tmp/onmaru-toolkit-doc-migration.2aOBCP/toolkit`, `docs/140-pipeline-measurement-review`에서 README와 측정 계약 검토 문서 보강.
+- 실제 collector와 affected/cache 최적화 구현은 아직 시작 전이다. 다음 단계는 Stage 0 공개 API 호환성 검증과 instrumentation baseline이며 실측 성과를 주장하지 않는다.
+- 로컬 테스트에는 Java 21 경로를 명시한다. 기존 JAVA_HOME은 존재하지 않는 Homebrew 경로였으며 설치된 JDK는 `/Users/yangseunghyeon/Library/Java/JavaVirtualMachines/openjdk-21.0.2/Contents/Home`이다.
+
 ## 2026-11-10 SSH host key 인시던트 종결과 production deploy 복구 (#819)
 
 - 서버 host key가 11-06에 변경돼 scheduled production deploy가 3연속 실패했다. `PRODUCTION/STAGING_SSH_KNOWN_HOSTS`를 keyscan 키로 갱신한 뒤, 11-10 01:29 UTC scheduled deploy가 전 파이프라인 성공하고 01:48 UTC 수동 dispatch가 no-op+healthy(notify-production 성공)로 재확인됐다. #819는 completed로 종료했다. host key 변경 근원 사유는 운영자 확인 전으로 원인 미상 표기.
