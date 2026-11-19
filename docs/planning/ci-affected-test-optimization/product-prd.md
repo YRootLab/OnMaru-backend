@@ -231,6 +231,50 @@ Baseline manifest에는 각 run URL, commit SHA, 실행 시각, 환경 identity,
 
 한국어 표시 이름 변경은 baseline 수집 후 candidate 변경에 포함할 수 있지만, 비교는 문자열이 아니라 위 표의 안정적인 logical ID로 수행한다. 이 매핑이 없으면 이름 변경을 job 추가·삭제로 오인할 수 있으므로 job catalog 구축이 baseline 준비의 선행 조건이다.
 
+### 측정기는 AOP 하나가 아니라 각 계층의 lifecycle hook을 사용한다
+
+Spring AOP는 Spring bean proxy를 통과한 method 실행을 측정하는 데는 적합하지만, 이번 병목 분석의 주 수집기로는 충분하지 않다. Gradle 구성과 task는 JVM 애플리케이션이 시작되기 전에 실행되고, Spring Context 생성은 AOP proxy가 준비되기 전에 일어나며, Testcontainers와 Flyway도 테스트 bootstrap 과정에 포함된다. 모든 시간을 AOP advice로 감싸려 하면 보이지 않는 구간이 생기거나 production code에 측정용 결합이 들어간다.
+
+수집은 다음 계층별 adapter가 담당하고, 실행이 끝난 뒤 하나의 versioned CI performance evidence로 합친다.
+
+| 측정 영역 | 수집 지점 | 반드시 남길 값 | AOP 사용 여부 |
+|---|---|---|---|
+| Gradle 구성 | init script의 build lifecycle과 공개 event listener | settings·project configuration 시작/종료, configuration cache reuse·store·failure | 사용하지 않음 |
+| Gradle task | `BuildEventsListenerRegistry`와 task finish event | task path를 bounded category로 변환한 duration, outcome, up-to-date, from-cache, skipped, failed | 사용하지 않음 |
+| Build Cache | Gradle task result와 setup action summary | hit·miss·store·restore·error, 전송 byte와 restore/upload 시간, cache identity | 사용하지 않음 |
+| JUnit 실행 | JUnit Platform listener와 XML 결과 요약 | module·test type별 discovered, selected, executed, passed, failed, skipped 수와 suite duration | 사용하지 않음 |
+| Spring Context | Spring TestContext listener, Context identity, `ApplicationStartup` 또는 동등한 startup hook | 생성·재사용·실패 횟수, unique Context 수, 준비 시간, bounded Context profile | 기본적으로 사용하지 않음 |
+| Testcontainers | 공통 container factory·JUnit extension의 lifecycle wrapper | image category, pull 여부, create·start·ready·stop 시간, reuse 여부, 실패 단계 | 사용하지 않음 |
+| Flyway | migration callback과 migration validation 경계 | validate, migrate, clean fixture, applied migration 수와 duration | 사용하지 않음 |
+| 애플리케이션 내부 | 병목 후보가 특정 Spring bean method로 좁혀진 뒤 선택적 advice | bounded operation category와 duration | 필요한 구간에만 제한적으로 사용 |
+
+Gradle 내부의 비공개 build operation API나 console log 정규식에 핵심 계약을 의존하지 않는다. Gradle 또는 plugin version이 바뀌면 조용히 잘못된 값을 내보낼 수 있기 때문이다. 공개 event가 제공하지 않는 cache byte 같은 값은 setup action의 구조화 출력 또는 별도 artifact에서 가져오고, 얻을 수 없으면 `unavailable`로 기록한다.
+
+Spring Context는 test class 이름을 metric label로 만들지 않는다. Context configuration을 허용된 profile category로 정규화하고, 상세 class·property identity는 접근 제한 artifact에만 둔다. 같은 Context object identity가 여러 test class에서 재사용되면 생성 1회와 reuse 횟수를 구분한다. `@DirtiesContext`, 서로 다른 mock·property 조합 때문에 cache key가 늘어난 경우 unique Context 수로 드러나야 한다.
+
+Testcontainers 시간도 `container.start()` 하나로 합치지 않는다. 가능한 범위에서 image 준비, Docker create, readiness wait, Flyway migration, fixture 준비, 실제 테스트를 분리한다. container 이름이나 임의 image digest를 metric label로 사용하지 않고 `postgres`, `postgis`처럼 승인된 category만 허용한다. container 공유 최적화를 적용하기 전에 상태 누수와 순서 의존 실패를 검증한다.
+
+### 측정 기능 자체의 비용과 정확도도 검증한다
+
+관측 코드는 최적화 전에 먼저 도입하고, 최적화가 없는 같은 commit에서 `instrumentation-off`와 `instrumentation-on`을 각각 최소 3회 비교한다. 수집 overhead가 workflow 중앙값의 3% 또는 15초 중 더 작은 예산을 넘으면 원시 event 수를 줄이거나 후처리 방식으로 바꾼다. 측정 때문에 Gradle cacheability, Spring Context cache key, container lifecycle이 달라지면 해당 collector는 채택하지 않는다.
+
+각 evidence는 schema version, producer version, commit SHA, Toolkit ref, monotonic clock 기준, 누락 필드와 수집 품질을 가진다. CI 종료 후 adapter가 이를 병합할 때 전체 workflow 시간과 구성·task·Context·container 구간 합계가 물리적으로 모순되지 않는지 검사한다. 중첩 구간은 합계가 wall-clock보다 클 수 있으므로 serial sum과 critical path를 구분하며, 누락을 0으로 해석하지 않는다.
+
+이 측정 단계를 `Stage 0`으로 두고 다음 순서를 지킨다.
+
+```mermaid
+flowchart LR
+    A[현재 CI] --> B[계층별 collector만 추가]
+    B --> C[collector overhead 3회 비교]
+    C --> D[개선 전 baseline 3~5회 고정]
+    D --> E[병목 기여도 분석]
+    E --> F[affected·cache·slice 후보 구현]
+    F --> G[동일 collector로 candidate 3~5회 측정]
+    G --> H[속도·정확도·안정성 함께 판정]
+```
+
+병목 순위는 workflow wall-clock에 대한 critical-path 기여도로 판단한다. 여러 task duration을 단순 합산해 가장 큰 값을 고르면 병렬 구간을 중복 계산할 수 있다. 예를 들어 PostgreSQL 준비와 다른 모듈 compile이 동시에 실행됐다면 둘의 합이 아니라 required job 종료를 실제로 늦춘 경로를 우선 개선한다.
+
 측정 항목은 queue time, workflow wall time, required verify critical path, Gradle configuration과 task 시간, cache hit/miss와 전송량, 선택·실행 테스트 수, Spring Context 생성 수, Testcontainers startup, CPU·최대 RSS·disk, 실패·flaky·cancel, selection mismatch다. 단순히 job 표면 시간이 줄었다는 이유만으로 성공으로 판단하지 않는다.
 
 초기 rollout에서는 affected suite와 full suite를 같은 commit에 shadow 실행한다. affected 결과만 Pull Request 피드백에 먼저 노출할 수 있지만, full 결과와 자동 비교한다. affected가 성공하고 full이 실패하면 `selection_mismatch`로 기록하고 해당 변경 유형을 즉시 fail-closed 규칙에 추가한다. false negative가 안정적으로 0임을 확인하기 전에는 full suite를 required check에서 제거하지 않는다.
@@ -338,6 +382,8 @@ release 담당자는 `develop` 전체 회귀와 selection mismatch가 0이라는
 - Flyway 및 공통 설정 변경은 전체 관련 검증을 수행한다.
 - 정의한 telemetry와 Grafana dashboard에서 중앙값, p95, cache, test, Context, container, fallback, mismatch를 확인할 수 있다.
 - 기존 Toolkit의 completed-run·OTLP·Mimir·Tempo·Grafana 경로를 재사용하고 새 수집 경계만 검증 가능한 evidence로 확장한다.
+- Gradle·JUnit·Spring Context·Testcontainers·Flyway collector가 각 lifecycle hook에서 versioned evidence를 만들고 누락 값을 0으로 오인하지 않는다.
+- instrumentation on/off 3회 비교에서 수집 overhead가 workflow 중앙값의 3% 또는 15초 중 더 작은 예산 안에 있다.
 - 후보 구현 전에 동일한 immutable commit과 실행 identity의 개선 전 baseline을 최소 3회 수집해 artifact와 Issue에 고정한다.
 - baseline과 candidate를 각 3회 이상 동일 조건에서 측정한 보고서가 생성된다.
 - affected 성공·full 실패가 0이며, 성능 성공 기준과 전체 회귀 안정성 기준을 모두 만족한다.
