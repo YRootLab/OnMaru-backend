@@ -8,8 +8,10 @@ x-logging: &logging
 
 services:
   postgres:
-    # Align with production PostgreSQL 17 + PostGIS + pgvector so ai schema migrations and vector indexing work in staging.
-    image: ${ONMARU_POSTGRES_IMAGE:-onmaru/postgres:17-postgis-pgvector}
+    # Align with production PostgreSQL 17 + PostGIS + pgvector + ParadeDB pg_search.
+    image: ${ONMARU_POSTGRES_IMAGE:-onmaru/postgres:17-postgis-pgvector-pgsearch}
+    build:
+      context: ../postgres
     restart: "no"
     mem_limit: 192m
     cpus: 0.25
@@ -32,6 +34,8 @@ services:
       ONMARU_DB_AI_MIGRATION_PASSWORD: ${ONMARU_DB_AI_MIGRATION_PASSWORD:?Set the staging AI migration password}
     command:
       - postgres
+      - -c
+      - shared_preload_libraries=pg_search
       - -c
       - shared_buffers=32MB
       - -c

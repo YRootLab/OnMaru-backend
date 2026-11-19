@@ -25,7 +25,7 @@ public final class ExplorationService {
     private final ExplorationStore store;
     private final ExplorationRunDispatcher runDispatcher;
     private final Clock clock;
-    private final ExplorationIntakePolicy intakePolicy = new ExplorationIntakePolicy();
+    private final ExplorationIntakePolicy intakePolicy;
     private final ExplorationAccessPolicy accessPolicy;
     private final JourneyRunEventSink eventSink;
     private final JourneyActionService actionService;
@@ -59,12 +59,28 @@ public final class ExplorationService {
             ExplorationAccessPolicy accessPolicy,
             JourneyRunEventSink eventSink,
             JourneyActionService actionService) {
+        this(store, runDispatcher, clock, accessPolicy, eventSink, actionService, ExplorationRegionCatalog.defaultFallback());
+    }
+
+    public ExplorationService(
+            ExplorationStore store,
+            ExplorationRunDispatcher runDispatcher,
+            Clock clock,
+            ExplorationAccessPolicy accessPolicy,
+            JourneyRunEventSink eventSink,
+            JourneyActionService actionService,
+            ExplorationRegionCatalog regionCatalog) {
         this.store = store;
         this.runDispatcher = runDispatcher;
         this.clock = clock;
+        this.intakePolicy = new ExplorationIntakePolicy(regionCatalog);
         this.accessPolicy = accessPolicy;
         this.eventSink = eventSink;
         this.actionService = actionService;
+    }
+
+    public String detectRegion(String rawQuery) {
+        return intakePolicy.detectRegion(rawQuery);
     }
 
     public ExplorationSnapshot create(ExplorationActor actor, CreateExplorationCommand command) {
@@ -189,6 +205,9 @@ public final class ExplorationService {
         }
         var query = intakePolicy.validateTurn(validatedQuery);
         var regionCode = normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode());
+        if (regionCode == null) {
+            regionCode = intakePolicy.detectRegion(query);
+        }
         var now = clock.instant();
         var run = newRun(regionCode, now);
         var turn = new StoredExplorationTurn(
