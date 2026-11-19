@@ -381,6 +381,45 @@ feature Pull Request가 빨라지면 `develop`의 full regression에 실패가 �
 
 모든 Web Boundary 테스트의 실제 annotation 전환, 전체 Testcontainers lifecycle 재설계, CI workflow 코드 변경, Grafana infrastructure 구축은 후속 Issue에서 구현한다. 이 PRD는 그 구현들이 서로 다른 기준으로 최적화되지 않도록 공통 목표와 계약을 정의한다.
 
+## 문서와 관측 계약도 구현과 함께 단계적으로 migration한다
+
+새 이름과 schema를 구현한 뒤 README와 운영 문서가 과거 구조를 설명하면 개발자는 실제 Actions 화면, Grafana query와 문서 중 무엇을 믿어야 하는지 알 수 없다. 반대로 과거 benchmark 보고서의 `Java lane` 표현을 현재 용어로 일괄 치환하면 당시 측정한 workflow identity와 해석이 바뀐다. migration은 live contract와 historical evidence를 구분한다.
+
+| 자료 유형 | migration 원칙 | 예시 |
+|---|---|---|
+| 실행 workflow | 새 표시 이름으로 변경하고 내부 job ID는 호환 유지 | `java` → 화면에는 `Spring Boot 백엔드 전체 회귀 검증` |
+| contract test·fixture | 새 표시 이름과 logical ID를 강제하도록 같은 PR에서 변경 | workflow source assertion, observability fixture |
+| README·운영 문서 | 현재 구조로 본문을 갱신하고 old→new 용어표 제공 | `Java lane` → `Spring Boot 백엔드 검증` |
+| Grafana query·runbook | bounded logical ID를 사용하고 전환 기간에는 legacy와 current를 명시적으로 구분 | `ci_job="other"` → `spring-full`, `spring-affected` |
+| 과거 benchmark·사후 보고서 | 당시 문자열과 수치는 보존하고 상단에 역사적 명칭 주석과 현재 문서 링크 추가 | 2026-09 실측 보고서 |
+| ADR·승인 기록 | 결정 당시 문맥을 보존하고 superseded 관계만 추가 | 이름 변경 때문에 과거 결정을 재작성하지 않음 |
+
+Backend migration은 다음 순서를 따른다.
+
+1. 현재 workflow/job/step 이름, 문서, test fixture와 Grafana selector inventory를 artifact로 남긴다.
+2. 개선 전 baseline의 raw job name과 stable logical ID mapping을 고정한다.
+3. workflow의 사용자 표시 이름과 step을 바꾸고 같은 PR에서 contract test를 갱신한다.
+4. README, benchmark 운영 문서, observability runbook을 현재 구조로 갱신한다.
+5. 과거 보고서에는 내용 치환 대신 `이 문서의 Java lane은 현재 Spring Boot 백엔드 검증의 이전 명칭`이라는 migration note를 추가한다.
+6. dashboard와 query가 `spring-full`, `spring-affected`를 사용하도록 바꾸고 전환 전 `other` 시계열을 별도 historical series로 표시한다.
+7. 문서 link, workflow identity, dashboard selector와 terminology lint가 모두 통과한 뒤 legacy alias를 제거한다.
+
+Toolkit migration은 [Toolkit #139](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/issues/139)와 [Toolkit #140](https://github.com/YRootLab/OnMaru-backend-ci-toolkit/issues/140)이 소유한다. `EnvironmentIdentity.cache_state: str`을 즉시 삭제하지 않고 새 schema version의 structured cache identity를 추가한다. reader와 comparator는 migration 기간에 구 schema와 신 schema를 모두 읽되, 구 `cold/warm/unknown` 값은 세부 cache layer를 추론하지 않고 quality가 제한된 legacy identity로 변환한다. writer는 신 schema만 만들고, dashboard는 schema version과 quality를 분리해 서로 다른 조건을 직접 비교하지 않는다.
+
+```mermaid
+flowchart LR
+    A[기존 이름·schema inventory] --> B[Stable ID·alias 계약 추가]
+    B --> C[새 writer와 표시 이름 적용]
+    C --> D[구·신 reader 병행]
+    D --> E[README·Runbook·Dashboard 전환]
+    E --> F[보존 기간과 실측 검증]
+    F --> G[Legacy alias 제거]
+```
+
+*표시 이름, schema와 dashboard를 동시에 끊지 않고 stable identity를 먼저 놓은 뒤 migration하는 순서다.*
+
+최상위 workflow identity인 `CI`, `Module Benchmark`, `CI Observability`는 이번 표시 이름 migration에서 바꾸지 않는다. 이 문자열은 completed-run allowlist, provenance와 replay 신뢰 검증에 사용되므로 별도 versioned migration 없이 번역하면 수집이 중단될 수 있다. 사용자 가독성은 job·step 표시 이름과 README 설명에서 먼저 개선한다.
+
 ## 구현 전에 남은 선택은 evidence로 닫는다
 
 remote Build Cache를 GitHub Actions cache 기반으로 운영할지 전용 backend를 사용할지는 예상 artifact 크기, restore latency, 보존 기간, 권한 모델을 비교해 결정해야 한다. GitHub-hosted runner를 유지한 상태에서 목표 p95를 달성하지 못하면 그때 self-hosted runner의 경제성과 보안 비용을 평가한다.
@@ -413,3 +452,5 @@ release 담당자는 `develop` 전체 회귀와 selection mismatch가 0이라는
 - 후보 구현 전에 동일한 immutable commit과 실행 identity의 개선 전 baseline을 최소 3회 수집해 artifact와 Issue에 고정한다.
 - baseline과 candidate를 각 3회 이상 동일 조건에서 측정한 보고서가 생성된다.
 - affected 성공·full 실패가 0이며, 성능 성공 기준과 전체 회귀 안정성 기준을 모두 만족한다.
+- Backend와 Toolkit의 live README·runbook·fixture·dashboard selector가 새 이름과 schema로 migration되고 historical report는 당시 identity를 보존한다.
+- Toolkit의 legacy cache string reader와 structured cache identity writer가 전환 기간에 함께 검증되며 schema version이 다른 표본을 직접 비교하지 않는다.
