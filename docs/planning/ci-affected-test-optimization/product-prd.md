@@ -146,6 +146,35 @@ warm cache 성능만 보고 효과를 과장하지 않기 위해 cold와 warm �
 
 GitHub Actions 화면만으로도 한 실행의 job 시간은 볼 수 있지만, 변경 전후 중앙값과 p95, cache hit ratio, Spring Context 수, container startup 분포를 장기 비교하기는 어렵다. CI는 OpenTelemetry 또는 동등한 전송 계층으로 저카디널리티 metric과 구조화 event를 내보내고, Prometheus 호환 backend와 Grafana에서 관찰한다.
 
+### 기존 CI Toolkit을 관측 기반으로 재사용하고 빈 구간만 확장한다
+
+OnMaru는 이미 `OnMaru-backend-ci-toolkit`의 고정 commit `7ecbb89aae771604d9c1c532cf123f239e279110`을 사용한다. 완료된 `CI`와 `Module Benchmark` 실행을 후처리하는 `CI Observability` workflow가 GitHub Actions evidence를 정규화하고, OTLP로 Mimir와 Tempo에 전송하며, Toolkit이 생성한 Grafana `ci-benchmark` dashboard도 저장소에 복사되어 있다. 성공·실패 실행의 Cloud 왕복과 replay, credential 격리, cardinality 제한도 검증된 상태다. 따라서 별도의 CI 모니터링 플랫폼을 새로 만드는 것은 이 개선의 기본안이 아니다.
+
+다만 기존 경로가 곧바로 affected test 최적화의 성과를 모두 증명하는 것은 아니다. 현재 OnMaru adapter가 Toolkit에 전달하는 CI job catalog는 비어 있어 모든 일반 CI job metric이 `ci_job="other"`로 합쳐진다. Actions API에서 얻는 workflow·job·step 시간은 존재하지만, Gradle 구성·컴파일·테스트 task 시간, `FROM-CACHE`와 cache miss, 선택·실행 테스트 수, Spring Context 생성 수, Testcontainers와 Flyway 초기화 시간은 source evidence에 없다. 기존 Toolkit을 다음과 같이 나눠 사용한다.
+
+- 그대로 재사용: completed-run 수집, immutable run identity, job·step timeline, 성공·실패·취소 보존, bounded OTLP export, Mimir·Tempo·Grafana, replay와 credential 격리
+- OnMaru adapter에서 보강: 안정적인 CI job catalog, 변경 파일·fixed module·affected module·fallback manifest, Gradle task와 test evidence artifact
+- Toolkit 계약으로 확장 검토: cache operation, Spring Context, Testcontainers처럼 여러 consumer가 공통으로 사용할 수 있는 bounded metric schema와 dashboard panel
+
+Toolkit 고정 commit은 실험 도중 임의로 올리지 않는다. Toolkit 자체 업데이트와 CI 최적화 후보를 동시에 바꾸면 어느 변화가 결과를 만들었는지 분리할 수 없기 때문이다. 새로운 Toolkit 기능이 필요하면 별도 PR로 추가하고, 새 commit을 검증한 뒤 baseline과 candidate 양쪽에 같은 ref를 적용한다.
+
+### 화면에는 구체적인 한국어 이름을 쓰고 측정에는 안정적인 논리 ID를 쓴다
+
+현재 `Java 모듈 및 Spring API 전체 테스트`라는 이름은 실행 범위는 말하지만 어떤 증거를 만드는지와 feature·통합 단계의 차이를 충분히 드러내지 않는다. GitHub Actions의 YAML job key는 telemetry와 `needs` 계약을 위해 짧은 영문 ID로 유지하고, 사용자에게 보이는 workflow job과 step의 `name`은 구체적인 한국어로 작성한다. 표시 이름을 번역하거나 다듬더라도 같은 논리 작업의 시계열이 끊기지 않도록 Toolkit에는 bounded logical ID를 전달한다.
+
+| 안정적인 job ID | feature Pull Request 표시 이름 | `develop`·release 표시 이름 | telemetry `ci_job` |
+|---|---|---|---|
+| `plan` | 변경 파일·영향 모듈 분석 및 검증 계획 수립 | 전체 회귀 검증 계획 수립 | `change-plan` |
+| `hygiene` | 저장소 구조·문서·브랜치 운영 규칙 검증 | 저장소 구조·문서·브랜치 운영 규칙 검증 | `repository-hygiene` |
+| `java` | 영향받은 Java 모듈·Spring 경계 검증 | Java 모듈·Spring API 전체 회귀 검증 | `java-affected` 또는 `java-full` |
+| `contract` | API·스키마·생성 산출물 계약 검증 | API·스키마·생성 산출물 계약 검증 | `contract-validation` |
+| `ai` | FastAPI AI 단위·품질 평가 검증 | FastAPI AI 전체 품질 회귀 검증 | `ai-quality` |
+| `verify` | 필수 검증 결과 종합 판정 | 전체 회귀 검증 결과 종합 판정 | `required-verdict` |
+
+Java job 안의 step도 `Gradle 실행`처럼 도구 이름만 표시하지 않는다. `영향 모듈 unit test 실행`, `Spring MVC slice test 실행`, `영향 PostgreSQL 통합 테스트 실행`, `Spring Context 기동 smoke 검증`, `실행 JAR 생성`, `Gradle 성능·cache evidence 저장`처럼 목적과 검증 범위를 이름에 포함한다. 실패한 사람이 Actions 화면만 보고도 어느 안전망이 깨졌는지 알 수 있어야 한다.
+
+workflow의 최상위 `name: CI`는 당장 한국어로 바꾸지 않는다. `CI Observability`의 `workflow_run` source allowlist와 Toolkit의 workflow identity가 이 문자열을 신뢰 경계로 사용하기 때문이다. 최상위 이름을 바꾸려면 collector, allowlist, fixture, dashboard selector를 같은 변경에서 함께 이전하고 기존 시계열과의 연결을 검증해야 한다.
+
 | Metric | 의미 |
 |---|---|
 | `onmaru_ci_workflow_duration_seconds` | queue를 제외하거나 포함한 workflow wall time을 명시적으로 구분 |
@@ -180,6 +209,27 @@ flowchart LR
 ## 성능 실험은 같은 조건의 반복과 안전성 shadow 비교를 요구한다
 
 기존 workflow와 후보 workflow를 각각 최소 3회 실행한다. 비교 대상은 움직이는 branch 이름이 아니라 immutable commit SHA로 고정하고, runner 유형, JDK, Gradle, dependency identity, cache 상태를 기록한다. 자동 재실행으로 실패를 숨기지 않으며, GitHub 인프라 오류와 제품 테스트 실패를 구분하되 결과가 불충분하면 그대로 inconclusive로 판정한다.
+
+### 개선 전 기준선은 구현을 시작하기 전에 고정한다
+
+최근 Java job이 약 9~17분이었다는 관측만으로 개선율을 계산하지 않는다. 현재 workflow와 현재 Toolkit 고정 ref를 사용하는 개선 전 baseline을 별도 artifact로 먼저 확정한다. `workflow_dispatch`로 같은 immutable commit을 최소 3회 실행하고, 가능하면 5회까지 수집한다. runner image, JDK 21 patch, Gradle wrapper, dependency lock, test plan digest, Toolkit ref, cache cold·warm 조건이 다른 표본은 같은 집합으로 합치지 않는다.
+
+기준선 보고서는 다음 경계를 각각 기록한다.
+
+| 경계 | 개선 전 필수 수치 | 수집 소스 |
+|---|---|---|
+| Actions 실행 | queue, workflow wall-clock, required critical path, job·step duration, conclusion | 기존 Toolkit Actions timeline |
+| Gradle 실행 | configuration, dependency resolution, compile, test, bootJar task duration과 실행·skip 상태 | Gradle task evidence artifact 추가 |
+| Cache | dependency restore 시간·byte, Build Cache hit·miss·store·restore와 전송 시간 | setup action output와 Gradle cache evidence |
+| 테스트 선택 | 전체·선택·실행 테스트 수, module·test type별 수 | affected manifest와 JUnit result 요약 |
+| Spring | Context 생성·재사용 횟수와 Context 준비 시간 | bounded Spring test listener evidence |
+| PostgreSQL | image 준비, container startup, Flyway migration, fixture, 실제 test 시간 | Testcontainers·Flyway timing evidence |
+| 자원 | CPU time, peak RSS, disk 사용량 | 명시적인 resource collector artifact |
+| 안정성 | failure, cancellation, flaky retry, affected/full mismatch | Actions evidence와 shadow comparison |
+
+Baseline manifest에는 각 run URL, commit SHA, 실행 시각, 환경 identity, 원시 evidence digest와 제외 사유를 포함한다. secret, 전체 환경 변수, 임의의 test 이름과 사용자 데이터는 저장하지 않는다. Actions API가 제공하지 않는 CPU와 RSS를 0으로 채우지 않고 `unavailable`로 표시하며, candidate 비교 전에 collector를 추가해 baseline과 candidate 양쪽에서 같은 방식으로 다시 측정한다.
+
+한국어 표시 이름 변경은 baseline 수집 후 candidate 변경에 포함할 수 있지만, 비교는 문자열이 아니라 위 표의 안정적인 logical ID로 수행한다. 이 매핑이 없으면 이름 변경을 job 추가·삭제로 오인할 수 있으므로 job catalog 구축이 baseline 준비의 선행 조건이다.
 
 측정 항목은 queue time, workflow wall time, required verify critical path, Gradle configuration과 task 시간, cache hit/miss와 전송량, 선택·실행 테스트 수, Spring Context 생성 수, Testcontainers startup, CPU·최대 RSS·disk, 실패·flaky·cancel, selection mismatch다. 단순히 job 표면 시간이 줄었다는 이유만으로 성공으로 판단하지 않는다.
 
@@ -280,11 +330,14 @@ release 담당자는 `develop` 전체 회귀와 selection mismatch가 0이라는
 이 PRD의 acceptance criteria는 다음과 같다.
 
 - feature Pull Request와 `develop`·release의 검증 책임이 workflow 계약으로 구현된다.
+- 안정적인 영문 job ID와 구체적인 한국어 표시 이름, bounded telemetry job catalog가 함께 적용된다.
 - fixed module과 reverse dependency 기반 affected 계산, rename·삭제, fail-closed 조건이 contract test로 검증된다.
 - 선택 결과 manifest가 artifact와 Job Summary에 남는다.
 - trusted cache writer와 Pull Request read-only 정책이 적용되고 cache secret 누출 검사가 통과한다.
 - Web Boundary inventory와 단계적 slice 전환이 assertion 동등성 및 Context load 감소로 검증된다.
 - Flyway 및 공통 설정 변경은 전체 관련 검증을 수행한다.
 - 정의한 telemetry와 Grafana dashboard에서 중앙값, p95, cache, test, Context, container, fallback, mismatch를 확인할 수 있다.
+- 기존 Toolkit의 completed-run·OTLP·Mimir·Tempo·Grafana 경로를 재사용하고 새 수집 경계만 검증 가능한 evidence로 확장한다.
+- 후보 구현 전에 동일한 immutable commit과 실행 identity의 개선 전 baseline을 최소 3회 수집해 artifact와 Issue에 고정한다.
 - baseline과 candidate를 각 3회 이상 동일 조건에서 측정한 보고서가 생성된다.
 - affected 성공·full 실패가 0이며, 성능 성공 기준과 전체 회귀 안정성 기준을 모두 만족한다.
