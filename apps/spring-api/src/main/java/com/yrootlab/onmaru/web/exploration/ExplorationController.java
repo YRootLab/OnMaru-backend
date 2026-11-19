@@ -468,22 +468,7 @@ public final class ExplorationController {
             throw new ExplorationInputInvalidException("clarificationAnswer");
         }
         var text = answer.text().trim();
-        if (text.contains("전주")) {
-            return "kr-45-jeonju";
-        }
-        if (text.contains("서울")) {
-            return "kr-11-seoul";
-        }
-        if (text.contains("경주")) {
-            return "kr-47-gyeongju";
-        }
-        if (text.contains("안동")) {
-            return "kr-47-andong";
-        }
-        if (text.contains("부산")) {
-            return "kr-26-busan";
-        }
-        return null;
+        return explorationService.detectRegion(text);
     }
 
     private ResponseEntity<RunAcceptedResponse> runAccepted(IdempotentResponse response) {

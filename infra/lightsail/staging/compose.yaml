@@ -8,8 +8,10 @@ x-logging: &logging
 
 services:
   postgres:
-    # Align with production PostgreSQL 17 + PostGIS + pgvector so ai schema migrations and vector indexing work in staging.
-    image: ${ONMARU_POSTGRES_IMAGE:-onmaru/postgres:17-postgis-pgvector}
+    # Align with production PostgreSQL 17 + PostGIS + pgvector + ParadeDB pg_search.
+    image: ${ONMARU_POSTGRES_IMAGE:-onmaru/postgres:17-postgis-pgvector-pgsearch}
+    build:
+      context: ../postgres
     restart: "no"
     mem_limit: 192m
     cpus: 0.25
@@ -32,6 +34,8 @@ services:
       ONMARU_DB_AI_MIGRATION_PASSWORD: ${ONMARU_DB_AI_MIGRATION_PASSWORD:?Set the staging AI migration password}
     command:
       - postgres
+      - -c
+      - shared_preload_libraries=pg_search
       - -c
       - shared_buffers=32MB
       - -c
@@ -97,7 +101,7 @@ services:
       ONMARU_JOURNEY_GEMINI_ENABLED: "true"
       ONMARU_SCREEN_HANOK_RESEARCH_ENABLED: "false"
       ONMARU_RAG_ENABLED: "false"
-      ONMARU_GEMINI_MODEL_NAME: gemini-2.5-flash
+      ONMARU_GEMINI_MODEL_NAME: ${ONMARU_GEMINI_MODEL_NAME:-gemini-3.5-flash-lite}
       ONMARU_SPRING_BASE_URL: http://staging-api:8080
       ONMARU_AI_DB_DSN: postgresql://${ONMARU_DB_AI_RUNTIME_USER}:${ONMARU_DB_AI_RUNTIME_PASSWORD}@postgres:5432/${ONMARU_POSTGRES_DB}
       ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT: ${ONMARU_SECRET_TOURAPI_SERVICE_KEY_CURRENT:?Set the staging TourAPI key}
@@ -160,11 +164,16 @@ services:
       ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT: ${ONMARU_SECRET_DATALAB_OPERATIONS_TOKEN_CURRENT:?Generate a staging DataLab token}
       ONMARU_OTLP_METRICS_ENABLED: "false"
       ONMARU_AI_BASE_URL: http://staging-ai-engine:8000
+      ONMARU_AI_TIMEOUT: ${ONMARU_AI_TIMEOUT:-15s}
       ONMARU_AI_PLAN_EXECUTE_ENABLED: ${ONMARU_AI_PLAN_EXECUTE_ENABLED:-false}
       ONMARU_AI_CORPUS_REVISION: ${ONMARU_AI_CORPUS_REVISION:-corpus-1}
       ONMARU_AI_CONFIG_HASH: ${ONMARU_AI_CONFIG_HASH:-sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
       ONMARU_AI_QUESTION_DICTIONARY_VERSION: ${ONMARU_AI_QUESTION_DICTIONARY_VERSION:-questions-1}
       ONMARU_AI_SOURCE_REVOCATION_SEQUENCE: ${ONMARU_AI_SOURCE_REVOCATION_SEQUENCE:-7}
+      # Match production: store explorations/runs in Postgres and drain QUEUED runs in-process.
+      ONMARU_JOURNEY_EXPLORATION_STORE: ${ONMARU_JOURNEY_EXPLORATION_STORE:-jdbc}
+      ONMARU_JOURNEY_WORKER_DRAIN_ENABLED: ${ONMARU_JOURNEY_WORKER_DRAIN_ENABLED:-true}
+      ONMARU_JOURNEY_WORKER_DRAIN_INTERVAL_MS: ${ONMARU_JOURNEY_WORKER_DRAIN_INTERVAL_MS:-1000}
       ONMARU_TOURAPI_SYNC_ON_STARTUP: "false"
       ONMARU_ODII_SYNC_ON_STARTUP: "false"
       ONMARU_TOURAPI_SYNC_CRON: "-"
