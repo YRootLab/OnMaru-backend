@@ -141,6 +141,31 @@ class JourneyWorkerConfigurationTests {
     }
 
     @Test
+    void fullProductionPlanExecuteConfigurationBootsWhenProgressConfigInitializesFirst() throws Exception {
+        Class<?> internalProgressConfig = Class.forName(
+                "com.yrootlab.onmaru.web.internal.ai.progress.InternalAiProgressConfiguration");
+        Class<?> queryToolConfig = Class.forName(
+                "com.yrootlab.onmaru.web.internal.mcp.journey.JourneyQueryToolConfiguration");
+        new ApplicationContextRunner()
+                .withUserConfiguration(
+                        TestDependencies.class,
+                        internalProgressConfig,
+                        queryToolConfig,
+                        JourneyWorkerConfiguration.class)
+                .withPropertyValues(
+                        "onmaru.ai.base-url=http://localhost:18080",
+                        "onmaru.ai.timeout=PT1S",
+                        "onmaru.ai.plan-execute-enabled=true",
+                        "onmaru.ai.versions.corpus-revision=corpus-prod-1")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(AiProposalClient.class);
+                    assertThat(context.getBean(AiProposalClient.class)).isInstanceOf(PlanExecuteAiProposalClient.class);
+                    assertThat(context.getBean(ApprovedBindingStore.class)).isNotNull();
+                });
+    }
+
+    @Test
     void backsOffDatabaseBoundWorkerBeansWhenNoDataSourceExists() {
         new ApplicationContextRunner()
                 .withUserConfiguration(NoDataSourceDependencies.class, JourneyWorkerConfiguration.class)
