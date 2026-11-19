@@ -220,6 +220,47 @@ class ExplorationServiceTests {
         assertThat(dispatcher.dispatchCount).isZero();
     }
 
+    @Test
+    void customRegionCatalogResolvesDynamicRegionsAndTurnWithoutExplicitRegionCode() {
+        var dynamicCatalog = ExplorationRegionCatalog.fromEntries(java.util.List.of(
+                new ExplorationRegionCatalog.RegionEntry("kr-datalab-51150", "강릉시", "SIGUNGU", "강원특별자치도"),
+                new ExplorationRegionCatalog.RegionEntry("kr-datalab-50", "제주특별자치도", "SIDO")
+        ));
+        var dynamicService = new ExplorationService(
+                store,
+                dispatcher,
+                CLOCK,
+                (actor, state) -> state.owner().equals(actor),
+                com.yrootlab.onmaru.journey.events.JourneyRunEventSink.noop(),
+                null,
+                dynamicCatalog);
+
+        var owner = ExplorationActor.member(UUID.randomUUID());
+        var created = dynamicService.create(
+                owner,
+                new CreateExplorationCommand("강릉 추천해줘", "ko-KR", null));
+        assertThat(created.regionCode()).isEqualTo("kr-datalab-51150");
+        assertThat(created.run().status()).isEqualTo(ExplorationRunStatus.QUEUED);
+        assertThat(dispatcher.dispatchCount).isEqualTo(1);
+
+        var clarificationCreated = dynamicService.create(
+                owner,
+                new CreateExplorationCommand("조용한 고택 둘러보고 싶어요", "ko-KR", null));
+        assertThat(clarificationCreated.run().outcome()).isEqualTo(ExplorationRunOutcome.CLARIFICATION_REQUIRED);
+
+        var turnCmd = new CreateExplorationTurnCommand(
+                UUID.randomUUID(),
+                0,
+                "제주도로 갈게요",
+                null,
+                "region");
+        assertThat(dynamicService.willCreateTurnAiRun(owner, clarificationCreated.explorationId(), turnCmd)).isTrue();
+        var turnSnapshot = dynamicService.createTurn(owner, clarificationCreated.explorationId(), turnCmd);
+        assertThat(turnSnapshot.regionCode()).isEqualTo("kr-datalab-50");
+        assertThat(turnSnapshot.run().status()).isEqualTo(ExplorationRunStatus.QUEUED);
+        assertThat(dispatcher.dispatchCount).isEqualTo(2);
+    }
+
     private static final class RecordingRunDispatcher implements ExplorationRunDispatcher {
         private int dispatchCount;
         private ExplorationRunRequest lastRequest;
