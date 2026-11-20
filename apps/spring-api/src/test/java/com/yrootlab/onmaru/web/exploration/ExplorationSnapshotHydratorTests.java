@@ -105,6 +105,71 @@ class ExplorationSnapshotHydratorTests {
         assertThat(response.latestRun().degradedReason()).isNull();
     }
 
+    @Test
+    void mapsQuotaExceededBaselineWithRetryAfterAndExplicitQuotaFailure() {
+        placeDetailStore.add(publicPlace("p-jeonju-1", "전주 한옥마을", "HANOK_VILLAGE"));
+        var baselineBoard = new PersistedExplorationBoard(
+                "BASELINE", "AI_QUOTA_EXCEEDED", "INITIAL_BOARD", List.of("p-jeonju-1"), Map.of(), null);
+        var baselineSnapshot = new ExplorationSnapshot(
+                UUID.randomUUID(),
+                1,
+                "kr-45-jeonju",
+                new ExplorationRun(
+                        UUID.randomUUID(),
+                        ExplorationRunStatus.COMPLETED,
+                        "BASELINE",
+                        null,
+                        ExplorationRunOutcome.INITIAL_BOARD,
+                        null,
+                        NOW,
+                        NOW,
+                        NOW.plusSeconds(30),
+                        "AI_QUOTA_EXCEEDED",
+                        12_000L,
+                        null),
+                NOW,
+                baselineBoard);
+
+        var baselineResponse = ExplorationResponse.from(baselineSnapshot, hydrator.hydrate(baselineSnapshot));
+        assertThat(baselineResponse.board()).isNotNull();
+        assertThat(baselineResponse.execution()).containsEntry("engine", "BASELINE");
+        assertThat(baselineResponse.latestRun().status()).isEqualTo("COMPLETED");
+        assertThat(baselineResponse.latestRun().engine()).isEqualTo("BASELINE");
+        assertThat(baselineResponse.latestRun().degradedReason()).isEqualTo("AI_QUOTA_EXCEEDED");
+        assertThat(baselineResponse.latestRun().retryAfterMs()).isEqualTo(12_000);
+        assertThat(baselineResponse.latestRun().error()).isNull();
+
+        UUID failedRunId = UUID.randomUUID();
+        var failedSnapshot = new ExplorationSnapshot(
+                UUID.randomUUID(),
+                0,
+                "kr-45-jeonju",
+                new ExplorationRun(
+                        failedRunId,
+                        ExplorationRunStatus.FAILED,
+                        "BASELINE",
+                        null,
+                        null,
+                        null,
+                        NOW,
+                        NOW,
+                        NOW.plusSeconds(30),
+                        "AI_QUOTA_EXCEEDED",
+                        15_000L,
+                        "AI_QUOTA_EXCEEDED"),
+                NOW,
+                null);
+
+        var failedResponse = ExplorationResponse.from(failedSnapshot, hydrator.hydrate(failedSnapshot));
+        assertThat(failedResponse.board()).isNull();
+        assertThat(failedResponse.latestRun().status()).isEqualTo("FAILED");
+        assertThat(failedResponse.latestRun().outcome()).isNull();
+        assertThat(failedResponse.latestRun().degradedReason()).isEqualTo("AI_QUOTA_EXCEEDED");
+        assertThat(failedResponse.latestRun().retryAfterMs()).isEqualTo(15_000);
+        assertThat(failedResponse.latestRun().error())
+                .isEqualTo(Map.of("code", "AI_QUOTA_EXCEEDED", "requestId", "run-" + failedRunId));
+    }
+
     private ExplorationSnapshot completedSnapshot(ExplorationRunOutcome outcome, PersistedExplorationBoard board) {
         return new ExplorationSnapshot(
                 UUID.randomUUID(),

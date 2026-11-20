@@ -390,7 +390,12 @@ public final class ExplorationService {
 
     private void publish(ExplorationRun run) {
         if (run.isTerminal()) {
-            eventSink.terminal(run.id(), run.status().name(), run.outcome() == null ? null : run.outcome().name());
+            eventSink.terminal(
+                    run.id(),
+                    run.status().name(),
+                    run.outcome() == null ? null : run.outcome().name(),
+                    run.errorCode(),
+                    run.retryAfterMs());
             return;
         }
         eventSink.stage(run.id(), run.status().name(), run.stage());

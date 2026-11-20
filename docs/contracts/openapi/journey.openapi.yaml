@@ -876,7 +876,7 @@ components:
       required: [code, requestId]
       description: Safe public error code only; provider message, stack and prompt are never exposed.
       properties:
-        code: { type: string, enum: [SERVICE_UNAVAILABLE, AI_SERVICE_UNAVAILABLE, AI_INVALID_RESPONSE, AI_TIMEOUT, SAFETY_BLOCKED, JOURNEY_SCOPE_UNSUPPORTED] }
+        code: { type: string, enum: [SERVICE_UNAVAILABLE, AI_QUOTA_EXCEEDED, AI_SERVICE_UNAVAILABLE, AI_INVALID_RESPONSE, AI_TIMEOUT, SAFETY_BLOCKED, JOURNEY_SCOPE_UNSUPPORTED] }
         requestId: { type: string, minLength: 1, maxLength: 128 }
     SavedJourneySummary:
       type: object

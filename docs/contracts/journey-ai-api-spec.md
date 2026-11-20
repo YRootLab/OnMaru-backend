@@ -318,7 +318,13 @@ event: run.terminal
 data: {"schemaVersion":"1.3","runId":"7a111111-1111-4111-8111-111111111111","sequence":7,"status":"COMPLETED","outcome":"PROPOSAL"}
 ```
 
-`run.terminal`에는 최종 보드나 답변 본문이 없다. FE는 EventSource를 닫고 run 및 exploration snapshot을 GET한다.
+`run.terminal`에는 최종 보드나 답변 본문이 없다. SSE 응답 헤더가 이미 `200 text/event-stream`으로 수립된 뒤 AI quota 초과·실패가 발생할 수 있으므로, `run.terminal`의 `status="FAILED"`(예: `errorCode="AI_QUOTA_EXCEEDED"`, `retryAfterMs`)는 정상 완료가 아닌 **명시적 terminal 오류**로 처리해야 한다. FE는 `status`를 먼저 확인하고 EventSource를 닫은 뒤 run 및 exploration snapshot을 GET한다.
+
+```text
+id: 8
+event: run.terminal
+data: {"schemaVersion":"1.3","runId":"7a111111-1111-4111-8111-111111111111","sequence":8,"status":"FAILED","outcome":null,"errorCode":"AI_QUOTA_EXCEEDED","retryAfterMs":15000}
+```
 
 기존 SSE schema에는 `run.text.delta` 모양이 남아 있지만 **첫 출시에서는 Spring이 이 이벤트를 발행하지 않고 FE도 답변 UI에 사용하지 않는다.** 진행 안내는 `run.stage`, AI 답변은 `ExplorationTurn.response`의 구조화 결과, 현재 결과는 `ExplorationSnapshot`으로 제공한다. 이후 narration/생성 텍스트 stream을 도입하려면 부분 답변의 안전성·중단·실패·접근성·재연결 정책을 포함한 별도 계약과 schema/fixture 개정이 필요하다. 혹시 미지원 `run.text.delta` frame을 받으면 무시하고 snapshot 흐름은 계속 처리한다.
 
@@ -404,9 +410,9 @@ Content-Type: application/json
 | `503 SERVICE_UNAVAILABLE` | 일시 장애 안내, 같은 요청의 재시도 정책 적용 |
 | run snapshot `FAILED` | snapshot error code로 정해진 안내와 재시도 동작 표시 |
 
-run error code의 FE 기본 문구는 `AI_TIMEOUT`, `AI_SERVICE_UNAVAILABLE`, `SERVICE_UNAVAILABLE`이면 “응답을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.”, `AI_INVALID_RESPONSE`이면 “요청을 결과로 정리하지 못했어요. 질문을 조금 바꿔 다시 시도해 주세요.”, `SAFETY_BLOCKED`이면 안전 안내와 수정 입력, `JOURNEY_SCOPE_UNSUPPORTED`이면 지원 가능한 여행 조건 안내다. `requestId`는 사용자가 복사할 수 있는 문의 식별자일 뿐 오류 상세를 조회하는 endpoint가 아니다. unknown code는 일반 실패 문구로 fallback한다.
+run error code의 FE 기본 문구는 `AI_QUOTA_EXCEEDED`이면 “현재 AI 요청 한도를 초과해 추천을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.”(`retryAfterMs > 0`이면 재시도 가능 시각/초 단위 대기 안내 포함), `AI_TIMEOUT`, `AI_SERVICE_UNAVAILABLE`, `SERVICE_UNAVAILABLE`이면 “응답을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.”, `AI_INVALID_RESPONSE`이면 “요청을 결과로 정리하지 못했어요. 질문을 조금 바꿔 다시 시도해 주세요.”, `SAFETY_BLOCKED`이면 안전 안내와 수정 입력, `JOURNEY_SCOPE_UNSUPPORTED`이면 지원 가능한 여행 조건 안내다. `requestId`는 사용자가 복사할 수 있는 문의 식별자일 뿐 오류 상세를 조회하는 endpoint가 아니다. unknown code는 일반 실패 문구로 fallback한다.
 
-AI quota 또는 provider 장애는 후보가 있으면 BASELINE 결과로 완료될 수 있으므로, FE는 HTTP 429/503과 이미 접수된 run의 degraded 완료를 혼동하지 않는다.
+안전한 baseline 후보가 있어 `status=COMPLETED`, `engine=BASELINE`, `degradedReason=AI_QUOTA_EXCEEDED`로 완료된 경우, FE는 추천 보드를 정상 표시하되 사용량 초과에 따른 기본 추천 안내(“AI 사용량 한도를 초과해 기본 추천 결과를 보여드리고 있어요.”, 필요 시 `retryAfterMs` 기반 재시도 안내)를 함께 노출할 수 있다. 안전한 baseline 후보가 없으면 빈 추천을 성공으로 완료하지 않고 `status=FAILED`, `outcome=null`, `error.code=AI_QUOTA_EXCEEDED`로 명시적 실패 처리한다. FE는 HTTP 429/503과 이미 접수된 run의 degraded 완료·SSE `run.terminal(FAILED)`를 혼동하지 않는다.
 
 ## 8. FE 구현 규칙과 미지원 가정
 

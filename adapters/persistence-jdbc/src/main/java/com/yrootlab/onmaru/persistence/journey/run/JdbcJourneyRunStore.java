@@ -126,6 +126,9 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                         outcome = ?,
                         error_code = ?,
                         clarification = COALESCE(?::jsonb, clarification),
+                        engine = COALESCE(?, engine),
+                        degraded_reason = ?,
+                        retry_after_ms = ?,
                         lease_expires_at = NULL,
                         generation = generation + 1
                     WHERE id = ? AND actor_key = ? AND generation = ? AND %s
@@ -142,11 +145,22 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                 } else {
                     statement.setNull(4, Types.VARCHAR);
                 }
-                statement.setObject(5, command.runId());
-                statement.setString(6, command.actorKey());
-                statement.setInt(7, command.expectedGeneration());
-                statement.setString(8, command.terminalStatus().name());
-                statement.setObject(9, utc(command.finishedAt()));
+                if (command.engine() != null) {
+                    statement.setString(5, command.engine());
+                } else {
+                    statement.setNull(5, Types.VARCHAR);
+                }
+                if (command.degradedReason() != null) {
+                    statement.setString(6, command.degradedReason());
+                } else {
+                    statement.setNull(6, Types.VARCHAR);
+                }
+                statement.setLong(7, command.retryAfterMs());
+                statement.setObject(8, command.runId());
+                statement.setString(9, command.actorKey());
+                statement.setInt(10, command.expectedGeneration());
+                statement.setString(11, command.terminalStatus().name());
+                statement.setObject(12, utc(command.finishedAt()));
                 return requiredFinishTransition(connection, statement.executeQuery(), command.runId(), command.actorKey());
             }
         });
@@ -180,7 +194,8 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                      WHERE status IN ('QUEUED', 'RUNNING')
                        AND (deadline_at <= ? OR (status = 'RUNNING' AND lease_expires_at <= ?))
                      RETURNING id, exploration_id, actor_key, base_version, status::text, stage, outcome,
-                               created_at, deadline_at, started_at, generation, error_code, engine
+                               created_at, deadline_at, started_at, generation, error_code, engine,
+                               degraded_reason, retry_after_ms
                      """)) {
             statement.setObject(1, utc(now));
             statement.setObject(2, utc(now));
@@ -203,6 +218,7 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
              var statement = connection.prepareStatement("""
                      SELECT id, exploration_id, actor_key, base_version, status::text, stage, outcome,
                             created_at, deadline_at, started_at, generation, error_code, engine,
+                            degraded_reason, retry_after_ms,
                             (SELECT b.last_stage FROM onmaru.journey_run_ai_bindings b
                               WHERE b.run_id = discovery_runs.id) AS ai_stage
                      FROM onmaru.discovery_runs
@@ -225,7 +241,8 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                         snapshot.id(), snapshot.explorationId(), snapshot.actorKey(), snapshot.baseVersion(),
                         snapshot.status(), effective, snapshot.outcome(), snapshot.createdAt(),
                         snapshot.deadlineAt(), snapshot.startedAt(), snapshot.generation(),
-                        snapshot.errorCode(), snapshot.engine()));
+                        snapshot.errorCode(), snapshot.engine(),
+                        snapshot.degradedReason(), snapshot.retryAfterMs()));
             }
         } catch (SQLException exception) {
             throw databaseFailure(exception);
@@ -361,7 +378,8 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
             throws SQLException {
         try (var statement = connection.prepareStatement("""
                 SELECT id, exploration_id, actor_key, base_version, status::text, stage, outcome,
-                       created_at, deadline_at, started_at, generation, error_code, engine
+                       created_at, deadline_at, started_at, generation, error_code, engine,
+                       degraded_reason, retry_after_ms
                 FROM onmaru.discovery_runs WHERE id = ? AND actor_key = ?
                 """)) {
             statement.setObject(1, runId);
@@ -407,7 +425,9 @@ public final class JdbcJourneyRunStore implements JourneyRunStore {
                 instant(result, "started_at"),
                 result.getInt("generation"),
                 result.getString("error_code"),
-                result.getString("engine"));
+                result.getString("engine"),
+                result.getString("degraded_reason"),
+                result.getLong("retry_after_ms"));
     }
 
     private static JourneyRunStage furthest(JourneyRunStage left, JourneyRunStage right) {

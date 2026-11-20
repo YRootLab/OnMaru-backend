@@ -277,7 +277,8 @@ class JourneyWorkerConfiguration {
         return new JourneyWorkerRunner(queue, request -> {
             var outcome = service.process(request);
             if (outcome == JourneyWorkerOutcome.COMPLETED_LLM
-                    || outcome == JourneyWorkerOutcome.COMPLETED_BASELINE) {
+                    || outcome == JourneyWorkerOutcome.COMPLETED_BASELINE
+                    || outcome == JourneyWorkerOutcome.FAILED) {
                 releaseJourneyAiSlot(request.actorKey(), admissionServiceProvider, admissionPolicyProvider);
             }
             return outcome;

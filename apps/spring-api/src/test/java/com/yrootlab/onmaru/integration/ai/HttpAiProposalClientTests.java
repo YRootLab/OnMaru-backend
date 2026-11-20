@@ -112,13 +112,15 @@ class HttpAiProposalClientTests {
     }
 
     @Test
-    void providerErrorAfterDeltaMapsQuotaWithoutPublishingErrorBody() throws Exception {
+    void providerErrorAfterDeltaMapsQuotaWithRetryAfterWithoutPublishingErrorBody() throws Exception {
         server = server(exchange -> respondSse(exchange, sse("text.delta", "{\"text\":\"한옥 산책\"}")
-                + sse("error", "{\"code\":\"AI_QUOTA_EXCEEDED\"}")));
+                + sse("error", "{\"code\":\"AI_QUOTA_EXCEEDED\",\"retryAfterMs\":15000}")));
         var texts = new ArrayList<String>();
         assertThatThrownBy(() -> proposeWithDeltas(client(Duration.ofSeconds(1)), texts::add))
-                .isInstanceOf(AiProposalException.class).extracting("degradedReason")
-                .isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                .isInstanceOfSatisfying(AiProposalException.class, exception -> {
+                    assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                    assertThat(exception.retryAfterMs()).isEqualTo(15_000L);
+                });
         assertThat(texts).containsExactly("한옥 산책");
     }
 
@@ -227,13 +229,17 @@ class HttpAiProposalClientTests {
 
     @Test
     void mapsRateLimitToQuotaExceededAndRecordsTelemetry() throws Exception {
-        server = server(exchange -> respond(exchange, 429, "{\"code\":\"quota\"}"));
+        server = server(exchange -> {
+            exchange.getResponseHeaders().add("Retry-After", "17");
+            respond(exchange, 429, "{\"code\":\"AI_QUOTA_EXCEEDED\"}");
+        });
         var client = client(Duration.ofSeconds(1));
 
         assertThatThrownBy(() -> client.propose(request(), candidates()))
-                .isInstanceOf(AiProposalException.class)
-                .extracting("degradedReason")
-                .isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                .isInstanceOfSatisfying(AiProposalException.class, exception -> {
+                    assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                    assertThat(exception.retryAfterMs()).isEqualTo(17_000L);
+                });
         assertThat(events).contains(new WorkerTelemetryEvent(
                 "journey.worker.ai_call",
                 Map.of(

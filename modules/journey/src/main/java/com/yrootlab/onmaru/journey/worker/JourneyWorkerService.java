@@ -76,6 +76,7 @@ public final class JourneyWorkerService {
             WorkerDegradedReason degradedReason = null;
             JourneyResultEngine engine = JourneyResultEngine.LLM;
             JourneyWorkerPlan plan;
+            long retryAfterMs = 0L;
             int aiGeneration = receipt.generation();
             try {
                 plan = aiProposalClient.propose(request, candidates, text -> {
@@ -95,6 +96,7 @@ public final class JourneyWorkerService {
                     throw new AiProposalException(WorkerDegradedReason.AI_INVALID_RESPONSE);
                 }
             } catch (AiProposalException exception) {
+                retryAfterMs = exception.retryAfterMs();
                 if (!preloadCandidates) {
                     candidates = candidateProvider.retrieve(request);
                     recordCandidatesRetrieved(request, candidates);
@@ -106,6 +108,25 @@ public final class JourneyWorkerService {
 
             if (!isRunning(request)) {
                 return cancelled(request);
+            }
+            if (degradedReason != null && (plan == null || plan.orderedRefs().isEmpty())) {
+                runStore.finish(new FinishRunCommand(
+                        UUID.randomUUID(),
+                        request.actorKey(),
+                        request.runId(),
+                        requestHash(request, "finish"),
+                        receipt.generation(),
+                        JourneyRunStatus.FAILED,
+                        null,
+                        degradedReason.name(),
+                        clock.instant(),
+                        null,
+                        engine.name(),
+                        degradedReason.name(),
+                        retryAfterMs));
+                eventSink.terminal(request.runId(), "FAILED", null, degradedReason.name(), retryAfterMs);
+                recordFailed(request, engine, degradedReason, retryAfterMs);
+                return JourneyWorkerOutcome.FAILED;
             }
             if (!"CLARIFICATION_REQUIRED".equals(plan.outcome())) {
                 // SELECTING_EVIDENCE, GENERATING, and VALIDATING come from AI progress while the AI call is in flight.
@@ -139,8 +160,11 @@ public final class JourneyWorkerService {
                     plan.outcome(),
                     null,
                     clock.instant(),
-                    plan.clarification()));
-            eventSink.terminal(request.runId(), "COMPLETED", plan.outcome());
+                    plan.clarification(),
+                    engine.name(),
+                    degradedReason == null ? null : degradedReason.name(),
+                    retryAfterMs));
+            eventSink.terminal(request.runId(), "COMPLETED", plan.outcome(), null, retryAfterMs);
             recordCompleted(request, engine, degradedReason);
             return engine == JourneyResultEngine.BASELINE
                     ? JourneyWorkerOutcome.COMPLETED_BASELINE
@@ -201,6 +225,21 @@ public final class JourneyWorkerService {
             attributes.put("degraded.reason", degradedReason.name());
         }
         telemetry.record(new WorkerTelemetryEvent("journey.worker.completed", attributes));
+    }
+
+    private void recordFailed(
+            JourneyWorkerRequest request,
+            JourneyResultEngine engine,
+            WorkerDegradedReason degradedReason,
+            long retryAfterMs) {
+        var attributes = new LinkedHashMap<String, String>();
+        attributes.put("run.id", request.runId().toString());
+        attributes.put("engine", engine.name());
+        attributes.put("degraded.reason", degradedReason.name());
+        if (retryAfterMs > 0L) {
+            attributes.put("retry.after.ms", Long.toString(retryAfterMs));
+        }
+        telemetry.record(new WorkerTelemetryEvent("journey.worker.failed", attributes));
     }
 
     private void recordStarted(JourneyWorkerRequest request) {
