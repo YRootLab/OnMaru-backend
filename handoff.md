@@ -508,3 +508,4 @@ git diff --check # 통과
 - 카탈로그 revision 활성화 트랜잭션에서 철회 outbox sequence/event를 함께 기록하고, 내부 Bearer 인증 watermark/event/snapshot API를 추가했다. current versions의 source watermark는 DB outbox에서 읽는다.
 - V060 migration은 outbox와 snapshot 테이블을 생성하고 보존된 catalog revision에서 과거 철회 이벤트를 seed한다. SHA-256은 registry와 일치한다. publisher PostgreSQL 통합, controller auth, dynamic watermark 테스트 XML은 각각 1 test, 0 failure/error로 생성됐다. Gradle 프로세스가 결과 기록 이후 종료되지 않아 종료 코드까지 확인되지 않았으므로 merge 전 재실행한다.
 - 운영 migration/deploy는 수행하지 않았다. AI Engine의 대응 변경은 별도 PR이며, 두 저장소 PR 모두 리뷰/CI 전에는 운영 반영하지 않는다.
+- 후속 배포 wiring: production/staging Lightsail compose가 전용 sync DSN을 ai-engine에 전달하고, `.env.example` 및 PostgreSQL AI role bootstrap에 `onmaru_ai_revocation_sync_login`을 추가했다. 운영 기존 볼륨에는 init script가 재실행되지 않으므로 관리자 role 생성/AI migration 후 최소 권한 GRANT를 별도 적용해야 한다. Compose production/staging config 및 shell syntax 검증 통과.
