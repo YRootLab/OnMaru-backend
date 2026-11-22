@@ -5,8 +5,6 @@ set -eu
 : "${ONMARU_DB_AI_RUNTIME_PASSWORD:?ai runtime DB password is required}"
 : "${ONMARU_DB_AI_MIGRATION_USER:?ai migration DB login name is required}"
 : "${ONMARU_DB_AI_MIGRATION_PASSWORD:?ai migration DB password is required}"
-: "${ONMARU_DB_AI_REVOCATION_SYNC_USER:?ai revocation sync DB login name is required}"
-: "${ONMARU_DB_AI_REVOCATION_SYNC_PASSWORD:?ai revocation sync DB password is required}"
 
 psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --set ON_ERROR_STOP=1 <<'SQL'
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -39,8 +37,6 @@ $$;
 \getenv ai_runtime_password ONMARU_DB_AI_RUNTIME_PASSWORD
 \getenv ai_migration_user ONMARU_DB_AI_MIGRATION_USER
 \getenv ai_migration_password ONMARU_DB_AI_MIGRATION_PASSWORD
-\getenv ai_revocation_sync_user ONMARU_DB_AI_REVOCATION_SYNC_USER
-\getenv ai_revocation_sync_password ONMARU_DB_AI_REVOCATION_SYNC_PASSWORD
 
 CREATE OR REPLACE FUNCTION pg_temp.ensure_login_role(role_name text, role_pass text) RETURNS void AS $f$
 BEGIN
@@ -54,11 +50,9 @@ $f$ LANGUAGE plpgsql;
 
 SELECT pg_temp.ensure_login_role(:'ai_runtime_user', :'ai_runtime_password');
 SELECT pg_temp.ensure_login_role(:'ai_migration_user', :'ai_migration_password');
-SELECT pg_temp.ensure_login_role(:'ai_revocation_sync_user', :'ai_revocation_sync_password');
 
 SELECT format('GRANT onmaru_ai_runtime TO %I', :'ai_runtime_user') \gexec
 SELECT format('GRANT onmaru_ai_migration TO %I', :'ai_migration_user') \gexec
-SELECT format('GRANT onmaru_ai_revocation_sync TO %I', :'ai_revocation_sync_user') \gexec
 
 REVOKE ALL ON SCHEMA public FROM onmaru_ai_runtime, onmaru_ai_migration;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
