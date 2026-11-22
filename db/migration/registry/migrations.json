@@ -527,6 +527,15 @@
       "checksum": "journey-run-degraded-retry-after-v059-20261120",
       "sha256": "71afb7cb7227f1d01bd5398a1e9d936bd0d064f3ec6d87f46ea4afa6044f017c",
       "description": "Persist degraded_reason and retry_after_ms on discovery_runs for quota fallback and explicit failure reporting"
+    },
+    {
+      "version": "060",
+      "reservedFor": "AI_SOURCE_REVOCATION_OUTBOX",
+      "issueNumber": 875,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V060__875_ai_source_revocation_outbox.sql",
+      "checksum": "ai-source-revocation-outbox-v060-20261123",
+      "sha256": "44d09d1c102fe30828fbda097b373e627a62532d6f0b16dbdec87862e2f23f7a",
+      "description": "Durable source revocation event ledger for AI Engine polling"
     }
   ]
 }

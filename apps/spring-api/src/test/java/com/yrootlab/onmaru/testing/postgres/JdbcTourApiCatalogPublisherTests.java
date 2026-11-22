@@ -274,6 +274,59 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     @Test
+    void recordsRevocationForPlaceRemovedFromNewActiveRevision() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var firstAt = Instant.parse("2026-11-20T03:00:00Z");
+        var first = publisher.start(firstAt);
+        var firstPage = publisher.stagePage(first, List.of(
+                row("91001", "유지 장소", "HANOK"),
+                row("91002", "철회 장소", "HANOK")));
+        publisher.complete(first, firstPage.rawCount(), firstPage.rawCount(),
+                firstPage.publishedCount(), firstPage.quarantinedCount(), firstPage.skippedCount(), firstAt);
+
+        var secondAt = firstAt.plus(Duration.ofDays(1));
+        var second = publisher.start(secondAt);
+        var secondPage = publisher.stagePage(second, List.of(row("91001", "유지 장소", "HANOK")));
+        publisher.complete(second, secondPage.rawCount(), secondPage.rawCount(),
+                secondPage.publishedCount(), secondPage.quarantinedCount(), secondPage.skippedCount(), secondAt);
+
+        var revocations = new com.yrootlab.onmaru.persistence.catalog.JdbcAiSourceRevocationStore(dataSource);
+        var snapshot = revocations.beginSnapshot();
+        var snapshotId = snapshot.snapshotId();
+        var page = revocations.eventsAfter(0, 1);
+        assertThat(page.contractVersion()).isEqualTo("source-revocation.v1");
+        assertThat(page.watermark()).isEqualTo(1L);
+        assertThat(page.events()).hasSize(1);
+        assertThat(page.hasMore()).isFalse();
+        var snapshotPage = revocations.snapshotEvents(snapshotId, 0, 1);
+        assertThat(snapshotPage.watermark()).isEqualTo(1L);
+        assertThat(snapshotPage.snapshotId()).isEqualTo(snapshotId.toString());
+        var publicPlaces = revocations.snapshotPublicPlaces(snapshotId, null, 100);
+        assertThat(publicPlaces.publicPlaceIds()).containsExactly("p-tourapi-91001");
+        assertThat(publicPlaces.hasMore()).isFalse();
+
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            try (var rows = statement.executeQuery("""
+                    SELECT sequence, scope, source_type, source_id, source_revision, reason_code
+                    FROM onmaru.ai_source_revocation_events
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getLong("sequence")).isEqualTo(1L);
+                assertThat(rows.getString("scope")).isEqualTo("SOURCE_REVISION");
+                assertThat(rows.getString("source_type")).isEqualTo("TOUR_API");
+                assertThat(rows.getString("source_id")).isEqualTo("p-tourapi-91002");
+                assertThat(rows.getString("source_revision")).isEqualTo(first.revisionId().toString());
+                assertThat(rows.getString("reason_code")).isEqualTo("NOT_IN_NEW_ACTIVE_REVISION");
+                assertThat(rows.next()).isFalse();
+            }
+            try (var rows = statement.executeQuery("SELECT sequence FROM onmaru.ai_source_revocation_state WHERE id=1")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getLong(1)).isEqualTo(1L);
+            }
+        }
+    }
+
+    @Test
     void hanokSnapshotAndDetailShareEligibilityForHistoricPlaces() throws Exception {
         var publisher = new JdbcTourApiCatalogPublisher(dataSource);
         var fetchedAt = Instant.parse("2026-09-27T03:00:00Z");
