@@ -3,6 +3,8 @@ package com.yrootlab.onmaru.internal.ai.revocation;
 import com.yrootlab.onmaru.config.secrets.SecretProvider;
 import com.yrootlab.onmaru.persistence.catalog.AiSourceRevocationPage;
 import com.yrootlab.onmaru.persistence.catalog.JdbcAiSourceRevocationStore;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @RestController
 @RequestMapping("/internal/v1/ai/source-revocations")
@@ -23,17 +26,32 @@ public final class InternalAiSourceRevocationController {
     static final String SERVICE_SECRET_NAME = "internal-ai-service-token";
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final JdbcAiSourceRevocationStore store;
+    private final Supplier<JdbcAiSourceRevocationStore> storeProvider;
     private final SecretProvider secrets;
 
+    @Autowired
+    public InternalAiSourceRevocationController(
+            ObjectProvider<JdbcAiSourceRevocationStore> storeProvider,
+            SecretProvider secrets) {
+        this(storeProvider::getIfAvailable, secrets);
+    }
+
     public InternalAiSourceRevocationController(JdbcAiSourceRevocationStore store, SecretProvider secrets) {
-        this.store = store;
+        this(() -> store, secrets);
+    }
+
+    private InternalAiSourceRevocationController(
+            Supplier<JdbcAiSourceRevocationStore> storeProvider,
+            SecretProvider secrets) {
+        this.storeProvider = storeProvider;
         this.secrets = secrets;
     }
 
     @GetMapping("/watermark")
     public ResponseEntity<?> watermark(@RequestHeader(name = "Authorization", required = false) String authorization) {
         if (!authenticated(authorization)) return unauthorized();
+        var store = storeProvider.get();
+        if (store == null) return unavailable();
         try {
             return ok(new AiSourceRevocationWatermark(
                     JdbcAiSourceRevocationStore.CONTRACT_VERSION, store.watermark()));
@@ -49,6 +67,8 @@ public final class InternalAiSourceRevocationController {
             @RequestParam long afterSequence,
             @RequestParam(defaultValue = "100") int limit) {
         if (!authenticated(authorization)) return unauthorized();
+        var store = storeProvider.get();
+        if (store == null) return unavailable();
         try {
             return ok(store.eventsAfter(afterSequence, limit));
         } catch (IllegalArgumentException exception) {
@@ -64,6 +84,8 @@ public final class InternalAiSourceRevocationController {
     public ResponseEntity<?> createSnapshot(
             @RequestHeader(name = "Authorization", required = false) String authorization) {
         if (!authenticated(authorization)) return unauthorized();
+        var store = storeProvider.get();
+        if (store == null) return unavailable();
         try {
             var snapshot = store.beginSnapshot();
             String id = snapshot.snapshotId().toString();
@@ -83,6 +105,8 @@ public final class InternalAiSourceRevocationController {
             @RequestParam(required = false) String afterPublicId,
             @RequestParam(defaultValue = "100") int limit) {
         if (!authenticated(authorization)) return unauthorized();
+        var store = storeProvider.get();
+        if (store == null) return unavailable();
         try {
             return ok(store.snapshotPublicPlaces(snapshotId, afterPublicId, limit));
         } catch (IllegalArgumentException exception) {
@@ -101,6 +125,8 @@ public final class InternalAiSourceRevocationController {
             @RequestParam long afterSequence,
             @RequestParam(defaultValue = "100") int limit) {
         if (!authenticated(authorization)) return unauthorized();
+        var store = storeProvider.get();
+        if (store == null) return unavailable();
         try {
             AiSourceRevocationPage page = store.snapshotEvents(snapshotId, afterSequence, limit);
             return ok(page);
@@ -129,6 +155,11 @@ public final class InternalAiSourceRevocationController {
     private static ResponseEntity<Object> unauthorized() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).cacheControl(CacheControl.noStore())
                 .body(new FeedError("SERVICE_AUTH_INVALID"));
+    }
+
+    private static ResponseEntity<Object> unavailable() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).cacheControl(CacheControl.noStore())
+                .body(new FeedError("SOURCE_REVOCATION_UNAVAILABLE"));
     }
 
     public record FeedError(String code) { }
