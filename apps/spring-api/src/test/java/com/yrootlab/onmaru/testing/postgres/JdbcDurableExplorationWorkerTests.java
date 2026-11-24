@@ -306,15 +306,55 @@ class JdbcDurableExplorationWorkerTests {
         assertThat(followUp.run().status()).isEqualTo(ExplorationRunStatus.QUEUED);
     }
 
+    @Test
+    void quotaExceededWithoutSafeBaselineFailsExplicitlyAndLeavesBoardNull() throws Exception {
+        var mapper = new ObjectMapper();
+        var store = new JdbcExplorationStore(dataSource, mapper);
+        var explorations = new ExplorationService(store, new InMemoryExplorationRunDispatcher(), clock);
+
+        var created = explorations.create(actor, new CreateExplorationCommand(QUERY, "ko-KR", "kr-45-jeonju"));
+        var runId = created.run().id();
+        var failingWorker = new JourneyWorkerService(
+                new JdbcJourneyRunStore(dataSource),
+                new InMemoryJourneyCandidateProvider(),
+                (req, payload) -> {
+                    throw new AiProposalException(WorkerDegradedReason.AI_QUOTA_EXCEEDED, 15_000L);
+                },
+                payload -> new JourneyWorkerPlan(List.of(), "INITIAL_BOARD"),
+                new JdbcJourneyResultStore(dataSource, clock),
+                event -> { },
+                com.yrootlab.onmaru.journey.events.JourneyRunEventSink.noop(),
+                clock);
+
+        var drain = new JourneyWorkerRunner(new JdbcJourneyWorkerQueue(dataSource, clock), failingWorker::process).drain();
+        assertThat(drain.processed()).isEqualTo(1);
+        assertThat(drain.outcomes()).containsExactly(com.yrootlab.onmaru.journey.worker.JourneyWorkerOutcome.FAILED);
+        assertThat(runStatus(runId)).isEqualTo("FAILED");
+
+        var snapshot = new ExplorationService(new JdbcExplorationStore(dataSource, mapper), new InMemoryExplorationRunDispatcher(), clock)
+                .get(actor, created.explorationId());
+        assertThat(snapshot.board()).isNull();
+        assertThat(snapshot.run().status()).isEqualTo(ExplorationRunStatus.FAILED);
+        assertThat(snapshot.run().outcome()).isNull();
+        assertThat(snapshot.run().errorCode()).isEqualTo("AI_QUOTA_EXCEEDED");
+        assertThat(snapshot.run().degradedReason()).isEqualTo("AI_QUOTA_EXCEEDED");
+        assertThat(snapshot.run().retryAfterMs()).isEqualTo(15_000L);
+    }
+
     private JourneyWorkerService workerService() {
-        var candidates = new InMemoryJourneyCandidateProvider();
         return new JourneyWorkerService(
                 new JdbcJourneyRunStore(dataSource),
-                candidates,
+                req -> new com.yrootlab.onmaru.journey.worker.CandidatePayload(
+                        req.datasetRevision(),
+                        List.of(new com.yrootlab.onmaru.journey.worker.JourneyCandidate("p-baseline-1"))),
                 (request, payload) -> {
                     throw new AiProposalException(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE);
                 },
-                payload -> new JourneyWorkerPlan(List.of(), "INITIAL_BOARD"),
+                payload -> new JourneyWorkerPlan(
+                        payload.candidates().stream()
+                                .map(com.yrootlab.onmaru.journey.worker.JourneyCandidate::ref)
+                                .toList(),
+                        "INITIAL_BOARD"),
                 new JdbcJourneyResultStore(dataSource, clock),
                 event -> { },
                 com.yrootlab.onmaru.journey.events.JourneyRunEventSink.noop(),

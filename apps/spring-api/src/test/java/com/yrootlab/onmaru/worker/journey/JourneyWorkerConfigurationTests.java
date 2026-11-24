@@ -25,6 +25,7 @@ import com.yrootlab.onmaru.journey.worker.JourneyWorkerRequest;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerRunner;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerService;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerTelemetry;
+import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.Versions;
 import com.yrootlab.onmaru.journey.worker.PersistJourneyResultCommand;
 import com.yrootlab.onmaru.journey.worker.PersistJourneyResultResult;
 import com.yrootlab.onmaru.operations.admission.AdmissionPolicy;
@@ -126,6 +127,8 @@ class JourneyWorkerConfigurationTests {
                         "onmaru.ai.timeout=PT1S",
                         "onmaru.ai.plan-execute-enabled=true",
                         "onmaru.ai.versions.corpus-revision=corpus-prod-1")
+                .withBean(CurrentVersions.class, () -> () -> new Versions(
+                        "corpus-prod-1", "sha256:" + "a".repeat(64), "questions-1", 7L))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(AiProposalClient.class);
@@ -157,6 +160,8 @@ class JourneyWorkerConfigurationTests {
                         "onmaru.ai.timeout=PT1S",
                         "onmaru.ai.plan-execute-enabled=true",
                         "onmaru.ai.versions.corpus-revision=corpus-prod-1")
+                .withBean(CurrentVersions.class, () -> () -> new Versions(
+                        "corpus-prod-1", "sha256:" + "a".repeat(64), "questions-1", 7L))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(AiProposalClient.class);
@@ -310,6 +315,64 @@ class JourneyWorkerConfigurationTests {
                     var runner = context.getBean(JourneyWorkerRunner.class);
                     var result = runner.drain();
                     assertThat(result.processed()).isEqualTo(1);
+                });
+
+        assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isTrue();
+    }
+
+    @Test
+    void journeyWorkerRunnerReleasesActiveAdmissionSlotWhenRunFailsExplicitly() {
+        var memberId = UUID.randomUUID();
+        var clock = Clock.fixed(Instant.parse("2026-11-16T01:00:00Z"), java.time.ZoneOffset.UTC);
+        var admissionService = new AdmissionService(new InMemoryAdmissionStore(), clock);
+        var admissionPolicy = new AdmissionPolicy(Duration.ofMinutes(1), List.of(
+                new OperationBudget("journey.ai", SubjectType.MEMBER, 5, Duration.ofDays(1), 1)));
+        var subject = new AdmissionRequest("journey.ai", new AdmissionSubject(SubjectType.MEMBER, memberId.toString()));
+        assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isTrue();
+        assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isFalse();
+
+        var queue = new InMemoryJourneyWorkerQueue();
+        var runId = UUID.randomUUID();
+        var explorationId = UUID.randomUUID();
+        var actorKey = "member:" + memberId;
+        queue.enqueue(new JourneyWorkerRequest(
+                runId,
+                explorationId,
+                actorKey,
+                1,
+                "rev-1",
+                null,
+                "한옥 코스",
+                0,
+                "req-1",
+                "trace-1",
+                clock.instant().plusSeconds(20)));
+
+        new ApplicationContextRunner()
+                .withAllowBeanDefinitionOverriding(true)
+                .withUserConfiguration(TestDependencies.class, JourneyWorkerConfiguration.class)
+                .withPropertyValues(
+                        "onmaru.ai.base-url=http://127.0.0.1:18080",
+                        "onmaru.ai.timeout=PT1S")
+                .withBean(AdmissionService.class, () -> admissionService)
+                .withBean(AdmissionPolicy.class, () -> admissionPolicy)
+                .withBean("durableJourneyWorkerQueue", JourneyWorkerQueue.class, () -> queue)
+                .withBean("journeyRunStore", JourneyRunStore.class, () -> new StubJourneyRunStore(runId, explorationId, actorKey, clock.instant()))
+                .withBean("journeyResultStore", JourneyResultStore.class, () -> command -> PersistJourneyResultResult.PERSISTED)
+                .withBean("aiProposalClient", AiProposalClient.class, () -> (request, payload) -> {
+                    throw new com.yrootlab.onmaru.journey.worker.AiProposalException(
+                            com.yrootlab.onmaru.journey.worker.WorkerDegradedReason.AI_QUOTA_EXCEEDED,
+                            12_000L);
+                })
+                .withBean("catalogCandidateProvider", com.yrootlab.onmaru.journey.worker.JourneyCandidateProvider.class,
+                        () -> request -> new CandidatePayload("rev-1", List.of()),
+                        bd -> bd.setPrimary(true))
+                .run(context -> {
+                    var runner = context.getBean(JourneyWorkerRunner.class);
+                    var result = runner.drain();
+                    assertThat(result.processed()).isEqualTo(1);
+                    assertThat(result.outcomes()).containsExactly(
+                            com.yrootlab.onmaru.journey.worker.JourneyWorkerOutcome.FAILED);
                 });
 
         assertThat(admissionService.admitActive(subject, admissionPolicy).allowed()).isTrue();

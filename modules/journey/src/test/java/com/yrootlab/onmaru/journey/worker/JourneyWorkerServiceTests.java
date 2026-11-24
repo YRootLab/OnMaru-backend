@@ -91,6 +91,8 @@ class JourneyWorkerServiceTests {
 
     @Test
     void completesBaselineWhenAiQuotaIsExceeded() {
+        var eventBuffer = new com.yrootlab.onmaru.journey.events.JourneyRunEventBuffer(
+                8, java.time.Duration.ofSeconds(15));
         var service = new JourneyWorkerService(
                 runStore,
                 ignored -> new CandidatePayload(
@@ -98,17 +100,98 @@ class JourneyWorkerServiceTests {
                         List.of(new JourneyCandidate("place:001"))),
                 (actualRequest, ignored) -> {
                     assertThat(actualRequest.traceId()).isEqualTo("4bf92f3577b34da6a3ce929d0e0e4736");
-                    throw new AiProposalException(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                    throw new AiProposalException(WorkerDegradedReason.AI_QUOTA_EXCEEDED, 12_000L);
                 },
                 candidates -> new JourneyWorkerPlan(List.of("place:001"), "INITIAL_BOARD"),
                 resultStore,
-                telemetry);
+                telemetry,
+                eventBuffer,
+                Clock.fixed(NOW, ZoneOffset.UTC));
 
         var outcome = service.process(request);
 
         assertThat(outcome).isEqualTo(JourneyWorkerOutcome.COMPLETED_BASELINE);
         assertThat(resultStore.commands.get(0).engine()).isEqualTo(JourneyResultEngine.BASELINE);
         assertThat(resultStore.commands.get(0).degradedReason()).isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+        assertThat(runStore.finished).singleElement().satisfies(finish -> {
+            assertThat(finish.terminalStatus()).isEqualTo(JourneyRunStatus.COMPLETED);
+            assertThat(finish.outcome()).isEqualTo("INITIAL_BOARD");
+            assertThat(finish.engine()).isEqualTo("BASELINE");
+            assertThat(finish.degradedReason()).isEqualTo("AI_QUOTA_EXCEEDED");
+            assertThat(finish.retryAfterMs()).isEqualTo(12_000L);
+        });
+        assertThat(eventBuffer.replay(RUN_ID, null).events().getLast().data())
+                .contains("\"status\":\"COMPLETED\"", "\"outcome\":\"INITIAL_BOARD\"", "\"retryAfterMs\":12000");
+    }
+
+    @Test
+    void failsExplicitlyWhenAiQuotaIsExceededAndNoSafeBaselineExists() {
+        var eventBuffer = new com.yrootlab.onmaru.journey.events.JourneyRunEventBuffer(
+                8, java.time.Duration.ofSeconds(15));
+        var service = new JourneyWorkerService(
+                runStore,
+                ignored -> new CandidatePayload("dataset-2026-09-16", List.of()),
+                (actualRequest, ignored) -> {
+                    throw new AiProposalException(WorkerDegradedReason.AI_QUOTA_EXCEEDED, 15_000L);
+                },
+                candidates -> new JourneyWorkerPlan(List.of(), "INITIAL_BOARD"),
+                resultStore,
+                telemetry,
+                eventBuffer,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        var outcome = service.process(request);
+
+        assertThat(outcome).isEqualTo(JourneyWorkerOutcome.FAILED);
+        assertThat(resultStore.commands).isEmpty();
+        assertThat(runStore.finished).singleElement().satisfies(finish -> {
+            assertThat(finish.terminalStatus()).isEqualTo(JourneyRunStatus.FAILED);
+            assertThat(finish.outcome()).isNull();
+            assertThat(finish.errorCode()).isEqualTo("AI_QUOTA_EXCEEDED");
+            assertThat(finish.degradedReason()).isEqualTo("AI_QUOTA_EXCEEDED");
+            assertThat(finish.retryAfterMs()).isEqualTo(15_000L);
+        });
+        var terminal = eventBuffer.replay(RUN_ID, null).events().getLast();
+        assertThat(terminal.type().wireName()).isEqualTo("run.terminal");
+        assertThat(terminal.closeAfterSend()).isTrue();
+        assertThat(terminal.data()).contains(
+                "\"status\":\"FAILED\"",
+                "\"outcome\":null",
+                "\"errorCode\":\"AI_QUOTA_EXCEEDED\"",
+                "\"retryAfterMs\":15000");
+        assertThat(telemetry.events).contains(new WorkerTelemetryEvent(
+                "journey.worker.failed",
+                Map.of(
+                        "run.id", RUN_ID.toString(),
+                        "engine", "BASELINE",
+                        "degraded.reason", "AI_QUOTA_EXCEEDED",
+                        "retry.after.ms", "15000")));
+    }
+
+    @Test
+    void failsExplicitlyWhenStaleHeartbeatOrZeroFactsLeavesNoSafeBaseline() {
+        var eventBuffer = new com.yrootlab.onmaru.journey.events.JourneyRunEventBuffer(
+                8, java.time.Duration.ofSeconds(15));
+        var service = new JourneyWorkerService(
+                runStore,
+                ignored -> new CandidatePayload("dataset-2026-09-16", List.of()),
+                (actualRequest, ignored) -> {
+                    throw new AiProposalException(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE);
+                },
+                candidates -> new JourneyWorkerPlan(List.of(), "INITIAL_BOARD"),
+                resultStore,
+                telemetry,
+                eventBuffer,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        var outcome = service.process(request);
+
+        assertThat(outcome).isEqualTo(JourneyWorkerOutcome.FAILED);
+        assertThat(resultStore.commands).isEmpty();
+        assertThat(runStore.finished.get(0).terminalStatus()).isEqualTo(JourneyRunStatus.FAILED);
+        assertThat(runStore.finished.get(0).errorCode()).isEqualTo("AI_SERVICE_UNAVAILABLE");
+        assertThat(eventBuffer.replay(RUN_ID, null).events().getLast().data())
+                .contains("\"status\":\"FAILED\"", "\"errorCode\":\"AI_SERVICE_UNAVAILABLE\"");
     }
 
     @Test

@@ -50,6 +50,8 @@ Table discovery_runs [headercolor: #EDC948] {
   started_at timestamptz
   generation int [not null]
   error_code varchar
+  degraded_reason varchar
+  retry_after_ms bigint [not null, default: 0]
   engine varchar [not null]
 
   Note: 'Executable DDL must enforce status/stage/outcome compatibility and partial unique indexes: one QUEUED or RUNNING run per exploration and per actor_key.'

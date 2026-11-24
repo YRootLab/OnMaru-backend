@@ -29,6 +29,8 @@ class HttpAiPlanExecuteClientTests {
     private byte[] planBody;
     private int responseStatus = 200;
     private long responseDelayMillis;
+    private String retryAfterHeader;
+    private byte[] errorBody;
     private byte[] executeBody;
 
     @BeforeEach void start() throws Exception {
@@ -47,8 +49,13 @@ class HttpAiPlanExecuteClientTests {
                 try { Thread.sleep(responseDelayMillis); }
                 catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
             }
-            byte[] body = exchange.getRequestURI().getPath().endsWith("plan") ? planBody : executeBody;
+            byte[] body = responseStatus >= 400 && errorBody != null
+                    ? errorBody
+                    : (exchange.getRequestURI().getPath().endsWith("plan") ? planBody : executeBody);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
+            if (retryAfterHeader != null) {
+                exchange.getResponseHeaders().set("Retry-After", retryAfterHeader);
+            }
             exchange.sendResponseHeaders(responseStatus, body.length);
             try (var output = exchange.getResponseBody()) { output.write(body); }
         });
@@ -106,6 +113,7 @@ class HttpAiPlanExecuteClientTests {
         for (var expected : Map.of(
                 422, WorkerDegradedReason.AI_INVALID_RESPONSE,
                 429, WorkerDegradedReason.AI_QUOTA_EXCEEDED,
+                503, WorkerDegradedReason.AI_SERVICE_UNAVAILABLE,
                 504, WorkerDegradedReason.AI_TIMEOUT,
                 409, WorkerDegradedReason.AI_SERVICE_UNAVAILABLE).entrySet()) {
             responseStatus = expected.getKey();
@@ -113,7 +121,31 @@ class HttpAiPlanExecuteClientTests {
                     .isInstanceOfSatisfying(AiProposalException.class,
                             exception -> assertThat(exception.degradedReason()).isEqualTo(expected.getValue()));
         }
-        assertThat(paths).hasSize(4);
+        assertThat(paths).hasSize(5);
+    }
+
+    @Test void preservesAiQuotaExceededCodeAndRetryAfterHeadersWithoutBlockingRetry() {
+        var client = client(Duration.ofSeconds(1));
+        var context = new CallContext("req-808", safe.runId(), "1".repeat(32), now.plusSeconds(20));
+        responseStatus = 429;
+        errorBody = "{\"code\":\"AI_QUOTA_EXCEEDED\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        retryAfterHeader = "12";
+        assertThatThrownBy(() -> client.plan(safe, context))
+                .isInstanceOfSatisfying(AiProposalException.class, exception -> {
+                    assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                    assertThat(exception.retryAfterMs()).isEqualTo(12_000L);
+                });
+
+        retryAfterHeader = "Sun, 08 Nov 2026 00:00:15 GMT";
+        var approved = new ApprovedPlanBinding(proposal).forExecution("grant-808");
+        assertThatThrownBy(() -> client.execute(approved, context, null))
+                .isInstanceOfSatisfying(AiProposalException.class, exception -> {
+                    assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                    assertThat(exception.retryAfterMs()).isEqualTo(15_000L);
+                });
+
+        assertThat(paths).containsExactly("/internal/v1/journey/plan", "/internal/v1/journey/execute");
     }
 
     @Test void timesOutAnInFlightResponseAndDoesNotRetry() {

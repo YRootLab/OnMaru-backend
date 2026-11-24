@@ -16,11 +16,15 @@ import com.yrootlab.onmaru.identity.oauth.SessionRecord;
 import com.yrootlab.onmaru.identity.oauth.TokenHasher;
 import com.yrootlab.onmaru.journey.cancellation.CancelJourneyRunCommand;
 import com.yrootlab.onmaru.journey.cancellation.JourneyRunCancellationService;
+import com.yrootlab.onmaru.journey.events.JourneyRunEventSink;
+import com.yrootlab.onmaru.journey.exploration.ExplorationRun;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRunOutcome;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRunStatus;
 import com.yrootlab.onmaru.journey.exploration.ExplorationService;
+import com.yrootlab.onmaru.journey.exploration.ExplorationState;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationRunDispatcher;
 import com.yrootlab.onmaru.journey.exploration.InMemoryExplorationStore;
+import com.yrootlab.onmaru.journey.exploration.PersistedExplorationBoard;
 import com.yrootlab.onmaru.journey.run.AdvanceRunStageCommand;
 import com.yrootlab.onmaru.journey.run.ClaimRunCommand;
 import com.yrootlab.onmaru.journey.run.CreateRunCommand;
@@ -46,6 +50,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
@@ -100,6 +105,9 @@ public class JourneyContractE2ETests {
 
     @Autowired
     private ExplorationService explorationService;
+
+    @Autowired
+    private JourneyRunEventSink eventSink;
 
     @Autowired
     private InMemoryPlaceDetailStore placeDetailStore;
@@ -514,6 +522,124 @@ public class JourneyContractE2ETests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.board.title").value("전주 한옥 산책"))
                 .andExpect(jsonPath("$.board.candidates[0].placeRef.id").value(JEONJU_PLACE_ID));
+    }
+
+    @Test
+    void quotaExceededBaselineAndExplicitFailureSseAndFeContract() throws Exception {
+        // 1. Safe baseline available -> engine=BASELINE, degradedReason=AI_QUOTA_EXCEEDED, retryAfterMs=12000, INITIAL_BOARD
+        var baselineCreated = OBJECT_MAPPER.readTree(createMemberExploration("member-session", JEONJU_REGION));
+        var baselineExpId = UUID.fromString(baselineCreated.path("explorationId").asText());
+        var baselineRunId = UUID.fromString(baselineCreated.path("runId").asText());
+
+        explorationService.claimRun(baselineExpId, baselineRunId, "RETRIEVING");
+        var baselineState = explorationStore.find(baselineExpId).orElseThrow();
+        var baselineRun = baselineState.latestRun();
+        var completedBaselineRun = new ExplorationRun(
+                baselineRun.id(),
+                ExplorationRunStatus.COMPLETED,
+                "BASELINE",
+                null,
+                ExplorationRunOutcome.INITIAL_BOARD,
+                null,
+                baselineRun.createdAt(),
+                baselineRun.startedAt(),
+                baselineRun.deadlineAt(),
+                "AI_QUOTA_EXCEEDED",
+                12_000L,
+                null);
+        var baselineBoard = new PersistedExplorationBoard(
+                "BASELINE",
+                "AI_QUOTA_EXCEEDED",
+                "INITIAL_BOARD",
+                List.of(JEONJU_PLACE_ID),
+                Map.of(JEONJU_PLACE_ID, "전주 한옥의 기본 추천 후보입니다."),
+                null);
+        explorationStore.update(new ExplorationState(
+                baselineState.id(),
+                baselineState.owner(),
+                baselineState.stateVersion(),
+                baselineState.regionCode(),
+                completedBaselineRun,
+                clock.instant(),
+                baselineBoard,
+                baselineState.pinnedRefs(),
+                baselineState.excludedRefs()));
+        eventSink.terminal(baselineRunId, "COMPLETED", "INITIAL_BOARD", null, 12_000L);
+
+        mockMvc.perform(get("/api/v1/explorations/{id}", baselineExpId)
+                        .cookie(memberCookie("member-session")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.execution.engine").value("BASELINE"))
+                .andExpect(jsonPath("$.latestRun.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.latestRun.engine").value("BASELINE"))
+                .andExpect(jsonPath("$.latestRun.degradedReason").value("AI_QUOTA_EXCEEDED"))
+                .andExpect(jsonPath("$.latestRun.retryAfterMs").value(12000))
+                .andExpect(jsonPath("$.latestRun.outcome").value("INITIAL_BOARD"))
+                .andExpect(jsonPath("$.latestRun.error").doesNotExist())
+                .andExpect(jsonPath("$.board.candidates[0].placeRef.id").value(JEONJU_PLACE_ID));
+
+        // 2. No safe baseline -> explicit FAILED with error.code=AI_QUOTA_EXCEEDED, no board, HTTP 200 SSE terminal FAILED event
+        var failedCreated = OBJECT_MAPPER.readTree(createMemberExploration("other-session", JEONJU_REGION));
+        var failedExpId = UUID.fromString(failedCreated.path("explorationId").asText());
+        var failedRunId = UUID.fromString(failedCreated.path("runId").asText());
+        var failedEventsUrl = failedCreated.path("eventsUrl").asText();
+
+        explorationService.claimRun(failedExpId, failedRunId, "RETRIEVING");
+        var failedState = explorationStore.find(failedExpId).orElseThrow();
+        var failedRun = failedState.latestRun();
+        var explicitFailedRun = new ExplorationRun(
+                failedRun.id(),
+                ExplorationRunStatus.FAILED,
+                "BASELINE",
+                null,
+                null,
+                null,
+                failedRun.createdAt(),
+                failedRun.startedAt(),
+                failedRun.deadlineAt(),
+                "AI_QUOTA_EXCEEDED",
+                15_000L,
+                "AI_QUOTA_EXCEEDED");
+        explorationStore.update(new ExplorationState(
+                failedState.id(),
+                failedState.owner(),
+                failedState.stateVersion(),
+                failedState.regionCode(),
+                explicitFailedRun,
+                clock.instant(),
+                null,
+                failedState.pinnedRefs(),
+                failedState.excludedRefs()));
+        eventSink.terminal(failedRunId, "FAILED", null, "AI_QUOTA_EXCEEDED", 15_000L);
+
+        mockMvc.perform(get("/api/v1/explorations/{id}", failedExpId)
+                        .cookie(memberCookie("other-session")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.board").doesNotExist())
+                .andExpect(jsonPath("$.latestRun.status").value("FAILED"))
+                .andExpect(jsonPath("$.latestRun.outcome").doesNotExist())
+                .andExpect(jsonPath("$.latestRun.degradedReason").value("AI_QUOTA_EXCEEDED"))
+                .andExpect(jsonPath("$.latestRun.retryAfterMs").value(15000))
+                .andExpect(jsonPath("$.latestRun.error.code").value("AI_QUOTA_EXCEEDED"))
+                .andExpect(jsonPath("$.latestRun.error.requestId").value("run-" + failedRunId));
+
+        var failedSseStream = mockMvc.perform(get(failedEventsUrl)
+                        .cookie(memberCookie("other-session")))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "text/event-stream;charset=UTF-8"))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(failedSseStream).contains("event:run.terminal");
+        assertThat(failedSseStream).contains("\"status\":\"FAILED\"");
+        assertThat(failedSseStream).contains("\"outcome\":null");
+        assertThat(failedSseStream).contains("\"errorCode\":\"AI_QUOTA_EXCEEDED\"");
+        assertThat(failedSseStream).contains("\"retryAfterMs\":15000");
+        assertThat(failedSseStream).doesNotContain("\"status\":\"COMPLETED\"");
+
+        // 3. Pin FE notice wording in the Journey AI API contract spec
+        var specText = Files.readString(Path.of("..", "..", "docs", "contracts", "journey-ai-api-spec.md"));
+        assertThat(specText).contains("AI 사용량 한도를 초과해 기본 추천 결과를 보여드리고 있어요.");
+        assertThat(specText).contains("현재 AI 요청 한도를 초과해 추천을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.");
     }
 
     @Test
