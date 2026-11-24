@@ -1,0 +1,11 @@
+{
+  "name": "client-resume",
+  "direction": "client→server",
+  "message": {
+    "v": 1,
+    "type": "RESUME",
+    "payload": {
+      "lastSeq": 42
+    }
+  }
+}

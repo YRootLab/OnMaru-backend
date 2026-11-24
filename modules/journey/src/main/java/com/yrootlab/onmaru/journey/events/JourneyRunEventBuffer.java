@@ -66,9 +66,21 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
 
     @Override
     public synchronized JourneyRunEvent terminal(UUID runId, String status, String outcome) {
+        return terminal(runId, status, outcome, null, 0L);
+    }
+
+    @Override
+    public synchronized JourneyRunEvent terminal(
+            UUID runId,
+            String status,
+            String outcome,
+            String errorCode,
+            long retryAfterMs) {
+        String normalizedErrorCode = errorCode == null || errorCode.isBlank() ? null : errorCode;
+        long normalizedRetryAfterMs = Math.max(0L, retryAfterMs);
         var existing = latestTerminal(runId);
-        if (existing != null && existing.data().contains("\"status\":\"" + escape(status) + "\"")
-                && existing.data().contains(outcome == null ? "\"outcome\":null" : "\"outcome\":\"" + escape(outcome) + "\"")) {
+        if (existing != null && existing.data().equals(terminalData(
+                runId, existing.id(), status, outcome, normalizedErrorCode, normalizedRetryAfterMs))) {
             return existing;
         }
         var sequence = nextSequence(runId);
@@ -76,7 +88,7 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
         return append(runId, new JourneyRunEvent(
                 sequence,
                 JourneyRunEventType.TERMINAL,
-                terminalData(runId, sequence, status, outcome),
+                terminalData(runId, sequence, status, outcome, normalizedErrorCode, normalizedRetryAfterMs),
                 heartbeatInterval,
                 true));
     }
@@ -214,10 +226,27 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
                 + ",\"status\":\"" + escape(status) + "\",\"stage\":" + stageValue + "}";
     }
 
-    private String terminalData(UUID runId, long sequence, String status, String outcome) {
+    private String terminalData(
+            UUID runId,
+            long sequence,
+            String status,
+            String outcome,
+            String errorCode,
+            long retryAfterMs) {
         var outcomeValue = outcome == null ? "null" : "\"" + escape(outcome) + "\"";
-        return "{\"schemaVersion\":\"1.2\",\"runId\":\"" + runId + "\",\"sequence\":" + sequence
-                + ",\"status\":\"" + escape(status) + "\",\"outcome\":" + outcomeValue + "}";
+        var json = new StringBuilder();
+        json.append("{\"schemaVersion\":\"1.2\",\"runId\":\"").append(runId)
+                .append("\",\"sequence\":").append(sequence)
+                .append(",\"status\":\"").append(escape(status))
+                .append("\",\"outcome\":").append(outcomeValue);
+        if (errorCode != null && !errorCode.isBlank()) {
+            json.append(",\"errorCode\":\"").append(escape(errorCode)).append("\"");
+        }
+        if (retryAfterMs > 0L) {
+            json.append(",\"retryAfterMs\":").append(retryAfterMs);
+        }
+        json.append("}");
+        return json.toString();
     }
 
     private long nextSequence(UUID runId) {

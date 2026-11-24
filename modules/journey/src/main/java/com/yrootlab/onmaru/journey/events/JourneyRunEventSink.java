@@ -13,6 +13,10 @@ public interface JourneyRunEventSink {
 
     JourneyRunEvent terminal(UUID runId, String status, String outcome);
 
+    default JourneyRunEvent terminal(UUID runId, String status, String outcome, String errorCode, long retryAfterMs) {
+        return terminal(runId, status, outcome);
+    }
+
     static JourneyRunEventSink noop() {
         return new JourneyRunEventSink() {
             @Override

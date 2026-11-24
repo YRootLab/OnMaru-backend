@@ -75,7 +75,9 @@ public final class HttpAiPlanExecuteClient implements AiPlanExecuteClient {
             var response=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
             activeBody.set(response.body());
             try(var input=response.body()) {
-                if(response.statusCode()==429) throw failure(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                if(response.statusCode()==429) throw new AiProposalException(
+                        WorkerDegradedReason.AI_QUOTA_EXCEEDED,
+                        RetryAfterParser.parseMillis(response.headers(), clock));
                 if(response.statusCode()==504) throw failure(WorkerDegradedReason.AI_TIMEOUT);
                 if(response.statusCode()==422) throw failure(WorkerDegradedReason.AI_INVALID_RESPONSE);
                 if(response.statusCode()!=200) throw failure(WorkerDegradedReason.AI_SERVICE_UNAVAILABLE);

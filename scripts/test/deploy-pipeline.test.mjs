@@ -91,8 +91,12 @@ describe('container and staging release pipeline', () => {
     assert.match(compose, /image: \$\{ONMARU_AI_IMAGE:\?Set an immutable staging AI image digest\}/);
     assert.match(compose, /mem_limit: \$\{ONMARU_AI_MEMORY_LIMIT:-512m\}/);
     assert.match(compose, /http:\/\/127\.0\.0\.1:8000\/ready/);
+    assert.match(compose, /ONMARU_GEMINI_MODEL_NAME: \$\{ONMARU_GEMINI_MODEL_NAME:-gemini-3\.5-flash-lite\}/);
     assert.match(compose, /ONMARU_AI_BASE_URL: http:\/\/staging-ai-engine:8000/);
+    assert.match(compose, /ONMARU_AI_TIMEOUT: \$\{ONMARU_AI_TIMEOUT:-15s\}/);
     assert.match(compose, /ONMARU_AI_PLAN_EXECUTE_ENABLED: \$\{ONMARU_AI_PLAN_EXECUTE_ENABLED:-false\}/);
+    assert.match(compose, /ONMARU_JOURNEY_EXPLORATION_STORE: \$\{ONMARU_JOURNEY_EXPLORATION_STORE:-jdbc\}/);
+    assert.match(compose, /ONMARU_JOURNEY_WORKER_DRAIN_ENABLED: \$\{ONMARU_JOURNEY_WORKER_DRAIN_ENABLED:-true\}/);
     assert.match(compose, /ONMARU_SPRING_BASE_URL: http:\/\/staging-api:8080/);
     assert.match(compose, /ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT: \$\{ONMARU_SECRET_INTERNAL_AI_SERVICE_TOKEN_CURRENT:\?Set the staging internal AI service token\}/);
 
@@ -126,12 +130,45 @@ describe('container and staging release pipeline', () => {
       ['infra/lightsail/compose.yaml', 'infra/lightsail/.env.example'],
       ['infra/lightsail/staging/compose.yaml', 'infra/lightsail/staging/.env.example'],
     ]) {
-      assert.match(read(envPath), /^ONMARU_AI_PLAN_EXECUTE_ENABLED=false$/m);
+      const env = read(envPath);
+      const compose = read(composePath);
+      assert.match(env, /^ONMARU_AI_PLAN_EXECUTE_ENABLED=false$/m);
       assert.match(
-        read(composePath),
+        compose,
         /ONMARU_AI_PLAN_EXECUTE_ENABLED: \$\{ONMARU_AI_PLAN_EXECUTE_ENABLED:-false\}/,
       );
+      for (const versionVar of [
+        'ONMARU_AI_CORPUS_REVISION',
+        'ONMARU_AI_CONFIG_HASH',
+        'ONMARU_AI_QUESTION_DICTIONARY_VERSION',
+        'ONMARU_AI_SOURCE_REVOCATION_SEQUENCE',
+      ]) {
+        assert.match(env, new RegExp(`^${versionVar}=`, 'm'), `${envPath} missing ${versionVar}`);
+        assert.match(compose, new RegExp(`${versionVar}: \\$\\{${versionVar}:-`), `${composePath} missing ${versionVar}`);
+      }
+      assert.match(compose, /ONMARU_AI_DB_DSN: postgresql:\/\/\$\{ONMARU_DB_AI_RUNTIME_USER\}:\$\{ONMARU_DB_AI_RUNTIME_PASSWORD\}@postgres:5432\/\$\{ONMARU_POSTGRES_DB\}/);
     }
+
+    const prodCompose = read('infra/lightsail/compose.yaml');
+    const prodSpringSection = prodCompose.slice(0, prodCompose.indexOf('\nservices:'));
+    const prodAiSection = prodCompose.slice(prodCompose.indexOf('\n  ai-engine:'), prodCompose.indexOf('\n  nginx:'));
+    assert.doesNotMatch(prodSpringSection, /ONMARU_SECRET_GEMINI_API_KEY_CURRENT/);
+    assert.match(prodAiSection, /ONMARU_SECRET_GEMINI_API_KEY_CURRENT:\s*\$\{ONMARU_SECRET_GEMINI_API_KEY_CURRENT:-\}/);
+
+    const stagingCompose = read('infra/lightsail/staging/compose.yaml');
+    const stagingAiSection = stagingCompose.slice(
+      stagingCompose.indexOf('\n  staging-ai-engine:'),
+      stagingCompose.indexOf('\n  spring-api:'),
+    );
+    const stagingSpringSection = stagingCompose.slice(
+      stagingCompose.indexOf('\n  spring-api:'),
+      stagingCompose.indexOf('\nnetworks:'),
+    );
+    assert.match(
+      stagingAiSection,
+      /ONMARU_SECRET_GEMINI_API_KEY_CURRENT:\s*\$\{ONMARU_SECRET_GEMINI_API_KEY_CURRENT:\?Set the staging Gemini key\}/,
+    );
+    assert.doesNotMatch(stagingSpringSection, /ONMARU_SECRET_GEMINI_API_KEY_CURRENT/);
   });
 
   it('documents pagination-sized staging fixtures for FE verification', () => {
@@ -258,14 +295,17 @@ describe('container and staging release pipeline', () => {
     assert.match(productionAi, /Staging AI is running/);
   });
 
-  it('runs release and CI workflows from the master production branch', () => {
-    const releasePlease = read('.github/workflows/release-please.yml');
+  it('keeps release automation disabled and scopes release policy and CI to master', () => {
     const ci = read('.github/workflows/ci.yml');
+    const releasePolicy = read('.github/workflows/release-version-policy.yml');
 
-    for (const workflow of [releasePlease, ci]) {
+    assert.equal(existsSync(join(root, '.github/workflows/release-please.yml')), false);
+
+    for (const workflow of [ci, releasePolicy]) {
       assert.match(workflow, /branches:\n(?:\s+- develop\n)?\s+- master/);
       assert.doesNotMatch(workflow, /branches:\n(?:\s+- .+\n)*\s+- main/);
     }
+    assert.match(releasePolicy, /contents: read/);
   });
 
   it('applies the verified Gradle profile to Spring image and migration builds without dropping outer caches', () => {

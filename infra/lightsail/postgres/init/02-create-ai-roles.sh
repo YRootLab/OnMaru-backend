@@ -24,6 +24,12 @@ BEGIN
     ELSE
         ALTER ROLE onmaru_ai_migration NOLOGIN;
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'onmaru_ai_revocation_sync') THEN
+        CREATE ROLE onmaru_ai_revocation_sync NOLOGIN;
+    ELSE
+        ALTER ROLE onmaru_ai_revocation_sync NOLOGIN;
+    END IF;
 END
 $$;
 
@@ -55,10 +61,10 @@ GRANT USAGE ON SCHEMA ai TO onmaru_ai_runtime;
 GRANT USAGE, CREATE ON SCHEMA ai TO onmaru_ai_migration;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA ai
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO onmaru_ai_runtime;
+    GRANT SELECT ON TABLES TO onmaru_ai_runtime;
 ALTER DEFAULT PRIVILEGES IN SCHEMA ai
-    GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO onmaru_ai_runtime;
+    GRANT SELECT ON SEQUENCES TO onmaru_ai_runtime;
 
-SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA ai GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO onmaru_ai_runtime', :'ai_migration_user') \gexec
-SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA ai GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO onmaru_ai_runtime', :'ai_migration_user') \gexec
+SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA ai GRANT SELECT ON TABLES TO onmaru_ai_runtime', :'ai_migration_user') \gexec
+SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA ai GRANT SELECT ON SEQUENCES TO onmaru_ai_runtime', :'ai_migration_user') \gexec
 SQL

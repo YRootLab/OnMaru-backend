@@ -1,0 +1,26 @@
+{
+  "name": "join-by-invite-room-full",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms/joins",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    },
+    "body": {
+      "token": "bVLon_nWqa4OKw_vlakgweXAYILZ14zoCHe0fiM6tow"
+    }
+  },
+  "response": {
+    "status": 409,
+    "schema": "MapCollabError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "ROOM_FULL",
+      "message": "room is full",
+      "requestId": "req-map-room-full",
+      "details": {
+        "limit": 20
+      }
+    }
+  }
+}

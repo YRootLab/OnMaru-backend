@@ -1,0 +1,25 @@
+{
+  "name": "pin-add-op-conflict",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms/8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01/pins",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    },
+    "body": {
+      "opId": "d1a2b3c4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "placeId": "p-okcheon-hanok"
+    }
+  },
+  "response": {
+    "status": 409,
+    "schema": "PinConflictError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "OP_CONFLICT",
+      "message": "opId was reused with a different payload",
+      "requestId": "req-map-pin-opconflict",
+      "details": {}
+    }
+  }
+}

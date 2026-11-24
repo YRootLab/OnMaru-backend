@@ -10,4 +10,8 @@ public interface AiProposalClient {
     default JourneyWorkerPlan propose(JourneyWorkerRequest request, CandidatePayload payload, Consumer<String> textDelta) {
         return propose(request, payload);
     }
+
+    default boolean requiresCandidatePreload() {
+        return true;
+    }
 }

@@ -3,3 +3,4 @@ hanok-stamps.openapi.yaml
 admin.openapi.yaml
 
 discovery.openapi.yaml
+map-collab.openapi.yaml

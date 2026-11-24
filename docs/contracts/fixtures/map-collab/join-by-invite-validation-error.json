@@ -1,0 +1,26 @@
+{
+  "name": "join-by-invite-validation-error",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms/joins",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    },
+    "body": {
+      "token": "short"
+    }
+  },
+  "response": {
+    "status": 400,
+    "schema": "MapCollabError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "VALIDATION_ERROR",
+      "message": "token format is invalid",
+      "requestId": "req-map-join-validation",
+      "details": {
+        "field": "token"
+      }
+    }
+  }
+}

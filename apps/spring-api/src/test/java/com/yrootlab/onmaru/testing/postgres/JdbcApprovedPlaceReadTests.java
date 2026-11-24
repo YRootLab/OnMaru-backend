@@ -123,10 +123,89 @@ class JdbcApprovedPlaceReadTests {
                 NOW.plusSeconds(20).toInstant()));
 
         assertThat(payload.datasetRevision()).isEqualTo("corpus-rev-1");
-        // Candidates are nationwide; the requested region only ranks its own places first.
-        assertThat(payload.candidates()).extracting(JourneyCandidate::ref)
-                .hasSizeLessThanOrEqualTo(12)
-                .startsWith("p-hanok-a", "p-cafe-b");
+        assertThat(payload.candidates()).extracting(JourneyCandidate::ref).containsExactly("p-hanok-a", "p-cafe-b");
+    }
+
+    @Test
+    void lookupAndCandidatesExcludeStagedRevisionsEvenWhenActive() throws Exception {
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("UPDATE onmaru.catalog_dataset_revisions SET status = 'STAGING'");
+        }
+
+        assertThat(new JdbcPlaceQueryAdapter(dataSource).lookupApprovedPlaces("kr-45-jeonju", null, 5)).isEmpty();
+        var provider = new JdbcJourneyCandidateProvider(dataSource);
+        var payload = provider.retrieve(new JourneyWorkerRequest(UUID.randomUUID(), UUID.randomUUID(), "actor", 1,
+                "corpus-rev-1", "kr-45-jeonju", "query", 0, "req-1", "0af7651916cd43dd8448eb211c80319c",
+                NOW.plusSeconds(20).toInstant()));
+        assertThat(payload.candidates()).isEmpty();
+    }
+
+    @Test
+    void lookupAppliesAllowedAndExcludedPlaceIdsBeforeSqlLimit() throws Exception {
+        var jeonjuId = regionId("kr-45-jeonju");
+        var activeRev = activeRevisionId();
+        try (var connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            place(connection, activeRev, jeonjuId, "p-hanok-f", "다2 한옥", "HANOK_VILLAGE", "ACTIVE");
+            place(connection, activeRev, jeonjuId, "p-hanok-g", "라2 한옥", "HANOK_VILLAGE", "ACTIVE");
+            place(connection, activeRev, jeonjuId, "p-hanok-h", "마2 한옥", "HANOK_VILLAGE", "ACTIVE");
+            connection.commit();
+        }
+
+        var adapter = new JdbcPlaceQueryAdapter(dataSource);
+        var excludedFirst = adapter.lookupApprovedPlaces(
+                "kr-45-jeonju", null, null, List.of("p-hanok-a", "p-cafe-b"), 2);
+        assertThat(excludedFirst).extracting(ApprovedPlaceLookupItem::placeId)
+                .containsExactly("p-hanok-f", "p-hanok-g");
+
+        var allowedTail = adapter.lookupApprovedPlaces(
+                "kr-45-jeonju", null, List.of("p-hanok-g", "p-hanok-h"), List.of("p-hanok-g"), 2);
+        assertThat(allowedTail).extracting(ApprovedPlaceLookupItem::placeId)
+                .containsExactly("p-hanok-h");
+
+        assertThat(adapter.lookupApprovedPlaces("kr-45-jeonju", null, List.of(), null, 5)).isEmpty();
+    }
+
+    @Test
+    void candidateProviderExcludesPersistedExplorationExcludedRefs() throws Exception {
+        var memberId = UUID.randomUUID();
+        var explorationId = UUID.randomUUID();
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("INSERT INTO onmaru.identity_members (id, status, created_at) VALUES ('%s', 'ACTIVE', CURRENT_TIMESTAMP)".formatted(memberId));
+            statement.execute("""
+                    INSERT INTO onmaru.discovery_explorations (
+                        id, owner_member_id, state_version, pinned_refs, excluded_refs, created_at, updated_at
+                    ) VALUES ('%s', '%s', 1, '[]'::jsonb, '[{"type":"PLACE","id":"p-hanok-a"}]'::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """.formatted(explorationId, memberId));
+        }
+
+        var provider = new JdbcJourneyCandidateProvider(dataSource);
+        var payload = provider.retrieve(new JourneyWorkerRequest(UUID.randomUUID(), explorationId, "member:" + memberId, 1,
+                "corpus-rev-1", "kr-45-jeonju", "query", 1, "req-2", "0af7651916cd43dd8448eb211c80319c",
+                NOW.plusSeconds(20).toInstant()));
+
+        assertThat(payload.candidates()).extracting(JourneyCandidate::ref).containsExactly("p-cafe-b");
+    }
+
+    private UUID regionId(String code) throws SQLException {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("SELECT id FROM onmaru.catalog_regions WHERE code = ?")) {
+            statement.setString(1, code);
+            try (var rs = statement.executeQuery()) {
+                rs.next();
+                return (UUID) rs.getObject(1);
+            }
+        }
+    }
+
+    private UUID activeRevisionId() throws SQLException {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("SELECT revision_id FROM onmaru.catalog_active_datasets WHERE dataset = 'kto-korean-tour'")) {
+            try (var rs = statement.executeQuery()) {
+                rs.next();
+                return (UUID) rs.getObject(1);
+            }
+        }
     }
 
     private static void region(Connection connection, UUID id, String code, String name) throws SQLException {

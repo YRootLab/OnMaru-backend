@@ -251,4 +251,20 @@ class JourneyRunEventBufferTests {
         assertThat(buffer.replay(runId, null).events()).singleElement()
                 .satisfies(event -> assertThat(event.id()).isEqualTo(first.id()));
     }
+
+    @Test
+    void terminalErrorIncludesErrorCodeAndRetryAfterMsForQuotaFailure() {
+        var runId = UUID.randomUUID();
+        var buffer = new JourneyRunEventBuffer(8, Duration.ofSeconds(15));
+
+        var failed = buffer.terminal(runId, "FAILED", null, "AI_QUOTA_EXCEEDED", 12_000L);
+        var replay = buffer.terminal(runId, "FAILED", null, "AI_QUOTA_EXCEEDED", 12_000L);
+
+        assertThat(failed.type()).isEqualTo(JourneyRunEventType.TERMINAL);
+        assertThat(failed.closeAfterSend()).isTrue();
+        assertThat(failed.data()).isEqualTo(
+                "{\"schemaVersion\":\"1.2\",\"runId\":\"" + runId
+                        + "\",\"sequence\":1,\"status\":\"FAILED\",\"outcome\":null,\"errorCode\":\"AI_QUOTA_EXCEEDED\",\"retryAfterMs\":12000}");
+        assertThat(replay.id()).isEqualTo(failed.id());
+    }
 }

@@ -1,4 +1,11 @@
 # handoff.md
+## 2026-11-10 SSH host key 인시던트 종결과 production deploy 복구 (#819)
+
+- 서버 host key가 11-06에 변경돼 scheduled production deploy가 3연속 실패했다. `PRODUCTION/STAGING_SSH_KNOWN_HOSTS`를 keyscan 키로 갱신한 뒤, 11-10 01:29 UTC scheduled deploy가 전 파이프라인 성공하고 01:48 UTC 수동 dispatch가 no-op+healthy(notify-production 성공)로 재확인됐다. #819는 completed로 종료했다. host key 변경 근원 사유는 운영자 확인 전으로 원인 미상 표기.
+- 2026-11-09 16:38 UTC 수동 배포는 일시적 "Production checkout is dirty"로 실패했으나 이후 재현되지 않았다(원인 미특정).
+- 운영자가 `deploy_ai=true`를 3회 시도했으나 GHCR 타 저장소 패키지(`onmaru-ai-engine`) read 권한 부족으로 실패했다. 이는 #807 선행 조건(GitHub package access 설정 등)이며 production AI 활성화 전까지 재시도하지 않는다.
+- #586은 SSH 항목과 backup drill 실행을 #822로 이관한 뒤 completed 종료했고, #822는 운영자 결정(터널/카드 보류)으로 not planned 종료했다. 재개 절차는 `runbooks/ssh-access-hardening.md`와 `runbooks/restore.md`에 머지돼 있다(PR #817·#820).
+
 ## 2026-11-09 #586 잔여 2개 항목 개선과 SSH host key 인시던트 대응
 
 - 인시던트(#819): 11-06부터 scheduled production deploy가 `Host key verification failed`로 연속 실패. 서버 host key가 11-05 마지막 성공 배포 이후 변경(배너 `Ubuntu-3ubuntu13.19`→`13.20`). `PRODUCTION_SSH_KNOWN_HOSTS`·`STAGING_SSH_KNOWN_HOSTS`를 keyscan 키로 갱신 완료. 운영자는 Lightsail 콘솔에서 지문 `SHA256:bEn0kJlxwbrzR+Wrc55lYkB9Ga/nTXEdKbLoFt5tB7w` 대조가 필요하고, 서버를 재생성한 사유 확인도 남았다.
@@ -495,3 +502,27 @@ git diff --check # 통과
 - 2026-10-22 구조도 정교화: Graphviz 자동 배치의 교차선과 화면 잘림을 해결하기 위해 `reports/diagrams/build_ai_engine_architecture.py`의 고정 배치 SVG로 교체했다. 클라이언트·AWS Lightsail 내부 Spring/FastAPI/PostgreSQL·외부 Gemini 경계를 분리하고, Spring 최종 검증→SSE→클라이언트 반환, SQL_ONLY 정형 경로, corpus 색인, 비동기 평가를 표시했다. HTML 이미지는 화면 너비에 맞춰 전체를 보이고 클릭하면 SVG 원본을 확대한다. PNG 렌더를 육안 확인했고, 보고서 두 번 생성 SHA 일치·내부/로컬 링크 누락 0·중복 ID 0·`git diff --check` 통과. 브라우저 실화면 검사는 미실행이다.
 - 2026-10-22 C4 구조도 상세화: `docs/ai-rag/diagrams/likec4/architecture.c4`에 OnMaru 시스템 경계, FE·Spring·FastAPI·PostgreSQL 컨테이너, 두 서버 내부 컴포넌트, Vercel/AWS 목표 배포, 사용자 온라인 plan→승인 실행→검증 SSE 시퀀스, 오프라인 corpus·quality harness 시퀀스를 모델링했다. C4-PlantUML 정적 도식 4장(컨테이너·배포·Spring·FastAPI)을 보고서에 추가했고 LikeC4 인터랙티브 사이트 링크를 걸었다. 목표 설계와 현재 미배포 상태를 명시했다. LikeC4 validation 0 errors, PlantUML SVG 4장 재생성, 보고서 29개 문서 포함 및 2회 SHA 동일, 내부/로컬 asset 누락 0·ID 중복 0·`git diff --check` 통과. C4 FastAPI 렌더를 PNG로 변환해 육안 확인했다.
 - 2026-10-22 질문 처리 네이밍 결정 반영: 상위 계층은 `Query Processing Layer`, 내부 단계는 `Query Preprocessing → Query Interpretation → Search Router`로 정리했다. 구현 검색기는 `Keyword Search (BM25)`와 `Semantic Search (Vector)`, 결합 단계는 `Hybrid Fusion (RRF)` 및 별도의 `Reranker`로 이름을 통일했다. 모듈 경계·질문 처리·요청/SSE·관측 span/schema·README·ADR 외 연관 설명·LikeC4/C4-PlantUML·HTML 정적 설명을 맞췄다. `LEXICAL_ONLY`/`DENSE_ONLY`는 계획 내부 enum으로 유지하고 설명명과 구분했다. LikeC4 validation 0 errors, PlantUML 렌더 4장 통과, HTML 29개 문서 포함·생성 안정성·ID/링크 검증 및 `git diff --check` 통과. 커스텀 메인 SVG와 FastAPI C4 SVG를 PNG 변환해 육안 확인했다.
+
+현재 세션 작업 (AI Engine durable source-revocation feed, 2026-11-23):
+- Issue [#875](https://github.com/YRootLab/OnMaru-backend/issues/875), branch `feature/875-source-revocation-feed` (origin/develop `ef0520bf` 기반).
+- 카탈로그 revision 활성화 트랜잭션에서 철회 outbox sequence/event를 함께 기록하고, 내부 Bearer 인증 watermark/event/snapshot API를 추가했다. current versions의 source watermark는 DB outbox에서 읽는다.
+- V060 migration은 outbox와 snapshot 테이블을 생성하고 보존된 catalog revision에서 과거 철회 이벤트를 seed한다. SHA-256은 registry와 일치한다. publisher PostgreSQL 통합, controller auth, dynamic watermark 테스트 XML은 각각 1 test, 0 failure/error로 생성됐다. Gradle 프로세스가 결과 기록 이후 종료되지 않아 종료 코드까지 확인되지 않았으므로 merge 전 재실행한다.
+- 운영 migration/deploy는 수행하지 않았다. AI Engine의 대응 변경은 별도 PR이며, 두 저장소 PR 모두 리뷰/CI 전에는 운영 반영하지 않는다.
+- 후속 배포 wiring: production/staging Lightsail compose가 전용 sync DSN을 ai-engine에 전달하고, `.env.example` 및 PostgreSQL AI role bootstrap에 `onmaru_ai_revocation_sync_login`을 추가했다. 운영 기존 볼륨에는 init script가 재실행되지 않으므로 관리자 role 생성/AI migration 후 최소 권한 GRANT를 별도 적용해야 한다. Compose production/staging config 및 shell syntax 검증 통과.
+- Sync credential 경로를 선택 환경변수 `ONMARU_AI_REVOCATION_SYNC_DSN`으로 정리했다. AI가 비활성인 기존 compose 명령은 이 값이 없어도 parse/동작하고, AI Engine의 `/ready`가 sync DSN 누락을 막는다. `.env.example`은 빈 값 예시만 둔다. bootstrap은 NOLOGIN sync group만 생성하고, 기존 운영 DB는 AI migration 이후 운영자가 group/login/minimal grants를 직접 적용한다.
+- Hosted CI failure analysis (2026-11-23): BE PR #876 full Java lane failed because `JdbcAiSourceRevocationStore` was instantiated without a `DataSource` in default/no-DB app contexts, cascading into 253 Spring context failures. Store creation is now conditional on a `DataSource`; the controller uses an optional provider and returns sanitized 503 if the feed store is unavailable. `JourneyWorkerConfigurationTests`' hand-built Plan/Execute contexts now provide their own fake version port. Migration contract tests now expect V060, not V059.
+- Local targeted regression checks pass: `OnMaruApplicationTests`, `JourneyWorkerConfigurationTests`, and `InternalAiSourceRevocationControllerTests` via Gradle. The complete local lane was attempted, but repeated Testcontainers PostGIS startup readiness waits stalled on this workstation. Hosted CI passed all required lanes at head `1855b066`: plan, restore drill, hygiene, contract, Java modules + Spring API tests, JAR build, and verify (Java lane 9m33s). No production migration or deployment was run.
+
+## Authorized AI production launch continuation — 2026-11-24
+
+- User requested production loading and AI activation; direct SSH remains explicitly authorized in the paired AI conversation.
+- Pre-release independent review found source withdrawal only revoked immediately previous revision. Added A→B→C regression, observed RED missing A; retained-revision fix passed full JdbcTourApiCatalogPublisherTests locally.
+- Review also identified catalog retention would erase historical membership. Added durable `ai_source_revision_associations` to unmerged V060, seeded existing PUBLISHED sources; publisher records new memberships in the same transaction and withdraws all recorded revisions. No FK to catalog revisions. Updated registry SHA and schema docs. Follow-up independent review found no important issues.
+- Regression additionally deletes A catalog rows before C. Focused regression + migration-contract validation running; require fresh hosted CI on this final head before merge/deployment.
+- AI PR101 merged develop; release PR102 merged master and image publishing in progress. No feature flag activation or corpus switch yet. Fresh DB/env backup completed on host under `/opt/onmaru/backups/ai-launch-20261124T040550Z.*`.
+
+## Release forward integration — 2026-11-24
+
+- PR876 final source CI passed, including Java/Spring 16m39s; merged develop059e5756.
+- Existing release/v0.4.1 was an older production ancestor. Direct develop→old release PR878 had conflicts. Integration branch first advances through current master2283508e, then merges develop; this merge is clean and preserves current production changes without reverse-merging production into develop.
+- This branch contains the already reviewed quota/Plan-Execute and durable source feed changes; require fresh integration verify before release promotion. AI secure runtime release104 already passed image publish+scan; immutable digest sha256:955981e5408aca9ccd377f30cc5e7bb5cb0f637b6a1b45ab9fd5facbae49a66a. No production deployment/flag/corpus switch yet.

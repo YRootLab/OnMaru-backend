@@ -9,6 +9,8 @@
 - [여정 정형 조회 경계와 서비스 간 전송](journey-query-mcp.md): `PlaceQueryPort`와 SQL 권한 소유권, Spring↔FastAPI REST 기준선 및 관측 후 gRPC unary 비교, MCP tool discovery, grant·scope 정책.
 - [Quality Harness용 내부 MCP 도구 계약](quality-tools-mcp.md): Spring이 소유한 실행 관측과 공개 원천 상태를 AI 품질 하네스에 읽기 전용으로 제공하는 범위, 도구 schema, 인증, 실행·오류·감사 정책.
 - [AI 저장소와 Lightsail 배포 통합](repository-and-deployment.md): AI 코드와 Spring 인프라 저장소의 책임, 한 인스턴스 배포·릴리스 pairing·공존 검증 게이트.
+- [AI 여정 탐색 E2E 데이터 흐름 및 실제 서버 응답](journey_e2e_data_flow.md): 운영 카나리 실측 기준 첫 검색부터 SSE·RAG·DB 저장·최종 스냅샷 및 장소/이미지 API 응답과 현재 Gap 정리.
+- [Corpus 런타임 버전 동기화 및 1차 오픈 사전 점검](corpus-runtime-version-sync.md): 4개 버전 환경 변수 출처, `reviewed_facts >= 1`·heartbeat 정상 게이트, 업데이트 순서, 미준비/quota 초과 시 fallback·실패 계약.
 - [ADR-0018 제안](../decisions/0018-quality-harness-spring-mcp-tools.md): MCP와 REST/직접 DB 대안, MCP 서버 도입 여부를 검토하기 위한 구조 결정 초안.
 - [ADR-0019 제안](../decisions/0019-journey-query-mcp-tools.md): `PlaceQueryPort` 경계, MCP 사용 조건, Spring↔FastAPI REST 기준선과 병목 확인 후 gRPC unary 실험을 정리한 구조 결정 초안.
 - [Journey query MCP catalog](../contracts/mcp/journey-query-tools.v1.json): 온라인 tool schema·grant·호출·응답 제한의 공유 fixture.

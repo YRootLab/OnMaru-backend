@@ -334,6 +334,40 @@ class JdbcJourneyRunStoreTests {
     }
 
     @Test
+    void persistsDegradedReasonAndRetryAfterMsAcrossBaselineAndFailedRuns() {
+        var baselineRunId = UUID.randomUUID();
+        create(baselineRunId, UUID.randomUUID(), "baseline-create");
+        service.claim(new ClaimRunCommand(
+                UUID.randomUUID(), actorKey, baselineRunId, "baseline-claim", 1, Instant.parse("2026-09-16T01:00:01Z")));
+        service.finish(new FinishRunCommand(
+                UUID.randomUUID(), actorKey, baselineRunId, "baseline-finish", 2,
+                JourneyRunStatus.COMPLETED, "INITIAL_BOARD", null, Instant.parse("2026-09-16T01:00:02Z"),
+                null, "BASELINE", "AI_QUOTA_EXCEEDED", 12_000L));
+
+        var baseline = new JourneyRunService(new JdbcJourneyRunStore(dataSource)).find(baselineRunId, actorKey).orElseThrow();
+        assertThat(baseline.status()).isEqualTo(JourneyRunStatus.COMPLETED);
+        assertThat(baseline.engine()).isEqualTo("BASELINE");
+        assertThat(baseline.degradedReason()).isEqualTo("AI_QUOTA_EXCEEDED");
+        assertThat(baseline.retryAfterMs()).isEqualTo(12_000L);
+
+        var failedRunId = UUID.randomUUID();
+        create(failedRunId, UUID.randomUUID(), "failed-create");
+        service.claim(new ClaimRunCommand(
+                UUID.randomUUID(), actorKey, failedRunId, "failed-claim", 1, Instant.parse("2026-09-16T01:00:03Z")));
+        service.finish(new FinishRunCommand(
+                UUID.randomUUID(), actorKey, failedRunId, "failed-finish", 2,
+                JourneyRunStatus.FAILED, null, "AI_QUOTA_EXCEEDED", Instant.parse("2026-09-16T01:00:04Z"),
+                null, "BASELINE", "AI_QUOTA_EXCEEDED", 15_000L));
+
+        var failed = new JourneyRunService(new JdbcJourneyRunStore(dataSource)).find(failedRunId, actorKey).orElseThrow();
+        assertThat(failed.status()).isEqualTo(JourneyRunStatus.FAILED);
+        assertThat(failed.outcome()).isNull();
+        assertThat(failed.errorCode()).isEqualTo("AI_QUOTA_EXCEEDED");
+        assertThat(failed.degradedReason()).isEqualTo("AI_QUOTA_EXCEEDED");
+        assertThat(failed.retryAfterMs()).isEqualTo(15_000L);
+    }
+
+    @Test
     void rejectsStaleGenerationAndSkippedDatabaseStage() {
         var runId = UUID.randomUUID();
         create(runId, UUID.randomUUID(), "create-hash");

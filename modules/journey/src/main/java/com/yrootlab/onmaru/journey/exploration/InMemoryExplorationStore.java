@@ -144,16 +144,30 @@ public final class InMemoryExplorationStore implements ExplorationStore {
         turnList.sort(Comparator.comparing(StoredExplorationTurn::createdAt).reversed());
 
         var items = turnList.stream()
-                .map(t -> new ExplorationTurn(
-                        t.clientTurnId(),
-                        t.query(),
-                        t.createdAt(),
-                        t.run() != null ? t.run().id() : null,
-                        t.run() != null && t.run().isTerminal()
-                                ? TurnResponse.completed(
-                                        t.run().outcome() != null ? t.run().outcome().name() : null,
-                                        null, null, null, null)
-                                : TurnResponse.pending()))
+                .map(t -> {
+                    var run = t.run();
+                    TurnResponse response;
+                    if (run == null || !run.isTerminal()) {
+                        response = TurnResponse.pending();
+                    } else if (run.status() == ExplorationRunStatus.FAILED) {
+                        String code = run.errorCode() != null
+                                ? run.errorCode()
+                                : (run.degradedReason() != null ? run.degradedReason() : "AI_SERVICE_UNAVAILABLE");
+                        response = TurnResponse.failed(Map.of("code", code, "requestId", "run-" + run.id()));
+                    } else if (run.status() == ExplorationRunStatus.CANCELLED) {
+                        response = TurnResponse.cancelled();
+                    } else {
+                        response = TurnResponse.completed(
+                                run.outcome() != null ? run.outcome().name() : null,
+                                null, null, null, null);
+                    }
+                    return new ExplorationTurn(
+                            t.clientTurnId(),
+                            t.query(),
+                            t.createdAt(),
+                            run != null ? run.id() : null,
+                            response);
+                })
                 .toList();
         return new ExplorationTurnPage(items, null, false);
     }
@@ -234,6 +248,9 @@ public final class InMemoryExplorationStore implements ExplorationStore {
                 state.stateVersion(),
                 state.regionCode(),
                 run,
-                updatedAt));
+                updatedAt,
+                state.board(),
+                state.pinnedRefs(),
+                state.excludedRefs()));
     }
 }

@@ -102,7 +102,7 @@ sourceObservedAt(원천 기준), fetchedAt(수집), publishedAt(게시), basisDa
 
 백업 기본안: 매일 암호화 full logical backup, 7일 retention, app DB와 다른 storage/credential, 운영담당 role만 decrypt. provider PITR는 지원 검증 후 선택. 회원 첫 실사용 write 이전 별도DB 복원 drill이 필수다. 순서: write 중지→새DB 생성→schema+data 복원→삭제ledger 재적용→FK/count/saved hash·회원별 negative test→호환 앱 연결→QUEUED/RUNNING 만료→readiness/쓰기 재개. 목표 RPO24h/RTO4h를 실제 시각으로 측정하고 초과면 공개 write 보류. 자동 destructive down migration 금지, expand/contract와 N/N-1 앱 rollback 가능 범위를 release별로 검증한다. 호스팅/backup destination/담당자 미확정은 남은 공개 게이트다.
 
-Release Please 유지. 구현 정책은 main SHA checkout→동일 hygiene/추가계약검증 verify job→needs:verify release job, release job만 contents/pull-requests/필요issues write를 갖게 한다. CI 실패 SHA에는 tag/release0이 acceptance다. 현재 workflow 파일은 이 문서 작업에서 수정하지 않았으므로 F13 실제 결함은 열려 있다. merge 전 approval/CI, main만tag 정책 유지.
+릴리즈 메타데이터는 maintainer가 수동으로 관리한다. `release/<version>` 브랜치의 버전 정책 workflow가 최신 semantic tag 기준 다음 patch인지 검증하고, 필요하면 명시적으로 승인된 minor/major 변경만 허용한다. 릴리즈 브랜치를 `master`에 병합한 뒤 해당 `master` SHA의 `verify` CI 성공을 확인하고, maintainer가 그 동일 SHA에 semantic tag와 GitHub Release를 수동 생성한다. 자동화는 release PR, tag, GitHub Release를 만들거나 갱신하지 않는다.
 
 ## Grafana Cloud 관측성과 경보
 

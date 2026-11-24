@@ -20,18 +20,15 @@ public final class ExplorationService {
     private static final int MAX_REGION_CODE_LENGTH = 32;
     private static final Duration RUN_BUDGET = Duration.ofSeconds(20);
     private static final Pattern REGION_CODE = Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*$");
-    /** Canonical catalog region codes: sido "kr-11", sigungu "kr-11-jongno". */
-    private static final Pattern CANONICAL_REGION = Pattern.compile("^kr-\\d{2}(?:-[a-z0-9]+)*$");
     private static final Set<String> RUN_STAGES = Set.of("INTERPRETING", "RETRIEVING", "VALIDATING", "PERSISTING");
 
     private final ExplorationStore store;
     private final ExplorationRunDispatcher runDispatcher;
     private final Clock clock;
-    private final ExplorationIntakePolicy intakePolicy = new ExplorationIntakePolicy();
+    private final ExplorationIntakePolicy intakePolicy;
     private final ExplorationAccessPolicy accessPolicy;
     private final JourneyRunEventSink eventSink;
     private final JourneyActionService actionService;
-    private final RegionCodeCatalog regionCodes;
     private final Map<UUID, JourneyActionState> actionStates = new HashMap<>();
 
     public ExplorationService(ExplorationStore store, ExplorationRunDispatcher runDispatcher, Clock clock) {
@@ -62,7 +59,7 @@ public final class ExplorationService {
             ExplorationAccessPolicy accessPolicy,
             JourneyRunEventSink eventSink,
             JourneyActionService actionService) {
-        this(store, runDispatcher, clock, accessPolicy, eventSink, actionService, RegionCodeCatalog.ACCEPT_ALL);
+        this(store, runDispatcher, clock, accessPolicy, eventSink, actionService, ExplorationRegionCatalog.defaultFallback());
     }
 
     public ExplorationService(
@@ -72,21 +69,25 @@ public final class ExplorationService {
             ExplorationAccessPolicy accessPolicy,
             JourneyRunEventSink eventSink,
             JourneyActionService actionService,
-            RegionCodeCatalog regionCodes) {
+            ExplorationRegionCatalog regionCatalog) {
         this.store = store;
         this.runDispatcher = runDispatcher;
         this.clock = clock;
+        this.intakePolicy = new ExplorationIntakePolicy(regionCatalog);
         this.accessPolicy = accessPolicy;
         this.eventSink = eventSink;
         this.actionService = actionService;
-        this.regionCodes = java.util.Objects.requireNonNull(regionCodes, "regionCodes");
+    }
+
+    public String detectRegion(String rawQuery) {
+        return intakePolicy.detectRegion(rawQuery);
     }
 
     public ExplorationSnapshot create(ExplorationActor actor, CreateExplorationCommand command) {
         validateActor(actor);
         var query = intakePolicy.validateCreate(validateQuery(command == null ? null : command.query()));
         validateLocale(command.locale());
-        var regionCode = requireKnownRegion(command.regionCode(), normalizeRegion(command.regionCode()));
+        var regionCode = normalizeRegion(command.regionCode());
         if (regionCode == null) {
             regionCode = intakePolicy.detectRegion(query);
         }
@@ -104,8 +105,11 @@ public final class ExplorationService {
         validateActor(actor);
         var query = intakePolicy.validateCreate(validateQuery(command == null ? null : command.query()));
         validateLocale(command.locale());
-        // Every accepted create starts an AI run now (a missing region means nationwide), so every create is admitted.
-        return true;
+        var regionCode = normalizeRegion(command.regionCode());
+        if (regionCode == null) {
+            regionCode = intakePolicy.detectRegion(query);
+        }
+        return regionCode != null;
     }
 
     public ExplorationSnapshot get(ExplorationActor actor, UUID explorationId) {
@@ -121,19 +125,47 @@ public final class ExplorationService {
         if (state.latestRun().isActive()) {
             throw new ExplorationActiveRunException(state.latestRun().id());
         }
-        var current = actionStates.computeIfAbsent(explorationId, ignored -> JourneyActionState.empty(state.stateVersion()));
+        var current = resolveActionState(state);
         var result = actionService.apply(current, baseVersion, action);
         if (result.changed()) {
             actionStates.put(explorationId, result.state());
             store.update(new ExplorationState(
-                    state.id(), state.owner(), result.state().stateVersion(), state.regionCode(), state.latestRun(), clock.instant()));
+                    state.id(), state.owner(), result.state().stateVersion(), state.regionCode(),
+                    state.latestRun(), clock.instant(), state.board(),
+                    result.state().pinnedRefs(), result.state().excludedRefs()));
         }
         return result;
     }
 
     public synchronized JourneyActionState actionState(ExplorationActor actor, UUID explorationId) {
         var state = ownedState(actor, explorationId);
-        return actionStates.computeIfAbsent(explorationId, ignored -> JourneyActionState.empty(state.stateVersion()));
+        return resolveActionState(state);
+    }
+
+    private JourneyActionState resolveActionState(ExplorationState state) {
+        var cached = actionStates.get(state.id());
+        if (cached != null && cached.stateVersion() == state.stateVersion()) {
+            return cached;
+        }
+        var ordered = state.board() == null
+                ? java.util.List.<com.yrootlab.onmaru.journey.actions.ResourceRef>of()
+                : state.board().orderedRefs().stream()
+                        .filter(ref -> ref != null && !ref.isBlank())
+                        .distinct()
+                        .limit(3)
+                        .map(ref -> new com.yrootlab.onmaru.journey.actions.ResourceRef("PLACE", ref))
+                        .toList();
+        var pinned = state.pinnedRefs().stream().limit(3).toList();
+        var excluded = state.excludedRefs().stream().limit(100).toList();
+        var rebuilt = new JourneyActionState(
+                state.stateVersion(),
+                pinned,
+                excluded,
+                ordered,
+                java.util.List.of(),
+                cached != null && cached.stateVersion() == state.stateVersion() ? cached.pendingProposal() : null);
+        actionStates.put(state.id(), rebuilt);
+        return rebuilt;
     }
 
     public ExplorationRun getRun(ExplorationActor actor, UUID explorationId, UUID runId) {
@@ -172,14 +204,17 @@ public final class ExplorationService {
             throw new ExplorationActiveRunException(state.latestRun().id());
         }
         var query = intakePolicy.validateTurn(validatedQuery);
-        var regionCode = requireKnownRegion(command.regionCode(),
-                normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode()));
+        var regionCode = normalizeRegion(command.regionCode() == null ? state.regionCode() : command.regionCode());
+        if (regionCode == null) {
+            regionCode = intakePolicy.detectRegion(query);
+        }
         var now = clock.instant();
         var run = newRun(regionCode, now);
         var turn = new StoredExplorationTurn(
                 command.clientTurnId(), command.baseVersion(), query, regionCode, command.clarificationId(), run, now);
         var updated = new ExplorationState(
-                state.id(), state.owner(), state.stateVersion(), regionCode, run, now);
+                state.id(), state.owner(), state.stateVersion(), regionCode, run, now,
+                state.board(), state.pinnedRefs(), state.excludedRefs());
         store.appendTurn(explorationId, turn);
         store.update(updated);
         publish(run);
@@ -273,17 +308,6 @@ public final class ExplorationService {
         }
     }
 
-    /** An explicit region must be canonical and known to the active catalog. Detected regions are not checked here. */
-    private String requireKnownRegion(String explicitRegion, String normalized) {
-        if (explicitRegion == null) {
-            return normalized;
-        }
-        if (normalized == null || !CANONICAL_REGION.matcher(normalized).matches() || !regionCodes.isKnown(normalized)) {
-            throw new ExplorationInputInvalidException("regionCode");
-        }
-        return normalized;
-    }
-
     private String normalizeRegion(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -328,6 +352,21 @@ public final class ExplorationService {
     }
 
     private ExplorationRun newRun(String regionCode, java.time.Instant now) {
+        if (regionCode == null) {
+            return new ExplorationRun(
+                    UUID.randomUUID(),
+                    ExplorationRunStatus.COMPLETED,
+                    "BASELINE",
+                    ExplorationRunOutcome.CLARIFICATION_REQUIRED,
+                    new ExplorationClarification(
+                            "region",
+                            "REGION_MISSING",
+                            "어느 지역을 둘러보고 싶으신가요?",
+                            true),
+                    now,
+                    now,
+                    now.plus(RUN_BUDGET));
+        }
         return new ExplorationRun(
                 UUID.randomUUID(),
                 ExplorationRunStatus.QUEUED,
@@ -351,7 +390,12 @@ public final class ExplorationService {
 
     private void publish(ExplorationRun run) {
         if (run.isTerminal()) {
-            eventSink.terminal(run.id(), run.status().name(), run.outcome() == null ? null : run.outcome().name());
+            eventSink.terminal(
+                    run.id(),
+                    run.status().name(),
+                    run.outcome() == null ? null : run.outcome().name(),
+                    run.errorCode(),
+                    run.retryAfterMs());
             return;
         }
         eventSink.stage(run.id(), run.status().name(), run.stage());

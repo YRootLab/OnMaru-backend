@@ -2,7 +2,6 @@ package com.yrootlab.onmaru.journey.exploration;
 
 import java.text.Normalizer;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 final class ExplorationIntakePolicy {
@@ -19,19 +18,28 @@ final class ExplorationIntakePolicy {
             Pattern.compile("이전\\s*지시", Pattern.CASE_INSENSITIVE),
             Pattern.compile("시스템\\s*프롬프트", Pattern.CASE_INSENSITIVE),
             Pattern.compile("ignore\\s+(all\\s+)?previous\\s+instructions", Pattern.CASE_INSENSITIVE));
+    private static final List<String> THEMES = List.of(
+            "한옥", "고택", "한옥마을", "전통시장", "시장", "오디", "odii", "오디오", "산책", "걷", "도보", "여행", "코스",
+            "추천", "가볼", "명소", "어디", "알려", "역사", "문화", "유적", "궁궐", "사찰", "건축", "전통", "숙소", "체험",
+            "관광", "둘러", "비교", "소개", "갈곳", "갈 곳");
     private static final List<String> UNSUPPORTED = List.of(
             "시험", "답안", "숙제", "코딩", "주식", "법률", "의학", "날씨", "교통");
-    private static final Map<String, String> REGIONS = Map.of(
-            "전주", "kr-45",
-            "서울", "kr-11",
-            "경주", "kr-47",
-            "안동", "kr-47",
-            "부산", "kr-26");
+
+    private final ExplorationRegionCatalog regionCatalog;
+
+    ExplorationIntakePolicy() {
+        this(ExplorationRegionCatalog.defaultFallback());
+    }
+
+    ExplorationIntakePolicy(ExplorationRegionCatalog regionCatalog) {
+        this.regionCatalog = regionCatalog == null ? ExplorationRegionCatalog.empty() : regionCatalog;
+    }
 
     String validateCreate(String rawQuery) {
         var query = normalize(rawQuery);
         validateSafetyAndPrivacy(query);
-        if (containsAny(query, UNSUPPORTED)) {
+        if (containsAny(query, UNSUPPORTED)
+                || (!containsAny(query.toLowerCase(), THEMES) && detectRegion(query) == null)) {
             throw new ExplorationInputRejectedException("JOURNEY_SCOPE_UNSUPPORTED");
         }
         return query;
@@ -46,13 +54,11 @@ final class ExplorationIntakePolicy {
         return query;
     }
 
-    String detectRegion(String query) {
-        for (var entry : REGIONS.entrySet()) {
-            if (query.contains(entry.getKey())) {
-                return entry.getValue();
-            }
+    String detectRegion(String rawQuery) {
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return null;
         }
-        return null;
+        return regionCatalog.resolveRegionCode(normalize(rawQuery)).orElse(null);
     }
 
     private void validateSafetyAndPrivacy(String query) {

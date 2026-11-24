@@ -986,6 +986,8 @@ CREATE TABLE "discovery_runs" (
   "started_at" timestamptz,
   "generation" int NOT NULL,
   "error_code" varchar,
+  "degraded_reason" varchar,
+  "retry_after_ms" bigint NOT NULL DEFAULT 0,
   "engine" varchar NOT NULL
 );
 

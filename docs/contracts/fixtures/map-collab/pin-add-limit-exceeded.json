@@ -1,0 +1,27 @@
+{
+  "name": "pin-add-limit-exceeded",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms/8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01/pins",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    },
+    "body": {
+      "opId": "e2b3c4d5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+      "placeId": "p-gyeongju-bulguksa"
+    }
+  },
+  "response": {
+    "status": 409,
+    "schema": "PinConflictError",
+    "body": {
+      "schemaVersion": "1.2",
+      "code": "PIN_LIMIT_EXCEEDED",
+      "message": "active pin limit exceeded",
+      "requestId": "req-map-pin-limit",
+      "details": {
+        "limit": 100
+      }
+    }
+  }
+}

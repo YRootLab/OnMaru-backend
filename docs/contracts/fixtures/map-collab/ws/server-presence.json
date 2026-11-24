@@ -1,0 +1,12 @@
+{
+  "name": "server-presence",
+  "direction": "server→client",
+  "message": {
+    "v": 1,
+    "type": "PRESENCE",
+    "payload": {
+      "memberId": "5e2d1c0b-9a8f-4e7d-8c6b-5a4f3e2d1c0b",
+      "online": true
+    }
+  }
+}

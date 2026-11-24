@@ -12,7 +12,23 @@ public record ExplorationRun(
         ExplorationClarification clarification,
         Instant createdAt,
         Instant startedAt,
-        Instant deadlineAt) {
+        Instant deadlineAt,
+        String degradedReason,
+        long retryAfterMs,
+        String errorCode) {
+
+    public ExplorationRun(
+            UUID id,
+            ExplorationRunStatus status,
+            String engine,
+            String stage,
+            ExplorationRunOutcome outcome,
+            ExplorationClarification clarification,
+            Instant createdAt,
+            Instant startedAt,
+            Instant deadlineAt) {
+        this(id, status, engine, stage, outcome, clarification, createdAt, startedAt, deadlineAt, null, 0L, null);
+    }
 
     public ExplorationRun(
             UUID id,
@@ -23,7 +39,7 @@ public record ExplorationRun(
             Instant createdAt,
             Instant startedAt,
             Instant deadlineAt) {
-        this(id, status, engine, null, outcome, clarification, createdAt, startedAt, deadlineAt);
+        this(id, status, engine, null, outcome, clarification, createdAt, startedAt, deadlineAt, null, 0L, null);
     }
 
     boolean isActive() {

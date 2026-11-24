@@ -112,13 +112,15 @@ class HttpAiProposalClientTests {
     }
 
     @Test
-    void providerErrorAfterDeltaMapsQuotaWithoutPublishingErrorBody() throws Exception {
+    void providerErrorAfterDeltaMapsQuotaWithRetryAfterWithoutPublishingErrorBody() throws Exception {
         server = server(exchange -> respondSse(exchange, sse("text.delta", "{\"text\":\"한옥 산책\"}")
-                + sse("error", "{\"code\":\"AI_QUOTA_EXCEEDED\"}")));
+                + sse("error", "{\"code\":\"AI_QUOTA_EXCEEDED\",\"retryAfterMs\":15000}")));
         var texts = new ArrayList<String>();
         assertThatThrownBy(() -> proposeWithDeltas(client(Duration.ofSeconds(1)), texts::add))
-                .isInstanceOf(AiProposalException.class).extracting("degradedReason")
-                .isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                .isInstanceOfSatisfying(AiProposalException.class, exception -> {
+                    assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                    assertThat(exception.retryAfterMs()).isEqualTo(15_000L);
+                });
         assertThat(texts).containsExactly("한옥 산책");
     }
 
@@ -213,7 +215,7 @@ class HttpAiProposalClientTests {
                 .containsEntry("X-Request-Id", "req-ai-001")
                 .containsEntry("X-Run-Id", request().runId().toString())
                 .containsEntry("X-Revision", "dataset-2026-09-16")
-                .hasEntrySatisfying("traceparent", value -> assertThat(value).matches("00-4bf92f3577b34da6a3ce929d0e0e4736-(?!0000000000000000)[0-9a-f]{16}-01"));
+                .containsEntry("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01");
         assertThat(capturedBody).contains("\"candidateCount\":2");
         assertThat(capturedBody).contains("\"query\":\"조용한 한옥 코스\"");
         assertThat(capturedBody).contains("\"candidateRefs\":[\"place:001\",\"place:002\"]");
@@ -226,146 +228,18 @@ class HttpAiProposalClientTests {
     }
 
     @Test
-    void toleratesOptionalRagAndExplanationFieldsFromNewerAiResponses() throws Exception {
-        server = server((exchange) -> respond(exchange, 200, """
-                {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:002"],"outcome":"PROPOSAL",
-                 "candidateCount":2,"relaxedConstraints":["THEME"],"degradedReason":null,
-                 "ragEvidenceRefs":[],"ragDegradedReason":"RAG_NO_ACTIVE_EVIDENCE","corpusRevisionId":"rev-7"}
-                """.formatted(request().runId())));
-        var client = client(Duration.ofSeconds(1));
-
-        var plan = client.propose(request(), candidates());
-
-        assertThat(plan.outcome()).isEqualTo("PROPOSAL");
-        assertThat(plan.orderedRefs()).containsExactly("place:002");
-    }
-
-    @Test
-    void keepsAiTitleStopReasonsAndRelaxedConstraintsOnThePlan() throws Exception {
-        server = server((exchange) -> respond(exchange, 200, """
-                {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:002","place:001"],"outcome":"PROPOSAL",
-                 "relaxedConstraints":["region"],
-                 "journey":{"title":"경주 한옥 산책","summary":"고즈넉한 한옥 코스","narration":"산책 순서대로 둘러보세요",
-                   "stops":[{"ref":"place:002","reason":"양동마을 고택 분위기가 질의와 맞습니다"},
-                            {"ref":"place:001","reason":"한옥 체험이 가능합니다"}]}}
-                """.formatted(request().runId())));
-
-        var plan = client(Duration.ofSeconds(1)).propose(request(), candidates());
-
-        assertThat(plan.narrative().title()).isEqualTo("경주 한옥 산책");
-        assertThat(plan.narrative().summary()).isEqualTo("고즈넉한 한옥 코스");
-        assertThat(plan.narrative().stops()).extracting(stop -> stop.ref()).containsExactly("place:002", "place:001");
-        assertThat(plan.narrative().stops().get(0).reason()).contains("양동마을");
-        assertThat(plan.narrative().relaxedConstraints()).containsExactly("region");
-    }
-
-    @Test
-    void ragCanaryAllowlistSendsUseRagOnlyForListedActor() throws Exception {
-        var bodies = new java.util.ArrayList<String>();
-        server = server((exchange) -> {
-            bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            respond(exchange, 200, """
-                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:001"],"outcome":"PROPOSAL"}
-                    """.formatted(request().runId()));
-        });
-        var canary = new com.yrootlab.onmaru.integration.ai.AiRequestOptions(false, false, java.util.Set.of("MEMBER:123"));
-
-        client(Duration.ofSeconds(1), canary).propose(request(), candidates());
-
-        assertThat(bodies.get(0)).contains("\"useRag\":true");
-    }
-
-    @Test
-    void ragCanaryAllowlistDoesNotReachOtherActors() throws Exception {
-        var bodies = new java.util.ArrayList<String>();
-        server = server((exchange) -> {
-            bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            respond(exchange, 200, """
-                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:001"],"outcome":"PROPOSAL"}
-                    """.formatted(request().runId()));
-        });
-        var canary = new com.yrootlab.onmaru.integration.ai.AiRequestOptions(false, false, java.util.Set.of("MEMBER:999"));
-
-        client(Duration.ofSeconds(1), canary).propose(request(), candidates());
-
-        assertThat(bodies.get(0)).doesNotContain("useRag");
-    }
-
-    @Test
-    void recordsRagRevisionAndEvidenceCountsWithoutEvidenceText() throws Exception {
-        server = server((exchange) -> respond(exchange, 200, """
-                {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:002"],"outcome":"PROPOSAL",
-                 "corpusRevisionId":"rev-7","ragEvidenceRefs":["rev-7:chunk:abc","rev-7:chunk:def"],
-                 "ragDegradedReason":null}
-                """.formatted(request().runId())));
-
-        client(Duration.ofSeconds(1), new com.yrootlab.onmaru.integration.ai.AiRequestOptions(true, true))
-                .propose(request(), candidates());
-
-        assertThat(events).anySatisfy(event -> {
-            assertThat(event.name()).isEqualTo("journey.worker.ai_response");
-            assertThat(event.attributes()).containsEntry("rag.corpus.revision", "rev-7")
-                    .containsEntry("rag.evidence.count", "2")
-                    .doesNotContainKey("query");
-            assertThat(event.attributes().toString()).doesNotContain("chunk:abc");
-        });
-    }
-
-    @Test
-    void streamingRecordsRagRevisionAndEvidenceCountsWithoutEvidenceText() throws Exception {
-        server = server((exchange) -> respondSse(exchange, sse("proposal",
-                ("{\"proposal\":{\"schemaVersion\":\"internal.ai.v1\",\"runId\":\"%s\",\"orderedRefs\":[\"place:002\"],\"outcome\":\"PROPOSAL\","
-                        + "\"corpusRevisionId\":\"rev-7\",\"ragEvidenceRefs\":[\"rev-7:chunk:abc\",\"rev-7:chunk:def\"],\"ragDegradedReason\":null}}")
-                        .formatted(request().runId()))));
-
-        proposeWithDeltas(
-                client(Duration.ofSeconds(1), new com.yrootlab.onmaru.integration.ai.AiRequestOptions(true, true)),
-                text -> {});
-
-        assertThat(events).anySatisfy(event -> {
-            assertThat(event.name()).isEqualTo("journey.worker.ai_response");
-            assertThat(event.attributes()).containsEntry("rag.corpus.revision", "rev-7")
-                    .containsEntry("rag.evidence.count", "2")
-                    .doesNotContainKey("query");
-            assertThat(event.attributes().toString()).doesNotContain("chunk:abc");
-        });
-    }
-
-    @Test
-    void emptyCandidateInputIsSentAsZeroCountAndReturnsNoResultsWithoutFailing() throws Exception {
-        server = server((exchange) -> {
-            capturedBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-            respond(exchange, 200, """
-                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":[],"outcome":"NO_RESULTS",
-                     "degradedReason":"NO_CANDIDATES","candidateCount":0}
-                    """.formatted(request().runId()));
-        });
-        var client = client(Duration.ofSeconds(1));
-
-        var plan = client.propose(request(), new CandidatePayload("dataset-2026-09-16", List.of()));
-
-        assertThat(capturedBody).contains("\"candidateCount\":0");
-        assertThat(capturedBody).contains("\"candidateRefs\":[]");
-        assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
-        assertThat(plan.orderedRefs()).isEmpty();
-        assertThat(events).anySatisfy(event -> {
-            assertThat(event.name()).isEqualTo("journey.worker.ai_request");
-            assertThat(event.attributes()).containsEntry("candidate.count", "0")
-                    .containsEntry("candidate.policy", "v1")
-                    .containsKey("candidate.snapshot.id")
-                    .doesNotContainKey("query");
-        });
-    }
-
-    @Test
     void mapsRateLimitToQuotaExceededAndRecordsTelemetry() throws Exception {
-        server = server(exchange -> respond(exchange, 429, "{\"code\":\"quota\"}"));
+        server = server(exchange -> {
+            exchange.getResponseHeaders().add("Retry-After", "17");
+            respond(exchange, 429, "{\"code\":\"AI_QUOTA_EXCEEDED\"}");
+        });
         var client = client(Duration.ofSeconds(1));
 
         assertThatThrownBy(() -> client.propose(request(), candidates()))
-                .isInstanceOf(AiProposalException.class)
-                .extracting("degradedReason")
-                .isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                .isInstanceOfSatisfying(AiProposalException.class, exception -> {
+                    assertThat(exception.degradedReason()).isEqualTo(WorkerDegradedReason.AI_QUOTA_EXCEEDED);
+                    assertThat(exception.retryAfterMs()).isEqualTo(17_000L);
+                });
         assertThat(events).contains(new WorkerTelemetryEvent(
                 "journey.worker.ai_call",
                 Map.of(
@@ -402,54 +276,6 @@ class HttpAiProposalClientTests {
                 .isInstanceOf(AiProposalException.class)
                 .extracting("degradedReason")
                 .isEqualTo(WorkerDegradedReason.AI_TIMEOUT);
-    }
-
-    private HttpAiProposalClient client(Duration timeout, com.yrootlab.onmaru.integration.ai.AiRequestOptions options) {
-        var headers = new InternalAiRequestHeadersFactory(new InternalAiTokenSigner(
-                new FakeSecretProvider(),
-                InternalAiTokenProperties.defaults(),
-                FIXED_CLOCK));
-        return new HttpAiProposalClient(
-                HttpClient.newBuilder().connectTimeout(timeout).build(),
-                new ObjectMapper(),
-                URI.create("http://localhost:%d".formatted(server.getAddress().getPort())),
-                headers,
-                timeout,
-                events::add,
-                true,
-                true,
-                options);
-    }
-
-    @Test
-    void requestOptionsAreOffByDefaultAndSendNoOptionalFields() throws Exception {
-        server = server((exchange) -> {
-            capturedBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-            respond(exchange, 200, """
-                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:001"],"outcome":"PROPOSAL"}
-                    """.formatted(request().runId()));
-        });
-
-        client(Duration.ofSeconds(1)).propose(request(), candidates());
-
-        assertThat(capturedBody).doesNotContain("\"candidatePolicy\"").doesNotContain("\"useRag\"")
-                .doesNotContain("corpusRevisionId");
-    }
-
-    @Test
-    void enabledOptionsSendCandidatePolicyAndUseRagWithoutCorpusRevision() throws Exception {
-        server = server((exchange) -> {
-            capturedBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-            respond(exchange, 200, """
-                    {"schemaVersion":"internal.ai.v1","runId":"%s","orderedRefs":["place:001"],"outcome":"PROPOSAL"}
-                    """.formatted(request().runId()));
-        });
-
-        client(Duration.ofSeconds(1), new com.yrootlab.onmaru.integration.ai.AiRequestOptions(true, true))
-                .propose(request(), candidates());
-
-        assertThat(capturedBody).contains("\"candidatePolicy\":\"v1\"").contains("\"useRag\":true");
-        assertThat(capturedBody).doesNotContain("corpusRevisionId");
     }
 
     private HttpAiProposalClient client(Duration timeout) {

@@ -2,7 +2,9 @@ package com.yrootlab.onmaru.web.exploration;
 
 import com.yrootlab.onmaru.journey.exploration.ExplorationClarification;
 import com.yrootlab.onmaru.journey.exploration.ExplorationRun;
+import com.yrootlab.onmaru.journey.exploration.ExplorationRunStatus;
 import com.yrootlab.onmaru.journey.exploration.ExplorationSnapshot;
+import com.yrootlab.onmaru.journey.exploration.PersistedExplorationBoard;
 import com.yrootlab.onmaru.journey.actions.JourneyActionState;
 
 import java.time.Instant;
@@ -73,24 +75,52 @@ record ExplorationResponse(
             Object error) {
 
         static RunResponse from(ExplorationSnapshot snapshot) {
-            return from(snapshot.run());
+            return from(snapshot.run(), snapshot.board());
         }
 
         static RunResponse from(ExplorationRun run) {
+            return from(run, null);
+        }
+
+        private static RunResponse from(ExplorationRun run, PersistedExplorationBoard board) {
+            if (run == null) {
+                return null;
+            }
+            boolean completed = run.status() == ExplorationRunStatus.COMPLETED;
+            boolean failed = run.status() == ExplorationRunStatus.FAILED;
+            boolean completedWithBoard = completed && board != null;
+            String engine = completedWithBoard && board.engine() != null ? board.engine() : run.engine();
+            String degradedReason = completed || failed
+                    ? (completedWithBoard && board.degradedReason() != null
+                            ? board.degradedReason()
+                            : run.degradedReason())
+                    : null;
+            int retryAfterMs = (completed || failed) && run.retryAfterMs() > 0L
+                    ? (int) Math.min(Integer.MAX_VALUE, run.retryAfterMs())
+                    : 0;
+            Object error = failed
+                    ? Map.of(
+                            "code",
+                            run.errorCode() != null
+                                    ? run.errorCode()
+                                    : (degradedReason != null ? degradedReason : "AI_SERVICE_UNAVAILABLE"),
+                            "requestId",
+                            "run-" + run.id())
+                    : null;
             return new RunResponse(
                     "1.2",
                     run.id(),
                     run.status().name(),
-                    run.engine(),
-                    null,
+                    engine,
+                    degradedReason,
                     run.stage(),
                     run.outcome() == null ? null : run.outcome().name(),
                     ClarificationResponse.from(run.clarification()),
-                    0,
+                    retryAfterMs,
                     run.createdAt(),
                     run.startedAt(),
                     run.deadlineAt(),
-                    null);
+                    error);
         }
     }
 

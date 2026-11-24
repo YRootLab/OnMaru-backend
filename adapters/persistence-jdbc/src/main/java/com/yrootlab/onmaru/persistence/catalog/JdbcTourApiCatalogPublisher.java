@@ -773,6 +773,7 @@ public final class JdbcTourApiCatalogPublisher {
             revision.setObject(2, revisionId);
             revision.executeUpdate();
         }
+        appendCatalogWithdrawals(connection, revisionId, publishedAt);
         try (var pointer = connection.prepareStatement("""
                 INSERT INTO onmaru.catalog_active_datasets (dataset, revision_id, activated_at)
                 VALUES (?, ?, ?)
@@ -800,6 +801,96 @@ public final class JdbcTourApiCatalogPublisher {
         }
         // Keep the previous published revision for cutover verification and rollback.
         // The retention job removes old inactive revisions after the rollback window.
+    }
+
+    /**
+     * Appends source-revision withdrawals in the same transaction as the active dataset swap.
+     * The state row serializes concurrent publishers and makes committed event sequences gap-free.
+     */
+    private void appendCatalogWithdrawals(Connection connection, UUID revisionId, Instant publishedAt)
+            throws SQLException {
+        try (var lock = connection.prepareStatement("""
+                SELECT sequence FROM onmaru.ai_source_revocation_state WHERE id = 1 FOR UPDATE
+                """)) {
+            try (var rows = lock.executeQuery()) {
+                if (!rows.next()) throw new SQLException("AI source revocation state is missing");
+            }
+        }
+
+        try (var associations = connection.prepareStatement("""
+                INSERT INTO onmaru.ai_source_revision_associations(public_id, place_id, revision_id)
+                SELECT ids.public_id, place.place_id, place.revision_id
+                FROM onmaru.catalog_place_versions place
+                JOIN onmaru.catalog_place_public_ids ids USING(place_id)
+                WHERE place.revision_id=? AND place.status='ACTIVE'
+                ON CONFLICT DO NOTHING
+                """)) {
+            associations.setObject(1, revisionId);
+            associations.executeUpdate();
+        }
+
+        UUID previousRevision = null;
+        try (var active = connection.prepareStatement("""
+                SELECT revision_id FROM onmaru.catalog_active_datasets
+                WHERE dataset = ? FOR UPDATE
+                """)) {
+            active.setString(1, DATASET);
+            try (var rows = active.executeQuery()) {
+                if (rows.next()) previousRevision = rows.getObject(1, UUID.class);
+            }
+        }
+        if (previousRevision == null || previousRevision.equals(revisionId)) return;
+
+        try (var withdrawn = connection.prepareStatement("""
+                SELECT DISTINCT public_id.public_id, previous_place.revision_id
+                FROM onmaru.ai_source_revision_associations previous_place
+                JOIN onmaru.catalog_place_public_ids public_id
+                  ON public_id.place_id = previous_place.place_id
+                WHERE EXISTS (SELECT 1 FROM onmaru.catalog_place_versions active_previous
+                    WHERE active_previous.revision_id = ?
+                      AND active_previous.place_id = previous_place.place_id
+                      AND active_previous.status = 'ACTIVE')
+                  AND NOT EXISTS (
+                      SELECT 1 FROM onmaru.catalog_place_versions next_place
+                      WHERE next_place.revision_id = ?
+                        AND next_place.place_id = previous_place.place_id
+                        AND next_place.status = 'ACTIVE'
+                  )
+                ORDER BY public_id.public_id, previous_place.revision_id
+                """)) {
+            withdrawn.setObject(1, previousRevision);
+            withdrawn.setObject(2, revisionId);
+            try (var rows = withdrawn.executeQuery()) {
+                while (rows.next()) {
+                    String publicId = rows.getString(1);
+                    long sequence;
+                    try (var allocate = connection.prepareStatement("""
+                            UPDATE onmaru.ai_source_revocation_state
+                            SET sequence = sequence + 1, updated_at = ?
+                            WHERE id = 1 RETURNING sequence
+                            """)) {
+                        allocate.setObject(1, atUtc(publishedAt));
+                        try (var allocated = allocate.executeQuery()) {
+                            if (!allocated.next()) throw new SQLException("AI revocation sequence allocation failed");
+                            sequence = allocated.getLong(1);
+                        }
+                    }
+                    try (var insert = connection.prepareStatement("""
+                            INSERT INTO onmaru.ai_source_revocation_events
+                                (sequence, scope, source_type, source_id, source_revision,
+                                 place_id, revoked_at, reason_code)
+                            VALUES (?, 'SOURCE_REVISION', 'TOUR_API', ?, ?, NULL, ?,
+                                    'NOT_IN_NEW_ACTIVE_REVISION')
+                            """)) {
+                        insert.setLong(1, sequence);
+                        insert.setString(2, publicId);
+                        insert.setString(3, rows.getObject("revision_id", UUID.class).toString());
+                        insert.setObject(4, atUtc(publishedAt));
+                        insert.executeUpdate();
+                    }
+                }
+            }
+        }
     }
 
     /** A catalog replacement must not orphan an already public filming relation. */

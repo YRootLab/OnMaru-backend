@@ -1,0 +1,31 @@
+{
+  "name": "create-room-created",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/map-rooms",
+    "headers": {
+      "X-CSRF-TOKEN": "csrf-token-example-0123456789"
+    }
+  },
+  "response": {
+    "status": 201,
+    "schema": "CreateMapRoomResponse",
+    "headers": {
+      "Cache-Control": "no-store"
+    },
+    "body": {
+      "schemaVersion": "1.2",
+      "room": {
+        "id": "8f3c2a10-6b1d-4c7e-9a52-3d1f0e6b7c01",
+        "status": "ACTIVE",
+        "expiresAt": "2026-11-12T03:00:00Z",
+        "role": "OWNER"
+      },
+      "invite": {
+        "token": "bVLon_nWqa4OKw_vlakgweXAYILZ14zoCHe0fiM6tow",
+        "shareUrl": "https://onmaru.site/map?invite=bVLon_nWqa4OKw_vlakgweXAYILZ14zoCHe0fiM6tow",
+        "expiresAt": "2026-11-12T03:00:00Z"
+      }
+    }
+  }
+}

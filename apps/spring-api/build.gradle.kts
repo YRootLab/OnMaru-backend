@@ -41,6 +41,7 @@ dependencies {
     implementation(project(":modules:operations"))
     implementation(project(":modules:shared-web"))
     implementation(project(":modules:stamp"))
+    implementation(project(":modules:map-collab"))
 
     constraints {
         implementation("com.fasterxml.jackson.core:jackson-core:2.21.7")
@@ -54,6 +55,7 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.springframework.boot:spring-boot-flyway")
     implementation("org.springframework.security:spring-security-crypto")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
