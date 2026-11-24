@@ -520,3 +520,18 @@ git diff --check # 통과
 - Review also identified catalog retention would erase historical membership. Added durable `ai_source_revision_associations` to unmerged V060, seeded existing PUBLISHED sources; publisher records new memberships in the same transaction and withdraws all recorded revisions. No FK to catalog revisions. Updated registry SHA and schema docs. Follow-up independent review found no important issues.
 - Regression additionally deletes A catalog rows before C. Focused regression + migration-contract validation running; require fresh hosted CI on this final head before merge/deployment.
 - AI PR101 merged develop; release PR102 merged master and image publishing in progress. No feature flag activation or corpus switch yet. Fresh DB/env backup completed on host under `/opt/onmaru/backups/ai-launch-20261124T040550Z.*`.
+
+## Release forward integration — 2026-11-24
+
+- PR876 final source CI passed, including Java/Spring 16m39s; merged develop059e5756.
+- Existing release/v0.4.1 was an older production ancestor. Direct develop→old release PR878 had conflicts. Integration branch first advances through current master2283508e, then merges develop; this merge is clean and preserves current production changes without reverse-merging production into develop.
+- This branch contains the already reviewed quota/Plan-Execute and durable source feed changes; require fresh integration verify before release promotion. AI secure runtime release104 already passed image publish+scan; immutable digest sha256:955981e5408aca9ccd377f30cc5e7bb5cb0f637b6a1b45ab9fd5facbae49a66a. No production deployment/flag/corpus switch yet.
+
+## Production source-feed hotfix — 2026-11-24
+
+- Production deployment run45333232312 succeeded for masterd2820f77; Green is active and public CSRF/health200. Actual authenticated feed watermark returned503 `SOURCE_REVOCATION_UNAVAILABLE` because the store bean was absent, not because of auth or a fabricated source heartbeat.
+- Root cause: `AiSourceRevocationConfiguration` parse-time `@ConditionalOnBean(DataSource.class)` runs before the production datasource configuration. New regression reproduced a datasource but no store (RED). Resolve ObjectProvider<DataSource> during singleton creation, preserving noDB startup through Spring NullBean semantics.
+- Targeted tests passed in8sec, including actual production-profile datasource declared later, auto-configured datasource, noDB startup, controller, worker and version configuration. Independent review found no important issues. Hotfix branch is from deployed master; forward-port separately to develop, no reverse merge.
+- AI Plan/Execute remains false; real source bootstrap is blocked/closed, no heartbeat was fabricated. Bootstrap poller stopped while fixing feed. Reviewed AI image955981e5 remains prepared, not installed.
+- Before feed bootstrap, two old RETIRED revisions with all1080 rows each using dummy source src-1/rev-0 were nondestructively quarantined gc_state=PENDING/expires_at=NULL under corpus lock, with29-day protective holds and metadata backup `/opt/onmaru/ai-ops/legacy-quarantine-before.json`. All2160 content rows preserved. Current23573 and candidate23573 unchanged.
+- Fresh full backup `/opt/onmaru/backups/ai-pre-be-deploy-20261124T052324Z.dump`, SHA256 be63cff6a644de804ae94c5cd479cf8516a3130ca9773061a1c5b167769d57e2; pg_restore TOC validation1117 entries succeeded.
