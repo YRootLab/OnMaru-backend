@@ -534,7 +534,7 @@
       "issueNumber": 875,
       "path": "apps/spring-api/src/main/resources/db/migration/baseline/V060__875_ai_source_revocation_outbox.sql",
       "checksum": "ai-source-revocation-outbox-v060-20261123",
-      "sha256": "44d09d1c102fe30828fbda097b373e627a62532d6f0b16dbdec87862e2f23f7a",
+      "sha256": "2067a0c0fbf149f7269dc413a82f31347ea086779786611ecb68dd6688536152",
       "description": "Durable source revocation event ledger for AI Engine polling"
     }
   ]

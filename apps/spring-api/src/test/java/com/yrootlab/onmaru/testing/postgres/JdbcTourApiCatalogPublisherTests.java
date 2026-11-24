@@ -274,6 +274,37 @@ class JdbcTourApiCatalogPublisherTests {
     }
 
     @Test
+    void withdrawalRevokesEveryRetainedSourceRevision() throws Exception {
+        var publisher = new JdbcTourApiCatalogPublisher(dataSource);
+        var at = Instant.parse("2026-11-20T03:00:00Z");
+        var expected = new java.util.ArrayList<String>();
+        for (int i = 0; i < 3; i++) {
+            var time = at.plus(Duration.ofDays(i));
+            var session = publisher.start(time);
+            var items = i < 2
+                    ? List.of(row("92001", "유지 장소 " + i, "HANOK"), row("92002", "철회 장소", "HANOK"))
+                    : List.of(row("92001", "유지 장소 " + i, "HANOK"));
+            var page = publisher.stagePage(session, items);
+            publisher.complete(session, page.rawCount(), page.rawCount(), page.publishedCount(),
+                    page.quarantinedCount(), page.skippedCount(), time);
+            if (i < 2) expected.add(session.revisionId().toString());
+            if (i == 1) {
+                try (var connection = dataSource.getConnection(); var statement = connection.prepareStatement(
+                        "DELETE FROM onmaru.catalog_place_versions WHERE revision_id=?")) {
+                    statement.setObject(1, UUID.fromString(expected.getFirst()));
+                    statement.executeUpdate();
+                }
+            }
+        }
+        var actual = new java.util.ArrayList<String>();
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement();
+             var rows = statement.executeQuery("SELECT source_revision FROM onmaru.ai_source_revocation_events WHERE source_id='p-tourapi-92002'")) {
+            while (rows.next()) actual.add(rows.getString(1));
+        }
+        assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
+    }
+
+    @Test
     void recordsRevocationForPlaceRemovedFromNewActiveRevision() throws Exception {
         var publisher = new JdbcTourApiCatalogPublisher(dataSource);
         var firstAt = Instant.parse("2026-11-20T03:00:00Z");

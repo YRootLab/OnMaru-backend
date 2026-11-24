@@ -99,3 +99,18 @@ INSERT INTO onmaru_registry.migration_version_reservations (
 SET reserved_for = EXCLUDED.reserved_for,
     issue_number = EXCLUDED.issue_number,
     description = EXCLUDED.description;
+
+-- Independent of catalog revision retention: AI evidence can outlive BE snapshots.
+CREATE TABLE onmaru.ai_source_revision_associations (
+    public_id varchar NOT NULL,
+    place_id uuid NOT NULL,
+    revision_id uuid NOT NULL,
+    PRIMARY KEY (public_id, revision_id)
+);
+INSERT INTO onmaru.ai_source_revision_associations (public_id, place_id, revision_id)
+SELECT DISTINCT ids.public_id, place.place_id, place.revision_id
+FROM onmaru.catalog_place_versions place
+JOIN onmaru.catalog_place_public_ids ids USING(place_id)
+JOIN onmaru.catalog_dataset_revisions revision ON revision.id=place.revision_id
+WHERE revision.dataset='kto-korean-tour' AND revision.status='PUBLISHED'
+  AND place.status='ACTIVE';

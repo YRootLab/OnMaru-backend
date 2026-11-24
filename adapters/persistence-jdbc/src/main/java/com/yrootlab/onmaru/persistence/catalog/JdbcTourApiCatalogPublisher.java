@@ -817,6 +817,18 @@ public final class JdbcTourApiCatalogPublisher {
             }
         }
 
+        try (var associations = connection.prepareStatement("""
+                INSERT INTO onmaru.ai_source_revision_associations(public_id, place_id, revision_id)
+                SELECT ids.public_id, place.place_id, place.revision_id
+                FROM onmaru.catalog_place_versions place
+                JOIN onmaru.catalog_place_public_ids ids USING(place_id)
+                WHERE place.revision_id=? AND place.status='ACTIVE'
+                ON CONFLICT DO NOTHING
+                """)) {
+            associations.setObject(1, revisionId);
+            associations.executeUpdate();
+        }
+
         UUID previousRevision = null;
         try (var active = connection.prepareStatement("""
                 SELECT revision_id FROM onmaru.catalog_active_datasets
@@ -830,19 +842,21 @@ public final class JdbcTourApiCatalogPublisher {
         if (previousRevision == null || previousRevision.equals(revisionId)) return;
 
         try (var withdrawn = connection.prepareStatement("""
-                SELECT DISTINCT public_id.public_id
-                FROM onmaru.catalog_place_versions previous_place
+                SELECT DISTINCT public_id.public_id, previous_place.revision_id
+                FROM onmaru.ai_source_revision_associations previous_place
                 JOIN onmaru.catalog_place_public_ids public_id
                   ON public_id.place_id = previous_place.place_id
-                WHERE previous_place.revision_id = ?
-                  AND previous_place.status = 'ACTIVE'
+                WHERE EXISTS (SELECT 1 FROM onmaru.catalog_place_versions active_previous
+                    WHERE active_previous.revision_id = ?
+                      AND active_previous.place_id = previous_place.place_id
+                      AND active_previous.status = 'ACTIVE')
                   AND NOT EXISTS (
                       SELECT 1 FROM onmaru.catalog_place_versions next_place
                       WHERE next_place.revision_id = ?
                         AND next_place.place_id = previous_place.place_id
                         AND next_place.status = 'ACTIVE'
                   )
-                ORDER BY public_id.public_id
+                ORDER BY public_id.public_id, previous_place.revision_id
                 """)) {
             withdrawn.setObject(1, previousRevision);
             withdrawn.setObject(2, revisionId);
@@ -870,7 +884,7 @@ public final class JdbcTourApiCatalogPublisher {
                             """)) {
                         insert.setLong(1, sequence);
                         insert.setString(2, publicId);
-                        insert.setString(3, previousRevision.toString());
+                        insert.setString(3, rows.getObject("revision_id", UUID.class).toString());
                         insert.setObject(4, atUtc(publishedAt));
                         insert.executeUpdate();
                     }
