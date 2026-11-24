@@ -289,10 +289,18 @@ class JdbcTourApiCatalogPublisherTests {
                     page.quarantinedCount(), page.skippedCount(), time);
             if (i < 2) expected.add(session.revisionId().toString());
             if (i == 1) {
-                try (var connection = dataSource.getConnection(); var statement = connection.prepareStatement(
-                        "DELETE FROM onmaru.catalog_place_versions WHERE revision_id=?")) {
-                    statement.setObject(1, UUID.fromString(expected.getFirst()));
-                    statement.executeUpdate();
+                try (var connection = dataSource.getConnection()) {
+                    for (var table : List.of("audio_story_content_tag_versions", "audio_subtitle_lines",
+                            "audio_story_versions", "audio_spot_versions", "catalog_place_content_tag_versions",
+                            "catalog_hanok_detail_versions", "catalog_place_image_versions",
+                            "catalog_kto_korean_info_versions", "catalog_kto_korean_intro_versions",
+                            "catalog_kto_korean_content_versions", "catalog_place_versions")) {
+                        try (var statement = connection.prepareStatement(
+                                "DELETE FROM onmaru." + table + " WHERE revision_id=?")) {
+                            statement.setObject(1, UUID.fromString(expected.getFirst()));
+                            statement.executeUpdate();
+                        }
+                    }
                 }
             }
         }
