@@ -32,3 +32,4 @@
 - [`mcp/quality-tools.v1.json`](mcp/quality-tools.v1.json): 온디맨드 quality harness의 Spring read-only tool JSON Schema catalog
 
 구현 전 게이트: OpenAPI와 fixture를 실제 FE/BE serializer contract test로 연결하고, pagination/cursor, 인증 오류와 AI typed output을 검증한다.
+- [Internal AI source revocation feed v1](./ai-source-revocation.v1.yaml): Spring의 공개 카탈로그 철회 outbox를 AI Engine이 watermark 기준으로 읽는 private API 계약.

@@ -16,5 +16,25 @@ public record JourneyRunSnapshot(
         Instant startedAt,
         int generation,
         String errorCode,
-        String engine) {
+        String engine,
+        String degradedReason,
+        long retryAfterMs) {
+
+    public JourneyRunSnapshot(
+            UUID id,
+            UUID explorationId,
+            String actorKey,
+            int baseVersion,
+            JourneyRunStatus status,
+            JourneyRunStage stage,
+            String outcome,
+            Instant createdAt,
+            Instant deadlineAt,
+            Instant startedAt,
+            int generation,
+            String errorCode,
+            String engine) {
+        this(id, explorationId, actorKey, baseVersion, status, stage, outcome, createdAt, deadlineAt,
+                startedAt, generation, errorCode, engine, null, 0L);
+    }
 }

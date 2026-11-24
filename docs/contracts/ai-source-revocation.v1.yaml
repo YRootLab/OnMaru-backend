@@ -1,0 +1,140 @@
+openapi: 3.1.0
+info:
+  title: Internal AI source revocation feed
+  version: 1.0.0
+  description: >-
+    Private Spring-to-AI synchronization contract. Events are immutable and ordered;
+    snapshot pages pin both the revocation watermark and the active public place set.
+servers:
+  - url: /
+security:
+  - InternalServiceBearer: []
+paths:
+  /internal/v1/ai/source-revocations/watermark:
+    get:
+      operationId: readSourceRevocationWatermark
+      responses:
+        '200':
+          description: Current committed outbox watermark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Watermark'
+        '401': { description: Invalid service credential }
+        '503': { description: Watermark unavailable }
+  /internal/v1/ai/source-revocations/events:
+    get:
+      operationId: readSourceRevocationEvents
+      parameters:
+        - { in: query, name: afterSequence, required: true, schema: { type: integer, minimum: 0 } }
+        - { in: query, name: limit, required: false, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        '200':
+          description: Ordered events and watermark captured in one read snapshot.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventPage' }
+        '400': { description: Invalid cursor or page limit }
+        '401': { description: Invalid service credential }
+        '503': { description: Feed unavailable }
+  /internal/v1/ai/source-revocations/snapshots:
+    post:
+      operationId: createSourceRevocationSnapshot
+      responses:
+        '200':
+          description: Immutable snapshot of revocations and active public identities.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Snapshot' }
+        '401': { description: Invalid service credential }
+        '503': { description: Snapshot unavailable }
+  /internal/v1/ai/source-revocations/snapshots/{snapshotId}/events:
+    get:
+      operationId: readSnapshotRevocationEvents
+      parameters:
+        - { in: path, name: snapshotId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: afterSequence, required: true, schema: { type: integer, minimum: 0 } }
+        - { in: query, name: limit, required: false, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        '200':
+          description: Ordered event history through the snapshot watermark.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventPage' }
+        '400': { description: Invalid snapshot cursor }
+        '401': { description: Invalid service credential }
+        '503': { description: Snapshot unavailable }
+  /internal/v1/ai/source-revocations/snapshots/{snapshotId}/public-places:
+    get:
+      operationId: readSnapshotPublicPlaces
+      parameters:
+        - { in: path, name: snapshotId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: afterPublicId, required: false, schema: { type: string } }
+        - { in: query, name: limit, required: false, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        '200':
+          description: Sorted active public place IDs at the pinned catalog revision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicPlacePage' }
+        '400': { description: Invalid snapshot cursor }
+        '401': { description: Invalid service credential }
+        '503': { description: Snapshot unavailable }
+components:
+  securitySchemes:
+    InternalServiceBearer:
+      type: http
+      scheme: bearer
+  schemas:
+    Watermark:
+      type: object
+      additionalProperties: false
+      required: [contractVersion, watermark]
+      properties:
+        contractVersion: { const: source-revocation.v1 }
+        watermark: { type: integer, minimum: 0 }
+    Snapshot:
+      type: object
+      additionalProperties: false
+      required: [contractVersion, snapshotId, watermark, activeRevisionId, publicPlaceCount, historyComplete]
+      properties:
+        contractVersion: { const: source-revocation.v1 }
+        snapshotId: { type: string, format: uuid }
+        watermark: { type: integer, minimum: 0 }
+        activeRevisionId: { type: string, format: uuid }
+        publicPlaceCount: { type: integer, minimum: 0 }
+        historyComplete: { type: boolean }
+    Event:
+      type: object
+      additionalProperties: false
+      required: [sequence, scope, revokedAt, reasonCode]
+      properties:
+        sequence: { type: integer, minimum: 1 }
+        scope: { enum: [PLACE, SOURCE_REVISION] }
+        sourceType: { type: [string, 'null'] }
+        sourceId: { type: [string, 'null'] }
+        sourceRevision: { type: [string, 'null'] }
+        placeId: { type: [string, 'null'], format: uuid }
+        revokedAt: { type: string, format: date-time }
+        reasonCode: { type: string, minLength: 1 }
+    EventPage:
+      type: object
+      additionalProperties: false
+      required: [contractVersion, afterSequence, watermark, events, hasMore]
+      properties:
+        contractVersion: { const: source-revocation.v1 }
+        snapshotId: { type: [string, 'null'], format: uuid }
+        afterSequence: { type: integer, minimum: 0 }
+        watermark: { type: integer, minimum: 0 }
+        events: { type: array, items: { $ref: '#/components/schemas/Event' } }
+        hasMore: { type: boolean }
+    PublicPlacePage:
+      type: object
+      additionalProperties: false
+      required: [contractVersion, snapshotId, publicPlaceIds, hasMore]
+      properties:
+        contractVersion: { const: source-revocation.v1 }
+        snapshotId: { type: string, format: uuid }
+        afterPublicId: { type: [string, 'null'] }
+        publicPlaceIds: { type: array, items: { type: string } }
+        hasMore: { type: boolean }

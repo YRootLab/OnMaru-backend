@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -48,6 +49,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
     private final JourneyWorkerTelemetry telemetry;
     private final boolean streamingEnabled;
     private final boolean unaryFallbackEnabled;
+    private final Clock clock;
 
     public HttpAiProposalClient(
             HttpClient httpClient,
@@ -56,12 +58,19 @@ public final class HttpAiProposalClient implements AiProposalClient {
             InternalAiRequestHeadersFactory headersFactory,
             Duration timeout,
             JourneyWorkerTelemetry telemetry) {
-        this(httpClient, objectMapper, baseUri, headersFactory, timeout, telemetry, true, true);
+        this(httpClient, objectMapper, baseUri, headersFactory, timeout, telemetry, true, true, Clock.systemUTC());
     }
 
     public HttpAiProposalClient(HttpClient httpClient, ObjectMapper objectMapper, URI baseUri,
             InternalAiRequestHeadersFactory headersFactory, Duration timeout, JourneyWorkerTelemetry telemetry,
             boolean streamingEnabled, boolean unaryFallbackEnabled) {
+        this(httpClient, objectMapper, baseUri, headersFactory, timeout, telemetry,
+                streamingEnabled, unaryFallbackEnabled, Clock.systemUTC());
+    }
+
+    HttpAiProposalClient(HttpClient httpClient, ObjectMapper objectMapper, URI baseUri,
+            InternalAiRequestHeadersFactory headersFactory, Duration timeout, JourneyWorkerTelemetry telemetry,
+            boolean streamingEnabled, boolean unaryFallbackEnabled, Clock clock) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.baseUri = baseUri;
@@ -70,6 +79,7 @@ public final class HttpAiProposalClient implements AiProposalClient {
         this.telemetry = telemetry;
         this.streamingEnabled = streamingEnabled;
         this.unaryFallbackEnabled = unaryFallbackEnabled;
+        this.clock = clock;
     }
 
     @Override
@@ -77,7 +87,8 @@ public final class HttpAiProposalClient implements AiProposalClient {
         try {
             var response = httpClient.send(httpRequest(request, payload), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 429) {
-                throw degraded(request, WorkerDegradedReason.AI_QUOTA_EXCEEDED, response.statusCode());
+                throw degraded(request, WorkerDegradedReason.AI_QUOTA_EXCEEDED, response.statusCode(),
+                        RetryAfterParser.parseMillis(response.headers(), clock));
             }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw degraded(request, WorkerDegradedReason.AI_SERVICE_UNAVAILABLE, response.statusCode());
@@ -134,7 +145,10 @@ public final class HttpAiProposalClient implements AiProposalClient {
                     input.close();
                     return propose(request, payload);
                 }
-                if (response.statusCode() == 429) throw degraded(request, WorkerDegradedReason.AI_QUOTA_EXCEEDED, 429);
+                if (response.statusCode() == 429) {
+                    throw degraded(request, WorkerDegradedReason.AI_QUOTA_EXCEEDED, 429,
+                            RetryAfterParser.parseMillis(response.headers(), clock));
+                }
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
                     throw degraded(request, WorkerDegradedReason.AI_SERVICE_UNAVAILABLE, response.statusCode());
                 }
@@ -203,11 +217,22 @@ public final class HttpAiProposalClient implements AiProposalClient {
                             proposal = planFrom(request, payload, root.get("proposal"));
                         }
                         case "error" -> {
-                            if (root.size() != 1) throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
+                            boolean hasRetryAfter = root.has("retryAfterMs");
+                            if (root.size() < 1 || root.size() > 2 || (root.size() == 2 && !hasRetryAfter)) {
+                                throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
+                            }
+                            long retryAfterMs = 0L;
+                            if (hasRetryAfter) {
+                                JsonNode retryNode = root.get("retryAfterMs");
+                                if (!retryNode.isIntegralNumber() || retryNode.asLong() < 0L) {
+                                    throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
+                                }
+                                retryAfterMs = Math.min(retryNode.asLong(), 86_400_000L);
+                            }
                             WorkerDegradedReason reason;
                             try { reason = WorkerDegradedReason.valueOf(text(root, "code")); }
                             catch (IllegalArgumentException | NullPointerException exception) { reason = WorkerDegradedReason.AI_INVALID_RESPONSE; }
-                            throw degraded(request, reason, 200);
+                            throw degraded(request, reason, 200, retryAfterMs);
                         }
                         default -> throw degraded(request, WorkerDegradedReason.AI_INVALID_RESPONSE, 200);
                     }
@@ -314,8 +339,16 @@ public final class HttpAiProposalClient implements AiProposalClient {
             JourneyWorkerRequest request,
             WorkerDegradedReason reason,
             Integer status) {
+        return degraded(request, reason, status, 0L);
+    }
+
+    private AiProposalException degraded(
+            JourneyWorkerRequest request,
+            WorkerDegradedReason reason,
+            Integer status,
+            long retryAfterMs) {
         record(request, "FAILURE", status, reason);
-        return new AiProposalException(reason);
+        return new AiProposalException(reason, retryAfterMs);
     }
 
     private void record(

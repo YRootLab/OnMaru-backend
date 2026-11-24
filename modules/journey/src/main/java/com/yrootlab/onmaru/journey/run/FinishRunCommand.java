@@ -14,7 +14,14 @@ public record FinishRunCommand(
         String outcome,
         String errorCode,
         Instant finishedAt,
-        ExplorationClarification clarification) {
+        ExplorationClarification clarification,
+        String engine,
+        String degradedReason,
+        long retryAfterMs) {
+
+    public FinishRunCommand {
+        retryAfterMs = Math.max(0L, retryAfterMs);
+    }
 
     public FinishRunCommand(
             UUID commandKey,
@@ -26,6 +33,20 @@ public record FinishRunCommand(
             String outcome,
             String errorCode,
             Instant finishedAt) {
-        this(commandKey, actorKey, runId, requestHash, expectedGeneration, terminalStatus, outcome, errorCode, finishedAt, null);
+        this(commandKey, actorKey, runId, requestHash, expectedGeneration, terminalStatus, outcome, errorCode, finishedAt, null, null, null, 0L);
+    }
+
+    public FinishRunCommand(
+            UUID commandKey,
+            String actorKey,
+            UUID runId,
+            String requestHash,
+            int expectedGeneration,
+            JourneyRunStatus terminalStatus,
+            String outcome,
+            String errorCode,
+            Instant finishedAt,
+            ExplorationClarification clarification) {
+        this(commandKey, actorKey, runId, requestHash, expectedGeneration, terminalStatus, outcome, errorCode, finishedAt, clarification, null, null, 0L);
     }
 }

@@ -86,9 +86,27 @@ record ExplorationResponse(
             if (run == null) {
                 return null;
             }
-            boolean completedWithBoard = board != null && run.status() == ExplorationRunStatus.COMPLETED;
+            boolean completed = run.status() == ExplorationRunStatus.COMPLETED;
+            boolean failed = run.status() == ExplorationRunStatus.FAILED;
+            boolean completedWithBoard = completed && board != null;
             String engine = completedWithBoard && board.engine() != null ? board.engine() : run.engine();
-            String degradedReason = completedWithBoard ? board.degradedReason() : null;
+            String degradedReason = completed || failed
+                    ? (completedWithBoard && board.degradedReason() != null
+                            ? board.degradedReason()
+                            : run.degradedReason())
+                    : null;
+            int retryAfterMs = (completed || failed) && run.retryAfterMs() > 0L
+                    ? (int) Math.min(Integer.MAX_VALUE, run.retryAfterMs())
+                    : 0;
+            Object error = failed
+                    ? Map.of(
+                            "code",
+                            run.errorCode() != null
+                                    ? run.errorCode()
+                                    : (degradedReason != null ? degradedReason : "AI_SERVICE_UNAVAILABLE"),
+                            "requestId",
+                            "run-" + run.id())
+                    : null;
             return new RunResponse(
                     "1.2",
                     run.id(),
@@ -98,11 +116,11 @@ record ExplorationResponse(
                     run.stage(),
                     run.outcome() == null ? null : run.outcome().name(),
                     ClarificationResponse.from(run.clarification()),
-                    0,
+                    retryAfterMs,
                     run.createdAt(),
                     run.startedAt(),
                     run.deadlineAt(),
-                    null);
+                    error);
         }
     }
 

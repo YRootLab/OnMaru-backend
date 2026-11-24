@@ -183,6 +183,24 @@ class ValidatingExecutionResultMapperTests {
                         e -> assertThat(e.degradedReason()).isEqualTo(WorkerDegradedReason.AI_INVALID_RESPONSE));
     }
 
+    @Test
+    void rejectsFailureStageFailedRetrievalAndZeroPlacesWhenEvidenceHasAllowedPlaces() {
+        var valid = binding(filters(null, List.of()));
+
+        Map<String, Object> withFailureStage = proposal(List.of(), "NOT_RUN", List.of());
+        withFailureStage.put("failureStage", "RETRIEVING");
+        assertRejected(valid, result(withFailureStage, evidence(List.of(), List.of())));
+
+        Map<String, Object> withFailedRetrieval = proposal(List.of(), "NOT_RUN", List.of());
+        withFailedRetrieval.put("retrievalStatus", "FAILED");
+        assertRejected(valid, result(withFailedRetrieval, evidence(List.of(), List.of())));
+
+        Map<String, Object> emptyPlacesWithEvidence = proposal(List.of("place-1"), "NOT_RUN", List.of());
+        assertRejected(valid, result(
+                emptyPlacesWithEvidence,
+                evidence(List.of("place-1"), List.of(ev("e1", "ch1", "place-1")))));
+    }
+
     private static void assertRejected(ApprovedPlanBinding binding, ExecutionResult result) {
         assertThatThrownBy(() -> new ValidatingExecutionResultMapper().map(binding, result, new CandidatePayload(
                 "rev-1", List.of(new JourneyCandidate("place-1"), new JourneyCandidate("place-2"), new JourneyCandidate("place-3")))))

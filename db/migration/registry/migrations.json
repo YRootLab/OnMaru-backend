@@ -518,6 +518,24 @@
       "checksum": "map-collab-v058-20261110",
       "sha256": "181e7fed04a06532831c18e18346e7592e14c61e2bdcd50875ac8978af4848c3",
       "description": "Map collaboration rooms, invites, members, sessions, pins and event log"
+    },
+    {
+      "version": "059",
+      "reservedFor": "JOURNEY_RUN_DEGRADED_RETRY_AFTER",
+      "issueNumber": 874,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V059__journey_run_degraded_retry_after.sql",
+      "checksum": "journey-run-degraded-retry-after-v059-20261120",
+      "sha256": "71afb7cb7227f1d01bd5398a1e9d936bd0d064f3ec6d87f46ea4afa6044f017c",
+      "description": "Persist degraded_reason and retry_after_ms on discovery_runs for quota fallback and explicit failure reporting"
+    },
+    {
+      "version": "060",
+      "reservedFor": "AI_SOURCE_REVOCATION_OUTBOX",
+      "issueNumber": 875,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V060__875_ai_source_revocation_outbox.sql",
+      "checksum": "ai-source-revocation-outbox-v060-20261123",
+      "sha256": "2067a0c0fbf149f7269dc413a82f31347ea086779786611ecb68dd6688536152",
+      "description": "Durable source revocation event ledger for AI Engine polling"
     }
   ]
 }
