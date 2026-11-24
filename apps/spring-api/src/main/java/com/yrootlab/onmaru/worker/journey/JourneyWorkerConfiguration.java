@@ -8,6 +8,7 @@ import com.yrootlab.onmaru.integration.ai.HttpAiPlanExecuteClient;
 import com.yrootlab.onmaru.integration.ai.plan.AiPlanVersionsProperties;
 import com.yrootlab.onmaru.integration.ai.plan.AiPlanWireCodec;
 import com.yrootlab.onmaru.integration.ai.plan.ConfigurableCurrentVersions;
+import com.yrootlab.onmaru.persistence.catalog.JdbcAiSourceRevocationStore;
 import com.yrootlab.onmaru.integration.ai.plan.DefaultPlanAuthorityGate;
 import com.yrootlab.onmaru.integration.ai.plan.DefaultSafeQueryFactory;
 import com.yrootlab.onmaru.journey.worker.plan.AiPlanExecuteClient;
@@ -204,8 +205,10 @@ class JourneyWorkerConfiguration {
     @ConditionalOnBean(DataSource.class)
     @ConditionalOnMissingBean(CurrentVersions.class)
     @ConditionalOnProperty(prefix = "onmaru.ai", name = "plan-execute-enabled", havingValue = "true")
-    CurrentVersions currentVersions(AiPlanVersionsProperties properties) {
-        return new ConfigurableCurrentVersions(properties);
+    CurrentVersions currentVersions(
+            AiPlanVersionsProperties properties,
+            JdbcAiSourceRevocationStore sourceRevocations) {
+        return new ConfigurableCurrentVersions(properties, sourceRevocations::watermark);
     }
 
     @Bean

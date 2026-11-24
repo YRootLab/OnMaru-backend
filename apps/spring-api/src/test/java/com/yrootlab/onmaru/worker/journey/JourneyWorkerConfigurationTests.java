@@ -25,6 +25,7 @@ import com.yrootlab.onmaru.journey.worker.JourneyWorkerRequest;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerRunner;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerService;
 import com.yrootlab.onmaru.journey.worker.JourneyWorkerTelemetry;
+import com.yrootlab.onmaru.journey.worker.plan.AiJourneyContracts.Versions;
 import com.yrootlab.onmaru.journey.worker.PersistJourneyResultCommand;
 import com.yrootlab.onmaru.journey.worker.PersistJourneyResultResult;
 import com.yrootlab.onmaru.operations.admission.AdmissionPolicy;
@@ -126,6 +127,8 @@ class JourneyWorkerConfigurationTests {
                         "onmaru.ai.timeout=PT1S",
                         "onmaru.ai.plan-execute-enabled=true",
                         "onmaru.ai.versions.corpus-revision=corpus-prod-1")
+                .withBean(CurrentVersions.class, () -> () -> new Versions(
+                        "corpus-prod-1", "sha256:" + "a".repeat(64), "questions-1", 7L))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(AiProposalClient.class);
@@ -157,6 +160,8 @@ class JourneyWorkerConfigurationTests {
                         "onmaru.ai.timeout=PT1S",
                         "onmaru.ai.plan-execute-enabled=true",
                         "onmaru.ai.versions.corpus-revision=corpus-prod-1")
+                .withBean(CurrentVersions.class, () -> () -> new Versions(
+                        "corpus-prod-1", "sha256:" + "a".repeat(64), "questions-1", 7L))
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(AiProposalClient.class);
