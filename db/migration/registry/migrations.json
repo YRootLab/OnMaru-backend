@@ -536,6 +536,15 @@
       "checksum": "ai-source-revocation-outbox-v060-20261123",
       "sha256": "2067a0c0fbf149f7269dc413a82f31347ea086779786611ecb68dd6688536152",
       "description": "Durable source revocation event ledger for AI Engine polling"
+    },
+    {
+      "version": "061",
+      "reservedFor": "JOURNEY_TURN_PLACE_CARDS",
+      "issueNumber": 884,
+      "path": "apps/spring-api/src/main/resources/db/migration/baseline/V061__journey_turn_ordered_refs.sql",
+      "checksum": "journey-turn-ordered-refs-v061-20261126",
+      "sha256": "be6b81fddf235bc5697ee036f02b822ca7125d70e96c8509cb295f0d4afab20a",
+      "description": "Per-turn place refs, place reasons, and AI result reason for turn transcripts"
     }
   ]
 }

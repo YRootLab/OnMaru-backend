@@ -9,7 +9,17 @@ public record JourneyWorkerPlan(
         String outcome,
         Map<String, String> placeReasons,
         String summaryText,
-        ExplorationClarification clarification) {
+        ExplorationClarification clarification,
+        String resultReason) {
+
+    public JourneyWorkerPlan(
+            List<String> orderedRefs,
+            String outcome,
+            Map<String, String> placeReasons,
+            String summaryText,
+            ExplorationClarification clarification) {
+        this(orderedRefs, outcome, placeReasons, summaryText, clarification, null);
+    }
 
     public JourneyWorkerPlan {
         orderedRefs = List.copyOf(orderedRefs);

@@ -137,6 +137,13 @@ type RunSnapshot = {
 
 ## SSE 진행 알림과 snapshot 복구
 
+> 1단계 작업 항목 프레임(`run.item.started`, `run.item.completed`, schemaVersion `1.4`)은 `onmaru.journey.run-items.enabled=true`일 때만 발행한다. 기본값은 `false`다. 클라이언트가 이 프레임을 렌더링할 준비가 된 뒤에만 켠다.
+> - `run.item.started`: `{schemaVersion, runId, sequence, itemId, stepKey}`. stepKey는 `UNDERSTAND | SEARCH | SELECT | WRITE | CHECK`.
+> - `run.item.completed`: `{schemaVersion, runId, sequence, itemId, status(DONE|SKIPPED), detail}`. 1단계의 `detail`은 항상 빈 객체다. 개수는 AI 엔진 콜백 확장 후 추가한다.
+> - `itemId`는 `{stepKey}-{startSequence}` 형식이며 같은 run 안에서 유일하다.
+> - 항목 상태는 인스턴스 메모리에만 있다. 스냅샷에는 `steps[]`가 없고, 재연결은 같은 인스턴스의 replay로만 복구한다. 복구가 불가능하면 기존처럼 스냅샷 `GET /runs/{runId}`를 읽는다.
+
+
 SSE는 여정 run의 UX 채널이며 상태의 정답은 PostgreSQL run/snapshot이다. 현재 여정 run/SSE schemaVersion은 1.3 초안이다. RunAccepted, RunSnapshot, 이를 포함하는 ExplorationSnapshot만 여정 run 계약 버전을 1.3으로 올리며, 무관한 여정 저장·목록 schema는 별도 개정 전까지 기존 버전을 유지한다. `events` endpoint는 `Cache-Control: no-store`, `Content-Type: text/event-stream`, 15초 heartbeat를 사용하고 다음 이벤트만 전송한다.
 
 | event | data | 의미 |

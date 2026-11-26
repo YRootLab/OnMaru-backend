@@ -21,6 +21,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -154,6 +155,7 @@ class JdbcJourneyResultStoreTests {
         var reasons = new java.util.LinkedHashMap<String, String>();
         reasons.put("p-jeonju-1", "전주 한옥의 \"고요한\"\n골목길 산책 코스");
         reasons.put("p-jeonju-2", "조선 태조 어진을 모신 공간");
+        insertTurnForRun();
 
         var result = store.persist(new PersistJourneyResultCommand(
                 runId,
@@ -187,6 +189,54 @@ class JdbcJourneyResultStoreTests {
                 FROM onmaru.discovery_explorations
                 WHERE id = '%s'
                 """.formatted(explorationId))).isEqualTo("전주 한옥과 역사를 함께 둘러보는 하루 코스");
+        assertThat(queryString("""
+                SELECT turn_response->>'outcome'
+                FROM onmaru.discovery_turns
+                WHERE run_id = '%s'
+                """.formatted(runId))).isEqualTo("PROPOSAL");
+        assertThat(queryString("""
+                SELECT turn_response->>'summary'
+                FROM onmaru.discovery_turns
+                WHERE run_id = '%s'
+                """.formatted(runId))).isEqualTo("전주 한옥과 역사를 함께 둘러보는 하루 코스");
+        assertThat(queryString("""
+                SELECT ordered_refs->>1
+                FROM onmaru.discovery_turns
+                WHERE run_id = '%s'
+                """.formatted(runId))).isEqualTo("p-jeonju-2");
+        assertThat(queryString("""
+                SELECT place_reasons->>'p-jeonju-1'
+                FROM onmaru.discovery_turns
+                WHERE run_id = '%s'
+                """.formatted(runId))).isEqualTo("전주 한옥의 \"고요한\"\n골목길 산책 코스");
+    }
+
+    @Test
+    void storesEmptyResultReasonOnTurnWithoutCreatingBoardCards() {
+        insertTurnForRun();
+        var result = store.persist(new PersistJourneyResultCommand(
+                runId, explorationId, 0, JourneyResultEngine.LLM, null, List.of(), "NO_RESULTS",
+                Map.of(), null, "NO_RELEVANT_CANDIDATES"));
+        assertThat(result).isEqualTo(PersistJourneyResultResult.PERSISTED);
+        assertThat(queryString("""
+                SELECT result_reason
+                FROM onmaru.discovery_turns
+                WHERE run_id = '%s'
+                """.formatted(runId))).isEqualTo("NO_RELEVANT_CANDIDATES");
+    }
+
+    private void insertTurnForRun() {
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO onmaru.discovery_turns (
+                        id, exploration_id, client_turn_id, query, base_version, region_code,
+                        clarification_id, run_id, created_at
+                    ) VALUES (gen_random_uuid(), '%s', gen_random_uuid(), '전주 한옥 코스', 0, 'kr-45-jeonju',
+                        NULL, '%s', CURRENT_TIMESTAMP)
+                    """.formatted(explorationId, runId));
+        } catch (SQLException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private PersistJourneyResultCommand command() {

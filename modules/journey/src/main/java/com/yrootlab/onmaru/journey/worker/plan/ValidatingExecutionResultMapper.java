@@ -29,6 +29,12 @@ import java.util.Set;
 public final class ValidatingExecutionResultMapper implements ExecutionResultMapper {
 
     static final String RESULT_SCHEMA = "ai-execute-result.v1";
+    static final String NO_CANDIDATES = "NO_CANDIDATES";
+    static final String NO_RELEVANT = "NO_RELEVANT_CANDIDATES";
+    /** FailureStage values defined by the AI ValidatedProposal schema. */
+    static final Set<String> FAILURE_STAGES = Set.of(
+            "REQUEST", "INTERPRETATION", "PLANNING", "ROUTING", "QUOTA", "RETRIEVAL", "RETRIEVAL_EMPTY",
+            "GENERATION", "VALIDATION", "DELIVERY");
     static final String PROPOSAL_SCHEMA = "ai-validated-proposal.v1";
     static final String EVIDENCE_SCHEMA = "ai-evidence-set.v1";
     static final int MAX_PLACES = 5;
@@ -57,31 +63,51 @@ public final class ValidatingExecutionResultMapper implements ExecutionResultMap
         require(plan.planHash().equals(result.planHash()));
         require(plan.versions().equals(result.versions()));
 
+        // Without a proposal generator the AI returns no proposal and no evidence for empty results
+        // (NO_CANDIDATES, NO_RELEVANT_CANDIDATES). Those are empty results, not invalid responses.
+        // With a generator the proposal is present and goes through the normal validation below.
+        if (result.proposal() == null && result.evidence() == null) {
+            if (NO_CANDIDATES.equals(result.resultReason()) || NO_RELEVANT.equals(result.resultReason())) {
+                return new JourneyWorkerPlan(List.of(), "NO_RESULTS", Map.of(), null, null, result.resultReason());
+            }
+            throw invalid();
+        }
+
         Map<String, Object> evidenceEnvelope = object(result.evidence());
         requireEnvelope(evidenceEnvelope, EVIDENCE_SCHEMA, plan);
         EvidenceIndex evidence = EvidenceIndex.from(evidenceEnvelope);
 
         Map<String, Object> proposal = object(result.proposal());
         requireEnvelope(proposal, PROPOSAL_SCHEMA, plan);
-        if (proposal.get("failureStage") != null) {
-            throw invalid();
-        }
-        String retrievalStatus = text(proposal, "retrievalStatus");
-        if (!"COMPLETE".equals(retrievalStatus)
-                && !"DEGRADED".equals(retrievalStatus)
-                && !"NOT_RUN".equals(retrievalStatus)) {
-            throw invalid();
-        }
-        String generation = text(proposal, "generationStatus");
-        if (!"GENERATED".equals(generation) && !"NOT_RUN".equals(generation)) {
-            throw invalid();
-        }
-
         List<Map<String, Object>> places = objects(proposal.get("places"));
         if (places.size() > MAX_PLACES) {
             throw invalid();
         }
-        if (places.isEmpty() && !evidence.allowedPlaceIds().isEmpty()) {
+        String retrievalStatus = text(proposal, "retrievalStatus");
+        String generation = text(proposal, "generationStatus");
+        // Empty grounding: the generator rejected every claim and left no places. That is an empty result.
+        // Any other failure stage, or a rejected proposal that still carries places, stays invalid.
+        boolean emptyRejected = places.isEmpty() && "REJECTED".equals(generation)
+                && FAILURE_STAGES.contains(proposal.get("failureStage"));
+        if (proposal.get("failureStage") != null && !emptyRejected) {
+            throw invalid();
+        }
+        boolean noEvidence = "NO_EVIDENCE".equals(retrievalStatus);
+        if (noEvidence && !places.isEmpty()) {
+            throw invalid();
+        }
+        if (!noEvidence && !"COMPLETE".equals(retrievalStatus)
+                && !"DEGRADED".equals(retrievalStatus)
+                && !"NOT_RUN".equals(retrievalStatus)) {
+            throw invalid();
+        }
+        if (!"GENERATED".equals(generation) && !"NOT_RUN".equals(generation) && !emptyRejected) {
+            throw invalid();
+        }
+        // The AI states NO_RELEVANT_CANDIDATES explicitly when it selected nothing, so zero places are accepted
+        // for that reason only. Without a reason, zero places while evidence allows places stay invalid.
+        if (places.isEmpty() && !evidence.allowedPlaceIds().isEmpty()
+                && !NO_RELEVANT.equals(result.resultReason()) && !noEvidence && !emptyRejected) {
             throw invalid();
         }
         List<String> placeIds = new ArrayList<>();
@@ -150,7 +176,9 @@ public final class ValidatingExecutionResultMapper implements ExecutionResultMap
                 placeIds,
                 placeIds.isEmpty() ? "NO_RESULTS" : "PROPOSAL",
                 placeReasons,
-                summaryText);
+                summaryText,
+                null,
+                placeIds.isEmpty() ? result.resultReason() : null);
     }
 
     private static void validateClaim(Map<String, Object> claim, String expectedPlaceId,

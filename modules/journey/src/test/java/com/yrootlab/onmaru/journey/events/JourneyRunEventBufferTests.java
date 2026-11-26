@@ -267,4 +267,106 @@ class JourneyRunEventBufferTests {
                         + "\",\"sequence\":1,\"status\":\"FAILED\",\"outcome\":null,\"errorCode\":\"AI_QUOTA_EXCEEDED\",\"retryAfterMs\":12000}");
         assertThat(replay.id()).isEqualTo(failed.id());
     }
+
+    @Test
+    void runItemsAreDisabledByDefaultAndDoNotChangeStageFrames() {
+        var runId = UUID.randomUUID();
+        var buffer = new JourneyRunEventBuffer(16, Duration.ofSeconds(15));
+        buffer.stage(runId, "RUNNING", "RETRIEVING");
+        buffer.stage(runId, "RUNNING", "SELECTING_EVIDENCE");
+        buffer.terminal(runId, "COMPLETED", "INITIAL_BOARD");
+
+        assertThat(buffer.replay(runId, null).events())
+                .extracting(event -> event.type().wireName())
+                .doesNotContain("run.item.started", "run.item.completed");
+    }
+
+    @Test
+    void stageTransitionsEmitOneItemPerStepAndCloseTheLastItemAtTerminal() {
+        var runId = UUID.randomUUID();
+        var buffer = new JourneyRunEventBuffer(32, Duration.ofSeconds(15), true);
+        buffer.stage(runId, "RUNNING", "INTERPRETING");
+        buffer.stage(runId, "RUNNING", "RETRIEVING");
+        buffer.stage(runId, "RUNNING", "SELECTING_EVIDENCE");
+        buffer.stage(runId, "RUNNING", "PERSISTING");
+        buffer.terminal(runId, "COMPLETED", "INITIAL_BOARD");
+
+        var types = buffer.replay(runId, null).events().stream()
+                .map(event -> event.type().wireName())
+                .toList();
+        assertThat(types).containsExactly(
+                "run.stage", "run.item.started",
+                "run.stage", "run.item.completed", "run.item.started",
+                "run.stage", "run.item.completed", "run.item.started",
+                "run.stage", "run.item.completed",
+                "run.terminal");
+    }
+
+    @Test
+    void itemFramesCarryStableItemIdsAndSkippedStatusWhenRunFails() {
+        var runId = UUID.randomUUID();
+        var buffer = new JourneyRunEventBuffer(32, Duration.ofSeconds(15), true);
+        var started = buffer.stage(runId, "RUNNING", "RETRIEVING");
+        buffer.terminal(runId, "FAILED", null, "AI_TIMEOUT", 0L);
+
+        var events = buffer.replay(runId, null).events();
+        var itemStarted = events.stream()
+                .filter(event -> event.type().wireName().equals("run.item.started"))
+                .findFirst().orElseThrow();
+        var itemCompleted = events.stream()
+                .filter(event -> event.type().wireName().equals("run.item.completed"))
+                .findFirst().orElseThrow();
+
+        assertThat(itemStarted.data()).contains("\"schemaVersion\":\"1.4\"", "\"stepKey\":\"SEARCH\"",
+                "\"itemId\":\"SEARCH-" + itemStarted.id() + "\"");
+        assertThat(itemStarted.id()).isGreaterThan(started.id());
+        assertThat(itemCompleted.data()).contains("\"itemId\":\"SEARCH-" + itemStarted.id() + "\"",
+                "\"status\":\"SKIPPED\"", "\"detail\":{}");
+    }
+
+    @Test
+    void aiStepProgressEmitsItemsWithCountsEvenWhenStageDoesNotAdvance() {
+        var runId = UUID.randomUUID();
+        var buffer = new JourneyRunEventBuffer(32, Duration.ofSeconds(15), true);
+        buffer.stage(runId, "RUNNING", "RETRIEVING");
+        buffer.stepProgress(runId, "SEARCH", "STARTED", null);
+        buffer.stepProgress(runId, "SEARCH", "DONE", 12);
+        buffer.stepProgress(runId, "SELECT", "STARTED", null);
+        buffer.stepProgress(runId, "SELECT", "DONE", 3);
+        buffer.terminal(runId, "COMPLETED", "INITIAL_BOARD");
+
+        var items = buffer.replay(runId, null).events().stream()
+                .filter(event -> event.type().wireName().startsWith("run.item."))
+                .map(JourneyRunEvent::data)
+                .toList();
+        assertThat(items).anySatisfy(data -> assertThat(data).contains("\"stepKey\":\"SEARCH\""));
+        assertThat(items).anySatisfy(data -> assertThat(data).contains("\"detail\":{\"count\":12}"));
+        assertThat(items).anySatisfy(data -> assertThat(data).contains("\"detail\":{\"count\":3}"));
+    }
+
+    @Test
+    void stageInferenceIsSuppressedOnceAiStepEventsArrive() {
+        var runId = UUID.randomUUID();
+        var buffer = new JourneyRunEventBuffer(32, Duration.ofSeconds(15), true);
+        buffer.stepProgress(runId, "SEARCH", "STARTED", null);
+        buffer.stage(runId, "RUNNING", "RETRIEVING");
+        buffer.stage(runId, "RUNNING", "SELECTING_EVIDENCE");
+        buffer.stepProgress(runId, "SEARCH", "DONE", 5);
+
+        var startedCount = buffer.replay(runId, null).events().stream()
+                .filter(event -> event.type().wireName().equals("run.item.started"))
+                .count();
+        assertThat(startedCount).isEqualTo(1);
+    }
+
+    @Test
+    void invalidStepProgressIsIgnoredWithoutChangingRunItems() {
+        var runId = UUID.randomUUID();
+        var buffer = new JourneyRunEventBuffer(16, Duration.ofSeconds(15), true);
+        assertThat(buffer.stepProgress(runId, "UNKNOWN", "STARTED", null)).isNull();
+        assertThat(buffer.stepProgress(runId, "SEARCH", "BOGUS", null)).isNull();
+        assertThat(buffer.replay(runId, null).events())
+                .extracting(event -> event.type().wireName())
+                .noneMatch(name -> name.startsWith("run.item."));
+    }
 }
