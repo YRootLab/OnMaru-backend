@@ -36,6 +36,35 @@ class ExplorationSnapshotHydratorTests {
 
     @Test
     @SuppressWarnings("unchecked")
+    void turnBoardHydratesStoredRefsWithReasonsRegionResourceAndSkipsHiddenPlaces() {
+        placeDetailStore.add(publicPlace("p-jeonju-1", "전주 한옥마을", "HANOK_VILLAGE"));
+        placeDetailStore.add(publicPlace("p-jeonju-2", "경기전", "CULTURAL_HERITAGE"));
+        placeDetailStore.add(PlaceProjection.hidden("p-hidden-3"));
+
+        var board = hydrator.boardForTurnRefs(
+                List.of("p-jeonju-1", "p-hidden-3", "p-jeonju-2"),
+                Map.of("p-jeonju-1", "고요한 골목 산책 코스"));
+
+        assertThat(board).isNotNull();
+        var candidates = (List<Map<String, Object>>) board.get("candidates");
+        assertThat(candidates).hasSize(2);
+        assertThat(candidates.get(0)).containsEntry("reason", "고요한 골목 산책 코스");
+        assertThat(candidates.get(1).get("reason")).isNull();
+        var resources = (List<Map<String, Object>>) board.get("resources");
+        assertThat(resources).anySatisfy(resource -> assertThat(resource).containsEntry("title", "전주 한옥마을"));
+        assertThat(resources).anySatisfy(resource -> assertThat(resource)
+                .containsEntry("title", "전북 전주"));
+    }
+
+    @Test
+    void turnBoardIsNullWhenNoStoredRefResolvesToPublicPlace() {
+        placeDetailStore.add(PlaceProjection.hidden("p-hidden-only"));
+        assertThat(hydrator.boardForTurnRefs(List.of("p-hidden-only"), Map.of())).isNull();
+        assertThat(hydrator.boardForTurnRefs(List.of(), Map.of())).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void hydratesMultiPlaceLlmProposalBoardWithReasonsSummaryAndUnavailableRefs() {
         placeDetailStore.add(publicPlace("p-jeonju-1", "전주 한옥마을", "HANOK_VILLAGE"));
         placeDetailStore.add(publicPlace("p-jeonju-2", "경기전", "CULTURAL_HERITAGE"));

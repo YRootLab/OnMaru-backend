@@ -615,6 +615,7 @@ components:
         category: { type: string, minLength: 1, maxLength: 100 }
         regionRef: { $ref: '#/components/schemas/RegionRef' }
         summary: { type: [string, 'null'], maxLength: 1000 }
+        address: { type: [string, 'null'], maxLength: 300, description: '도로명 또는 지번 주소. 선택 필드이며 카탈로그에 없으면 null' }
         image: { anyOf: [ { $ref: '#/components/schemas/ImageAsset' }, { type: 'null' } ] }
         location: { anyOf: [ { $ref: '#/components/schemas/GeoPoint' }, { type: 'null' } ] }
         sourceRefs: { type: array, items: { type: string }, uniqueItems: true }
@@ -801,6 +802,8 @@ components:
         createdAt: { type: string, format: date-time }
         runId: { type: [string, 'null'], format: uuid }
         response: { $ref: '#/components/schemas/TurnResponse' }
+        orderedRefs: { type: array, items: { type: string }, uniqueItems: true, description: '이 턴이 추천한 공개 장소 id 목록. 응답 response.board가 비어 있으면 서버가 이 목록으로 카드를 채운다. 선택 필드.' }
+        degradedReason: { type: [string, 'null'], enum: [NO_CANDIDATES, NO_RELEVANT_CANDIDATES, null], description: '추천 장소가 없을 때의 사유. 검색 후보 0건은 NO_CANDIDATES, 후보는 있었으나 선정 0건은 NO_RELEVANT_CANDIDATES. 추천이 있으면 null.' }
     TurnResponse:
       type: object
       additionalProperties: false

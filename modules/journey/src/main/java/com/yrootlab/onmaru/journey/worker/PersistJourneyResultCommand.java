@@ -13,7 +13,8 @@ public record PersistJourneyResultCommand(
         List<String> orderedRefs,
         String outcome,
         Map<String, String> placeReasons,
-        String summaryText) {
+        String summaryText,
+        String resultReason) {
 
     public PersistJourneyResultCommand {
         orderedRefs = List.copyOf(orderedRefs);
@@ -27,7 +28,21 @@ public record PersistJourneyResultCommand(
             JourneyResultEngine engine,
             WorkerDegradedReason degradedReason,
             List<String> orderedRefs,
+            String outcome,
+            Map<String, String> placeReasons,
+            String summaryText) {
+        this(runId, explorationId, baseVersion, engine, degradedReason, orderedRefs, outcome, placeReasons,
+                summaryText, null);
+    }
+
+    public PersistJourneyResultCommand(
+            UUID runId,
+            UUID explorationId,
+            int baseVersion,
+            JourneyResultEngine engine,
+            WorkerDegradedReason degradedReason,
+            List<String> orderedRefs,
             String outcome) {
-        this(runId, explorationId, baseVersion, engine, degradedReason, orderedRefs, outcome, Map.of(), null);
+        this(runId, explorationId, baseVersion, engine, degradedReason, orderedRefs, outcome, Map.of(), null, null);
     }
 }

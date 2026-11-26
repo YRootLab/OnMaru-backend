@@ -80,6 +80,8 @@ public final class InternalAiProgressController {
                 if (result.publish() != null) {
                     publish(runId, result.publish());
                 }
+                // Step frames follow every applied callback, including same-stage DONE, which does not advance the stage.
+                publishStep(runId, payload);
                 yield ResponseEntity.ok().build();
             }
             case DUPLICATE, STALE, INACTIVE -> ResponseEntity.ok().build();
@@ -94,6 +96,18 @@ public final class InternalAiProgressController {
         } catch (RuntimeException exception) {
             // The projection is already committed; SSE clients recover from the snapshot on reconnect.
             LOGGER.warn("Failed to publish progress stage for run {}", runId, exception);
+        }
+    }
+
+    private void publishStep(UUID runId, InternalAiProgressPayload payload) {
+        if (payload.stepKey() == null || payload.status() == null) {
+            return;
+        }
+        try {
+            eventSink.stepProgress(runId, payload.stepKey(), payload.status(), payload.count());
+        } catch (RuntimeException exception) {
+            // Best-effort projection; the stage frame and snapshot remain the source of truth.
+            LOGGER.warn("Failed to publish progress step for run {}", runId, exception);
         }
     }
 

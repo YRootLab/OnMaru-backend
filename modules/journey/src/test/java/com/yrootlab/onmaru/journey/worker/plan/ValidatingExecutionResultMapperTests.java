@@ -45,6 +45,93 @@ class ValidatingExecutionResultMapperTests {
 
         assertThat(plan.orderedRefs()).isEmpty();
         assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
+        assertThat(plan.resultReason()).isNull();
+    }
+
+    @Test
+    void generatorEmptyNoRelevantWithAllowedEvidenceIsEmptyNoResults() {
+        var proposal = proposal(List.of(), "NOT_RUN", List.of());
+        var evidence = evidence(List.of("place-1"), List.of(Map.of("evidenceId", "ev-1", "placeId", "place-1", "chunkId", "chunk-1", "startOffset", 0, "endOffset", 10)));
+        var result = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, proposal, evidence,
+                "NO_RELEVANT_CANDIDATES");
+        var plan = mapper.map(binding(filters(null, List.of())), result, candidates);
+        assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
+        assertThat(plan.resultReason()).isEqualTo("NO_RELEVANT_CANDIDATES");
+    }
+
+    @Test
+    void emptyRejectedGroundingWithoutPlacesIsEmptyNoResults() {
+        var proposal = proposal(List.of(), "REJECTED", List.of());
+        proposal.put("failureStage", "VALIDATION");
+        var evidence = evidence(List.of("place-1"), List.of(Map.of("evidenceId", "ev-1", "placeId", "place-1", "chunkId", "chunk-1", "startOffset", 0, "endOffset", 10)));
+        var result = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, proposal, evidence,
+                "NO_RELEVANT_CANDIDATES");
+        var plan = mapper.map(binding(filters(null, List.of())), result, candidates);
+        assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
+    }
+
+    @Test
+    void noEvidenceRetrievalWithoutPlacesIsEmptyNoResults() {
+        var proposal = proposal(List.of(), "NOT_RUN", List.of());
+        proposal.put("retrievalStatus", "NO_EVIDENCE");
+        var result = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, proposal,
+                evidence(List.of(), List.of()), "NO_CANDIDATES");
+        var plan = mapper.map(binding(filters(null, List.of())), result, candidates);
+        assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
+    }
+
+    @Test
+    void failedGenerationAndRejectedWithPlacesStayInvalid() {
+        var failed = proposal(List.of("place-1"), "FAILED", List.of());
+        var failedResult = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, failed,
+                evidence(List.of("place-1"), List.of()), "NO_RELEVANT_CANDIDATES");
+        assertRejected(binding(filters(null, List.of())), failedResult);
+
+        var unknownStage = proposal(List.of(), "REJECTED", List.of());
+        unknownStage.put("failureStage", "GROUNDING");
+        var unknownResult = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, unknownStage,
+                evidence(List.of("place-1"), List.of(Map.of("evidenceId", "ev-1", "placeId", "place-1",
+                        "chunkId", "chunk-1", "startOffset", 0, "endOffset", 10))), "NO_RELEVANT_CANDIDATES");
+        assertRejected(binding(filters(null, List.of())), unknownResult);
+
+        var rejectedWithPlace = proposal(List.of("place-1"), "REJECTED", List.of(Map.of("placeId", "place-1")));
+        rejectedWithPlace.put("failureStage", "VALIDATION");
+        var rejectedResult = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, rejectedWithPlace,
+                evidence(List.of("place-1"), List.of()), null);
+        assertRejected(binding(filters(null, List.of())), rejectedResult);
+    }
+
+    @Test
+    void zeroCandidateResponseWithoutProposalOrEvidenceIsEmptyNoResults() {
+        var zero = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, null, null, "NO_CANDIDATES");
+        var plan = mapper.map(binding(filters(null, List.of())), zero, candidates);
+        assertThat(plan.orderedRefs()).isEmpty();
+        assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
+        assertThat(plan.resultReason()).isEqualTo("NO_CANDIDATES");
+    }
+
+    @Test
+    void noRelevantResponseWithoutProposalOrEvidenceIsEmptyNoResults() {
+        var noRelevant = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, null, null,
+                "NO_RELEVANT_CANDIDATES");
+        var plan = mapper.map(binding(filters(null, List.of())), noRelevant, candidates);
+        assertThat(plan.outcome()).isEqualTo("NO_RESULTS");
+        assertThat(plan.resultReason()).isEqualTo("NO_RELEVANT_CANDIDATES");
+    }
+
+    @Test
+    void nullProposalAndEvidenceWithoutZeroCandidateReasonStaysInvalid() {
+        var missing = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions, null, null, null);
+        assertRejected(binding(filters(null, List.of())), missing);
+    }
+
+    @Test
+    void emptyResultKeepsAiResultReasonAndProposalKeepsNone() {
+        var noCandidates = new ExecutionResult("ai-execute-result.v1", runId, PLAN_HASH, versions,
+                proposal(List.of(), "NOT_RUN", List.of()), evidence(List.of(), List.of()), "NO_CANDIDATES");
+        var empty = mapper.map(binding(filters(null, List.of())), noCandidates, candidates);
+        assertThat(empty.outcome()).isEqualTo("NO_RESULTS");
+        assertThat(empty.resultReason()).isEqualTo("NO_CANDIDATES");
     }
 
     @Test

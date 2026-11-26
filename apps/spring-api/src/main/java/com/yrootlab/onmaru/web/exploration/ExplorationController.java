@@ -199,7 +199,29 @@ public final class ExplorationController {
             @CookieValue(name = ExplorationActorResolver.GUEST_COOKIE, required = false) String guestToken) {
         var actor = actorResolver.resolve(sessionToken, guestToken).actor();
         var page = explorationService.listTurns(actor, explorationId, limit, cursor);
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(page);
+        var hydrated = page.items().stream().map(this::hydrateTurnBoard).toList();
+        var body = new com.yrootlab.onmaru.journey.exploration.ExplorationTurnPage(
+                page.schemaVersion(), hydrated, page.nextCursor(), page.hasMore());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
+    }
+
+    /** Fills the board of a completed turn from its stored refs; the stored summary and outcome are kept. */
+    private com.yrootlab.onmaru.journey.exploration.ExplorationTurn hydrateTurnBoard(
+            com.yrootlab.onmaru.journey.exploration.ExplorationTurn turn) {
+        var response = turn.response();
+        if (response == null || response.board() != null || turn.orderedRefs().isEmpty()) {
+            return turn;
+        }
+        var board = snapshotHydrator.boardForTurnRefs(turn.orderedRefs(), turn.placeReasons());
+        if (board == null) {
+            return turn;
+        }
+        var filled = new com.yrootlab.onmaru.journey.exploration.TurnResponse(
+                response.status(), response.outcome(), response.summary(), board,
+                response.proposal(), response.clarification(), response.error());
+        return new com.yrootlab.onmaru.journey.exploration.ExplorationTurn(
+                turn.turnId(), turn.query(), turn.createdAt(), turn.runId(), filled,
+                turn.orderedRefs(), turn.placeReasons(), turn.degradedReason());
     }
     @Operation(
             summary = "AI 여정 탐색 상태 및 스냅샷 조회",

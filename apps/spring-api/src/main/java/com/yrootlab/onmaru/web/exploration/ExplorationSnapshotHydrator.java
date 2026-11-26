@@ -18,8 +18,6 @@ import java.util.Optional;
 @Component
 final class ExplorationSnapshotHydrator {
 
-    private static final String JEONJU_REGION = "kr-45-jeonju";
-    private static final String JEONJU_PLACE = "p-jeonju-hanok-village";
     private static final int MAX_BOARD_PLACES = 5;
 
     private final PlaceDetailQueryService placeDetailQueryService;
@@ -44,20 +42,9 @@ final class ExplorationSnapshotHydrator {
         if (persisted != null) {
             return hydratePersistedBoard(snapshot, persisted);
         }
-        var placeId = candidatePlaceId(snapshot.regionCode());
-        if (placeId == null) {
-            return base;
-        }
-        Optional<CanonicalPlaceDetail> place;
-        try {
-            place = placeDetailQueryService.findCanonicalPlace(placeId, Optional.empty());
-        } catch (PlaceDetailUnavailableException exception) {
-            return new HydratedSnapshot(null, List.of(placeRef(placeId)), publicExecution(snapshot));
-        }
-        if (place.isEmpty()) {
-            return new HydratedSnapshot(null, List.of(placeRef(placeId)), publicExecution(snapshot));
-        }
-        return new HydratedSnapshot(legacySinglePlaceBoard(place.get()), List.of(), publicExecution(snapshot));
+        // No committed board was persisted: nothing to hydrate. Region-specific fallbacks are not
+        // allowed here; the board comes only from the AI result's orderedRefs.
+        return base;
     }
 
     private HydratedSnapshot hydratePersistedBoard(ExplorationSnapshot snapshot, PersistedExplorationBoard persisted) {
@@ -98,13 +85,6 @@ final class ExplorationSnapshotHydrator {
                 && run.status() == ExplorationRunStatus.COMPLETED
                 && (run.outcome() == ExplorationRunOutcome.INITIAL_BOARD
                 || run.outcome() == ExplorationRunOutcome.PROPOSAL);
-    }
-
-    private String candidatePlaceId(String regionCode) {
-        if (JEONJU_REGION.equals(regionCode)) {
-            return JEONJU_PLACE;
-        }
-        return null;
     }
 
     private Object persistedBoard(
@@ -186,44 +166,6 @@ final class ExplorationSnapshotHydrator {
                 "evidence", List.copyOf(evidence));
     }
 
-    private Object legacySinglePlaceBoard(CanonicalPlaceDetail place) {
-        var regionRef = regionRef(place.region().regionCode());
-        var placeRef = placeRef(place.placeId());
-        return orderedMap(
-                "title", place.region().name().startsWith("전북") ? "전주 한옥 산책" : place.name() + " 산책",
-                "querySummary", place.region().name() + "에서 한옥 문화를 천천히 둘러보는 여정",
-                "regionRef", regionRef,
-                "candidates", List.of(orderedMap(
-                        "placeRef", placeRef,
-                        "reason", "현재 공개 catalog에서 복구 가능한 한옥 장소입니다.",
-                        "evidenceRefs", List.of("evidence-catalog-current-" + place.placeId()),
-                        "relationRefs", List.of("relation-region-" + place.placeId()),
-                        "constraintChecks", List.of(orderedMap(
-                                "key", "REGION",
-                                "status", "SATISFIED",
-                                "label", place.region().name(),
-                                "evidenceRefs", List.of("evidence-catalog-current-" + place.placeId()))))),
-                "legs", List.of(),
-                "resources", List.of(placeResource(place), orderedMap(
-                        "ref", regionRef,
-                        "title", place.region().name())),
-                "relations", List.of(orderedMap(
-                        "id", "relation-region-" + place.placeId(),
-                        "sourceRef", placeRef,
-                        "targetRef", regionRef,
-                        "type", "LOCATED_IN",
-                        "label", place.region().name(),
-                        "evidenceRefs", List.of("evidence-catalog-current-" + place.placeId()))),
-                "evidence", List.of(orderedMap(
-                        "id", "evidence-catalog-current-" + place.placeId(),
-                        "kind", "PROVIDER_FIELD",
-                        "sourceName", "OnMaru Catalog",
-                        "sourceUrl", null,
-                        "sourceRevision", "catalog-current",
-                        "summary", "현재 공개 catalog snapshot에서 복구한 장소와 지역 연결",
-                        "asOf", null)));
-    }
-
     private Object placeResource(CanonicalPlaceDetail place) {
         var image = place.images().stream()
                 .findFirst()
@@ -244,6 +186,7 @@ final class ExplorationSnapshotHydrator {
                 "category", place.category(),
                 "regionRef", regionRef(place.region().regionCode()),
                 "summary", place.description(),
+                "address", place.address(),
                 "image", image,
                 "location", location,
                 "sourceRefs", List.of("catalog-current"),
@@ -288,6 +231,59 @@ final class ExplorationSnapshotHydrator {
 
     private static Map<String, Object> regionRef(String regionCode) {
         return Map.of("type", "REGION", "id", regionCode);
+    }
+
+    /**
+     * Builds a board for one completed turn from the refs stored with that turn, so older turns keep their
+     * cards after later runs overwrite the exploration board. Returns null when no ref resolves to a public place.
+     */
+    Map<String, Object> boardForTurnRefs(List<String> refs, Map<String, String> placeReasons) {
+        if (refs == null || refs.isEmpty()) {
+            return null;
+        }
+        var places = new ArrayList<CanonicalPlaceDetail>();
+        for (String placeId : refs.stream().distinct().limit(MAX_BOARD_PLACES).toList()) {
+            try {
+                placeDetailQueryService.findCanonicalPlace(placeId, Optional.empty()).ifPresent(places::add);
+            } catch (PlaceDetailUnavailableException exception) {
+                // An unavailable place is skipped; the rest of the turn's cards still render.
+            }
+        }
+        if (places.isEmpty()) {
+            return null;
+        }
+        var reasons = placeReasons == null ? Map.<String, String>of() : placeReasons;
+        var candidates = new ArrayList<Object>();
+        for (CanonicalPlaceDetail place : places) {
+            candidates.add(orderedMap(
+                    "placeRef", placeRef(place.placeId()),
+                    "reason", reasons.get(place.placeId()),
+                    "evidenceRefs", List.of(),
+                    "relationRefs", List.of(),
+                    "constraintChecks", List.of()));
+        }
+        var resources = new ArrayList<Object>();
+        var regionCodes = new java.util.LinkedHashSet<String>();
+        for (CanonicalPlaceDetail place : places) {
+            resources.add(placeResource(place));
+            regionCodes.add(place.region().regionCode());
+        }
+        for (CanonicalPlaceDetail place : places) {
+            if (regionCodes.remove(place.region().regionCode())) {
+                resources.add(orderedMap(
+                        "ref", regionRef(place.region().regionCode()),
+                        "title", place.region().name()));
+            }
+        }
+        return orderedMap(
+                "title", "추천 장소",
+                "querySummary", "",
+                "regionRef", regionRef(places.get(0).region().regionCode()),
+                "candidates", candidates,
+                "legs", List.of(),
+                "resources", resources,
+                "relations", List.of(),
+                "evidence", List.of());
     }
 
     private static Map<String, Object> orderedMap(Object... entries) {

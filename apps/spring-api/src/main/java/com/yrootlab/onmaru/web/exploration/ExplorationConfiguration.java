@@ -55,8 +55,10 @@ class ExplorationConfiguration {
     }
 
     @Bean
-    InMemoryJourneyRunEventStream journeyRunEventStream() {
-        return new InMemoryJourneyRunEventStream();
+    InMemoryJourneyRunEventStream journeyRunEventStream(
+            @org.springframework.beans.factory.annotation.Value("${onmaru.journey.run-items.enabled:false}")
+            boolean runItemsEnabled) {
+        return new InMemoryJourneyRunEventStream(runItemsEnabled);
     }
 
     @Bean

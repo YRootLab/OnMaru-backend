@@ -36,6 +36,7 @@ public final class JdbcJourneyResultStore implements JourneyResultStore {
             try {
                 var updated = updateBoard(connection, command);
                 if (updated) {
+                    updateTurnResponse(connection, command);
                     connection.commit();
                     return PersistJourneyResultResult.PERSISTED;
                 }
@@ -79,6 +80,40 @@ public final class JdbcJourneyResultStore implements JourneyResultStore {
             statement.setTimestamp(5, Timestamp.from(clock.instant()));
             return statement.executeUpdate() == 1;
         }
+    }
+
+    /**
+     * Stores the completed turn's public response next to the turn row.
+     * Without this, the transcript falls back to an empty TurnResponse and
+     * neither the summary nor the outcome reaches the client.
+     */
+    private void updateTurnResponse(java.sql.Connection connection, PersistJourneyResultCommand command)
+            throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                     UPDATE onmaru.discovery_turns
+                     SET turn_response = ?::jsonb,
+                         ordered_refs = ?::jsonb,
+                         place_reasons = ?::jsonb,
+                         result_reason = ?
+                     WHERE run_id = ?
+                     """)) {
+            statement.setString(1, turnResponseJson(command));
+            statement.setString(2, refsJson(command));
+            statement.setString(3, placeReasonsJson(command.placeReasons()));
+            statement.setString(4, command.resultReason());
+            statement.setObject(5, command.runId());
+            statement.executeUpdate();
+        }
+    }
+
+    private String turnResponseJson(PersistJourneyResultCommand command) {
+        var summary = command.summaryText() == null || command.summaryText().isBlank()
+                ? "null"
+                : "\"" + jsonEscape(command.summaryText()) + "\"";
+        return "{\"status\":\"COMPLETED\""
+                + ",\"outcome\":\"" + jsonEscape(command.outcome()) + "\""
+                + ",\"summary\":" + summary
+                + ",\"board\":null,\"proposal\":null,\"clarification\":null,\"error\":null}";
     }
 
     private PersistJourneyResultResult classifyDiscard(
