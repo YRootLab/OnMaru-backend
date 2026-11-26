@@ -20,8 +20,8 @@ final class InMemoryJourneyRunEventStream extends JourneyRunEventBuffer implemen
         return thread;
     });
 
-    InMemoryJourneyRunEventStream() {
-        super(64, Duration.ofSeconds(15));
+    InMemoryJourneyRunEventStream(boolean runItemsEnabled) {
+        super(64, Duration.ofSeconds(15), runItemsEnabled);
     }
 
     AutoCloseable scheduleHeartbeat(UUID runId, Consumer<JourneyRunEvent> consumer) {

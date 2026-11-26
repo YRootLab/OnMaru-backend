@@ -68,7 +68,13 @@ public final class AiJourneyContracts {
     }
     /** Publication is delegated to the final validator/mapper (#811); these artifacts are untrusted. */
     public record ExecutionResult(String schemaVersion, UUID runId, String planHash, Versions versions,
-                                   Map<String, Object> proposal, Map<String, Object> evidence) { }
+                                   Map<String, Object> proposal, Map<String, Object> evidence,
+                                   String resultReason) {
+        public ExecutionResult(String schemaVersion, UUID runId, String planHash, Versions versions,
+                               Map<String, Object> proposal, Map<String, Object> evidence) {
+            this(schemaVersion, runId, planHash, versions, proposal, evidence, null);
+        }
+    }
     public record CallContext(String requestId, UUID runId, String traceId, Instant deadlineAt) { }
     private static <T> List<T> nullableCopy(List<T> values) { return values == null ? null : List.copyOf(values); }
 }

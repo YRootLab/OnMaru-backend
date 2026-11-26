@@ -19,9 +19,20 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
     private final Map<UUID, AtomicLong> sequencesByRun = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> narrationCharactersByRun = new ConcurrentHashMap<>();
     private final Set<UUID> terminalRuns = ConcurrentHashMap.newKeySet();
+    private final boolean runItemsEnabled;
+    private final Map<UUID, OpenItem> openItemByRun = new ConcurrentHashMap<>();
+    private final Set<UUID> runsWithStepProgress = ConcurrentHashMap.newKeySet();
     private final Map<UUID, List<Consumer<JourneyRunEvent>>> subscribersByRun = new ConcurrentHashMap<>();
 
     public JourneyRunEventBuffer(int capacity, Duration heartbeatInterval) {
+        this(capacity, heartbeatInterval, false);
+    }
+
+    /**
+     * @param runItemsEnabled when true, stage transitions also emit {@code run.item.*} frames that
+     *                        describe the work items of a run. Disabled by default until clients support them.
+     */
+    public JourneyRunEventBuffer(int capacity, Duration heartbeatInterval, boolean runItemsEnabled) {
         if (capacity < 1) {
             throw new IllegalArgumentException("capacity must be positive");
         }
@@ -30,17 +41,22 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
         }
         this.capacity = capacity;
         this.heartbeatInterval = heartbeatInterval;
+        this.runItemsEnabled = runItemsEnabled;
     }
 
     @Override
     public synchronized JourneyRunEvent stage(UUID runId, String status, String stage) {
         var sequence = nextSequence(runId);
-        return append(runId, new JourneyRunEvent(
+        var event = append(runId, new JourneyRunEvent(
                 sequence,
                 JourneyRunEventType.STAGE,
                 stageData(runId, sequence, status, stage),
                 heartbeatInterval,
                 false));
+        if (runItemsEnabled && !runsWithStepProgress.contains(runId)) {
+            transitionItem(runId, stage);
+        }
+        return event;
     }
 
     @Override
@@ -82,6 +98,9 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
         if (existing != null && existing.data().equals(terminalData(
                 runId, existing.id(), status, outcome, normalizedErrorCode, normalizedRetryAfterMs))) {
             return existing;
+        }
+        if (runItemsEnabled) {
+            closeOpenItem(runId, COMPLETED_STATUS.equals(status) ? "DONE" : "SKIPPED", null);
         }
         var sequence = nextSequence(runId);
         terminalRuns.add(runId);
@@ -305,5 +324,95 @@ public class JourneyRunEventBuffer implements JourneyRunEventSink {
             }
         }
         return escaped.toString();
+    }
+
+    private static final Map<String, String> STEP_BY_STAGE = Map.of(
+            "INTERPRETING", "UNDERSTAND",
+            "RETRIEVING", "SEARCH",
+            "SELECTING_EVIDENCE", "SELECT",
+            "GENERATING", "WRITE",
+            "VALIDATING", "CHECK");
+
+    private static final String COMPLETED_STATUS = "COMPLETED";
+
+    private record OpenItem(String itemId, String stepKey) {}
+
+    @Override
+    public synchronized JourneyRunEvent stepProgress(UUID runId, String stepKey, String status, Integer count) {
+        if (!runItemsEnabled || runId == null || !STEP_KEYS.contains(stepKey) || !STEP_STATUSES.contains(status)) {
+            return null;
+        }
+        runsWithStepProgress.add(runId);
+        var open = openItemByRun.get(runId);
+        if ("STARTED".equals(status)) {
+            if (open != null && open.stepKey().equals(stepKey)) {
+                return null;
+            }
+            closeOpenItem(runId, "DONE", null);
+            return openItem(runId, stepKey);
+        }
+        // DONE or SKIPPED: make sure the item exists, then close it with the reported result.
+        if (open == null || !open.stepKey().equals(stepKey)) {
+            closeOpenItem(runId, "DONE", null);
+            openItem(runId, stepKey);
+        }
+        var detail = "DONE".equals(status) && count != null && count >= 0 && COUNTED_STEPS.contains(stepKey)
+                ? "{\"count\":" + count + "}"
+                : null;
+        return closeOpenItem(runId, status, detail);
+    }
+
+    private JourneyRunEvent openItem(UUID runId, String stepKey) {
+        var sequence = nextSequence(runId);
+        var itemId = stepKey + "-" + sequence;
+        openItemByRun.put(runId, new OpenItem(itemId, stepKey));
+        return append(runId, new JourneyRunEvent(
+                sequence,
+                JourneyRunEventType.ITEM_STARTED,
+                itemStartedData(runId, sequence, itemId, stepKey),
+                heartbeatInterval,
+                false));
+    }
+
+    private static final Set<String> STEP_KEYS = Set.of("UNDERSTAND", "SEARCH", "SELECT", "WRITE", "CHECK");
+    private static final Set<String> STEP_STATUSES = Set.of("STARTED", "DONE", "SKIPPED");
+    private static final Set<String> COUNTED_STEPS = Set.of("SEARCH", "SELECT");
+
+    /** Closes the item of the previous stage and opens the item of the new stage, if it has one. */
+    private void transitionItem(UUID runId, String stage) {
+        var next = stage == null ? null : STEP_BY_STAGE.get(stage);
+        var open = openItemByRun.get(runId);
+        if (open != null && open.stepKey().equals(next)) {
+            return;
+        }
+        closeOpenItem(runId, "DONE", null);
+        if (next != null) {
+            openItem(runId, next);
+        }
+    }
+
+    private JourneyRunEvent closeOpenItem(UUID runId, String status, String detail) {
+        var open = openItemByRun.remove(runId);
+        if (open == null) {
+            return null;
+        }
+        var sequence = nextSequence(runId);
+        return append(runId, new JourneyRunEvent(
+                sequence,
+                JourneyRunEventType.ITEM_COMPLETED,
+                itemCompletedData(runId, sequence, open.itemId(), status, detail),
+                heartbeatInterval,
+                false));
+    }
+
+    private String itemStartedData(UUID runId, long sequence, String itemId, String stepKey) {
+        return "{\"schemaVersion\":\"1.4\",\"runId\":\"" + runId + "\",\"sequence\":" + sequence
+                + ",\"itemId\":\"" + escape(itemId) + "\",\"stepKey\":\"" + escape(stepKey) + "\"}";
+    }
+
+    private String itemCompletedData(UUID runId, long sequence, String itemId, String status, String detail) {
+        return "{\"schemaVersion\":\"1.4\",\"runId\":\"" + runId + "\",\"sequence\":" + sequence
+                + ",\"itemId\":\"" + escape(itemId) + "\",\"status\":\"" + escape(status)
+                + "\",\"detail\":" + (detail == null ? "{}" : detail) + "}";
     }
 }

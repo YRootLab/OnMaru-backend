@@ -343,7 +343,7 @@ public final class JdbcExplorationStore implements ExplorationStore {
 
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement("""
-                     SELECT t.client_turn_id, t.query, t.created_at, t.turn_response,
+                     SELECT t.client_turn_id, t.query, t.created_at, t.turn_response, t.ordered_refs::text AS ordered_refs_json, t.place_reasons::text AS place_reasons_json, t.result_reason AS result_reason,
                             r.id AS run_id, r.status AS run_status, r.outcome AS run_outcome,
                             r.error_code AS run_error_code, r.degraded_reason AS run_degraded_reason
                      FROM onmaru.discovery_turns t
@@ -378,7 +378,10 @@ public final class JdbcExplorationStore implements ExplorationStore {
 
                     TurnResponse turnResponse = parseTurnResponse(
                             responseJson, runId, runStatus, runOutcome, runErrorCode, runDegradedReason);
-                    items.add(new ExplorationTurn(turnId, query, createdAt, runId, turnResponse));
+                    items.add(new ExplorationTurn(turnId, query, createdAt, runId, turnResponse,
+                            parseOrderedRefs(rs.getString("ordered_refs_json")),
+                            parsePlaceReasons(rs.getString("place_reasons_json")),
+                            rs.getString("result_reason")));
                 }
             }
 
@@ -844,6 +847,43 @@ public final class JdbcExplorationStore implements ExplorationStore {
     }
 
     @SuppressWarnings("unchecked")
+    private Map<String, String> parsePlaceReasons(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            var reasons = new java.util.LinkedHashMap<String, String>();
+            var root = objectMapper.readTree(json);
+            if (root.isObject()) {
+                for (var entry : root.properties()) {
+                    if (entry.getValue().isTextual() && !entry.getValue().asText().isBlank()) {
+                        reasons.put(entry.getKey(), entry.getValue().asText());
+                    }
+                }
+            }
+            return Map.copyOf(reasons);
+        } catch (JsonProcessingException ignored) {
+            return Map.of();
+        }
+    }
+
+    private List<String> parseOrderedRefs(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            var refs = new ArrayList<String>();
+            for (JsonNode item : objectMapper.readTree(json)) {
+                if (item.isTextual() && !item.asText().isBlank()) {
+                    refs.add(item.asText());
+                }
+            }
+            return List.copyOf(refs);
+        } catch (JsonProcessingException ignored) {
+            return List.of();
+        }
+    }
+
     private TurnResponse parseTurnResponse(
             String json,
             UUID runId,

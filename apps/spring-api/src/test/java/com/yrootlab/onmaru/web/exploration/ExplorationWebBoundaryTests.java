@@ -583,6 +583,7 @@ class ExplorationWebBoundaryTests {
         var runId = UUID.fromString(body.path("runId").asText());
         explorationService.claimRun(explorationId, runId, "INTERPRETING");
         explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
+        persistBoard(explorationId, List.of("p-jeonju-hanok-village"));
 
         mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
                         .cookie(memberCookie(ownerToken)))
@@ -606,6 +607,7 @@ class ExplorationWebBoundaryTests {
         var runId = UUID.fromString(body.path("runId").asText());
         explorationService.claimRun(explorationId, runId, "INTERPRETING");
         explorationService.completeRun(explorationId, runId, ExplorationRunOutcome.INITIAL_BOARD);
+        persistBoard(explorationId, List.of("p-jeonju-hanok-village"));
 
         mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
                         .cookie(memberCookie(ownerToken)))
@@ -614,6 +616,21 @@ class ExplorationWebBoundaryTests {
                 .andExpect(jsonPath("$.board").isEmpty())
                 .andExpect(jsonPath("$.unavailableRefs[0].type").value("PLACE"))
                 .andExpect(jsonPath("$.unavailableRefs[0].id").value("p-jeonju-hanok-village"));
+    }
+
+    private void persistBoard(UUID explorationId, List<String> orderedRefs) {
+        var state = explorationStore.find(explorationId).orElseThrow();
+        explorationStore.update(new com.yrootlab.onmaru.journey.exploration.ExplorationState(
+                state.id(),
+                state.owner(),
+                state.stateVersion(),
+                state.regionCode(),
+                state.latestRun(),
+                state.updatedAt(),
+                new com.yrootlab.onmaru.journey.exploration.PersistedExplorationBoard(
+                        "LLM", null, "INITIAL_BOARD", orderedRefs, java.util.Map.of(), "테스트 요약"),
+                state.pinnedRefs(),
+                state.excludedRefs()));
     }
 
     @Test

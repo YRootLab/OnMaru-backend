@@ -140,7 +140,8 @@ public final class JourneyWorkerService {
                         plan.orderedRefs(),
                         plan.outcome(),
                         plan.placeReasons(),
-                        plan.summaryText()));
+                        plan.summaryText(),
+                        plan.resultReason()));
                 if (persistResult != PersistJourneyResultResult.PERSISTED) {
                     recordLateDiscard(request, persistResult);
                     return JourneyWorkerOutcome.DISCARDED_LATE_RESULT;

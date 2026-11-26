@@ -220,6 +220,7 @@ public class JourneyContractE2ETests {
         var explorationUuid = UUID.fromString(explorationId);
         explorationService.claimRun(explorationUuid, queuedRunId, "INTERPRETING");
         explorationService.completeRun(explorationUuid, queuedRunId, ExplorationRunOutcome.INITIAL_BOARD);
+        seedPersistedBoard(explorationUuid, List.of(JEONJU_PLACE_ID));
 
         // 4. Fetch exploration snapshot -> contains board with items, summaryRefs, candidate place
         var boardSnapshot = mockMvc.perform(get("/api/v1/explorations/{id}", explorationId)
@@ -516,6 +517,7 @@ public class JourneyContractE2ETests {
 
         // Complete with outcome INITIAL_BOARD
         explorationService.completeRun(expUuid, runUuid, ExplorationRunOutcome.INITIAL_BOARD);
+        seedPersistedBoard(expUuid, List.of(JEONJU_PLACE_ID));
 
         mockMvc.perform(get("/api/v1/explorations/{id}", expUuid)
                         .cookie(memberCookie("other-session")))
@@ -1055,4 +1057,19 @@ public class JourneyContractE2ETests {
             cancellations.clear();
         }
     }
+
+    private void seedPersistedBoard(UUID explorationId, List<String> orderedRefs) {
+        var state = explorationStore.find(explorationId).orElseThrow();
+        explorationStore.update(new ExplorationState(
+                state.id(),
+                state.owner(),
+                state.stateVersion(),
+                state.regionCode(),
+                state.latestRun(),
+                state.updatedAt(),
+                new PersistedExplorationBoard("LLM", null, "INITIAL_BOARD", orderedRefs, java.util.Map.of(), "테스트 요약"),
+                state.pinnedRefs(),
+                state.excludedRefs()));
+    }
+
 }

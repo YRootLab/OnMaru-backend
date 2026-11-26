@@ -11,6 +11,14 @@ public interface JourneyRunEventSink {
         return null;
     }
 
+    /**
+     * AI-reported step transition. {@code status} is STARTED, DONE, or SKIPPED; {@code count} is only
+     * meaningful for SEARCH and SELECT completions. Default is a no-op for sinks without item frames.
+     */
+    default JourneyRunEvent stepProgress(UUID runId, String stepKey, String status, Integer count) {
+        return null;
+    }
+
     JourneyRunEvent terminal(UUID runId, String status, String outcome);
 
     default JourneyRunEvent terminal(UUID runId, String status, String outcome, String errorCode, long retryAfterMs) {
